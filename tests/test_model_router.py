@@ -109,3 +109,138 @@ class TestProviderHealth:
         assert health.is_healthy is False
         assert health.consecutive_failures == 3
         assert health.circuit_open is True
+
+
+# ---------------------------------------------------------------------------
+# ModelRouter tests
+# ---------------------------------------------------------------------------
+
+import asyncio
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from astromech.core.model_router import ModelRouter
+from astromech.providers.base import CompletionResponse as CR
+
+
+def _make_mock_provider(
+    name: str = "mock",
+    cost: float = 0.01,
+    supports_tools: bool = True,
+    supports_vision: bool = False,
+    complete_response: CR | None = None,
+    complete_side_effect=None,
+):
+    """Return an AsyncMock that satisfies ProviderProtocol."""
+    provider = AsyncMock()
+    provider.supports_tools = MagicMock(return_value=supports_tools)
+    provider.supports_vision = MagicMock(return_value=supports_vision)
+    provider.estimated_cost = MagicMock(return_value=cost)
+
+    if complete_response is None:
+        complete_response = CR(
+            content="ok",
+            model="test-model",
+            provider=name,
+            usage={"prompt_tokens": 10, "completion_tokens": 5},
+            latency_ms=0.0,
+            cost=cost,
+        )
+
+    if complete_side_effect is not None:
+        provider.complete.side_effect = complete_side_effect
+    else:
+        provider.complete.return_value = complete_response
+
+    return provider
+
+
+class TestModelRouterRegistersProvider:
+    """register_provider stores the provider and initialises health."""
+
+    def test_router_registers_provider(self):
+        router = ModelRouter({"strategy": "cost_optimized"})
+        provider = _make_mock_provider("alpha")
+        router.register_provider("alpha", provider)
+
+        assert "alpha" in router._providers
+        assert "alpha" in router._health
+        assert router._health["alpha"].is_healthy is True
+        assert router._health["alpha"].circuit_open is False
+
+
+class TestModelRouterRoutesToProvider:
+    """route() calls the provider and returns a response with latency."""
+
+    @pytest.mark.asyncio
+    async def test_router_routes_to_provider(self):
+        router = ModelRouter({"strategy": "cost_optimized"})
+        provider = _make_mock_provider("primary")
+        router.register_provider("primary", provider)
+
+        response = await router.route([{"role": "user", "content": "hi"}])
+
+        provider.complete.assert_awaited_once()
+        assert response.content == "ok"
+        assert response.latency_ms > 0
+
+
+class TestModelRouterFallbackOnFailure:
+    """route() falls back to the next provider when the first fails."""
+
+    @pytest.mark.asyncio
+    async def test_router_fallback_on_failure(self):
+        router = ModelRouter({"strategy": "cost_optimized"})
+
+        failing = _make_mock_provider("failing", cost=0.001)
+        failing.complete.side_effect = RuntimeError("provider down")
+
+        backup = _make_mock_provider("backup", cost=0.01)
+        router.register_provider("failing", failing)
+        router.register_provider("backup", backup)
+
+        response = await router.route([{"role": "user", "content": "hi"}])
+
+        assert response.provider == "backup"
+        failing.complete.assert_awaited_once()
+        backup.complete.assert_awaited_once()
+
+
+class TestModelRouterCircuitBreaker:
+    """Three consecutive failures open the circuit breaker."""
+
+    @pytest.mark.asyncio
+    async def test_router_circuit_breaker(self):
+        router = ModelRouter({"strategy": "cost_optimized"})
+
+        failing = _make_mock_provider("flaky", cost=0.001)
+        failing.complete.side_effect = RuntimeError("boom")
+
+        backup = _make_mock_provider("backup", cost=0.01)
+
+        router.register_provider("flaky", failing)
+        router.register_provider("backup", backup)
+
+        # Drive three failures on 'flaky' (backup succeeds each time).
+        for _ in range(3):
+            resp = await router.route([{"role": "user", "content": "hi"}])
+            assert resp.provider == "backup"
+
+        assert router._health["flaky"].circuit_open is True
+        assert router._health["flaky"].consecutive_failures >= 3
+
+
+class TestModelRouterAllExhaustedRaises:
+    """RuntimeError when every provider fails."""
+
+    @pytest.mark.asyncio
+    async def test_router_all_exhausted_raises(self):
+        router = ModelRouter({"strategy": "cost_optimized"})
+
+        bad = _make_mock_provider("bad")
+        bad.complete.side_effect = RuntimeError("nope")
+        router.register_provider("bad", bad)
+
+        with pytest.raises(RuntimeError, match="All providers exhausted"):
+            await router.route([{"role": "user", "content": "hi"}])
