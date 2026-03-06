@@ -1,0 +1,12 @@
+apiVersion: astromech/v1
+kind: RuntimeConfig
+metadata:
+  name: default
+spec:
+  api:
+    host: "0.0.0.0"
+    port: 8000
+  defaults:
+    orchestration:
+      pattern: react
+      max_iterations: 10
