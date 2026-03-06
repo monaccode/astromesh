@@ -66,6 +66,21 @@ class ToolRegistry:
                 "name": name, "description": tool.description, "parameters": tool.parameters}})
         return schemas
 
+    async def register_mcp_server(self, server_name: str, client) -> int:
+        """Register all tools from an MCP server."""
+        self._mcp_clients[server_name] = client
+        tools_registered = 0
+        for tool_info in client.get_tools():
+            self._tools[tool_info.name] = ToolDefinition(
+                name=tool_info.name,
+                description=tool_info.description,
+                tool_type=ToolType.MCP_HTTP,
+                parameters=tool_info.parameters,
+                mcp_config={"server": server_name, "tool_name": tool_info.name},
+            )
+            tools_registered += 1
+        return tools_registered
+
     def _check_rate_limit(self, tool_name, rate_limit):
         now = time.time()
         window = rate_limit.get("window_seconds", 60)
