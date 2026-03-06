@@ -91,3 +91,61 @@ async def test_react_max_iterations():
     assert result["answer"] == "Max iterations reached"
     assert len(result["steps"]) == 3
     assert all(step.action == "search" for step in result["steps"])
+
+
+@pytest.mark.asyncio
+async def test_plan_execute_pattern():
+    from astromech.orchestration.patterns import PlanAndExecutePattern
+    plan_response = make_response('{"steps": [{"step": 1, "description": "Search", "tool": null, "depends_on": []}]}')
+    step_response = make_response("Step 1 result")
+    final_response = make_response("Final synthesized answer")
+    model_fn = AsyncMock(side_effect=[plan_response, step_response, final_response])
+    tool_fn = AsyncMock()
+    pattern = PlanAndExecutePattern()
+    result = await pattern.execute("Do research", {}, model_fn, tool_fn, [])
+    assert result["answer"] == "Final synthesized answer"
+
+
+@pytest.mark.asyncio
+async def test_parallel_fan_out():
+    from astromech.orchestration.patterns import ParallelFanOutPattern
+    decompose = make_response('["subtask 1", "subtask 2"]')
+    sub1 = make_response("result 1")
+    sub2 = make_response("result 2")
+    final = make_response("Aggregated answer")
+    model_fn = AsyncMock(side_effect=[decompose, sub1, sub2, final])
+    pattern = ParallelFanOutPattern()
+    result = await pattern.execute("Do things", {}, model_fn, AsyncMock(), [])
+    assert result["answer"] == "Aggregated answer"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_pattern():
+    from astromech.orchestration.patterns import PipelinePattern
+    r1 = make_response("analyzed")
+    r2 = make_response("processed")
+    r3 = make_response("synthesized")
+    model_fn = AsyncMock(side_effect=[r1, r2, r3])
+    pattern = PipelinePattern()
+    result = await pattern.execute("input", {}, model_fn, AsyncMock(), [])
+    assert result["answer"] == "synthesized"
+
+
+@pytest.mark.asyncio
+async def test_supervisor_pattern():
+    from astromech.orchestration.supervisor import SupervisorPattern
+    resp = make_response('{"final_answer": "done"}')
+    model_fn = AsyncMock(return_value=resp)
+    pattern = SupervisorPattern()
+    result = await pattern.execute("task", {}, model_fn, AsyncMock(), [])
+    assert result["answer"] == "done"
+
+
+@pytest.mark.asyncio
+async def test_swarm_pattern():
+    from astromech.orchestration.swarm import SwarmPattern
+    resp = make_response("The answer is 42")
+    model_fn = AsyncMock(return_value=resp)
+    pattern = SwarmPattern()
+    result = await pattern.execute("question", {}, model_fn, AsyncMock(), [])
+    assert result["answer"] == "The answer is 42"

@@ -4,7 +4,9 @@ from astromech.core.memory import MemoryManager
 from astromech.core.model_router import ModelRouter
 from astromech.core.prompt_engine import PromptEngine
 from astromech.core.tools import ToolRegistry
-from astromech.orchestration.patterns import ReActPattern
+from astromech.orchestration.patterns import ReActPattern, PlanAndExecutePattern, ParallelFanOutPattern, PipelinePattern
+from astromech.orchestration.supervisor import SupervisorPattern
+from astromech.orchestration.swarm import SwarmPattern
 
 class AgentRuntime:
     def __init__(self, config_dir="./config"):
@@ -27,7 +29,17 @@ class AgentRuntime:
         router = ModelRouter(spec.get("model", {}).get("routing", {"strategy": "cost_optimized"}))
         memory = MemoryManager(agent_id=metadata["name"], config=spec.get("memory", {}))
         tools = ToolRegistry()
-        pattern = ReActPattern()  # default, will expand later
+        pattern_map = {
+            "react": ReActPattern,
+            "plan_and_execute": PlanAndExecutePattern,
+            "parallel_fan_out": ParallelFanOutPattern,
+            "pipeline": PipelinePattern,
+            "supervisor": SupervisorPattern,
+            "swarm": SwarmPattern,
+        }
+        pattern_name = spec.get("orchestration", {}).get("pattern", "react")
+        pattern_cls = pattern_map.get(pattern_name, ReActPattern)
+        pattern = pattern_cls()
         prompts = spec.get("prompts", {})
         for name, tmpl in prompts.get("templates", {}).items():
             self._prompt_engine.register_template(name, tmpl)
