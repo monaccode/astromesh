@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-03-06
+
 ### Added
 
 - Integration tests for full agent run with tools
@@ -24,3 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phase 0 — Model Router, 6 providers, FastAPI skeleton
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
+
+[Unreleased]: https://github.com/monaccode/astromech-platform/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/monaccode/astromech-platform/releases/tag/v0.1.0
