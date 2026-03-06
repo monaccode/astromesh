@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-06
+
+### Added
+
+- WhatsApp channel integration via Meta Business Cloud API
+- WhatsApp webhook handler (GET verification + POST incoming messages)
+- WhatsAppClient service with signature validation and message sending
+- Channel configuration support (`config/channels.yaml`)
+- Sample WhatsApp agent (`whatsapp-assistant.agent.yaml`) optimized for conversational messaging
+- WhatsApp integration guide (`docs/whatsapp-integration.md`)
+- Integration tests for WhatsApp webhook (20 tests)
+- Design document for WhatsApp channel architecture
+
+### Changed
+
+- Updated architecture docs with Channel Adapters layer
+- Updated configuration guide with channel configuration section
+- Updated README with WhatsApp integration feature
+
 ## [0.1.0] - 2026-03-06
 
 ### Added
@@ -27,5 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromech-platform/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromech-platform/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/monaccode/astromech-platform/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/monaccode/astromech-platform/releases/tag/v0.1.0
