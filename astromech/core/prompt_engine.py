@@ -20,5 +20,6 @@ class PromptEngine:
 
     def render_template(self, name, variables):
         template_str = self._templates.get(name)
-        if not template_str: return ""
+        if not template_str:
+            return ""
         return self.render(template_str, variables)

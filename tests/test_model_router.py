@@ -1,8 +1,14 @@
 """Tests for provider base types used by the model router."""
 
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from astromech.core.model_router import ModelRouter
 from astromech.providers.base import (
     CompletionChunk,
     CompletionResponse,
+    CompletionResponse as CR,
     ProviderHealth,
     RoutingStrategy,
 )
@@ -114,14 +120,6 @@ class TestProviderHealth:
 # ---------------------------------------------------------------------------
 # ModelRouter tests
 # ---------------------------------------------------------------------------
-
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
-
-from astromech.core.model_router import ModelRouter
-from astromech.providers.base import CompletionResponse as CR
 
 
 def _make_mock_provider(
