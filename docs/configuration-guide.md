@@ -367,6 +367,43 @@ spec:
 
 ---
 
+## Channel Configuration
+
+**File location:** `config/channels.yaml`
+
+Defines external messaging platform integrations. Each channel connects incoming messages to an Astromech agent.
+
+```yaml
+channels:
+  whatsapp:
+    # WhatsApp Business Cloud API credentials (use environment variables)
+    verify_token: "${WHATSAPP_VERIFY_TOKEN}"
+    access_token: "${WHATSAPP_ACCESS_TOKEN}"
+    phone_number_id: "${WHATSAPP_PHONE_NUMBER_ID}"
+    app_secret: "${WHATSAPP_APP_SECRET}"
+
+    # Which agent handles WhatsApp conversations
+    default_agent: "whatsapp-assistant"
+
+    # Rate limiting for outgoing messages
+    rate_limit:
+      window_seconds: 60
+      max_messages: 30
+```
+
+### WhatsApp Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `WHATSAPP_VERIFY_TOKEN` | Token used to verify the Meta webhook during setup |
+| `WHATSAPP_ACCESS_TOKEN` | Permanent access token from Meta Business settings |
+| `WHATSAPP_PHONE_NUMBER_ID` | Phone number ID from the WhatsApp Business account |
+| `WHATSAPP_APP_SECRET` | App secret used to validate incoming webhook signatures |
+
+The `default_agent` must match the `metadata.name` of an agent defined in `config/agents/`. The `rate_limit` section controls outgoing message throttling to stay within WhatsApp API limits.
+
+---
+
 ## Runtime Configuration
 
 **File location:** `config/runtime.yaml`
@@ -418,9 +455,11 @@ api_key_env: OPENAI_API_KEY    # The agent reads os.environ["OPENAI_API_KEY"]
 config/
 ├── runtime.yaml              # Global runtime settings
 ├── providers.yaml            # Provider registry
+├── channels.yaml             # Channel integrations (WhatsApp, etc.)
 ├── agents/
 │   ├── support-agent.agent.yaml
 │   ├── sales-qualifier.agent.yaml
+│   ├── whatsapp-assistant.agent.yaml
 │   └── code-reviewer.agent.yaml
 └── rag/
     ├── product-knowledge.rag.yaml

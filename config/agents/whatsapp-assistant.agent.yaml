@@ -1,0 +1,61 @@
+apiVersion: astromech/v1
+kind: Agent
+metadata:
+  name: whatsapp-assistant
+  version: "1.0.0"
+  namespace: messaging
+  labels:
+    channel: whatsapp
+    tier: production
+
+spec:
+  identity:
+    display_name: "WhatsApp Assistant"
+    description: "Conversational assistant optimized for WhatsApp messaging"
+
+  model:
+    primary:
+      provider: ollama
+      model: "llama3.1:8b"
+      endpoint: "http://ollama:11434"
+      parameters:
+        temperature: 0.4
+        max_tokens: 1024
+
+  prompts:
+    system: |
+      You are a friendly and helpful WhatsApp assistant. Keep your responses concise
+      and conversational — max 1-2 short paragraphs. Use a warm, approachable tone.
+
+      Guidelines:
+      - Be direct and get to the point quickly
+      - Use simple language; avoid jargon
+      - If you don't know something, say so and offer alternatives
+      - Never share sensitive information in chat
+
+  orchestration:
+    pattern: react
+    max_iterations: 5
+    timeout_seconds: 30
+
+  memory:
+    conversational:
+      backend: sqlite
+      strategy: sliding_window
+      max_turns: 30
+      ttl: 86400
+
+  guardrails:
+    input:
+      - type: pii_detection
+        action: redact
+      - type: max_length
+        max_chars: 2000
+    output:
+      - type: pii_detection
+        action: redact
+
+  permissions:
+    allowed_actions:
+      - search_knowledge_base
+      - get_user_context

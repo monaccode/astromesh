@@ -20,6 +20,23 @@ Astromech is a multi-model, multi-pattern AI agent runtime platform. It follows 
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Channel Adapters
+
+Channel adapters sit above the API layer, connecting external messaging platforms to the Agent Runtime. Each adapter translates platform-specific webhook events into Astromech agent requests and formats agent responses back to the platform's expected format.
+
+```
+External Platforms          Channel Adapters              Agent Runtime
+┌───────────┐          ┌──────────────────────┐      ┌──────────────┐
+│ WhatsApp  │──webhook─►│  WhatsApp Adapter    │─────►│              │
+│ Business  │◄──reply───│  (verify, parse,     │◄─────│  AgentRuntime│
+│ Cloud API │          │   send, signatures)  │      │  .run()      │
+└───────────┘          └──────────────────────┘      └──────────────┘
+```
+
+- **WhatsApp** — First supported channel. Receives messages via Meta webhook, validates signatures with `app_secret`, and sends replies through the WhatsApp Business Cloud API.
+- Channel configuration is defined in `config/channels.yaml` with environment variable references for secrets.
+- Each channel maps to a `default_agent` that handles its conversations.
+
 ## Layer 1: API Layer
 
 **Module:** `astromech/api/`

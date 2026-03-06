@@ -1,0 +1,18 @@
+# Channel integrations configuration
+# Environment variables are referenced with ${VAR_NAME} syntax
+
+channels:
+  whatsapp:
+    # WhatsApp Business Cloud API settings
+    verify_token: "${WHATSAPP_VERIFY_TOKEN}"
+    access_token: "${WHATSAPP_ACCESS_TOKEN}"
+    phone_number_id: "${WHATSAPP_PHONE_NUMBER_ID}"
+    app_secret: "${WHATSAPP_APP_SECRET}"
+
+    # Which agent handles WhatsApp conversations
+    default_agent: "whatsapp-assistant"
+
+    # Rate limiting for outgoing messages
+    rate_limit:
+      window_seconds: 60
+      max_messages: 30

@@ -16,6 +16,7 @@ Astromech lets you define intelligent agents, connect them to multiple LLM provi
 - **MCP Server** — Expose your agents as MCP tools for other systems
 - **Guardrails** — PII redaction, topic filtering, cost limits, content filtering
 - **Observability** — OpenTelemetry tracing, Prometheus metrics, cost tracking with budgets
+- **WhatsApp Integration** — Receive and reply to WhatsApp messages via Meta Business Cloud API with webhook verification, signature validation, and rate limiting
 - **Declarative Config** — Define everything in YAML with `apiVersion: astromech/v1`
 
 ## Quick Start
@@ -264,6 +265,10 @@ All configuration uses YAML with `apiVersion: astromech/v1`. See the [Configurat
 ## Architecture
 
 See [docs/architecture.md](docs/architecture.md) for the full system architecture, including the 4-layer design, component interactions, and data flow diagrams.
+
+## WhatsApp Integration
+
+See [docs/whatsapp-integration.md](docs/whatsapp-integration.md) for the full setup guide covering Meta Business account configuration, environment variables, agent setup, deployment, and troubleshooting.
 
 ## License
 
