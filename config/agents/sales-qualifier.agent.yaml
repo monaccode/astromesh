@@ -1,0 +1,87 @@
+apiVersion: astromech/v1
+kind: Agent
+metadata:
+  name: sales-qualifier
+  version: "1.0.0"
+  namespace: sales
+  labels:
+    team: revenue
+    tier: production
+
+spec:
+  identity:
+    display_name: "Sales Lead Qualifier"
+    description: "Qualifies incoming sales leads using BANT methodology"
+    avatar: "sales-bot"
+
+  model:
+    primary:
+      provider: ollama
+      model: "llama3.1:8b"
+      endpoint: "http://ollama:11434"
+      parameters:
+        temperature: 0.3
+        top_p: 0.9
+        max_tokens: 2048
+
+    fallback:
+      provider: openai_compat
+      model: "gpt-4o-mini"
+      endpoint: "https://api.openai.com/v1"
+      api_key_env: OPENAI_API_KEY
+
+    routing:
+      strategy: cost_optimized
+      health_check_interval: 30
+
+  prompts:
+    system: |
+      You are a sales lead qualification assistant using BANT methodology.
+
+      For each lead, assess:
+      - **Budget**: Can they afford the solution?
+      - **Authority**: Are they the decision maker?
+      - **Need**: Do they have a genuine need?
+      - **Timeline**: When do they plan to purchase?
+
+      Provide a qualification score (1-10) and recommended next action.
+
+  orchestration:
+    pattern: react
+    max_iterations: 5
+    timeout_seconds: 60
+
+  tools:
+    - name: lookup_company
+      type: internal
+      description: "Look up company information"
+      parameters:
+        company_name:
+          type: string
+          description: "Company name to look up"
+
+  memory:
+    conversational:
+      backend: redis
+      strategy: sliding_window
+      max_turns: 20
+      ttl: 3600
+    semantic:
+      backend: chromadb
+      similarity_threshold: 0.75
+      max_results: 5
+
+  guardrails:
+    input:
+      - type: pii_detection
+        action: redact
+      - type: max_length
+        max_chars: 5000
+    output:
+      - type: cost_limit
+        max_tokens_per_turn: 1000
+
+  permissions:
+    allowed_actions:
+      - lookup_company
+      - search_crm

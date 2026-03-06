@@ -1,0 +1,44 @@
+apiVersion: astromech/v1
+kind: ProviderConfig
+metadata:
+  name: default-providers
+
+spec:
+  providers:
+    ollama:
+      type: ollama
+      endpoint: "http://ollama:11434"
+      models:
+        - "llama3.1:8b"
+        - "llama3.1:70b"
+        - "codellama:34b"
+        - "nomic-embed-text"
+      health_check_interval: 30
+
+    vllm:
+      type: vllm
+      endpoint: "http://vllm:8000"
+      models:
+        - "mistralai/Mistral-7B-Instruct-v0.3"
+      health_check_interval: 30
+
+    openai:
+      type: openai_compat
+      endpoint: "https://api.openai.com/v1"
+      api_key_env: OPENAI_API_KEY
+      models:
+        - "gpt-4o"
+        - "gpt-4o-mini"
+
+    hf_tgi:
+      type: hf_tgi
+      endpoint: "http://embeddings:80"
+      models:
+        - "BAAI/bge-small-en-v1.5"
+
+  routing:
+    default_strategy: cost_optimized
+    fallback_enabled: true
+    circuit_breaker:
+      failure_threshold: 3
+      recovery_timeout: 60

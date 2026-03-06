@@ -1,0 +1,126 @@
+version: "3.9"
+
+services:
+  astromech:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ASTROMECH_CONFIG_DIR=/app/config
+    volumes:
+      - ../config:/app/config
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - astromech-net
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - astromech-net
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    ports:
+      - "8001:8000"
+    command: ["--model", "mistralai/Mistral-7B-Instruct-v0.3", "--max-model-len", "4096"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - astromech-net
+
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:latest
+    ports:
+      - "8002:80"
+    command: ["--model-id", "BAAI/bge-small-en-v1.5"]
+    networks:
+      - astromech-net
+
+  reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:latest
+    ports:
+      - "8003:80"
+    command: ["--model-id", "BAAI/bge-reranker-base"]
+    networks:
+      - astromech-net
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: astromech
+      POSTGRES_USER: astromech
+      POSTGRES_PASSWORD: astromech
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - astromech-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - astromech-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./otel-config.yaml:/etc/otel-config.yaml
+    command: ["--config", "/etc/otel-config.yaml"]
+    networks:
+      - astromech-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - astromech-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - astromech-net
+
+volumes:
+  ollama-models:
+  postgres-data:
+  redis-data:
+
+networks:
+  astromech-net:
+    driver: bridge

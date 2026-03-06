@@ -1,0 +1,47 @@
+apiVersion: astromech/v1
+kind: Agent
+metadata:
+  name: support-agent
+  version: "1.0.0"
+  namespace: support
+
+spec:
+  identity:
+    display_name: "Customer Support Agent"
+    description: "Handles customer support inquiries with RAG-powered knowledge base"
+
+  model:
+    primary:
+      provider: ollama
+      model: "llama3.1:8b"
+      endpoint: "http://ollama:11434"
+      parameters:
+        temperature: 0.2
+        max_tokens: 2048
+
+  prompts:
+    system: |
+      You are a helpful customer support agent. Use the knowledge base to answer questions accurately.
+      If you don't know the answer, say so honestly and offer to escalate to a human agent.
+
+      Always be polite, professional, and empathetic.
+
+  orchestration:
+    pattern: plan_and_execute
+    max_iterations: 8
+
+  memory:
+    conversational:
+      backend: sqlite
+      strategy: summary
+      max_turns: 50
+
+  guardrails:
+    input:
+      - type: pii_detection
+        action: redact
+    output:
+      - type: pii_detection
+        action: redact
+      - type: cost_limit
+        max_tokens_per_turn: 500

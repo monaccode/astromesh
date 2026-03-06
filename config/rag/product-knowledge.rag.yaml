@@ -1,0 +1,42 @@
+apiVersion: astromech/v1
+kind: RAGPipeline
+metadata:
+  name: product-knowledge
+  version: "1.0.0"
+
+spec:
+  chunking:
+    strategy: recursive
+    chunk_size: 512
+    overlap: 50
+    separators:
+      - "\n\n"
+      - "\n"
+      - ". "
+      - " "
+
+  embeddings:
+    provider: ollama
+    model: "nomic-embed-text"
+    endpoint: "http://ollama:11434"
+    dimension: 768
+
+  vector_store:
+    backend: pgvector
+    connection:
+      host: postgres
+      port: 5432
+      database: astromech
+      user: astromech
+      password: astromech
+    collection: product_docs
+
+  reranking:
+    enabled: true
+    provider: cross_encoder
+    model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    top_k: 5
+
+  retrieval:
+    top_k: 20
+    similarity_threshold: 0.7
