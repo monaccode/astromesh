@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from astromech.mcp.client import MCPClient, MCPToolInfo
 from astromech.mcp.server import MCPServer
 from astromech.core.tools import ToolRegistry

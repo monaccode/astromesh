@@ -2,7 +2,7 @@ import pytest
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
 
-from astromech.orchestration.patterns import ReActPattern, AgentStep
+from astromech.orchestration.patterns import ReActPattern
 
 
 @dataclass

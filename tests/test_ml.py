@@ -1,5 +1,4 @@
-import pytest
-from astromech.ml.model_registry import ModelRegistry, ModelFormat, ModelStatus, ModelInfo
+from astromech.ml.model_registry import ModelRegistry, ModelFormat, ModelStatus
 from astromech.ml.serving.onnx_runtime import ONNXModelServer, ONNXServingConfig
 from astromech.ml.serving.torch_serve import TorchModelServer, TorchServingConfig
 from astromech.ml.training.classifier import ClassifierTrainer, ClassifierConfig

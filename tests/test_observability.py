@@ -1,5 +1,3 @@
-import pytest
-from datetime import datetime, timedelta
 from astromech.observability.telemetry import TelemetryManager, TelemetryConfig, _NoOpSpan
 from astromech.observability.metrics import MetricsCollector, MetricsConfig
 from astromech.observability.cost_tracker import CostTracker, UsageRecord

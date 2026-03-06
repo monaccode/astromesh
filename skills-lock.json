@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "skills": {
+    "agent-creator": {
+      "source": "erichowens/some_claude_skills",
+      "sourceType": "github",
+      "computedHash": "227c46558fa34f7f9ec105ab1a5d2c122910d34beaf982589282365cc5c5c19d"
+    },
+    "changelog-automation": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "87e8104a7842f5fff034e926ae7ae6fa20708a2735284b6e6906f681bc060f74"
+    },
+    "fastapi-expert": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "computedHash": "79ca799628334a9699838756571109d35e73701ef5a375b7f4e0da1e14b419a8"
+    },
+    "llm-app-patterns": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "computedHash": "a346181a23065116d42410f1b109200ee157677bc8fca15158547cf945b231df"
+    },
+    "prompt-engineer": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "computedHash": "8fdaa14384b7a83271e1a03bf0828627dd78525aa3c65ccb2566519623ad96ae"
+    }
+  }
+}

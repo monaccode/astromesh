@@ -1,4 +1,3 @@
-import pytest
 
 from astromech.rag.chunking.fixed import FixedChunker
 from astromech.rag.chunking.recursive import RecursiveChunker

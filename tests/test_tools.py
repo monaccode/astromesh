@@ -1,5 +1,5 @@
 import pytest
-from astromech.core.tools import ToolRegistry, ToolDefinition, ToolType
+from astromech.core.tools import ToolRegistry, ToolType
 
 
 @pytest.fixture

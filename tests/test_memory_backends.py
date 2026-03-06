@@ -2,9 +2,9 @@ import sys
 import json
 import types
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
-from astromech.core.memory import ConversationTurn, SemanticMemory, EpisodicMemory
+from astromech.core.memory import ConversationTurn
 
 
 # ---------------------------------------------------------------------------
