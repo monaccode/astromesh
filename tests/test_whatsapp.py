@@ -7,7 +7,8 @@ from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, patch
 
 from astromech.api.main import app
-from astromech.channels.whatsapp import WhatsAppClient, IncomingMessage
+from astromech.channels.whatsapp import WhatsAppClient
+from astromech.channels.base import ChannelMessage, MediaAttachment
 
 
 # ---------------------------------------------------------------------------
@@ -66,49 +67,124 @@ class TestWhatsAppClient:
         client = WhatsAppClient()
         assert client.verify_webhook("unsubscribe", "my-token", "challenge123") is None
 
-    def test_validate_signature_valid(self, monkeypatch):
+    def test_verify_request_valid(self, monkeypatch):
         monkeypatch.setenv("WHATSAPP_APP_SECRET", "secret123")
         client = WhatsAppClient()
         payload = b'{"test": true}'
         expected_sig = "sha256=" + hmac.new(
             b"secret123", payload, hashlib.sha256
         ).hexdigest()
-        assert client.validate_signature(payload, expected_sig) is True
+        assert client.verify_request(payload, expected_sig) is True
 
-    def test_validate_signature_invalid(self, monkeypatch):
+    def test_verify_request_invalid(self, monkeypatch):
         monkeypatch.setenv("WHATSAPP_APP_SECRET", "secret123")
         client = WhatsAppClient()
-        assert client.validate_signature(b'{"test": true}', "sha256=bad") is False
+        assert client.verify_request(b'{"test": true}', "sha256=bad") is False
 
-    def test_validate_signature_skips_without_secret(self):
+    def test_verify_request_skips_without_secret(self):
         client = WhatsAppClient()
         client.app_secret = ""
-        assert client.validate_signature(b"anything", "") is True
+        assert client.verify_request(b"anything", "") is True
 
-    def test_parse_webhook_text_message(self):
+    async def test_parse_incoming_text_message(self):
         client = WhatsAppClient()
         payload = _make_webhook_payload(phone="5511888888888", text="Hello")
-        messages = client.parse_webhook(payload)
+        messages = await client.parse_incoming(payload)
         assert len(messages) == 1
-        assert messages[0].phone_number == "5511888888888"
-        assert messages[0].message_text == "Hello"
+        assert messages[0].sender_id == "5511888888888"
+        assert messages[0].text == "Hello"
         assert messages[0].message_id == "wamid.abc123"
+        assert messages[0].channel == "whatsapp"
 
-    def test_parse_webhook_ignores_non_text(self):
+    async def test_parse_incoming_image_message(self):
         client = WhatsAppClient()
         payload = {
             "entry": [{"changes": [{"value": {"messages": [
-                {"from": "123", "id": "m1", "type": "image", "image": {}},
+                {
+                    "from": "123", "id": "m1", "timestamp": "1700000000",
+                    "type": "image",
+                    "image": {"id": "img_123", "mime_type": "image/jpeg"},
+                },
             ]}}]}],
         }
-        assert client.parse_webhook(payload) == []
+        messages = await client.parse_incoming(payload)
+        assert len(messages) == 1
+        assert messages[0].text is None
+        assert len(messages[0].media) == 1
+        assert messages[0].media[0].media_type == "image"
+        assert messages[0].media[0].mime_type == "image/jpeg"
+        assert messages[0].media[0].source_id == "img_123"
 
-    def test_parse_webhook_empty_payload(self):
+    async def test_parse_incoming_image_with_caption(self):
         client = WhatsAppClient()
-        assert client.parse_webhook({}) == []
-        assert client.parse_webhook({"entry": []}) == []
+        payload = {
+            "entry": [{"changes": [{"value": {"messages": [
+                {
+                    "from": "123", "id": "m1", "timestamp": "1700000000",
+                    "type": "image",
+                    "image": {
+                        "id": "img_123", "mime_type": "image/jpeg",
+                        "caption": "What is this?",
+                    },
+                },
+            ]}}]}],
+        }
+        messages = await client.parse_incoming(payload)
+        assert len(messages) == 1
+        assert messages[0].text == "What is this?"
+        assert len(messages[0].media) == 1
 
-    def test_parse_webhook_multiple_messages(self):
+    async def test_parse_incoming_audio_message(self):
+        client = WhatsAppClient()
+        payload = {
+            "entry": [{"changes": [{"value": {"messages": [
+                {
+                    "from": "123", "id": "m1", "timestamp": "1700000000",
+                    "type": "audio",
+                    "audio": {"id": "aud_1", "mime_type": "audio/ogg"},
+                },
+            ]}}]}],
+        }
+        messages = await client.parse_incoming(payload)
+        assert len(messages) == 1
+        assert messages[0].media[0].media_type == "audio"
+        assert messages[0].media[0].mime_type == "audio/ogg"
+
+    async def test_parse_incoming_document_with_filename(self):
+        client = WhatsAppClient()
+        payload = {
+            "entry": [{"changes": [{"value": {"messages": [
+                {
+                    "from": "123", "id": "m1", "timestamp": "1700000000",
+                    "type": "document",
+                    "document": {
+                        "id": "doc_1", "mime_type": "application/pdf",
+                        "filename": "report.pdf",
+                    },
+                },
+            ]}}]}],
+        }
+        messages = await client.parse_incoming(payload)
+        assert len(messages) == 1
+        assert messages[0].media[0].media_type == "document"
+        assert messages[0].media[0].filename == "report.pdf"
+
+    async def test_parse_incoming_ignores_unsupported_types(self):
+        client = WhatsAppClient()
+        payload = {
+            "entry": [{"changes": [{"value": {"messages": [
+                {"from": "123", "id": "m1", "type": "sticker", "sticker": {}},
+            ]}}]}],
+        }
+        messages = await client.parse_incoming(payload)
+        assert messages == []
+
+    async def test_parse_incoming_empty_payload(self):
+        client = WhatsAppClient()
+        assert await client.parse_incoming({}) == []
+        assert await client.parse_incoming({"entry": []}) == []
+
+    async def test_parse_incoming_multiple_messages(self):
         client = WhatsAppClient()
         payload = {
             "entry": [{"changes": [{"value": {"messages": [
@@ -116,10 +192,10 @@ class TestWhatsAppClient:
                 {"from": "222", "id": "m2", "timestamp": "2", "type": "text", "text": {"body": "B"}},
             ]}}]}],
         }
-        messages = client.parse_webhook(payload)
+        messages = await client.parse_incoming(payload)
         assert len(messages) == 2
-        assert messages[0].phone_number == "111"
-        assert messages[1].phone_number == "222"
+        assert messages[0].sender_id == "111"
+        assert messages[1].sender_id == "222"
 
 
 # ---------------------------------------------------------------------------
@@ -228,11 +304,20 @@ async def test_process_message_calls_runtime_and_sends_reply():
     whatsapp_routes._runtime = mock_runtime
 
     mock_send = AsyncMock(return_value={"messages": [{"id": "sent1"}]})
-    original_send = whatsapp_routes._whatsapp.send_message
-    whatsapp_routes._whatsapp.send_message = mock_send
+    original_send = whatsapp_routes._whatsapp.send_text
+    whatsapp_routes._whatsapp.send_text = mock_send
+
+    msg = ChannelMessage(
+        sender_id="5511999999999",
+        text="Hello",
+        media=[],
+        message_id="wamid.abc123",
+        timestamp="1700000000",
+        channel="whatsapp",
+    )
 
     try:
-        await whatsapp_routes._process_message("5511999999999", "Hello")
+        await whatsapp_routes._process_message(msg)
 
         mock_runtime.run.assert_called_once_with(
             agent_name="whatsapp-assistant",
@@ -242,7 +327,7 @@ async def test_process_message_calls_runtime_and_sends_reply():
         mock_send.assert_called_once_with("5511999999999", "Hola!")
     finally:
         whatsapp_routes._runtime = original_runtime
-        whatsapp_routes._whatsapp.send_message = original_send
+        whatsapp_routes._whatsapp.send_text = original_send
 
 
 async def test_process_message_sends_error_on_runtime_failure():
@@ -255,25 +340,34 @@ async def test_process_message_sends_error_on_runtime_failure():
     whatsapp_routes._runtime = mock_runtime
 
     mock_send = AsyncMock(return_value={})
-    original_send = whatsapp_routes._whatsapp.send_message
-    whatsapp_routes._whatsapp.send_message = mock_send
+    original_send = whatsapp_routes._whatsapp.send_text
+    whatsapp_routes._whatsapp.send_text = mock_send
+
+    msg = ChannelMessage(
+        sender_id="5511999999999",
+        text="Hello",
+        media=[],
+        message_id="wamid.abc123",
+        timestamp="1700000000",
+        channel="whatsapp",
+    )
 
     try:
-        await whatsapp_routes._process_message("5511999999999", "Hello")
+        await whatsapp_routes._process_message(msg)
 
         mock_send.assert_called_once_with(
             "5511999999999", "Lo siento, ocurrio un error. Intenta de nuevo."
         )
     finally:
         whatsapp_routes._runtime = original_runtime
-        whatsapp_routes._whatsapp.send_message = original_send
+        whatsapp_routes._whatsapp.send_text = original_send
 
 
 # ---------------------------------------------------------------------------
-# WhatsAppClient.send_message tests
+# WhatsAppClient.send_text tests
 # ---------------------------------------------------------------------------
 
-async def test_send_message_calls_graph_api(monkeypatch):
+async def test_send_text_calls_graph_api(monkeypatch):
     client = WhatsAppClient()
     client.access_token = "token123"
     client.phone_number_id = "12345"
@@ -291,7 +385,7 @@ async def test_send_message_calls_graph_api(monkeypatch):
         instance.__aexit__ = AsyncMock(return_value=False)
         MockClient.return_value = instance
 
-        result = await client.send_message("5511999999999", "Test message")
+        result = await client.send_text("5511999999999", "Test message")
 
         mock_post.assert_called_once()
         call_kwargs = mock_post.call_args
@@ -300,3 +394,45 @@ async def test_send_message_calls_graph_api(monkeypatch):
         assert call_kwargs.kwargs["json"]["text"]["body"] == "Test message"
         assert call_kwargs.kwargs["headers"]["Authorization"] == "Bearer token123"
         assert result == {"messages": [{"id": "wamid.sent"}]}
+
+
+# ---------------------------------------------------------------------------
+# WhatsAppClient.download_media tests
+# ---------------------------------------------------------------------------
+
+async def test_download_media_two_step_fetch():
+    client = WhatsAppClient()
+    client.access_token = "token123"
+
+    att = MediaAttachment(
+        media_type="image",
+        mime_type="image/jpeg",
+        content=None,
+        source_id="media_id_123",
+    )
+
+    mock_meta_resp = AsyncMock()
+    mock_meta_resp.json = lambda: {"url": "https://cdn.example.com/media/file.jpg"}
+    mock_meta_resp.raise_for_status = lambda: None
+
+    mock_media_resp = AsyncMock()
+    mock_media_resp.content = b"\xff\xd8\xff\xe0"
+    mock_media_resp.raise_for_status = lambda: None
+
+    with patch("astromech.channels.whatsapp.httpx.AsyncClient") as MockClient:
+        instance = AsyncMock()
+        instance.get = AsyncMock(side_effect=[mock_meta_resp, mock_media_resp])
+        instance.__aenter__ = AsyncMock(return_value=instance)
+        instance.__aexit__ = AsyncMock(return_value=False)
+        MockClient.return_value = instance
+
+        result = await client.download_media(att)
+
+        assert result == b"\xff\xd8\xff\xe0"
+        assert instance.get.call_count == 2
+        # First call: metadata endpoint
+        first_call = instance.get.call_args_list[0]
+        assert "media_id_123" in first_call.args[0]
+        # Second call: download URL
+        second_call = instance.get.call_args_list[1]
+        assert second_call.args[0] == "https://cdn.example.com/media/file.jpg"

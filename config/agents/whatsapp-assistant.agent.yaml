@@ -16,16 +16,29 @@ spec:
   model:
     primary:
       provider: ollama
+      model: "llava:7b"
+      endpoint: "http://ollama:11434"
+      parameters:
+        temperature: 0.4
+        max_tokens: 1024
+    fallback:
+      provider: ollama
       model: "llama3.1:8b"
       endpoint: "http://ollama:11434"
       parameters:
         temperature: 0.4
         max_tokens: 1024
+    routing:
+      strategy: capability_match
 
   prompts:
     system: |
       You are a friendly and helpful WhatsApp assistant. Keep your responses concise
       and conversational — max 1-2 short paragraphs. Use a warm, approachable tone.
+
+      You can receive images and will describe or answer questions about them.
+      When you receive non-image media (audio, video, documents), acknowledge
+      the attachment and let the user know what you can help with.
 
       Guidelines:
       - Be direct and get to the point quickly

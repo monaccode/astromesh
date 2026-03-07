@@ -3,20 +3,21 @@ import hmac
 import httpx
 import logging
 import os
-from dataclasses import dataclass
+
+from astromech.channels.base import ChannelAdapter, ChannelMessage, MediaAttachment
 
 logger = logging.getLogger(__name__)
 
+# WhatsApp media type to generic media type mapping.
+_WA_MEDIA_TYPES = {
+    "image": "image",
+    "audio": "audio",
+    "video": "video",
+    "document": "document",
+}
 
-@dataclass
-class IncomingMessage:
-    phone_number: str
-    message_text: str
-    message_id: str
-    timestamp: str
 
-
-class WhatsAppClient:
+class WhatsAppClient(ChannelAdapter):
     GRAPH_API_URL = "https://graph.facebook.com/v21.0"
 
     def __init__(self):
@@ -31,7 +32,7 @@ class WhatsAppClient:
             return challenge
         return None
 
-    def validate_signature(self, payload: bytes, signature: str) -> bool:
+    def verify_request(self, payload: bytes, signature: str) -> bool:
         """Validate X-Hub-Signature-256 header from Meta."""
         if not self.app_secret:
             return True  # Skip validation if no secret configured
@@ -40,23 +41,47 @@ class WhatsAppClient:
         ).hexdigest()
         return hmac.compare_digest(expected, signature)
 
-    def parse_webhook(self, payload: dict) -> list[IncomingMessage]:
-        """Parse Meta webhook payload and extract messages."""
-        messages = []
+    async def parse_incoming(self, payload: dict) -> list[ChannelMessage]:
+        """Parse Meta webhook payload and extract text and media messages."""
+        messages: list[ChannelMessage] = []
         for entry in payload.get("entry", []):
             for change in entry.get("changes", []):
                 value = change.get("value", {})
                 for msg in value.get("messages", []):
-                    if msg.get("type") == "text":
-                        messages.append(IncomingMessage(
-                            phone_number=msg["from"],
-                            message_text=msg["text"]["body"],
-                            message_id=msg["id"],
-                            timestamp=msg.get("timestamp", ""),
+                    msg_type = msg.get("type", "")
+                    text: str | None = None
+                    media: list[MediaAttachment] = []
+
+                    if msg_type == "text":
+                        text = msg["text"]["body"]
+                    elif msg_type in _WA_MEDIA_TYPES:
+                        media_data = msg.get(msg_type, {})
+                        media.append(MediaAttachment(
+                            media_type=_WA_MEDIA_TYPES[msg_type],
+                            mime_type=media_data.get("mime_type", f"{msg_type}/*"),
+                            content=None,
+                            source_id=media_data.get("id", ""),
+                            filename=media_data.get("filename"),
                         ))
+                        # Some media messages include a caption as text.
+                        caption = media_data.get("caption")
+                        if caption:
+                            text = caption
+                    else:
+                        continue  # Skip unsupported message types.
+
+                    messages.append(ChannelMessage(
+                        sender_id=msg["from"],
+                        text=text,
+                        media=media,
+                        message_id=msg["id"],
+                        timestamp=msg.get("timestamp", ""),
+                        channel="whatsapp",
+                        raw_payload=msg,
+                    ))
         return messages
 
-    async def send_message(self, to: str, text: str) -> dict:
+    async def send_text(self, recipient_id: str, text: str) -> dict:
         """Send a text message via WhatsApp Cloud API."""
         url = f"{self.GRAPH_API_URL}/{self.phone_number_id}/messages"
         headers = {
@@ -65,7 +90,7 @@ class WhatsAppClient:
         }
         data = {
             "messaging_product": "whatsapp",
-            "to": to,
+            "to": recipient_id,
             "type": "text",
             "text": {"body": text},
         }
@@ -73,3 +98,24 @@ class WhatsAppClient:
             resp = await client.post(url, json=data, headers=headers)
             resp.raise_for_status()
             return resp.json()
+
+    async def download_media(self, attachment: MediaAttachment) -> bytes:
+        """Download media from WhatsApp via the Graph API.
+
+        Two-step process: first retrieve the download URL, then fetch the bytes.
+        Media URLs expire after ~5 minutes.
+        """
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        async with httpx.AsyncClient() as client:
+            # Step 1: Get the download URL.
+            meta_resp = await client.get(
+                f"{self.GRAPH_API_URL}/{attachment.source_id}",
+                headers=headers,
+            )
+            meta_resp.raise_for_status()
+            download_url = meta_resp.json()["url"]
+
+            # Step 2: Download the actual media bytes.
+            media_resp = await client.get(download_url, headers=headers)
+            media_resp.raise_for_status()
+            return media_resp.content

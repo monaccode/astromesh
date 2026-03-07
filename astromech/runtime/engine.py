@@ -84,7 +84,10 @@ class Agent:
         from datetime import datetime
         from astromech.core.memory import ConversationTurn
 
-        memory_context = await self._memory.build_context(session_id, query, max_tokens=4096)
+        query_text = query if isinstance(query, str) else " ".join(
+            p.get("text", "") for p in query if p.get("type") == "text"
+        )
+        memory_context = await self._memory.build_context(session_id, query_text, max_tokens=4096)
         rendered_prompt = self._prompt_engine.render(self._system_prompt, {**(context or {}), "memory": memory_context})
         tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
         max_iterations = self._orchestration_config.get("max_iterations", 10)
@@ -99,6 +102,21 @@ class Agent:
         result = await self._pattern.execute(query=query, context=memory_context, model_fn=model_fn,
             tool_fn=tool_fn, tools=tool_schemas, max_iterations=max_iterations)
 
-        await self._memory.persist_turn(session_id, ConversationTurn(role="user", content=query, timestamp=datetime.utcnow()))
-        await self._memory.persist_turn(session_id, ConversationTurn(role="assistant", content=result.get("answer", ""), timestamp=datetime.utcnow()))
+        # Extract text for storage; keep full multimodal content in metadata.
+        if isinstance(query, list):
+            text_parts = [p.get("text", "") for p in query if p.get("type") == "text"]
+            user_content = " ".join(text_parts)
+            user_metadata = {"multimodal_content": query}
+        else:
+            user_content = query
+            user_metadata = {}
+
+        await self._memory.persist_turn(
+            session_id,
+            ConversationTurn(role="user", content=user_content, timestamp=datetime.utcnow(), metadata=user_metadata),
+        )
+        await self._memory.persist_turn(
+            session_id,
+            ConversationTurn(role="assistant", content=result.get("answer", ""), timestamp=datetime.utcnow()),
+        )
         return result

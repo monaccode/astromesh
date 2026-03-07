@@ -59,6 +59,9 @@ class ModelRouter:
         if requirements is None:
             requirements = {}
 
+        if not requirements.get("vision") and self._detect_vision_requirement(messages):
+            requirements["vision"] = True
+
         candidates = self._rank_candidates(requirements)
         last_error: Exception | None = None
 
@@ -102,6 +105,17 @@ class ModelRouter:
                     health.is_healthy = False
 
         raise RuntimeError(f"All providers exhausted. Last error: {last_error}")
+
+    @staticmethod
+    def _detect_vision_requirement(messages: list[dict]) -> bool:
+        """Return True if any message contains image_url content."""
+        for msg in messages:
+            content = msg.get("content")
+            if isinstance(content, list):
+                for part in content:
+                    if part.get("type") == "image_url":
+                        return True
+        return False
 
     # ------------------------------------------------------------------
     # Internal helpers

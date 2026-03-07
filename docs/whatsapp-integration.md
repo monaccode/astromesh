@@ -106,16 +106,29 @@ spec:
   model:
     primary:
       provider: ollama
+      model: "llava:7b"
+      endpoint: "http://ollama:11434"
+      parameters:
+        temperature: 0.4
+        max_tokens: 1024
+    fallback:
+      provider: ollama
       model: "llama3.1:8b"
       endpoint: "http://ollama:11434"
       parameters:
         temperature: 0.4
         max_tokens: 1024
+    routing:
+      strategy: capability_match
 
   prompts:
     system: |
       You are a friendly and helpful WhatsApp assistant. Keep your responses concise
       and conversational — max 1-2 short paragraphs. Use a warm, approachable tone.
+
+      You can receive images and will describe or answer questions about them.
+      When you receive non-image media (audio, video, documents), acknowledge
+      the attachment and let the user know what you can help with.
 
       Guidelines:
       - Be direct and get to the point quickly
@@ -247,6 +260,53 @@ channels:
 | `rate_limit.max_messages` | Maximum outbound messages per window |
 
 Credential values use the `${VAR_NAME}` syntax and are resolved from environment variables at startup.
+
+## Multimedia Messages
+
+The WhatsApp integration supports receiving multimedia messages including images, audio, video, and documents. Media is downloaded from Meta's servers, processed in-memory, and discarded after the agent responds — no media is stored on disk.
+
+### Supported Media Types
+
+| Type | Behavior | LLM Format |
+|------|----------|------------|
+| Image | Downloaded and base64-encoded | Sent as `image_url` content part to vision-capable models |
+| Audio | Downloaded | Text description passed to agent (e.g., `[Attached audio: audio/ogg, 15234 bytes]`) |
+| Video | Downloaded | Text description passed to agent |
+| Document | Downloaded | Text description with filename passed to agent |
+
+### How It Works
+
+1. User sends a photo (or other media) via WhatsApp
+2. Meta webhook delivers the message with a media ID
+3. Astromech downloads the media bytes via the Graph API (`GET /{media_id}` → download URL → bytes)
+4. The `build_multimodal_query()` utility converts the message:
+   - Images → base64 data URL in OpenAI `image_url` format
+   - Other media → text description for the agent
+5. The `ModelRouter` auto-detects image content and routes to a vision-capable model (e.g., `llava:7b`)
+6. Agent processes the query and responds as text via WhatsApp
+
+### Vision Model Configuration
+
+To handle images, configure a vision-capable model as primary in the agent YAML:
+
+```yaml
+spec:
+  model:
+    primary:
+      provider: ollama
+      model: "llava:7b"
+    fallback:
+      provider: ollama
+      model: "llama3.1:8b"
+    routing:
+      strategy: capability_match
+```
+
+The `capability_match` routing strategy ensures image queries go to vision models, while text-only queries can use any available model.
+
+### Media Captions
+
+WhatsApp image messages can include a caption. When present, the caption is included as the text part of the multimodal query alongside the image, so the agent can answer questions about the image directly.
 
 ## Troubleshooting
 

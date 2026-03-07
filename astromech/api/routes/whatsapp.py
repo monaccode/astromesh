@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, BackgroundTasks, Query, Request, Response
 
 from astromech.channels.whatsapp import WhatsAppClient
+from astromech.channels.media import build_multimodal_query
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["channels"])
@@ -34,24 +35,26 @@ async def verify_webhook(
     return Response(status_code=403)
 
 
-async def _process_message(phone_number: str, message_text: str):
-    """Process incoming message in background."""
+async def _process_message(message):
+    """Process incoming ChannelMessage in background."""
     try:
+        # Download media and build the query (str or multimodal list).
+        query = await build_multimodal_query(message, _whatsapp)
         result = await _runtime.run(
             agent_name=_default_agent,
-            query=message_text,
-            session_id=f"wa_{phone_number}",
+            query=query,
+            session_id=f"wa_{message.sender_id}",
         )
         answer = result.get("answer", "Lo siento, no pude procesar tu mensaje.")
-        await _whatsapp.send_message(phone_number, answer)
+        await _whatsapp.send_text(message.sender_id, answer)
     except Exception:
-        logger.exception("Failed to process WhatsApp message from %s", phone_number)
+        logger.exception("Failed to process WhatsApp message from %s", message.sender_id)
         try:
-            await _whatsapp.send_message(
-                phone_number, "Lo siento, ocurrio un error. Intenta de nuevo."
+            await _whatsapp.send_text(
+                message.sender_id, "Lo siento, ocurrio un error. Intenta de nuevo."
             )
         except Exception:
-            logger.exception("Failed to send error message to %s", phone_number)
+            logger.exception("Failed to send error message to %s", message.sender_id)
 
 
 @router.post("/channels/whatsapp/webhook")
@@ -60,14 +63,14 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
     body = await request.body()
     signature = request.headers.get("X-Hub-Signature-256", "")
 
-    if not _whatsapp.validate_signature(body, signature):
+    if not _whatsapp.verify_request(body, signature):
         return Response(status_code=403)
 
     payload = await request.json()
-    messages = _whatsapp.parse_webhook(payload)
+    messages = await _whatsapp.parse_incoming(payload)
 
     for msg in messages:
-        logger.info("WhatsApp message from %s: %s", msg.phone_number, msg.message_id)
-        background_tasks.add_task(_process_message, msg.phone_number, msg.message_text)
+        logger.info("WhatsApp message from %s: %s", msg.sender_id, msg.message_id)
+        background_tasks.add_task(_process_message, msg)
 
     return {"status": "ok"}

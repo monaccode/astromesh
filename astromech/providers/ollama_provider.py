@@ -54,12 +54,47 @@ class OllamaProvider:
         return converted
 
     # ------------------------------------------------------------------
+    # Multimodal conversion helper
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _convert_multimodal_messages(messages: list[dict]) -> list[dict]:
+        """Convert OpenAI-style multimodal messages to Ollama format.
+
+        Ollama expects images as base64 strings in a top-level ``images``
+        list on the message, rather than inline ``image_url`` content parts.
+        """
+        converted: list[dict] = []
+        for msg in messages:
+            content = msg.get("content")
+            if not isinstance(content, list):
+                converted.append(msg)
+                continue
+            text_parts: list[str] = []
+            images: list[str] = []
+            for part in content:
+                if part.get("type") == "text":
+                    text_parts.append(part["text"])
+                elif part.get("type") == "image_url":
+                    url = part["image_url"]["url"]
+                    # Strip data URI prefix to get raw base64.
+                    if url.startswith("data:"):
+                        url = url.split(",", 1)[-1]
+                    images.append(url)
+            new_msg = {**msg, "content": " ".join(text_parts)}
+            if images:
+                new_msg["images"] = images
+            converted.append(new_msg)
+        return converted
+
+    # ------------------------------------------------------------------
     # ProviderProtocol implementation
     # ------------------------------------------------------------------
 
     async def complete(self, messages: list[dict], **kwargs: Any) -> CompletionResponse:
         client = await self._get_client()
         model = kwargs.pop("model", self.model)
+        messages = self._convert_multimodal_messages(messages)
 
         payload: dict[str, Any] = {
             "model": model,
@@ -97,6 +132,7 @@ class OllamaProvider:
     async def stream(self, messages: list[dict], **kwargs: Any) -> AsyncIterator[CompletionChunk]:
         client = await self._get_client()
         model = kwargs.pop("model", self.model)
+        messages = self._convert_multimodal_messages(messages)
 
         payload: dict[str, Any] = {
             "model": model,
