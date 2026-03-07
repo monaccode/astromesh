@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "WebSearch"
     ]
   }
 }
