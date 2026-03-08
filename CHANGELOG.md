@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pytest-benchmark>=4.0` dev dependency
 - `[tool.maturin]` configuration in `pyproject.toml` for building native extensions
 - Native extensions documentation (`docs/native-extensions.md`)
+- `LICENSE.md` — MIT license
+- `SECURITY.md` — security policy and vulnerability reporting guidelines
+- `LICENSE/CODE_OF_CONDUCT.md` — contributor code of conduct
+- `LICENSE/CONTRIBUTING.md` — contribution guidelines
+- `LICENSE/GOVERNANCE.md` — project governance model
+- `LICENSE/NOTICE.md` — third-party notices
 
 ### Changed
 
