@@ -1,6 +1,10 @@
 # Astromesh
 ### Agent Runtime Platform for building AI agents
 
+<p align="center">
+  <img src="assets/astromesh-logo.png" alt="Astromesh Logo" width="900" />
+</p>
+
 > Build, orchestrate and run AI agents with multi-model routing, tools, memory, and RAG — all configured declaratively.
 
 Astromesh is an open-source runtime for agentic systems, designed to standardize how AI agents execute, reason, and interact with external systems.

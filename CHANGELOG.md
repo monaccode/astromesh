@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CONTRIBUTING.md` — contribution guidelines
 - `GOVERNANCE.md` — project governance model
 - `NOTICE.md` — third-party notices
+- Project logo (`assets/astromesh-logo.png`)
 
 ### Changed
 
@@ -46,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `README.md` with Rust Native Extensions section
 - Updated `CLAUDE.md` with `maturin develop` and `cargo test` commands
 - Updated `.gitignore` with Rust build artifacts (`target/`, `*.so`, `*.pyd`, `*.dylib`)
+- Updated `README.md` with project logo
 
 ## [0.3.0] - 2026-03-07
 
