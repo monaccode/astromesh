@@ -333,7 +333,7 @@ pip install maturin
 maturin develop --release
 ```
 
-See [`docs/native-extensions.md`](docs/native-extensions.md) for details.
+See [`docs/NATIVE_ESTENSIONS_RUST.md`](docs/NATIVE_ESTENSIONS_RUST.md) for details.
 
 ---
 
