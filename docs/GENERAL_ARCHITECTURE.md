@@ -112,15 +112,13 @@ Routes completion requests across multiple providers with intelligent selection.
 
 **Routing Strategies:**
 
-
-| Strategy            | Behavior                                              |
-| ------------------- | ----------------------------------------------------- |
+| Strategy            | Behavior                                               |
+| ------------------- | ------------------------------------------------------ |
 | `cost_optimized`    | Cheapest provider first (based on `estimated_cost()`) |
 | `latency_optimized` | Fastest provider first (exponential moving average)   |
 | `quality_first`     | Highest quality score first                           |
 | `round_robin`       | Rotate across providers evenly                        |
 | `capability_match`  | Filter by required capabilities (tools, vision)       |
-
 
 **Circuit Breaker:**
 
@@ -154,13 +152,11 @@ Manages three types of memory with pluggable backends and strategies.
 
 **Memory Strategies:**
 
-
-| Strategy         | Description                                        |
-| ---------------- | -------------------------------------------------- |
+| Strategy         | Description                                         |
+| ---------------- | --------------------------------------------------- |
 | `sliding_window` | Keep the last N turns                              |
 | `summary`        | Compress older turns into summaries                |
 | `token_budget`   | Fit as many turns as possible within a token limit |
-
 
 ### Tool Registry (`astromesh/core/tools.py`)
 
@@ -183,22 +179,19 @@ Jinja2-based prompt rendering with `SilentUndefined` (missing variables render a
 
 Applies safety checks on both input and output:
 
-
-| Guardrail        | Description                                            |
-| ---------------- | ------------------------------------------------------ |
+| Guardrail        | Description                                             |
+| ---------------- | ------------------------------------------------------- |
 | `pii_detection`  | Detects and redacts emails, phones, SSNs, credit cards |
 | `topic_filter`   | Blocks messages matching forbidden topics              |
 | `max_length`     | Enforces character limits on input                     |
 | `cost_limit`     | Enforces token-per-turn limits on output               |
 | `content_filter` | Blocks messages with forbidden keywords                |
 
-
 ## Layer 4: Infrastructure
 
 ### LLM Providers (`astromesh/providers/`)
 
 All providers implement `ProviderProtocol` (a `runtime_checkable` Protocol):
-
 
 | Provider               | Backend         | Endpoint Style         |
 | ---------------------- | --------------- | ---------------------- |
@@ -209,23 +202,20 @@ All providers implement `ProviderProtocol` (a `runtime_checkable` Protocol):
 | `HFTGIProvider`        | HuggingFace TGI | OpenAI-compatible      |
 | `ONNXProvider`         | ONNX Runtime    | Local inference        |
 
-
 Each provider reports: `estimated_cost()`, `supports_tools()`, `supports_vision()`, `avg_latency_ms`.
 
 ### Orchestration Patterns (`astromesh/orchestration/`)
 
 Control how agents reason and use tools:
 
-
-| Pattern          | Description                                               |
-| ---------------- | --------------------------------------------------------- |
+| Pattern          | Description                                                |
+| ---------------- | ---------------------------------------------------------- |
 | `ReAct`          | Think → Act → Observe loop until done                     |
 | `PlanAndExecute` | Create a plan, then execute steps sequentially            |
 | `ParallelFanOut` | Send to multiple sub-models simultaneously, merge results |
 | `Pipeline`       | Chain multiple steps sequentially                         |
 | `Supervisor`     | Delegate sub-tasks to worker agents                       |
 | `Swarm`          | Agents hand off conversations to each other               |
-
 
 ### RAG Pipeline (`astromesh/rag/`)
 
@@ -241,14 +231,12 @@ Query → Embedding → Vector Search ──────┘
 
 **Components:**
 
-
-| Stage        | Options                                       |
-| ------------ | --------------------------------------------- |
-| Chunking     | Fixed, Recursive, Sentence, Semantic          |
-| Embeddings   | HuggingFace API, SentenceTransformers, Ollama |
-| Vector Store | pgvector, ChromaDB, Qdrant, FAISS             |
-| Reranking    | Cross-encoder, Cohere                         |
-
+| Stage        | Options                                        |
+| ------------ | ---------------------------------------------- |
+| Chunking     | Fixed, Recursive, Sentence, Semantic           |
+| Embeddings   | HuggingFace API, SentenceTransformers, Ollama  |
+| Vector Store | pgvector, ChromaDB, Qdrant, FAISS              |
+| Reranking    | Cross-encoder, Cohere                          |
 
 ### MCP Integration (`astromesh/mcp/`)
 
