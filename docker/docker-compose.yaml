@@ -1,21 +1,21 @@
 version: "3.9"
 
 services:
-  astromech:
+  astromesh:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - ASTROMECH_CONFIG_DIR=/app/config
+      - ASTROMESH_CONFIG_DIR=/app/config
     volumes:
       - ../config:/app/config
     depends_on:
       - postgres
       - redis
     networks:
-      - astromech-net
+      - astromesh-net
 
   ollama:
     image: ollama/ollama:latest
@@ -31,7 +31,7 @@ services:
               count: all
               capabilities: [gpu]
     networks:
-      - astromech-net
+      - astromesh-net
 
   vllm:
     image: vllm/vllm-openai:latest
@@ -46,7 +46,7 @@ services:
               count: all
               capabilities: [gpu]
     networks:
-      - astromech-net
+      - astromesh-net
 
   embeddings:
     image: ghcr.io/huggingface/text-embeddings-inference:latest
@@ -54,7 +54,7 @@ services:
       - "8002:80"
     command: ["--model-id", "BAAI/bge-small-en-v1.5"]
     networks:
-      - astromech-net
+      - astromesh-net
 
   reranker:
     image: ghcr.io/huggingface/text-embeddings-inference:latest
@@ -62,21 +62,21 @@ services:
       - "8003:80"
     command: ["--model-id", "BAAI/bge-reranker-base"]
     networks:
-      - astromech-net
+      - astromesh-net
 
   postgres:
     image: pgvector/pgvector:pg16
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: astromech
-      POSTGRES_USER: astromech
-      POSTGRES_PASSWORD: astromech
+      POSTGRES_DB: astromesh
+      POSTGRES_USER: astromesh
+      POSTGRES_PASSWORD: astromesh
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - astromech-net
+      - astromesh-net
 
   redis:
     image: redis:7-alpine
@@ -85,7 +85,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - astromech-net
+      - astromesh-net
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
@@ -96,7 +96,7 @@ services:
       - ./otel-config.yaml:/etc/otel-config.yaml
     command: ["--config", "/etc/otel-config.yaml"]
     networks:
-      - astromech-net
+      - astromesh-net
 
   prometheus:
     image: prom/prometheus:latest
@@ -105,7 +105,7 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
-      - astromech-net
+      - astromesh-net
 
   grafana:
     image: grafana/grafana:latest
@@ -114,7 +114,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:
-      - astromech-net
+      - astromesh-net
 
 volumes:
   ollama-models:
@@ -122,5 +122,5 @@ volumes:
   redis-data:
 
 networks:
-  astromech-net:
+  astromesh-net:
     driver: bridge

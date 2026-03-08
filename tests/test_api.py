@@ -1,6 +1,6 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
-from astromech.api.main import app
+from astromesh.api.main import app
 
 @pytest.fixture
 async def client():

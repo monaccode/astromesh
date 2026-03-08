@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock
 
-from astromech.core.memory import (
+from astromesh.core.memory import (
     ConversationTurn,
     SemanticMemory,
     EpisodicMemory,

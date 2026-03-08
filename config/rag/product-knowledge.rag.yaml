@@ -1,4 +1,4 @@
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: RAGPipeline
 metadata:
   name: product-knowledge
@@ -26,9 +26,9 @@ spec:
     connection:
       host: postgres
       port: 5432
-      database: astromech
-      user: astromech
-      password: astromech
+      database: astromesh
+      user: astromesh
+      password: astromesh
     collection: product_docs
 
   reranking:

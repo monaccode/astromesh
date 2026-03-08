@@ -1,4 +1,4 @@
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: RuntimeConfig
 metadata:
   name: default

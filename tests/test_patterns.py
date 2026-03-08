@@ -2,7 +2,7 @@ import pytest
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
 
-from astromech.orchestration.patterns import ReActPattern
+from astromesh.orchestration.patterns import ReActPattern
 
 
 @dataclass
@@ -95,7 +95,7 @@ async def test_react_max_iterations():
 
 @pytest.mark.asyncio
 async def test_plan_execute_pattern():
-    from astromech.orchestration.patterns import PlanAndExecutePattern
+    from astromesh.orchestration.patterns import PlanAndExecutePattern
     plan_response = make_response('{"steps": [{"step": 1, "description": "Search", "tool": null, "depends_on": []}]}')
     step_response = make_response("Step 1 result")
     final_response = make_response("Final synthesized answer")
@@ -108,7 +108,7 @@ async def test_plan_execute_pattern():
 
 @pytest.mark.asyncio
 async def test_parallel_fan_out():
-    from astromech.orchestration.patterns import ParallelFanOutPattern
+    from astromesh.orchestration.patterns import ParallelFanOutPattern
     decompose = make_response('["subtask 1", "subtask 2"]')
     sub1 = make_response("result 1")
     sub2 = make_response("result 2")
@@ -121,7 +121,7 @@ async def test_parallel_fan_out():
 
 @pytest.mark.asyncio
 async def test_pipeline_pattern():
-    from astromech.orchestration.patterns import PipelinePattern
+    from astromesh.orchestration.patterns import PipelinePattern
     r1 = make_response("analyzed")
     r2 = make_response("processed")
     r3 = make_response("synthesized")
@@ -133,7 +133,7 @@ async def test_pipeline_pattern():
 
 @pytest.mark.asyncio
 async def test_supervisor_pattern():
-    from astromech.orchestration.supervisor import SupervisorPattern
+    from astromesh.orchestration.supervisor import SupervisorPattern
     resp = make_response('{"final_answer": "done"}')
     model_fn = AsyncMock(return_value=resp)
     pattern = SupervisorPattern()
@@ -143,7 +143,7 @@ async def test_supervisor_pattern():
 
 @pytest.mark.asyncio
 async def test_swarm_pattern():
-    from astromech.orchestration.swarm import SwarmPattern
+    from astromesh.orchestration.swarm import SwarmPattern
     resp = make_response("The answer is 42")
     model_fn = AsyncMock(return_value=resp)
     pattern = SwarmPattern()

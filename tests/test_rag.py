@@ -1,8 +1,8 @@
 
-from astromech.rag.chunking.fixed import FixedChunker
-from astromech.rag.chunking.recursive import RecursiveChunker
-from astromech.rag.chunking.sentence import SentenceChunker
-from astromech.rag.pipeline import RAGPipeline, RAGResult
+from astromesh.rag.chunking.fixed import FixedChunker
+from astromesh.rag.chunking.recursive import RecursiveChunker
+from astromesh.rag.chunking.sentence import SentenceChunker
+from astromesh.rag.pipeline import RAGPipeline, RAGResult
 
 
 def test_fixed_chunker():

@@ -4,7 +4,7 @@ import types
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
-from astromech.core.memory import ConversationTurn
+from astromesh.core.memory import ConversationTurn
 
 
 # ---------------------------------------------------------------------------
@@ -50,8 +50,8 @@ async def test_redis_conv_save_and_get():
     _fake_aioredis.from_url = MagicMock(return_value=mock_redis)
 
     # Force reimport to pick up the mock
-    sys.modules.pop("astromech.memory.backends.redis_conv", None)
-    from astromech.memory.backends.redis_conv import RedisConversationBackend
+    sys.modules.pop("astromesh.memory.backends.redis_conv", None)
+    from astromesh.memory.backends.redis_conv import RedisConversationBackend
 
     backend = RedisConversationBackend("redis://localhost:6379")
     turn = ConversationTurn(role="user", content="hi", timestamp=datetime.now())
@@ -64,8 +64,8 @@ async def test_redis_conv_clear():
     mock_redis = AsyncMock()
     _fake_aioredis.from_url = MagicMock(return_value=mock_redis)
 
-    sys.modules.pop("astromech.memory.backends.redis_conv", None)
-    from astromech.memory.backends.redis_conv import RedisConversationBackend
+    sys.modules.pop("astromesh.memory.backends.redis_conv", None)
+    from astromesh.memory.backends.redis_conv import RedisConversationBackend
 
     backend = RedisConversationBackend("redis://localhost:6379")
     await backend.clear("s1")
@@ -86,8 +86,8 @@ async def test_redis_conv_get_history():
     mock_redis.lrange.return_value = [turn_data.encode()]
     _fake_aioredis.from_url = MagicMock(return_value=mock_redis)
 
-    sys.modules.pop("astromech.memory.backends.redis_conv", None)
-    from astromech.memory.backends.redis_conv import RedisConversationBackend
+    sys.modules.pop("astromesh.memory.backends.redis_conv", None)
+    from astromesh.memory.backends.redis_conv import RedisConversationBackend
 
     backend = RedisConversationBackend("redis://localhost:6379")
     history = await backend.get_history("s1")
@@ -102,8 +102,8 @@ async def test_redis_conv_summary():
     mock_redis.get.return_value = b"summary text"
     _fake_aioredis.from_url = MagicMock(return_value=mock_redis)
 
-    sys.modules.pop("astromech.memory.backends.redis_conv", None)
-    from astromech.memory.backends.redis_conv import RedisConversationBackend
+    sys.modules.pop("astromesh.memory.backends.redis_conv", None)
+    from astromesh.memory.backends.redis_conv import RedisConversationBackend
 
     backend = RedisConversationBackend("redis://localhost:6379")
     await backend.save_summary("s1", "summary text")
@@ -124,7 +124,7 @@ def _inject_aiosqlite():
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_inject_aiosqlite")
 async def test_sqlite_conv_save_and_get():
-    from astromech.memory.backends.sqlite_conv import SQLiteConversationBackend
+    from astromesh.memory.backends.sqlite_conv import SQLiteConversationBackend
     backend = SQLiteConversationBackend(":memory:")
     await backend.initialize()
     turn = ConversationTurn(role="user", content="hello", timestamp=datetime.now(), token_count=5)
@@ -137,7 +137,7 @@ async def test_sqlite_conv_save_and_get():
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_inject_aiosqlite")
 async def test_sqlite_conv_clear():
-    from astromech.memory.backends.sqlite_conv import SQLiteConversationBackend
+    from astromesh.memory.backends.sqlite_conv import SQLiteConversationBackend
     backend = SQLiteConversationBackend(":memory:")
     await backend.initialize()
     turn = ConversationTurn(role="user", content="hi", timestamp=datetime.now())
@@ -150,7 +150,7 @@ async def test_sqlite_conv_clear():
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_inject_aiosqlite")
 async def test_sqlite_conv_summary():
-    from astromech.memory.backends.sqlite_conv import SQLiteConversationBackend
+    from astromesh.memory.backends.sqlite_conv import SQLiteConversationBackend
     backend = SQLiteConversationBackend(":memory:")
     await backend.initialize()
     await backend.save_summary("s1", "this is a summary")
@@ -175,8 +175,8 @@ async def test_pg_conv_save():
     mock_conn = AsyncMock()
     mock_pool = _make_pg_mock_pool(mock_conn)
 
-    sys.modules.pop("astromech.memory.backends.pg_conv", None)
-    from astromech.memory.backends.pg_conv import PGConversationBackend
+    sys.modules.pop("astromesh.memory.backends.pg_conv", None)
+    from astromesh.memory.backends.pg_conv import PGConversationBackend
 
     backend = PGConversationBackend(pool=mock_pool)
     turn = ConversationTurn(role="user", content="hi", timestamp=datetime.now())
@@ -194,8 +194,8 @@ async def test_pg_conv_get_history():
         {"role": "user", "content": "hello", "metadata": "{}", "token_count": 3, "timestamp": now},
     ]
 
-    sys.modules.pop("astromech.memory.backends.pg_conv", None)
-    from astromech.memory.backends.pg_conv import PGConversationBackend
+    sys.modules.pop("astromesh.memory.backends.pg_conv", None)
+    from astromesh.memory.backends.pg_conv import PGConversationBackend
 
     backend = PGConversationBackend(pool=mock_pool)
     history = await backend.get_history("s1")
@@ -215,8 +215,8 @@ def _inject_faiss():
 @pytest.mark.usefixtures("_inject_faiss")
 def test_faiss_store_and_search():
     # Re-import to get the real module
-    sys.modules.pop("astromech.memory.backends.faiss_sem", None)
-    from astromech.memory.backends.faiss_sem import FAISSSemanticBackend
+    sys.modules.pop("astromesh.memory.backends.faiss_sem", None)
+    from astromesh.memory.backends.faiss_sem import FAISSSemanticBackend
     backend = FAISSSemanticBackend(dimension=4)
     import asyncio
 
@@ -233,7 +233,7 @@ def test_faiss_store_and_search():
 # ===================== Memory strategies tests =====================
 
 def test_sliding_window():
-    from astromech.memory.strategies.sliding_window import SlidingWindowStrategy
+    from astromesh.memory.strategies.sliding_window import SlidingWindowStrategy
     turns = [
         ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
         for i in range(20)
@@ -247,7 +247,7 @@ def test_sliding_window():
 
 
 def test_sliding_window_under_limit():
-    from astromech.memory.strategies.sliding_window import SlidingWindowStrategy
+    from astromesh.memory.strategies.sliding_window import SlidingWindowStrategy
     turns = [
         ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
         for i in range(3)
@@ -258,7 +258,7 @@ def test_sliding_window_under_limit():
 
 
 def test_token_budget():
-    from astromech.memory.strategies.token_budget import TokenBudgetStrategy
+    from astromesh.memory.strategies.token_budget import TokenBudgetStrategy
     turns = [
         ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now(), token_count=100)
         for i in range(10)
@@ -271,14 +271,14 @@ def test_token_budget():
 
 
 def test_token_budget_empty():
-    from astromech.memory.strategies.token_budget import TokenBudgetStrategy
+    from astromesh.memory.strategies.token_budget import TokenBudgetStrategy
     strategy = TokenBudgetStrategy()
     result = strategy.apply([], budget=1000)
     assert len(result) == 0
 
 
 def test_summary_strategy():
-    from astromech.memory.strategies.summary import SummaryStrategy
+    from astromesh.memory.strategies.summary import SummaryStrategy
     turns = [
         ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
         for i in range(10)
@@ -294,7 +294,7 @@ def test_summary_strategy():
 
 
 def test_summary_strategy_short_history():
-    from astromech.memory.strategies.summary import SummaryStrategy
+    from astromesh.memory.strategies.summary import SummaryStrategy
     turns = [
         ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
         for i in range(2)

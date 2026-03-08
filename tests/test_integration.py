@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from astromech.runtime.engine import AgentRuntime
-from astromech.providers.base import CompletionResponse
+from astromesh.runtime.engine import AgentRuntime
+from astromesh.providers.base import CompletionResponse
 
 
 async def test_full_agent_run(tmp_path):
@@ -9,7 +9,7 @@ async def test_full_agent_run(tmp_path):
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir()
     (agents_dir / "echo.agent.yaml").write_text("""
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: Agent
 metadata:
   name: echo
@@ -64,7 +64,7 @@ async def test_full_agent_run_with_tool(tmp_path):
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir()
     (agents_dir / "tool-agent.agent.yaml").write_text("""
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: Agent
 metadata:
   name: tool-agent
@@ -133,7 +133,7 @@ async def test_multiple_agents(tmp_path):
 
     for name in ["agent-a", "agent-b", "agent-c"]:
         (agents_dir / f"{name}.agent.yaml").write_text(f"""
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: Agent
 metadata:
   name: {name}

@@ -1,17 +1,17 @@
-"""Tests for all 6 Astromech provider adapters."""
+"""Tests for all 6 Astromesh provider adapters."""
 
 from __future__ import annotations
 
 import httpx
 import respx
 
-from astromech.providers.base import CompletionResponse
-from astromech.providers.hf_tgi_provider import HFTGIProvider
-from astromech.providers.llamacpp_provider import LlamaCppProvider
-from astromech.providers.ollama_provider import OllamaProvider
-from astromech.providers.onnx_provider import ONNXProvider
-from astromech.providers.openai_compat import OpenAICompatProvider
-from astromech.providers.vllm_provider import VLLMProvider
+from astromesh.providers.base import CompletionResponse
+from astromesh.providers.hf_tgi_provider import HFTGIProvider
+from astromesh.providers.llamacpp_provider import LlamaCppProvider
+from astromesh.providers.ollama_provider import OllamaProvider
+from astromesh.providers.onnx_provider import ONNXProvider
+from astromesh.providers.openai_compat import OpenAICompatProvider
+from astromesh.providers.vllm_provider import VLLMProvider
 
 # ---------------------------------------------------------------------------
 # Helpers — canonical mock responses
