@@ -13,10 +13,10 @@ This repository contains the open source core of the Astromesh runtime.
 
 Related project policy and licensing documents:
 
-- [NOTICE](LICENSE/NOTICE.md)
-- [Code of Conduct](LICENSE/CODE_OF_CONDUCT.md)
-- [Contributing](LICENSE/CONTRIBUTING.md)
-- [Governance](LICENSE/GOVERNANCE.md)
+- [NOTICE](NOTICE.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Contributing](CONTRIBUTING.md)
+- [Governance](GOVERNANCE.md)
 - [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
 ---
@@ -49,7 +49,7 @@ Example attribution:
 
 Project repository:
 
-https://github.com/<org>/astromesh
+https://github.com/monaccode/astromesh
 
 ---
 

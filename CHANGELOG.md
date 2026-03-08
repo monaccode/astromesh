@@ -29,10 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Native extensions documentation (`docs/NATIVE_ESTENSIONS_RUST.md`)
 - `LICENSE.md` — MIT license
 - `SECURITY.md` — security policy and vulnerability reporting guidelines
-- `LICENSE/CODE_OF_CONDUCT.md` — contributor code of conduct
-- `LICENSE/CONTRIBUTING.md` — contribution guidelines
-- `LICENSE/GOVERNANCE.md` — project governance model
-- `LICENSE/NOTICE.md` — third-party notices
+- `CODE_OF_CONDUCT.md` — contributor code of conduct
+- `CONTRIBUTING.md` — contribution guidelines
+- `GOVERNANCE.md` — project governance model
+- `NOTICE.md` — third-party notices
 
 ### Changed
 
