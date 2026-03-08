@@ -1,82 +1,240 @@
-# Astromesh Agent Runtime Platform
+# Astromesh
+### Agent Runtime Platform for building AI agents
 
-Multi-model, multi-pattern AI agent runtime with declarative YAML configuration.
+> Build, orchestrate and run AI agents with multi-model routing, tools, memory, and RAG — all configured declaratively.
 
-Astromesh lets you define intelligent agents, connect them to multiple LLM providers, equip them with tools and memory, and deploy them as a REST/WebSocket API — all through YAML configuration files.
+Astromesh is an open-source runtime for agentic systems, designed to standardize how AI agents execute, reason, and interact with external systems.
 
-## Features
+**Think of it as Kubernetes for AI Agents.**
 
-- **6 LLM Providers** — Ollama, OpenAI-compatible, vLLM, llama.cpp, HuggingFace TGI, ONNX Runtime
-- **Intelligent Model Routing** — Cost-optimized, latency-optimized, quality-first, round-robin, and capability-match strategies with automatic circuit breaker and fallback
-- **6 Orchestration Patterns** — ReAct, Plan & Execute, Parallel Fan-Out, Pipeline, Supervisor, Swarm
-- **3 Memory Types** — Conversational (Redis/PostgreSQL/SQLite), Semantic (pgvector/ChromaDB/Qdrant/FAISS), Episodic (PostgreSQL)
-- **RAG Pipeline** — 4 chunking strategies, 3 embedding providers, 4 vector stores, 2 rerankers
-- **Tool System** — Internal tools, MCP (stdio/SSE/HTTP), webhooks, RAG-as-tool
-- **ML Model Registry** — ONNX and PyTorch serving, classifier and embedding training pipelines
-- **MCP Server** — Expose your agents as MCP tools for other systems
-- **Guardrails** — PII redaction, topic filtering, cost limits, content filtering
-- **Observability** — OpenTelemetry tracing, Prometheus metrics, cost tracking with budgets
-- **WhatsApp Integration** — Receive and reply to WhatsApp messages via Meta Business Cloud API with webhook verification, signature validation, and rate limiting
-- **Declarative Config** — Define everything in YAML with `apiVersion: astromesh/v1`
+> ⭐ If you find this project useful, consider starring the repository.
+
+---
+
+## Why Astromesh
+
+Most AI applications repeatedly rebuild the same infrastructure:
+
+- model orchestration
+- tool execution
+- memory systems
+- RAG pipelines
+- agent reasoning loops
+- observability
+- cost control
+
+Astromesh centralizes these capabilities into a single runtime platform.
+
+Instead of writing orchestration logic yourself, you define agents declaratively and let the runtime manage execution.
+
+---
+
+## Documentation
+
+- **Tech overview**: [`docs/TECH_OVERVIEW.md`](docs/TECH_OVERVIEW.md)
+- **Architecture**: [`docs/architecture.md`](docs/architecture.md)
+- **Kubernetes-style architecture diagrams**: [`docs/K8S_ARCHITECTURE.md`](docs/K8S_ARCHITECTURE.md)
+- **Configuration guide**: [`docs/CONFIGURATION_GUIDE.md`](docs/CONFIGURATION_GUIDE.md)
+- **WhatsApp integration**: [`docs/WHATSAPP_INTEGRATION.md`](docs/WHATSAPP_INTEGRATION.md)
+
+---
+
+## Key Features
+
+### Multi-Model Runtime
+
+Run agents across multiple LLM providers:
+
+- Ollama
+- OpenAI-compatible APIs
+- vLLM
+- llama.cpp
+- HuggingFace TGI
+- ONNX Runtime
+
+The built-in **Model Router** automatically selects the best model using strategies such as:
+
+- cost optimized
+- latency optimized
+- quality first
+- round robin
+- capability match
+
+---
+
+### Multiple Agent Reasoning Patterns
+
+Astromesh includes several orchestration strategies:
+
+| Pattern | Description |
+|---|---|
+| ReAct | reasoning + tool usage loop |
+| Plan & Execute | generate plan then execute |
+| Pipeline | sequential processing |
+| Parallel Fan-Out | multi-model collaboration |
+| Supervisor | hierarchical agents |
+| Swarm | distributed agent collaboration |
+
+---
+
+### Built-in Memory System
+
+Agents can maintain multiple memory layers:
+
+| Memory Type | Purpose |
+|---|---|
+| Conversational | chat history |
+| Semantic | vector embeddings |
+| Episodic | event logs |
+
+Supported backends:
+
+- Redis
+- PostgreSQL
+- SQLite
+- pgvector
+- ChromaDB
+- Qdrant
+- FAISS
+
+---
+
+### Retrieval-Augmented Generation (RAG)
+
+Astromesh includes a complete RAG pipeline:
+
+- document chunking
+- embeddings
+- vector search
+- reranking
+- context injection
+
+Supported vector stores:
+
+- pgvector
+- ChromaDB
+- Qdrant
+- FAISS
+
+---
+
+### Tool System
+
+Agents can interact with external systems using tools.
+
+Supported tool types:
+
+- Python functions
+- MCP tools
+- Webhooks
+- RAG pipelines
+
+The runtime automatically exposes tools to models using structured schemas.
+
+---
+
+### Messaging Channels
+
+Astromesh supports external messaging integrations.
+
+**Current integration:**
+- WhatsApp (Meta Cloud API)
+
+**Future integrations:**
+- Slack
+- Telegram
+- Discord
+- Web chat
+- Voice assistants
+
+---
+
+### Observability
+
+Built-in monitoring stack:
+
+- OpenTelemetry tracing
+- Prometheus metrics
+- cost tracking
+- token usage monitoring
+
+---
+
+## Architecture
+
+Astromesh follows a layered architecture (see also [`docs/architecture.md`](docs/architecture.md) for the full reference):
+
+```
+API Layer
+REST / WebSocket
+        ↓
+Runtime Engine
+Agent lifecycle and execution
+        ↓
+Core Services
+Model Router · Memory Manager · Tool Registry · Guardrails
+        ↓
+Infrastructure
+LLM Providers · Vector Databases · Observability · Storage Backends
+```
+
+---
 
 ## Quick Start
 
-### Prerequisites
+### Requirements
 
 - Python 3.12+
-- [uv](https://docs.astral.sh/uv/) package manager
+- uv package manager
 
-### Installation
+### Install uv
 
 ```bash
-# Clone the repository
-git clone <repo-url> astromesh-platform
-cd astromesh-platform
-
-# Install with uv
-uv sync
-
-# Install with optional backends
-uv sync --extra redis --extra postgres --extra observability
-
-# Install everything
-uv sync --extra all
+pip install uv
 ```
 
-### Run the API Server
+### Clone the repository
 
 ```bash
-# Start the server
-uv run uvicorn astromesh.api.main:app --host 0.0.0.0 --port 8000
+git clone https://github.com/your-org/astromesh
+cd astromesh
+```
 
-# Or with auto-reload for development
+### Install dependencies
+
+```bash
+uv sync
+```
+
+### Run the runtime
+
+```bash
 uv run uvicorn astromesh.api.main:app --reload
 ```
 
-### Create Your First Agent
+API will be available at `http://localhost:8000`
 
-Create a file at `config/agents/my-agent.agent.yaml`:
+---
+
+## Create Your First Agent
+
+Create the file: `config/agents/my-agent.agent.yaml`
 
 ```yaml
 apiVersion: astromesh/v1
 kind: Agent
+
 metadata:
   name: my-agent
-  version: "1.0.0"
 
 spec:
   identity:
-    display_name: "My First Agent"
-    description: "A simple assistant"
+    display_name: "My Agent"
 
   model:
     primary:
       provider: ollama
       model: "llama3.1:8b"
-      endpoint: "http://localhost:11434"
-      parameters:
-        temperature: 0.7
-        max_tokens: 2048
 
   prompts:
     system: |
@@ -84,192 +242,130 @@ spec:
 
   orchestration:
     pattern: react
-    max_iterations: 10
 ```
 
-### Talk to Your Agent
+### Run the Agent
 
 ```bash
-# Health check
-curl http://localhost:8000/v1/health
-
-# List agents
-curl http://localhost:8000/v1/agents
-
-# Run agent
 curl -X POST http://localhost:8000/v1/agents/my-agent/run \
   -H "Content-Type: application/json" \
-  -d '{"query": "Hello!", "session_id": "session-1"}'
+  -d '{"query":"Hello","session_id":"demo"}'
 ```
+
+---
+
+## Example Use Cases
+
+### AI Copilots
+- developer assistants
+- support agents
+- internal knowledge assistants
+
+### Autonomous Workflows
+- document processing
+- business automation
+- API orchestration
+
+### Multi-Agent Systems
+- distributed reasoning
+- hierarchical agents
+- collaborative agents
+
+### AI APIs
+Expose agents as programmable services.
+
+---
 
 ## Docker Deployment
 
-The full stack includes Ollama, vLLM, embeddings, PostgreSQL (pgvector), Redis, OpenTelemetry Collector, Prometheus, and Grafana.
+Astromesh includes a full development stack:
 
 ```bash
-cd docker
-docker compose up -d
+docker compose up
 ```
 
-| Service | Port | Description |
-|---------|------|-------------|
-| astromesh | 8000 | Agent Runtime API |
-| ollama | 11434 | Local LLM inference |
-| vllm | 8001 | High-throughput LLM serving |
-| embeddings | 8002 | HuggingFace Text Embeddings |
-| reranker | 8003 | HuggingFace Reranker |
-| postgres | 5432 | PostgreSQL + pgvector |
-| redis | 6379 | Conversation memory cache |
-| otel-collector | 4317/4318 | OpenTelemetry Collector |
-| prometheus | 9090 | Metrics storage |
-| grafana | 3000 | Dashboards (admin/admin) |
+Includes:
 
-## API Reference
+- Agent runtime API
+- Ollama inference
+- vLLM inference
+- embeddings service
+- PostgreSQL + pgvector
+- Redis
+- Prometheus
+- Grafana
 
-### REST Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/v1/health` | Health check and version |
-| GET | `/v1/agents` | List all loaded agents |
-| GET | `/v1/agents/{name}` | Get agent details |
-| POST | `/v1/agents/{name}/run` | Execute an agent |
-| GET | `/v1/memory/{agent}/history/{session}` | Get conversation history |
-| DELETE | `/v1/memory/{agent}/history/{session}` | Clear conversation history |
-| GET | `/v1/memory/{agent}/semantic` | Search semantic memory |
-| GET | `/v1/tools` | List registered tools |
-| POST | `/v1/tools/execute` | Execute a tool |
-| POST | `/v1/rag/ingest` | Ingest documents into RAG |
-| POST | `/v1/rag/query` | Query the RAG pipeline |
-
-### WebSocket
-
-```
-ws://localhost:8000/v1/ws/agent/{agent_name}
-```
-
-Send JSON messages:
-```json
-{"query": "What is...", "session_id": "s1"}
-```
-
-Receive streamed token responses in real-time.
+---
 
 ## Project Structure
 
 ```
-astromesh-platform/
-├── astromesh/
-│   ├── api/                  # FastAPI app and routes
-│   │   ├── main.py           # App entry point
-│   │   ├── routes/           # REST endpoints
-│   │   └── ws.py             # WebSocket streaming
-│   ├── core/                 # Core runtime components
-│   │   ├── model_router.py   # Multi-provider routing + circuit breaker
-│   │   ├── memory.py         # Memory manager (3 types, 3 strategies)
-│   │   ├── tools.py          # Tool registry and execution
-│   │   ├── prompt_engine.py  # Jinja2 prompt templating
-│   │   └── guardrails.py     # Input/output guardrails
-│   ├── providers/            # LLM provider implementations
-│   │   ├── base.py           # Protocol + shared types
-│   │   ├── ollama_provider.py
-│   │   ├── openai_compat.py
-│   │   ├── vllm_provider.py
-│   │   ├── llamacpp_provider.py
-│   │   ├── hf_tgi_provider.py
-│   │   └── onnx_provider.py
-│   ├── orchestration/        # Agent execution patterns
-│   │   ├── patterns.py       # ReAct, Plan&Execute, FanOut, Pipeline
-│   │   ├── supervisor.py     # Supervisor pattern
-│   │   └── swarm.py          # Swarm pattern
-│   ├── memory/               # Memory backend implementations
-│   │   ├── backends/         # Redis, SQLite, PG, pgvector, Chroma, Qdrant, FAISS
-│   │   └── strategies/       # sliding_window, summary, token_budget
-│   ├── rag/                  # RAG pipeline
-│   │   ├── chunking/         # fixed, recursive, sentence, semantic
-│   │   ├── embeddings/       # HF API, SentenceTransformers, Ollama
-│   │   ├── stores/           # pgvector, ChromaDB, Qdrant, FAISS
-│   │   ├── reranking/        # cross-encoder, Cohere
-│   │   └── pipeline.py       # RAG orchestrator
-│   ├── mcp/                  # Model Context Protocol
-│   │   ├── client.py         # MCP client (stdio/SSE/HTTP)
-│   │   └── server.py         # MCP server (expose agents as tools)
-│   ├── ml/                   # ML model management
-│   │   ├── model_registry.py # Model registry
-│   │   ├── serving/          # ONNX + PyTorch serving
-│   │   └── training/         # Classifier + embedding training
-│   ├── observability/        # Monitoring and tracing
-│   │   ├── telemetry.py      # OpenTelemetry integration
-│   │   ├── metrics.py        # Prometheus metrics
-│   │   └── cost_tracker.py   # Usage and cost tracking
-│   └── runtime/
-│       └── engine.py         # Agent runtime engine (YAML → agent)
-├── config/                   # YAML configuration files
-│   ├── runtime.yaml          # Runtime settings
-│   ├── providers.yaml        # Provider registry
-│   ├── agents/               # Agent definitions
-│   └── rag/                  # RAG pipeline configs
-├── docker/                   # Docker Compose stack
-│   ├── docker-compose.yaml   # Full 10-service stack
-│   ├── Dockerfile            # CPU image
-│   ├── Dockerfile.gpu        # GPU image (CUDA 12.1)
-│   └── init.sql              # PostgreSQL schema
-├── tests/                    # Test suite (113 tests)
-└── pyproject.toml            # Project config (uv)
+astromesh/
+ ├── api
+ ├── runtime
+ ├── core
+ ├── providers
+ ├── orchestration
+ ├── memory
+ ├── rag
+ ├── channels
+ └── observability
 ```
 
-## Optional Dependencies
+Configuration:
 
-Install only what you need:
-
-```bash
-uv sync --extra redis          # Redis conversation backend
-uv sync --extra postgres       # PostgreSQL backends
-uv sync --extra sqlite         # SQLite conversation backend
-uv sync --extra chromadb       # ChromaDB vector store
-uv sync --extra qdrant         # Qdrant vector store
-uv sync --extra faiss          # FAISS vector store
-uv sync --extra embeddings     # SentenceTransformers
-uv sync --extra onnx           # ONNX Runtime
-uv sync --extra ml             # PyTorch
-uv sync --extra observability  # OpenTelemetry + Prometheus
-uv sync --extra mcp            # Model Context Protocol
-uv sync --extra all            # Everything (except ml)
+```
+config/
+ ├── agents/
+ ├── rag/
+ ├── providers.yaml
+ └── runtime.yaml
 ```
 
-## Development
+---
 
-```bash
-# Install dev dependencies
-uv sync --group dev
+## Roadmap
 
-# Run tests
-uv run pytest -v
+Planned capabilities:
 
-# Run with coverage
-uv run pytest --cov=astromesh
+- distributed agent execution
+- GPU-aware model scheduling
+- event-driven agents
+- multi-tenant runtime
+- agent lifecycle management
+- agent marketplace
 
-# Lint
-uv run ruff check astromesh/ tests/
-```
+---
 
-## Configuration
+## Contributing
 
-All configuration uses YAML with `apiVersion: astromesh/v1`. See the [Configuration Guide](docs/configuration-guide.md) for detailed documentation on:
+Contributions are welcome.
 
-- Agent definitions (`kind: Agent`)
-- Provider registry (`kind: ProviderConfig`)
-- RAG pipelines (`kind: RAGPipeline`)
-- Runtime settings (`kind: RuntimeConfig`)
+Ways to contribute:
 
-## Architecture
+- new providers
+- orchestration patterns
+- vector stores
+- tools
+- bug fixes
+- documentation improvements
 
-See [docs/architecture.md](docs/architecture.md) for the full system architecture, including the 4-layer design, component interactions, and data flow diagrams.
-
-## WhatsApp Integration
-
-See [docs/whatsapp-integration.md](docs/whatsapp-integration.md) for the full setup guide covering Meta Business account configuration, environment variables, agent setup, deployment, and troubleshooting.
+---
 
 ## License
 
 MIT
+
+---
+
+## Community
+
+Community resources coming soon:
+
+- Discord
+- Roadmap discussions
+- Contributor guide
+
+---
+
+> ⭐ If you like Astromesh, give the repo a star. It helps the project reach more developers.

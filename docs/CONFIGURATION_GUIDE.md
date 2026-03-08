@@ -1,5 +1,7 @@
 # Astromesh Configuration Guide
 
+**Related docs**: [Tech overview](TECH_OVERVIEW.md) · [Architecture](architecture.md) · [WhatsApp integration](WHATSAPP_INTEGRATION.md)
+
 All Astromesh configuration files are YAML with a common header:
 
 ```yaml

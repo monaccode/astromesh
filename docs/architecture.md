@@ -1,22 +1,24 @@
 # Astromesh Architecture
 
+**Related docs**: [Tech overview](TECH_OVERVIEW.md) · [Configuration guide](CONFIGURATION_GUIDE.md) · [WhatsApp integration](WHATSAPP_INTEGRATION.md)
+
 ## Overview
 
 Astromesh is a multi-model, multi-pattern AI agent runtime platform. It follows a 4-layer architecture where each layer has a clear responsibility and communicates with adjacent layers through well-defined interfaces.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    API Layer (FastAPI)                   │
-│         REST endpoints  ·  WebSocket streaming           │
+│                    API Layer (FastAPI)                  │
+│         REST endpoints  ·  WebSocket streaming          │
 ├─────────────────────────────────────────────────────────┤
-│                    Runtime Engine                        │
-│         YAML loading  ·  Agent lifecycle                 │
+│                    Runtime Engine                       │
+│         YAML loading  ·  Agent lifecycle                │
 ├─────────────────────────────────────────────────────────┤
 │                    Core Services                        │
-│  ModelRouter · MemoryManager · ToolRegistry · Guardrails │
+│  ModelRouter · MemoryManager · ToolRegistry · Guardrails│
 ├─────────────────────────────────────────────────────────┤
 │                    Infrastructure                       │
-│  Providers · Backends · Vector Stores · Observability    │
+│  Providers · Backends · Vector Stores · Observability   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -27,8 +29,8 @@ Channel adapters sit above the API layer, connecting external messaging platform
 ```
 External Platforms          Channel Adapters              Agent Runtime
 ┌───────────┐          ┌──────────────────────┐      ┌──────────────┐
-│ WhatsApp  │──webhook─►│  WhatsApp Adapter    │─────►│              │
-│ Business  │◄──reply───│  (verify, parse,     │◄─────│  AgentRuntime│
+│ WhatsApp  │─webhook─►│  WhatsApp Adapter    │─────►│              │
+│ Business  │◄──reply──│  (verify, parse,     │◄─────│  AgentRuntime│
 │ Cloud API │          │   send, signatures)  │      │  .run()      │
 └───────────┘          └──────────────────────┘      └──────────────┘
 ```
@@ -78,6 +80,7 @@ Query → Guardrails (input) → Memory Context → Prompt Rendering
 ```
 
 Each agent has:
+
 - A **ModelRouter** for multi-provider inference
 - A **MemoryManager** for conversational, semantic, and episodic memory
 - A **ToolRegistry** for tool access
@@ -93,7 +96,7 @@ Routes completion requests across multiple providers with intelligent selection.
 
 ```
                     ┌─────────────┐
-    Request ──────► │ ModelRouter  │
+    Request ──────► │ ModelRouter │
                     │             │
                     │ 1. Rank     │──► Strategy-based ordering
                     │ 2. Try      │──► Circuit breaker check
@@ -109,15 +112,18 @@ Routes completion requests across multiple providers with intelligent selection.
 
 **Routing Strategies:**
 
-| Strategy | Behavior |
-|----------|----------|
-| `cost_optimized` | Cheapest provider first (based on `estimated_cost()`) |
-| `latency_optimized` | Fastest provider first (exponential moving average) |
-| `quality_first` | Highest quality score first |
-| `round_robin` | Rotate across providers evenly |
-| `capability_match` | Filter by required capabilities (tools, vision) |
+
+| Strategy            | Behavior                                              |
+| ------------------- | ----------------------------------------------------- |
+| `cost_optimized`    | Cheapest provider first (based on `estimated_cost()`) |
+| `latency_optimized` | Fastest provider first (exponential moving average)   |
+| `quality_first`     | Highest quality score first                           |
+| `round_robin`       | Rotate across providers evenly                        |
+| `capability_match`  | Filter by required capabilities (tools, vision)       |
+
 
 **Circuit Breaker:**
+
 - Opens after 3 consecutive failures
 - 60-second cooldown before half-open retry
 - Automatic recovery on success
@@ -148,17 +154,20 @@ Manages three types of memory with pluggable backends and strategies.
 
 **Memory Strategies:**
 
-| Strategy | Description |
-|----------|-------------|
-| `sliding_window` | Keep the last N turns |
-| `summary` | Compress older turns into summaries |
-| `token_budget` | Fit as many turns as possible within a token limit |
+
+| Strategy         | Description                                        |
+| ---------------- | -------------------------------------------------- |
+| `sliding_window` | Keep the last N turns                              |
+| `summary`        | Compress older turns into summaries                |
+| `token_budget`   | Fit as many turns as possible within a token limit |
+
 
 ### Tool Registry (`astromesh/core/tools.py`)
 
 Central registry for all tools an agent can use.
 
 **Tool Types:**
+
 - `internal` — Python functions registered directly
 - `mcp` — Tools from MCP servers (stdio, SSE, HTTP transports)
 - `webhook` — External HTTP endpoints
@@ -174,13 +183,15 @@ Jinja2-based prompt rendering with `SilentUndefined` (missing variables render a
 
 Applies safety checks on both input and output:
 
-| Guardrail | Description |
-|-----------|-------------|
-| `pii_detection` | Detects and redacts emails, phones, SSNs, credit cards |
-| `topic_filter` | Blocks messages matching forbidden topics |
-| `max_length` | Enforces character limits on input |
-| `cost_limit` | Enforces token-per-turn limits on output |
-| `content_filter` | Blocks messages with forbidden keywords |
+
+| Guardrail        | Description                                            |
+| ---------------- | ------------------------------------------------------ |
+| `pii_detection`  | Detects and redacts emails, phones, SSNs, credit cards |
+| `topic_filter`   | Blocks messages matching forbidden topics              |
+| `max_length`     | Enforces character limits on input                     |
+| `cost_limit`     | Enforces token-per-turn limits on output               |
+| `content_filter` | Blocks messages with forbidden keywords                |
+
 
 ## Layer 4: Infrastructure
 
@@ -188,14 +199,16 @@ Applies safety checks on both input and output:
 
 All providers implement `ProviderProtocol` (a `runtime_checkable` Protocol):
 
-| Provider | Backend | Endpoint Style |
-|----------|---------|----------------|
-| `OllamaProvider` | Ollama | `/api/chat` |
-| `OpenAICompatProvider` | OpenAI API | `/v1/chat/completions` |
-| `VLLMProvider` | vLLM | OpenAI-compatible |
-| `LlamaCppProvider` | llama.cpp | OpenAI-compatible |
-| `HFTGIProvider` | HuggingFace TGI | OpenAI-compatible |
-| `ONNXProvider` | ONNX Runtime | Local inference |
+
+| Provider               | Backend         | Endpoint Style         |
+| ---------------------- | --------------- | ---------------------- |
+| `OllamaProvider`       | Ollama          | `/api/chat`            |
+| `OpenAICompatProvider` | OpenAI API      | `/v1/chat/completions` |
+| `VLLMProvider`         | vLLM            | OpenAI-compatible      |
+| `LlamaCppProvider`     | llama.cpp       | OpenAI-compatible      |
+| `HFTGIProvider`        | HuggingFace TGI | OpenAI-compatible      |
+| `ONNXProvider`         | ONNX Runtime    | Local inference        |
+
 
 Each provider reports: `estimated_cost()`, `supports_tools()`, `supports_vision()`, `avg_latency_ms`.
 
@@ -203,14 +216,16 @@ Each provider reports: `estimated_cost()`, `supports_tools()`, `supports_vision(
 
 Control how agents reason and use tools:
 
-| Pattern | Description |
-|---------|-------------|
-| `ReAct` | Think → Act → Observe loop until done |
-| `PlanAndExecute` | Create a plan, then execute steps sequentially |
+
+| Pattern          | Description                                               |
+| ---------------- | --------------------------------------------------------- |
+| `ReAct`          | Think → Act → Observe loop until done                     |
+| `PlanAndExecute` | Create a plan, then execute steps sequentially            |
 | `ParallelFanOut` | Send to multiple sub-models simultaneously, merge results |
-| `Pipeline` | Chain multiple steps sequentially |
-| `Supervisor` | Delegate sub-tasks to worker agents |
-| `Swarm` | Agents hand off conversations to each other |
+| `Pipeline`       | Chain multiple steps sequentially                         |
+| `Supervisor`     | Delegate sub-tasks to worker agents                       |
+| `Swarm`          | Agents hand off conversations to each other               |
+
 
 ### RAG Pipeline (`astromesh/rag/`)
 
@@ -226,12 +241,14 @@ Query → Embedding → Vector Search ──────┘
 
 **Components:**
 
-| Stage | Options |
-|-------|---------|
-| Chunking | Fixed, Recursive, Sentence, Semantic |
-| Embeddings | HuggingFace API, SentenceTransformers, Ollama |
-| Vector Store | pgvector, ChromaDB, Qdrant, FAISS |
-| Reranking | Cross-encoder, Cohere |
+
+| Stage        | Options                                       |
+| ------------ | --------------------------------------------- |
+| Chunking     | Fixed, Recursive, Sentence, Semantic          |
+| Embeddings   | HuggingFace API, SentenceTransformers, Ollama |
+| Vector Store | pgvector, ChromaDB, Qdrant, FAISS             |
+| Reranking    | Cross-encoder, Cohere                         |
+
 
 ### MCP Integration (`astromesh/mcp/`)
 
@@ -301,3 +318,4 @@ config/
 - **Async throughout** — All I/O operations use `async/await`
 - **Graceful degradation** — Circuit breakers, fallback providers, optional dependencies
 - **Minimal core dependencies** — Only FastAPI, httpx, PyYAML, Pydantic, Jinja2 required; everything else is optional
+
