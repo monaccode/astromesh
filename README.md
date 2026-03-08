@@ -32,7 +32,7 @@ Instead of writing orchestration logic yourself, you define agents declaratively
 ## Documentation
 
 - **Tech overview**: [`docs/TECH_OVERVIEW.md`](docs/TECH_OVERVIEW.md)
-- **Architecture**: [`docs/architecture.md`](docs/architecture.md)
+- **General architecture**: [`docs/GENERAL_ARCHITECTURE.md`](docs/GENERAL_ARCHITECTURE.md)
 - **Kubernetes-style architecture diagrams**: [`docs/K8S_ARCHITECTURE.md`](docs/K8S_ARCHITECTURE.md)
 - **Configuration guide**: [`docs/CONFIGURATION_GUIDE.md`](docs/CONFIGURATION_GUIDE.md)
 - **WhatsApp integration**: [`docs/WHATSAPP_INTEGRATION.md`](docs/WHATSAPP_INTEGRATION.md)
@@ -162,7 +162,7 @@ Built-in monitoring stack:
 
 ## Architecture
 
-Astromesh follows a layered architecture (see also [`docs/architecture.md`](docs/architecture.md) for the full reference):
+Astromesh follows a layered architecture (see also [`docs/GENERAL_ARCHITECTURE.md`](docs/GENERAL_ARCHITECTURE.md) for the full reference):
 
 ```
 API Layer

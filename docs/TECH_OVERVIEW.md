@@ -4,7 +4,7 @@
  
  Astromesh lets you define intelligent agents, connect them to multiple LLM providers, equip them with tools and memory, and deploy them as a REST/WebSocket API — all through YAML configuration files.
  
- **Related docs**: [Architecture](architecture.md) · [Configuration guide](CONFIGURATION_GUIDE.md) · [WhatsApp integration](WHATSAPP_INTEGRATION.md)
+ **Related docs**: [Architecture](GENERAL_ARCHITECTURE.md) · [Configuration guide](CONFIGURATION_GUIDE.md) · [WhatsApp integration](WHATSAPP_INTEGRATION.md)
 
  ## Features
 
@@ -265,9 +265,9 @@
  - RAG pipelines (`kind: RAGPipeline`)
  - Runtime settings (`kind: RuntimeConfig`)
 
- ## Architecture
+## Architecture
 
- See [docs/architecture.md](docs/architecture.md) for the full system architecture, including the 4-layer design, component interactions, and data flow diagrams.
+See [docs/GENERAL_ARCHITECTURE.md](docs/GENERAL_ARCHITECTURE.md) for the full system architecture, including the 4-layer design, component interactions, and data flow diagrams.
 
  ## WhatsApp Integration
 

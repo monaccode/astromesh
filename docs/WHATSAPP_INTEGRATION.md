@@ -1,6 +1,6 @@
 # WhatsApp Integration Guide
 
-**Related docs**: [Tech overview](TECH_OVERVIEW.md) · [Architecture](architecture.md) · [Configuration guide](CONFIGURATION_GUIDE.md)
+**Related docs**: [Tech overview](TECH_OVERVIEW.md) · [Architecture](GENERAL_ARCHITECTURE.md) · [Configuration guide](CONFIGURATION_GUIDE.md)
 
 ## Overview
 
