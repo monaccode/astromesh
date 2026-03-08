@@ -1,0 +1,14 @@
+# Core runtime
+/astromesh/core/        @monaccode
+
+# API layer
+/astromesh/api/         @monaccode
+
+# Providers
+/astromesh/providers/   @monaccode
+
+# Docs
+/docs/                  @monaccode
+
+# Default
+*                       @monaccode
