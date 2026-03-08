@@ -1,5 +1,14 @@
+import os
 import re
 from dataclasses import dataclass, field
+
+try:
+    from astromesh._native import RustPiiRedactor, RustTopicFilter
+    _NATIVE_PII = RustPiiRedactor()
+    _HAS_NATIVE_GUARDRAILS = True
+except ImportError:
+    _NATIVE_PII = None
+    _HAS_NATIVE_GUARDRAILS = False
 
 
 @dataclass
@@ -27,11 +36,18 @@ class GuardrailsEngine:
                 result = self._redact_pii(result, rule.get("action", "redact"))
             elif rule_type == "topic_filter":
                 blocked = rule.get("blocked_topics", [])
-                for topic in blocked:
-                    if topic.lower() in result.lower():
+                if _HAS_NATIVE_GUARDRAILS and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+                    tf = RustTopicFilter(blocked)
+                    found = tf.contains_blocked(result)
+                    if found is not None:
                         if rule.get("action", "warn") == "block":
-                            raise ValueError(f"Blocked topic detected: {topic}")
-                        result = result  # warn but allow
+                            raise ValueError(f"Blocked topic detected: {found}")
+                else:
+                    for topic in blocked:
+                        if topic.lower() in result.lower():
+                            if rule.get("action", "warn") == "block":
+                                raise ValueError(f"Blocked topic detected: {topic}")
+                            result = result  # warn but allow
             elif rule_type == "max_length":
                 max_len = rule.get("max_chars", 10000)
                 if len(result) > max_len:
@@ -60,6 +76,8 @@ class GuardrailsEngine:
     def _redact_pii(self, text: str, action: str) -> str:
         if action != "redact":
             return text
+        if _HAS_NATIVE_GUARDRAILS and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+            return _NATIVE_PII.redact(text)
         # Email
         text = re.sub(r'[\w.+-]+@[\w-]+\.[\w.-]+', '[REDACTED_EMAIL]', text)
         # Phone (US format)

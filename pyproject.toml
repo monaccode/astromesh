@@ -1,6 +1,6 @@
 [project]
 name = "astromesh"
-version = "0.1.0"
+version = "0.4.0"
 description = "Astromesh Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -40,6 +40,7 @@ dev = [
     "pytest-cov>=5.0",
     "respx>=0.21.0",
     "ruff>=0.6.0",
+    "pytest-benchmark>=4.0",
 ]
 
 [build-system]
@@ -49,6 +50,7 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["benchmark: marks tests as benchmarks (deselect with '-m \"not benchmark\"')"]
 
 [tool.ruff]
 target-version = "py312"
@@ -56,10 +58,16 @@ line-length = 100
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.1.0"
+version = "0.4.0"
 version_files = [
     "pyproject.toml:version",
 ]
 tag_format = "v$version"
 update_changelog_on_bump = true
 changelog_start_rev = "4545130"
+
+[tool.maturin]
+manifest-path = "native/Cargo.toml"
+module-name = "astromesh._native"
+python-source = "."
+features = ["pyo3/extension-module"]

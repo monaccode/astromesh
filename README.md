@@ -324,6 +324,19 @@ config/
 
 ---
 
+## Optional: Rust Native Extensions
+
+Astromesh includes optional Rust-powered native extensions for CPU-bound hot paths (chunking, PII redaction, token counting, routing). When compiled, they provide 5-50x speedup. Without them, the system falls back to pure Python automatically.
+
+```bash
+pip install maturin
+maturin develop --release
+```
+
+See [`docs/native-extensions.md`](docs/native-extensions.md) for details.
+
+---
+
 ## Roadmap
 
 Planned capabilities:

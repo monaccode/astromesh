@@ -1,7 +1,16 @@
+import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable
+
+try:
+    from astromesh._native import RustRateLimiter
+    _NATIVE_RATE_LIMITER = RustRateLimiter()
+    _HAS_NATIVE_RL = True
+except ImportError:
+    _NATIVE_RATE_LIMITER = None
+    _HAS_NATIVE_RL = False
 
 
 class ToolType(str, Enum):
@@ -82,6 +91,10 @@ class ToolRegistry:
         return tools_registered
 
     def _check_rate_limit(self, tool_name, rate_limit):
+        if _HAS_NATIVE_RL and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+            window = rate_limit.get("window_seconds", 60)
+            max_calls = rate_limit.get("max_calls", 10)
+            return _NATIVE_RATE_LIMITER.check(tool_name, window, max_calls)
         now = time.time()
         window = rate_limit.get("window_seconds", 60)
         max_calls = rate_limit.get("max_calls", 10)

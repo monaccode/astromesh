@@ -1,4 +1,11 @@
+import os
+
 from astromesh.rag.chunking.base import ChunkingStrategy
+
+try:
+    from astromesh._native import rust_recursive_chunk as _native_chunk
+except ImportError:
+    _native_chunk = None
 
 
 class RecursiveChunker(ChunkingStrategy):
@@ -15,6 +22,9 @@ class RecursiveChunker(ChunkingStrategy):
     def chunk(self, document: str, metadata: dict) -> list[dict]:
         if not document:
             return []
+
+        if _native_chunk is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+            return _native_chunk(document, metadata, self.chunk_size, self.overlap, self.separators)
 
         pieces = self._split_recursive(document, self.separators)
         chunks: list[dict] = []

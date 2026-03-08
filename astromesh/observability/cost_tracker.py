@@ -1,5 +1,12 @@
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
+
+try:
+    from astromesh._native import RustCostIndex
+    _HAS_NATIVE_COST = True
+except ImportError:
+    _HAS_NATIVE_COST = False
 
 
 @dataclass
@@ -22,9 +29,16 @@ class CostTracker:
     def __init__(self):
         self._records: list[UsageRecord] = []
         self._budgets: dict[str, float] = {}  # agent_name -> max_usd
+        self._native_index = RustCostIndex() if _HAS_NATIVE_COST else None
 
     def record(self, record: UsageRecord):
         self._records.append(record)
+        if self._native_index is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+            self._native_index.record(
+                record.agent_name, record.session_id, record.model, record.provider,
+                record.cost_usd, record.latency_ms, record.input_tokens, record.output_tokens,
+                record.timestamp.timestamp(),
+            )
 
     def set_budget(self, agent_name: str, max_usd: float):
         self._budgets[agent_name] = max_usd
@@ -45,6 +59,11 @@ class CostTracker:
     def get_total_cost(self, agent_name: str | None = None,
                        session_id: str | None = None,
                        since: datetime | None = None) -> float:
+        if self._native_index is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+            return self._native_index.total_cost(
+                agent_name, session_id,
+                since.timestamp() if since else None,
+            )
         records = self._records
         if agent_name:
             records = [r for r in records if r.agent_name == agent_name]

@@ -2,6 +2,17 @@ from abc import ABC, abstractmethod
 import asyncio as aio
 from dataclasses import dataclass
 import json as json_mod
+import os
+
+try:
+    from astromesh._native import rust_json_loads as _native_json_loads
+except ImportError:
+    _native_json_loads = None
+
+def _loads(text):
+    if _native_json_loads is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+        return _native_json_loads(text)
+    return json_mod.loads(text)
 
 
 @dataclass
@@ -66,9 +77,9 @@ class PlanAndExecutePattern(OrchestrationPattern):
         plan_response = await model_fn([{"role": "user", "content": plan_prompt}], tools)
 
         try:
-            plan = json_mod.loads(plan_response.content)
+            plan = _loads(plan_response.content)
             steps_plan = plan.get("steps", [])
-        except (json_mod.JSONDecodeError, KeyError):
+        except (json_mod.JSONDecodeError, KeyError, ValueError):
             steps_plan = [{"step": 1, "description": query, "tool": None}]
 
         # Step 2: Execute each step
@@ -105,10 +116,10 @@ class ParallelFanOutPattern(OrchestrationPattern):
         decompose_resp = await model_fn([{"role": "user", "content": decompose_prompt}], [])
 
         try:
-            subtasks = json_mod.loads(decompose_resp.content)
+            subtasks = _loads(decompose_resp.content)
             if not isinstance(subtasks, list):
                 subtasks = [query]
-        except json_mod.JSONDecodeError:
+        except (json_mod.JSONDecodeError, Exception):
             subtasks = [query]
 
         # Execute subtasks in parallel

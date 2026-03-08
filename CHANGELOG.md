@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-08
+
+### Added
+
+- Rust native extensions (`astromesh._native`) via PyO3 for CPU-bound hot paths (5-50x speedup)
+- `native/src/chunking.rs` — Fixed, Recursive, Sentence chunkers with zero-copy UTF-8 slicing + cosine similarity + semantic grouping
+- `native/src/guardrails.rs` — `RustPiiRedactor` with pre-compiled regex (email, phone, SSN, CC) + `RustTopicFilter` using Aho-Corasick single-pass automaton
+- `native/src/tokens.rs` — `RustTokenBudget` for fast token budget selection with `split_whitespace` fallback
+- `native/src/ratelimit.rs` — `RustRateLimiter` with `VecDeque` sliding window (O(1) cleanup vs O(n) in Python)
+- `native/src/routing.rs` — `rust_ema_update`, `rust_detect_vision`, `rust_rank_candidates` helpers for model routing
+- `native/src/cost_tracker.rs` — `RustCostIndex` with indexed cost/usage queries and `group_by` aggregation
+- `native/src/json_parser.rs` — `rust_json_loads` using serde_json for fast JSON → Python object conversion
+- Automatic fallback to pure Python when Rust extensions are not compiled (`try/except ImportError`)
+- `ASTROMESH_FORCE_PYTHON=1` env var to disable native extensions at runtime
+- Parametrized test fixture (`use_native`) for testing both native and Python backends
+- Correctness tests for all native modules (`tests/test_native_*.py`)
+- Benchmark suite (`tests/benchmarks/`) comparing native vs Python for chunking, guardrails, tokens, rate limiting, routing, cost tracking, and JSON parsing
+- `pytest-benchmark>=4.0` dev dependency
+- `[tool.maturin]` configuration in `pyproject.toml` for building native extensions
+- Native extensions documentation (`docs/native-extensions.md`)
+
+### Changed
+
+- `astromesh/rag/chunking/{fixed,recursive,sentence,semantic}.py` — delegate to Rust when available
+- `astromesh/core/guardrails.py` — delegate PII redaction and topic filtering to Rust when available
+- `astromesh/memory/strategies/token_budget.py` — delegate to `RustTokenBudget` when available
+- `astromesh/core/tools.py` — delegate rate limiting to `RustRateLimiter` when available
+- `astromesh/core/model_router.py` — delegate vision detection and EMA updates to Rust when available
+- `astromesh/observability/cost_tracker.py` — mirror records to `RustCostIndex` for indexed queries
+- `astromesh/orchestration/patterns.py` — use `rust_json_loads` for JSON parsing in orchestration loops
+- Updated `README.md` with Rust Native Extensions section
+- Updated `CLAUDE.md` with `maturin develop` and `cargo test` commands
+- Updated `.gitignore` with Rust build artifacts (`target/`, `*.so`, `*.pyd`, `*.dylib`)
+
 ## [0.3.0] - 2026-03-07
 
 ### Added
@@ -67,7 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/monaccode/astromesh-platform/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/monaccode/astromesh-platform/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/monaccode/astromesh-platform/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/monaccode/astromesh-platform/releases/tag/v0.1.0

@@ -1,7 +1,15 @@
+import os
 from collections.abc import Callable
 
 from astromesh.rag.chunking.base import ChunkingStrategy
 from astromesh.rag.chunking.sentence import SentenceChunker
+
+try:
+    from astromesh._native import rust_cosine_similarity as _native_cosine
+    from astromesh._native import rust_semantic_group as _native_group
+except ImportError:
+    _native_cosine = None
+    _native_group = None
 
 
 class SemanticChunker(ChunkingStrategy):
@@ -53,6 +61,8 @@ class SemanticChunker(ChunkingStrategy):
 
     @staticmethod
     def _cosine_similarity(a: list[float], b: list[float]) -> float:
+        if _native_cosine is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+            return _native_cosine(a, b)
         if not a or not b:
             return 0.0
         dot = sum(x * y for x, y in zip(a, b))

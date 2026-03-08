@@ -1,6 +1,12 @@
+import os
 import re
 
 from astromesh.rag.chunking.base import ChunkingStrategy
+
+try:
+    from astromesh._native import rust_sentence_chunk as _native_chunk
+except ImportError:
+    _native_chunk = None
 
 
 class SentenceChunker(ChunkingStrategy):
@@ -11,6 +17,9 @@ class SentenceChunker(ChunkingStrategy):
     def chunk(self, document: str, metadata: dict) -> list[dict]:
         if not document:
             return []
+
+        if _native_chunk is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+            return _native_chunk(document, metadata, self.chunk_size, self.overlap)
 
         sentences = self._split_sentences(document)
         chunks: list[dict] = []

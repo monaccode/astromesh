@@ -12,6 +12,17 @@ uv run uvicorn astromesh.api.main:app --reload  # Run API server (port 8000)
 
 Python 3.12+ required. Package manager is `uv`, build system is `hatchling`.
 
+### Rust Native Extensions (optional)
+
+```bash
+pip install maturin
+maturin develop --release            # Build Rust extensions into astromesh._native
+cargo test                           # Run Rust unit tests
+cargo check                          # Verify Rust compiles
+```
+
+Rust extensions provide 5-50x speedup for CPU-bound paths. Without them, Python fallback is used automatically. Set `ASTROMESH_FORCE_PYTHON=1` to disable native extensions at runtime.
+
 ## Tests
 
 ```bash

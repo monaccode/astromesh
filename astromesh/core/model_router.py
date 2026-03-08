@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 
 from astromesh.providers.base import (
@@ -10,6 +11,12 @@ from astromesh.providers.base import (
     ProviderProtocol,
     RoutingStrategy,
 )
+
+try:
+    from astromesh._native import rust_detect_vision, rust_ema_update
+    _HAS_NATIVE_ROUTING = True
+except ImportError:
+    _HAS_NATIVE_ROUTING = False
 
 
 class ModelRouter:
@@ -78,10 +85,15 @@ class ModelRouter:
                 if health.avg_latency_ms == 0.0:
                     health.avg_latency_ms = elapsed_ms
                 else:
-                    health.avg_latency_ms = (
-                        self.EMA_ALPHA * health.avg_latency_ms
-                        + self.EMA_BETA * elapsed_ms
-                    )
+                    if _HAS_NATIVE_ROUTING and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+                        health.avg_latency_ms = rust_ema_update(
+                            health.avg_latency_ms, elapsed_ms, self.EMA_ALPHA, self.EMA_BETA
+                        )
+                    else:
+                        health.avg_latency_ms = (
+                            self.EMA_ALPHA * health.avg_latency_ms
+                            + self.EMA_BETA * elapsed_ms
+                        )
                 health.consecutive_failures = 0
                 health.is_healthy = True
                 health.last_check = time.time()
@@ -109,6 +121,8 @@ class ModelRouter:
     @staticmethod
     def _detect_vision_requirement(messages: list[dict]) -> bool:
         """Return True if any message contains image_url content."""
+        if _HAS_NATIVE_ROUTING and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
+            return rust_detect_vision(messages)
         for msg in messages:
             content = msg.get("content")
             if isinstance(content, list):
