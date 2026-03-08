@@ -1,7 +1,31 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "WebSearch",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(mv:*)",
+      "Bash(wc:*)",
+      "Bash(cargo check:*)",
+      "Bash(where:*)",
+      "Bash(rustc:*)",
+      "Read(//c/Program Files/Microsoft Visual Studio/2022/**)",
+      "Read(//c/Program Files \\(x86\\)/Microsoft Visual Studio/**)",
+      "Bash(export:*)",
+      "Bash(cargo clean:*)",
+      "Read(//c/Program Files \\(x86\\)/Windows Kits/10/**)",
+      "Read(//c/Program Files/Windows Kits/10/**)",
+      "Bash(cmd:*)",
+      "Bash(ASTROMESH_FORCE_PYTHON=1 uv run:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)"
     ]
   }
 }
