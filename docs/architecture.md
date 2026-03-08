@@ -1,8 +1,8 @@
-# Astromech Architecture
+# Astromesh Architecture
 
 ## Overview
 
-Astromech is a multi-model, multi-pattern AI agent runtime platform. It follows a 4-layer architecture where each layer has a clear responsibility and communicates with adjacent layers through well-defined interfaces.
+Astromesh is a multi-model, multi-pattern AI agent runtime platform. It follows a 4-layer architecture where each layer has a clear responsibility and communicates with adjacent layers through well-defined interfaces.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -22,7 +22,7 @@ Astromech is a multi-model, multi-pattern AI agent runtime platform. It follows 
 
 ## Channel Adapters
 
-Channel adapters sit above the API layer, connecting external messaging platforms to the Agent Runtime. Each adapter translates platform-specific webhook events into Astromech agent requests and formats agent responses back to the platform's expected format.
+Channel adapters sit above the API layer, connecting external messaging platforms to the Agent Runtime. Each adapter translates platform-specific webhook events into Astromesh agent requests and formats agent responses back to the platform's expected format.
 
 ```
 External Platforms          Channel Adapters              Agent Runtime
@@ -39,11 +39,11 @@ External Platforms          Channel Adapters              Agent Runtime
 
 ## Layer 1: API Layer
 
-**Module:** `astromech/api/`
+**Module:** `astromesh/api/`
 
 The API layer exposes the runtime through HTTP and WebSocket interfaces using FastAPI.
 
-### REST API (`astromech/api/main.py` + `routes/`)
+### REST API (`astromesh/api/main.py` + `routes/`)
 
 - **Agents** — List, inspect, and execute agents via `/v1/agents`
 - **Memory** — Query and manage conversation history via `/v1/memory`
@@ -51,7 +51,7 @@ The API layer exposes the runtime through HTTP and WebSocket interfaces using Fa
 - **RAG** — Ingest documents and query knowledge bases via `/v1/rag`
 - **Health** — Health check and version at `/v1/health`
 
-### WebSocket (`astromech/api/ws.py`)
+### WebSocket (`astromesh/api/ws.py`)
 
 - Real-time streaming at `/v1/ws/agent/{name}`
 - `ConnectionManager` tracks active connections per agent
@@ -59,9 +59,9 @@ The API layer exposes the runtime through HTTP and WebSocket interfaces using Fa
 
 ## Layer 2: Runtime Engine
 
-**Module:** `astromech/runtime/engine.py`
+**Module:** `astromesh/runtime/engine.py`
 
-The runtime engine is the heart of Astromech. It handles two things:
+The runtime engine is the heart of Astromesh. It handles two things:
 
 ### AgentRuntime
 
@@ -87,7 +87,7 @@ Each agent has:
 
 ## Layer 3: Core Services
 
-### Model Router (`astromech/core/model_router.py`)
+### Model Router (`astromesh/core/model_router.py`)
 
 Routes completion requests across multiple providers with intelligent selection.
 
@@ -122,7 +122,7 @@ Routes completion requests across multiple providers with intelligent selection.
 - 60-second cooldown before half-open retry
 - Automatic recovery on success
 
-### Memory Manager (`astromech/core/memory.py`)
+### Memory Manager (`astromesh/core/memory.py`)
 
 Manages three types of memory with pluggable backends and strategies.
 
@@ -154,7 +154,7 @@ Manages three types of memory with pluggable backends and strategies.
 | `summary` | Compress older turns into summaries |
 | `token_budget` | Fit as many turns as possible within a token limit |
 
-### Tool Registry (`astromech/core/tools.py`)
+### Tool Registry (`astromesh/core/tools.py`)
 
 Central registry for all tools an agent can use.
 
@@ -166,11 +166,11 @@ Central registry for all tools an agent can use.
 
 Features: rate limiting, permission-based filtering, schema generation for LLM function calling.
 
-### Prompt Engine (`astromech/core/prompt_engine.py`)
+### Prompt Engine (`astromesh/core/prompt_engine.py`)
 
 Jinja2-based prompt rendering with `SilentUndefined` (missing variables render as empty strings instead of errors). Supports template registration and variable injection.
 
-### Guardrails Engine (`astromech/core/guardrails.py`)
+### Guardrails Engine (`astromesh/core/guardrails.py`)
 
 Applies safety checks on both input and output:
 
@@ -184,7 +184,7 @@ Applies safety checks on both input and output:
 
 ## Layer 4: Infrastructure
 
-### LLM Providers (`astromech/providers/`)
+### LLM Providers (`astromesh/providers/`)
 
 All providers implement `ProviderProtocol` (a `runtime_checkable` Protocol):
 
@@ -199,7 +199,7 @@ All providers implement `ProviderProtocol` (a `runtime_checkable` Protocol):
 
 Each provider reports: `estimated_cost()`, `supports_tools()`, `supports_vision()`, `avg_latency_ms`.
 
-### Orchestration Patterns (`astromech/orchestration/`)
+### Orchestration Patterns (`astromesh/orchestration/`)
 
 Control how agents reason and use tools:
 
@@ -212,7 +212,7 @@ Control how agents reason and use tools:
 | `Supervisor` | Delegate sub-tasks to worker agents |
 | `Swarm` | Agents hand off conversations to each other |
 
-### RAG Pipeline (`astromech/rag/`)
+### RAG Pipeline (`astromesh/rag/`)
 
 Full retrieval-augmented generation pipeline:
 
@@ -233,18 +233,18 @@ Query → Embedding → Vector Search ──────┘
 | Vector Store | pgvector, ChromaDB, Qdrant, FAISS |
 | Reranking | Cross-encoder, Cohere |
 
-### MCP Integration (`astromech/mcp/`)
+### MCP Integration (`astromesh/mcp/`)
 
 - **Client** — Connect to external MCP servers via stdio, SSE, or HTTP. Discover and invoke remote tools.
-- **Server** — Expose Astromech agents as MCP tools via a JSON-RPC endpoint at `/mcp`, allowing other systems to call your agents.
+- **Server** — Expose Astromesh agents as MCP tools via a JSON-RPC endpoint at `/mcp`, allowing other systems to call your agents.
 
-### ML Model Registry (`astromech/ml/`)
+### ML Model Registry (`astromesh/ml/`)
 
 - **Registry** — Register, version, load, and serve ML models
 - **Serving** — ONNX Runtime and PyTorch model servers
 - **Training** — Classifier and embedding fine-tuning pipelines (stubs)
 
-### Observability (`astromech/observability/`)
+### Observability (`astromesh/observability/`)
 
 ```
 Agent Execution ──► TelemetryManager ──► OpenTelemetry Collector ──► Jaeger/Zipkin

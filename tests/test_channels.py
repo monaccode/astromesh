@@ -4,8 +4,8 @@ import base64
 
 from unittest.mock import AsyncMock
 
-from astromech.channels.base import ChannelAdapter, ChannelMessage, MediaAttachment
-from astromech.channels.media import build_multimodal_query
+from astromesh.channels.base import ChannelAdapter, ChannelMessage, MediaAttachment
+from astromesh.channels.media import build_multimodal_query
 
 
 # ---------------------------------------------------------------------------

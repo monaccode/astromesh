@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 uv sync                              # Install base dependencies
 uv sync --extra all                  # Install all optional backends
-uv run uvicorn astromech.api.main:app --reload  # Run API server (port 8000)
+uv run uvicorn astromesh.api.main:app --reload  # Run API server (port 8000)
 ```
 
 Python 3.12+ required. Package manager is `uv`, build system is `hatchling`.
@@ -18,7 +18,7 @@ Python 3.12+ required. Package manager is `uv`, build system is `hatchling`.
 uv run pytest -v                          # All tests
 uv run pytest tests/test_whatsapp.py      # Single file
 uv run pytest tests/test_api.py -k "test_health"  # Single test
-uv run pytest --cov=astromech             # With coverage
+uv run pytest --cov=astromesh             # With coverage
 ```
 
 Pytest runs with `asyncio_mode = "auto"` — async test functions work without decorators. Use `respx` for mocking HTTP calls.
@@ -26,8 +26,8 @@ Pytest runs with `asyncio_mode = "auto"` — async test functions work without d
 ## Linting
 
 ```bash
-uv run ruff check astromech/ tests/       # Lint
-uv run ruff format astromech/ tests/      # Format
+uv run ruff check astromesh/ tests/       # Lint
+uv run ruff format astromesh/ tests/      # Format
 ```
 
 Line length: 100. Target: Python 3.12.
@@ -53,16 +53,16 @@ API Layer (FastAPI REST + WebSocket)
 
 ### Key abstractions
 
-- **ProviderProtocol** (`astromech/providers/base.py`): Runtime-checkable Protocol that all LLM providers implement. Methods: `complete()`, `stream()`, `health_check()`, `supports_tools()`, `estimated_cost()`.
-- **AgentRuntime** (`astromech/runtime/engine.py`): Bootstraps agents from `config/agents/*.agent.yaml`, wires up all services. Call `runtime.run(agent_name, query, session_id)`.
-- **ModelRouter** (`astromech/core/model_router.py`): Routes to providers using strategies (cost_optimized, latency_optimized, quality_first, round_robin). Has circuit breaker (3 failures → 60s cooldown).
-- **ToolRegistry** (`astromech/core/tools.py`): Registers tools as internal (Python), MCP, webhook, or RAG. Handles permissions, rate limiting, and schema generation for LLM function calling.
-- **OrchestrationPattern** (`astromech/orchestration/patterns.py`): Abstract base for ReAct, PlanAndExecute, ParallelFanOut, Pipeline, Supervisor, Swarm.
-- **MemoryManager** (`astromech/core/memory.py`): Manages 3 memory types — conversational (chat history), semantic (vector embeddings), episodic (event logs). Strategies: sliding_window, summary, token_budget.
+- **ProviderProtocol** (`astromesh/providers/base.py`): Runtime-checkable Protocol that all LLM providers implement. Methods: `complete()`, `stream()`, `health_check()`, `supports_tools()`, `estimated_cost()`.
+- **AgentRuntime** (`astromesh/runtime/engine.py`): Bootstraps agents from `config/agents/*.agent.yaml`, wires up all services. Call `runtime.run(agent_name, query, session_id)`.
+- **ModelRouter** (`astromesh/core/model_router.py`): Routes to providers using strategies (cost_optimized, latency_optimized, quality_first, round_robin). Has circuit breaker (3 failures → 60s cooldown).
+- **ToolRegistry** (`astromesh/core/tools.py`): Registers tools as internal (Python), MCP, webhook, or RAG. Handles permissions, rate limiting, and schema generation for LLM function calling.
+- **OrchestrationPattern** (`astromesh/orchestration/patterns.py`): Abstract base for ReAct, PlanAndExecute, ParallelFanOut, Pipeline, Supervisor, Swarm.
+- **MemoryManager** (`astromesh/core/memory.py`): Manages 3 memory types — conversational (chat history), semantic (vector embeddings), episodic (event logs). Strategies: sliding_window, summary, token_budget.
 
 ### Agent YAML schema
 
-Agents are defined in `config/agents/*.agent.yaml` with schema `apiVersion: astromech/v1, kind: Agent`. Spec sections: `identity`, `model` (primary + fallback + routing), `prompts` (Jinja2 system prompt), `orchestration` (pattern + iterations + timeout), `tools`, `memory`, `guardrails`, `permissions`.
+Agents are defined in `config/agents/*.agent.yaml` with schema `apiVersion: astromesh/v1, kind: Agent`. Spec sections: `identity`, `model` (primary + fallback + routing), `prompts` (Jinja2 system prompt), `orchestration` (pattern + iterations + timeout), `tools`, `memory`, `guardrails`, `permissions`.
 
 ### API routes
 
@@ -75,7 +75,7 @@ Routes inject runtime via `set_runtime()` called during bootstrap. Pattern: each
 
 ### Channels
 
-Channel adapters live in `astromech/channels/`. Config in `config/channels.yaml` with env var references (`${VAR_NAME}`). WhatsApp uses background tasks for agent execution to respond to Meta within 5s.
+Channel adapters live in `astromesh/channels/`. Config in `config/channels.yaml` with env var references (`${VAR_NAME}`). WhatsApp uses background tasks for agent execution to respond to Meta within 5s.
 
 ## Conventions
 

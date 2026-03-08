@@ -6,7 +6,7 @@
 
 ## Summary
 
-Add a WhatsApp channel adapter to Astromech platform using Meta's WhatsApp Business Cloud API. This enables any configured agent to handle WhatsApp conversations with zero changes to the existing runtime, memory, or orchestration layers.
+Add a WhatsApp channel adapter to Astromesh platform using Meta's WhatsApp Business Cloud API. This enables any configured agent to handle WhatsApp conversations with zero changes to the existing runtime, memory, or orchestration layers.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ Meta Cloud API ──webhook──► POST /v1/channels/whatsapp/webhook
 
 ## Components
 
-### 1. WhatsAppClient (`astromech/channels/whatsapp.py`)
+### 1. WhatsAppClient (`astromesh/channels/whatsapp.py`)
 
 Handles all Meta API interaction:
 
@@ -53,7 +53,7 @@ Configuration via environment variables:
 - `WHATSAPP_PHONE_NUMBER_ID` — Business phone number ID
 - `WHATSAPP_APP_SECRET` — App secret for signature validation (optional)
 
-### 2. Webhook Route (`astromech/api/routes/whatsapp.py`)
+### 2. Webhook Route (`astromesh/api/routes/whatsapp.py`)
 
 Two endpoints:
 

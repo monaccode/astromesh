@@ -1,4 +1,4 @@
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: ProviderConfig
 metadata:
   name: default-providers

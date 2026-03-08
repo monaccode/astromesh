@@ -1,7 +1,7 @@
 [project]
-name = "astromech"
+name = "astromesh"
 version = "0.1.0"
-description = "Astromech Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
+description = "Astromesh Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -31,7 +31,7 @@ observability = [
 ]
 mcp = ["mcp>=1.0.0"]
 all = [
-    "astromech[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp]",
+    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp]",
 ]
 [dependency-groups]
 dev = [

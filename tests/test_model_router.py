@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from astromech.core.model_router import ModelRouter
-from astromech.providers.base import (
+from astromesh.core.model_router import ModelRouter
+from astromesh.providers.base import (
     CompletionChunk,
     CompletionResponse,
     CompletionResponse as CR,

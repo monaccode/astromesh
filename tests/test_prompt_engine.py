@@ -1,4 +1,4 @@
-from astromech.core.prompt_engine import PromptEngine
+from astromesh.core.prompt_engine import PromptEngine
 
 
 def test_render_simple_template():

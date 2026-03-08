@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
-from astromech.mcp.client import MCPClient, MCPToolInfo
-from astromech.mcp.server import MCPServer
-from astromech.core.tools import ToolRegistry
+from astromesh.mcp.client import MCPClient, MCPToolInfo
+from astromesh.mcp.server import MCPServer
+from astromesh.core.tools import ToolRegistry
 
 
 async def test_mcp_client_call_tool():

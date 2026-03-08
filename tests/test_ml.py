@@ -1,8 +1,8 @@
-from astromech.ml.model_registry import ModelRegistry, ModelFormat, ModelStatus
-from astromech.ml.serving.onnx_runtime import ONNXModelServer, ONNXServingConfig
-from astromech.ml.serving.torch_serve import TorchModelServer, TorchServingConfig
-from astromech.ml.training.classifier import ClassifierTrainer, ClassifierConfig
-from astromech.ml.training.embeddings import EmbeddingTrainer, EmbeddingTrainerConfig
+from astromesh.ml.model_registry import ModelRegistry, ModelFormat, ModelStatus
+from astromesh.ml.serving.onnx_runtime import ONNXModelServer, ONNXServingConfig
+from astromesh.ml.serving.torch_serve import TorchModelServer, TorchServingConfig
+from astromesh.ml.training.classifier import ClassifierTrainer, ClassifierConfig
+from astromesh.ml.training.embeddings import EmbeddingTrainer, EmbeddingTrainerConfig
 
 
 def test_register_model():

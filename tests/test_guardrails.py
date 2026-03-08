@@ -1,5 +1,5 @@
 import pytest
-from astromech.core.guardrails import GuardrailsEngine
+from astromesh.core.guardrails import GuardrailsEngine
 
 
 async def test_pii_redaction_email():

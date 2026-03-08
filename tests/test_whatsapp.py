@@ -6,9 +6,9 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, patch
 
-from astromech.api.main import app
-from astromech.channels.whatsapp import WhatsAppClient
-from astromech.channels.base import ChannelMessage, MediaAttachment
+from astromesh.api.main import app
+from astromesh.channels.whatsapp import WhatsAppClient
+from astromesh.channels.base import ChannelMessage, MediaAttachment
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +204,7 @@ class TestWhatsAppClient:
 
 async def test_webhook_verify_success(client, monkeypatch):
     monkeypatch.setattr(
-        "astromech.api.routes.whatsapp._whatsapp.verify_token", "test-token"
+        "astromesh.api.routes.whatsapp._whatsapp.verify_token", "test-token"
     )
     resp = await client.get("/v1/channels/whatsapp/webhook", params={
         "hub.mode": "subscribe",
@@ -236,7 +236,7 @@ async def test_webhook_verify_missing_params(client):
 async def test_webhook_post_valid_message(client, monkeypatch):
     """POST with valid payload returns 200 and schedules background task."""
     monkeypatch.setattr(
-        "astromech.api.routes.whatsapp._whatsapp.app_secret", ""
+        "astromesh.api.routes.whatsapp._whatsapp.app_secret", ""
     )
     payload = _make_webhook_payload()
     resp = await client.post(
@@ -249,7 +249,7 @@ async def test_webhook_post_valid_message(client, monkeypatch):
 
 async def test_webhook_post_invalid_signature(client, monkeypatch):
     monkeypatch.setattr(
-        "astromech.api.routes.whatsapp._whatsapp.app_secret", "real-secret"
+        "astromesh.api.routes.whatsapp._whatsapp.app_secret", "real-secret"
     )
     payload = _make_webhook_payload()
     resp = await client.post(
@@ -262,7 +262,7 @@ async def test_webhook_post_invalid_signature(client, monkeypatch):
 
 async def test_webhook_post_valid_signature(client, monkeypatch):
     monkeypatch.setattr(
-        "astromech.api.routes.whatsapp._whatsapp.app_secret", "my-secret"
+        "astromesh.api.routes.whatsapp._whatsapp.app_secret", "my-secret"
     )
     payload = _make_webhook_payload()
     body = json.dumps(payload).encode()
@@ -280,7 +280,7 @@ async def test_webhook_post_valid_signature(client, monkeypatch):
 
 async def test_webhook_post_empty_messages(client, monkeypatch):
     monkeypatch.setattr(
-        "astromech.api.routes.whatsapp._whatsapp.app_secret", ""
+        "astromesh.api.routes.whatsapp._whatsapp.app_secret", ""
     )
     resp = await client.post(
         "/v1/channels/whatsapp/webhook",
@@ -295,7 +295,7 @@ async def test_webhook_post_empty_messages(client, monkeypatch):
 # ---------------------------------------------------------------------------
 
 async def test_process_message_calls_runtime_and_sends_reply():
-    from astromech.api.routes import whatsapp as whatsapp_routes
+    from astromesh.api.routes import whatsapp as whatsapp_routes
 
     mock_runtime = AsyncMock()
     mock_runtime.run = AsyncMock(return_value={"answer": "Hola!"})
@@ -331,7 +331,7 @@ async def test_process_message_calls_runtime_and_sends_reply():
 
 
 async def test_process_message_sends_error_on_runtime_failure():
-    from astromech.api.routes import whatsapp as whatsapp_routes
+    from astromesh.api.routes import whatsapp as whatsapp_routes
 
     mock_runtime = AsyncMock()
     mock_runtime.run = AsyncMock(side_effect=RuntimeError("boom"))
@@ -378,7 +378,7 @@ async def test_send_text_calls_graph_api(monkeypatch):
 
     mock_post = AsyncMock(return_value=mock_response)
 
-    with patch("astromech.channels.whatsapp.httpx.AsyncClient") as MockClient:
+    with patch("astromesh.channels.whatsapp.httpx.AsyncClient") as MockClient:
         instance = AsyncMock()
         instance.post = mock_post
         instance.__aenter__ = AsyncMock(return_value=instance)
@@ -419,7 +419,7 @@ async def test_download_media_two_step_fetch():
     mock_media_resp.content = b"\xff\xd8\xff\xe0"
     mock_media_resp.raise_for_status = lambda: None
 
-    with patch("astromech.channels.whatsapp.httpx.AsyncClient") as MockClient:
+    with patch("astromesh.channels.whatsapp.httpx.AsyncClient") as MockClient:
         instance = AsyncMock()
         instance.get = AsyncMock(side_effect=[mock_meta_resp, mock_media_resp])
         instance.__aenter__ = AsyncMock(return_value=instance)

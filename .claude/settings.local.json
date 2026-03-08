@@ -4,7 +4,11 @@
       "Bash(uv run:*)",
       "Bash(python:*)",
       "Bash(pip install:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(mv:*)"
     ]
   }
 }

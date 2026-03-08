@@ -2,12 +2,12 @@
 
 ## Overview
 
-Astromech supports WhatsApp as a messaging channel through the Meta Cloud API. Incoming WhatsApp messages are received via a webhook, routed to a configured agent for processing, and the agent's response is sent back to the user through the WhatsApp Business API.
+Astromesh supports WhatsApp as a messaging channel through the Meta Cloud API. Incoming WhatsApp messages are received via a webhook, routed to a configured agent for processing, and the agent's response is sent back to the user through the WhatsApp Business API.
 
 The integration consists of three components:
 
-- **WhatsApp Client** (`astromech/channels/whatsapp.py`) — Handles webhook verification, signature validation, payload parsing, and outbound message delivery via the Meta Graph API.
-- **Webhook Route** (`astromech/api/routes/whatsapp.py`) — FastAPI endpoints that receive Meta webhook events and dispatch messages to the agent runtime in the background.
+- **WhatsApp Client** (`astromesh/channels/whatsapp.py`) — Handles webhook verification, signature validation, payload parsing, and outbound message delivery via the Meta Graph API.
+- **Webhook Route** (`astromesh/api/routes/whatsapp.py`) — FastAPI endpoints that receive Meta webhook events and dispatch messages to the agent runtime in the background.
 - **Channel Configuration** (`config/channels.yaml`) — Declares credentials, the default agent, and rate limiting settings.
 
 ```
@@ -17,7 +17,7 @@ WhatsApp User
 Meta Cloud API
     |
     v  (POST /v1/channels/whatsapp/webhook)
-Astromech Webhook Route
+Astromesh Webhook Route
     |
     v
 Agent Runtime (whatsapp-assistant)
@@ -34,12 +34,12 @@ WhatsApp User
 - A Meta Business Account (free at [business.facebook.com](https://business.facebook.com))
 - A Meta Developer App with the WhatsApp product added ([developers.facebook.com](https://developers.facebook.com))
 - A phone number registered with WhatsApp Business
-- Astromech platform running (local or deployed)
+- Astromesh platform running (local or deployed)
 - Python 3.12+ and [uv](https://docs.astral.sh/uv/)
 
 ## Quick Start
 
-1. **Install Astromech** (if not already done):
+1. **Install Astromesh** (if not already done):
 
    ```bash
    uv sync
@@ -54,10 +54,10 @@ WhatsApp User
    export WHATSAPP_APP_SECRET="abc123..."   # optional but recommended
    ```
 
-3. **Start the Astromech server**:
+3. **Start the Astromesh server**:
 
    ```bash
-   uv run uvicorn astromech.api.main:app --host 0.0.0.0 --port 8000
+   uv run uvicorn astromesh.api.main:app --host 0.0.0.0 --port 8000
    ```
 
 4. **Expose your local server** using ngrok (for development):
@@ -88,7 +88,7 @@ WhatsApp User
 WhatsApp messages are routed to the agent specified in `config/channels.yaml` (default: `whatsapp-assistant`). The sample agent definition lives at `config/agents/whatsapp-assistant.agent.yaml`:
 
 ```yaml
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: Agent
 metadata:
   name: whatsapp-assistant
@@ -177,7 +177,7 @@ To use a different agent, update the `default_agent` field in `config/channels.y
    ngrok config add-authtoken <your-ngrok-token>
    ```
 
-2. Start Astromech on port 8000, then start ngrok:
+2. Start Astromesh on port 8000, then start ngrok:
 
    ```bash
    ngrok http 8000
@@ -196,7 +196,7 @@ Note: ngrok URLs change each time you restart. Update the callback URL in the Me
 
 ### Production
 
-1. Deploy Astromech behind a reverse proxy (nginx, Caddy, etc.) with a valid TLS certificate. Meta requires HTTPS for webhooks.
+1. Deploy Astromesh behind a reverse proxy (nginx, Caddy, etc.) with a valid TLS certificate. Meta requires HTTPS for webhooks.
 
 2. Set the Callback URL in the Meta Developer Dashboard to your production endpoint:
 
@@ -278,7 +278,7 @@ The WhatsApp integration supports receiving multimedia messages including images
 
 1. User sends a photo (or other media) via WhatsApp
 2. Meta webhook delivers the message with a media ID
-3. Astromech downloads the media bytes via the Graph API (`GET /{media_id}` → download URL → bytes)
+3. Astromesh downloads the media bytes via the Graph API (`GET /{media_id}` → download URL → bytes)
 4. The `build_multimodal_query()` utility converts the message:
    - Images → base64 data URL in OpenAI `image_url` format
    - Other media → text description for the agent
@@ -314,7 +314,7 @@ WhatsApp image messages can include a caption. When present, the caption is incl
 
 - Confirm that `WHATSAPP_VERIFY_TOKEN` matches the value entered in the Meta Developer Dashboard.
 - Verify the callback URL ends with `/v1/channels/whatsapp/webhook` and is reachable over HTTPS.
-- Check Astromech server logs for the incoming verification request.
+- Check Astromesh server logs for the incoming verification request.
 
 ### Messages not arriving
 
@@ -327,13 +327,13 @@ WhatsApp image messages can include a caption. When present, the caption is incl
 
 - Check that the agent specified in `config/channels.yaml` (`default_agent`) has a matching YAML file in `config/agents/`.
 - Verify the LLM provider endpoint is reachable (e.g., Ollama is running).
-- Review Astromech logs for errors in background task processing.
+- Review Astromesh logs for errors in background task processing.
 - Confirm `WHATSAPP_ACCESS_TOKEN` is valid and has not expired.
 
 ### Rate limiting
 
 - Meta enforces rate limits on the WhatsApp Cloud API. If you receive 429 responses, reduce message throughput.
-- The `rate_limit` section in `config/channels.yaml` controls Astromech's outbound rate. Adjust `max_messages` and `window_seconds` as needed.
+- The `rate_limit` section in `config/channels.yaml` controls Astromesh's outbound rate. Adjust `max_messages` and `window_seconds` as needed.
 
 ### Signature validation errors
 

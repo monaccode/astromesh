@@ -1,12 +1,12 @@
 import pytest
-from astromech.runtime.engine import AgentRuntime
+from astromesh.runtime.engine import AgentRuntime
 
 @pytest.fixture
 def config_dir(tmp_path):
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir()
     (agents_dir / "test-agent.agent.yaml").write_text("""
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: Agent
 metadata:
   name: test-agent

@@ -1,8 +1,8 @@
-# Astromech Agent Runtime Platform
+# Astromesh Agent Runtime Platform
 
 Multi-model, multi-pattern AI agent runtime with declarative YAML configuration.
 
-Astromech lets you define intelligent agents, connect them to multiple LLM providers, equip them with tools and memory, and deploy them as a REST/WebSocket API — all through YAML configuration files.
+Astromesh lets you define intelligent agents, connect them to multiple LLM providers, equip them with tools and memory, and deploy them as a REST/WebSocket API — all through YAML configuration files.
 
 ## Features
 
@@ -17,7 +17,7 @@ Astromech lets you define intelligent agents, connect them to multiple LLM provi
 - **Guardrails** — PII redaction, topic filtering, cost limits, content filtering
 - **Observability** — OpenTelemetry tracing, Prometheus metrics, cost tracking with budgets
 - **WhatsApp Integration** — Receive and reply to WhatsApp messages via Meta Business Cloud API with webhook verification, signature validation, and rate limiting
-- **Declarative Config** — Define everything in YAML with `apiVersion: astromech/v1`
+- **Declarative Config** — Define everything in YAML with `apiVersion: astromesh/v1`
 
 ## Quick Start
 
@@ -30,8 +30,8 @@ Astromech lets you define intelligent agents, connect them to multiple LLM provi
 
 ```bash
 # Clone the repository
-git clone <repo-url> astromech-platform
-cd astromech-platform
+git clone <repo-url> astromesh-platform
+cd astromesh-platform
 
 # Install with uv
 uv sync
@@ -47,10 +47,10 @@ uv sync --extra all
 
 ```bash
 # Start the server
-uv run uvicorn astromech.api.main:app --host 0.0.0.0 --port 8000
+uv run uvicorn astromesh.api.main:app --host 0.0.0.0 --port 8000
 
 # Or with auto-reload for development
-uv run uvicorn astromech.api.main:app --reload
+uv run uvicorn astromesh.api.main:app --reload
 ```
 
 ### Create Your First Agent
@@ -58,7 +58,7 @@ uv run uvicorn astromech.api.main:app --reload
 Create a file at `config/agents/my-agent.agent.yaml`:
 
 ```yaml
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: Agent
 metadata:
   name: my-agent
@@ -113,7 +113,7 @@ docker compose up -d
 
 | Service | Port | Description |
 |---------|------|-------------|
-| astromech | 8000 | Agent Runtime API |
+| astromesh | 8000 | Agent Runtime API |
 | ollama | 11434 | Local LLM inference |
 | vllm | 8001 | High-throughput LLM serving |
 | embeddings | 8002 | HuggingFace Text Embeddings |
@@ -158,8 +158,8 @@ Receive streamed token responses in real-time.
 ## Project Structure
 
 ```
-astromech-platform/
-├── astromech/
+astromesh-platform/
+├── astromesh/
 │   ├── api/                  # FastAPI app and routes
 │   │   ├── main.py           # App entry point
 │   │   ├── routes/           # REST endpoints
@@ -247,15 +247,15 @@ uv sync --group dev
 uv run pytest -v
 
 # Run with coverage
-uv run pytest --cov=astromech
+uv run pytest --cov=astromesh
 
 # Lint
-uv run ruff check astromech/ tests/
+uv run ruff check astromesh/ tests/
 ```
 
 ## Configuration
 
-All configuration uses YAML with `apiVersion: astromech/v1`. See the [Configuration Guide](docs/configuration-guide.md) for detailed documentation on:
+All configuration uses YAML with `apiVersion: astromesh/v1`. See the [Configuration Guide](docs/configuration-guide.md) for detailed documentation on:
 
 - Agent definitions (`kind: Agent`)
 - Provider registry (`kind: ProviderConfig`)

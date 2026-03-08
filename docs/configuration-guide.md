@@ -1,9 +1,9 @@
-# Astromech Configuration Guide
+# Astromesh Configuration Guide
 
-All Astromech configuration files are YAML with a common header:
+All Astromesh configuration files are YAML with a common header:
 
 ```yaml
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: <ResourceType>
 metadata:
   name: <unique-name>
@@ -23,7 +23,7 @@ Agents are the primary resource. Each YAML file defines a fully independent agen
 ### Minimal Agent
 
 ```yaml
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: Agent
 metadata:
   name: my-agent
@@ -55,7 +55,7 @@ spec:
 ### Full Agent Reference
 
 ```yaml
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: Agent
 metadata:
   name: sales-qualifier        # Unique identifier (used in API routes)
@@ -202,7 +202,7 @@ spec:
 Defines the available LLM providers, their endpoints, and routing behavior.
 
 ```yaml
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: ProviderConfig
 metadata:
   name: default-providers
@@ -288,7 +288,7 @@ spec:
 Defines a retrieval-augmented generation pipeline for knowledge bases.
 
 ```yaml
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: RAGPipeline
 metadata:
   name: product-knowledge
@@ -321,9 +321,9 @@ spec:
     connection:                   # For pgvector:
       host: postgres
       port: 5432
-      database: astromech
-      user: astromech
-      password: astromech
+      database: astromesh
+      user: astromesh
+      password: astromesh
     collection: product_docs      # Collection/table name
 
   # --- Reranking (optional) ---
@@ -371,7 +371,7 @@ spec:
 
 **File location:** `config/channels.yaml`
 
-Defines external messaging platform integrations. Each channel connects incoming messages to an Astromech agent.
+Defines external messaging platform integrations. Each channel connects incoming messages to an Astromesh agent.
 
 ```yaml
 channels:
@@ -409,10 +409,10 @@ The `default_agent` must match the `metadata.name` of an agent defined in `confi
 **File location:** `config/runtime.yaml`
 **Kind:** `RuntimeConfig`
 
-Global settings for the Astromech runtime.
+Global settings for the Astromesh runtime.
 
 ```yaml
-apiVersion: astromech/v1
+apiVersion: astromesh/v1
 kind: RuntimeConfig
 metadata:
   name: default
@@ -472,10 +472,10 @@ Use separate config directories for different environments:
 
 ```bash
 # Development
-ASTROMECH_CONFIG_DIR=./config/dev uv run uvicorn astromech.api.main:app
+ASTROMESH_CONFIG_DIR=./config/dev uv run uvicorn astromesh.api.main:app
 
 # Production
-ASTROMECH_CONFIG_DIR=./config/prod uv run uvicorn astromech.api.main:app
+ASTROMESH_CONFIG_DIR=./config/prod uv run uvicorn astromesh.api.main:app
 ```
 
 ### Docker Override
@@ -485,7 +485,7 @@ Mount your config directory into the container:
 ```yaml
 # docker-compose.override.yaml
 services:
-  astromech:
+  astromesh:
     volumes:
       - ./my-configs:/app/config
 ```

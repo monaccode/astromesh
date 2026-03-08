@@ -1,6 +1,6 @@
-from astromech.observability.telemetry import TelemetryManager, TelemetryConfig, _NoOpSpan
-from astromech.observability.metrics import MetricsCollector, MetricsConfig
-from astromech.observability.cost_tracker import CostTracker, UsageRecord
+from astromesh.observability.telemetry import TelemetryManager, TelemetryConfig, _NoOpSpan
+from astromesh.observability.metrics import MetricsCollector, MetricsConfig
+from astromesh.observability.cost_tracker import CostTracker, UsageRecord
 
 
 def test_telemetry_disabled():
