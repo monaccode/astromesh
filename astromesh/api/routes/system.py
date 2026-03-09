@@ -32,6 +32,7 @@ class StatusResponse(BaseModel):
     pid: int
     services: dict[str, bool] = {}
     peers: list[dict] = []
+    mesh: dict | None = None
 
 
 class DoctorResponse(BaseModel):
@@ -57,6 +58,18 @@ async def system_status():
         if hasattr(_runtime, "peer_client") and _runtime.peer_client:
             peers = _runtime.peer_client.to_dict()
 
+    mesh_info = None
+    if _runtime and hasattr(_runtime, "mesh_manager") and _runtime.mesh_manager:
+        mm = _runtime.mesh_manager
+        mesh_info = {
+            "enabled": True,
+            "node_id": mm.node_id,
+            "node_name": mm._config.node_name,
+            "leader": mm.cluster_state().leader_id,
+            "cluster_size": len(mm.cluster_state().nodes),
+            "status": mm.local_node_state().status,
+        }
+
     return StatusResponse(
         version=__version__,
         uptime_seconds=round(time.time() - _start_time, 2),
@@ -65,6 +78,7 @@ async def system_status():
         pid=os.getpid(),
         services=services,
         peers=peers,
+        mesh=mesh_info,
     )
 
 
