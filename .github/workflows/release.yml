@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install nfpm
+        run: |
+          echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+          sudo apt-get update
+          sudo apt-get install -y nfpm
+
+      - name: Build .deb package
+        run: bash packaging/build-deb.sh
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: dist/*.deb
+
+  publish-apt-repo:
+    needs: build-deb
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          fetch-depth: 0
+
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+          path: deb-package
+
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Update APT repository
+        run: |
+          cd gh-pages
+
+          # Copy .deb to pool
+          mkdir -p pool/main/a/astromesh
+          cp ../deb-package/*.deb pool/main/a/astromesh/
+
+          # Generate Packages index
+          mkdir -p dists/stable/main/binary-amd64
+          apt-ftparchive packages pool/ > dists/stable/main/binary-amd64/Packages
+          gzip -k -f dists/stable/main/binary-amd64/Packages
+
+          # Generate Release file
+          cd dists/stable
+          apt-ftparchive release . > Release
+
+          # Sign Release
+          gpg --batch --yes --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
+              --pinentry-mode loopback \
+              -u "${{ secrets.GPG_KEY_ID }}" \
+              --armor --detach-sign -o Release.gpg Release
+          gpg --batch --yes --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
+              --pinentry-mode loopback \
+              -u "${{ secrets.GPG_KEY_ID }}" \
+              --clearsign -o InRelease Release
+
+          cd ../..
+
+          # Export public key
+          gpg --armor --export "${{ secrets.GPG_KEY_ID }}" > gpg.key
+
+      - name: Push to gh-pages
+        run: |
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Update APT repo for ${{ github.ref_name }}"
+          git push
+
+  release-assets:
+    needs: build-deb
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+          path: deb-package
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: deb-package/*.deb
+          generate_release_notes: true

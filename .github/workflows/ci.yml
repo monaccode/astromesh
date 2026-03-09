@@ -30,3 +30,27 @@ jobs:
 
       - name: Tests
         run: uv run pytest -v
+
+  build-deb-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install nfpm
+        run: |
+          echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+          sudo apt-get update
+          sudo apt-get install -y nfpm
+
+      - name: Build .deb package
+        run: bash packaging/build-deb.sh
+
+      - name: Verify .deb package
+        run: dpkg-deb --info dist/astromesh_*.deb
