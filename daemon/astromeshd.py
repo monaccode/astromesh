@@ -31,6 +31,7 @@ class DaemonConfig:
     pid_file: str = DEFAULT_PID_FILE
     services: dict[str, bool] = field(default_factory=dict)
     peers: list[dict] = field(default_factory=list)
+    mesh: dict = field(default_factory=dict)
 
     @classmethod
     def from_config_dir(cls, config_dir: str) -> "DaemonConfig":
@@ -47,6 +48,7 @@ class DaemonConfig:
             port=api.get("port", cls.port),
             services=spec.get("services", {}),
             peers=spec.get("peers", []),
+            mesh=spec.get("mesh", {}),
         )
 
 
@@ -142,6 +144,25 @@ async def run_daemon(args: argparse.Namespace) -> None:
     service_manager = ServiceManager(daemon_config.services)
     peer_client = PeerClient(daemon_config.peers)
 
+    # Create mesh if enabled
+    mesh_manager = None
+    elector = None
+    from astromesh.mesh.config import MeshConfig
+    mesh_config = MeshConfig.from_dict(daemon_config.mesh)
+    if mesh_config.enabled:
+        from astromesh.mesh.manager import MeshManager
+        from astromesh.mesh.leader import LeaderElector
+
+        mesh_manager = MeshManager(mesh_config, service_manager)
+        elector = LeaderElector(mesh_manager)
+
+        # PeerClient from mesh instead of static config
+        peer_client = PeerClient.from_mesh(mesh_manager)
+        logger.info("Mesh enabled, node: %s", mesh_config.node_name)
+
+        if daemon_config.peers:
+            logger.warning("spec.peers ignored when mesh is enabled")
+
     enabled = service_manager.enabled_services()
     logger.info("Enabled services: %s", ", ".join(enabled))
     for warning in service_manager.validate():
@@ -165,8 +186,19 @@ async def run_daemon(args: argparse.Namespace) -> None:
     agents.set_runtime(runtime)
     system.set_runtime(runtime)
 
+    from astromesh.api.routes import mesh as mesh_routes
+    mesh_routes.set_mesh(mesh_manager, elector)
+
     agent_count = len(runtime.list_agents())
     logger.info("Loaded %d agent(s)", agent_count)
+
+    if mesh_manager:
+        mesh_manager.update_agents([a["name"] for a in runtime.list_agents()])
+        await mesh_manager.join()
+        elector.elect()
+        logger.info("Mesh joined, cluster size: %d", len(mesh_manager.cluster_state().nodes))
+
+    runtime.mesh_manager = mesh_manager
 
     try:
         import sdnotify
@@ -199,9 +231,35 @@ async def run_daemon(args: argparse.Namespace) -> None:
         signal.signal(signal.SIGTERM, handle_shutdown)
         signal.signal(signal.SIGINT, handle_shutdown)
 
+    mesh_tasks = []
+    if mesh_manager:
+        async def _gossip_loop():
+            while not server.should_exit:
+                try:
+                    await mesh_manager.gossip_once()
+                except Exception as e:
+                    logger.debug("Gossip error: %s", e)
+                await asyncio.sleep(mesh_config.gossip_interval)
+
+        async def _heartbeat_loop():
+            while not server.should_exit:
+                try:
+                    await mesh_manager.heartbeat_once()
+                except Exception as e:
+                    logger.debug("Heartbeat error: %s", e)
+                await asyncio.sleep(mesh_config.heartbeat_interval)
+
+        mesh_tasks.append(asyncio.create_task(_gossip_loop()))
+        mesh_tasks.append(asyncio.create_task(_heartbeat_loop()))
+
     try:
         await server.serve()
     finally:
+        for task in mesh_tasks:
+            task.cancel()
+        if mesh_manager:
+            await mesh_manager.leave()
+            await mesh_manager.close()
         remove_pid_file(pid_file)
         logger.info("astromeshd stopped")
 

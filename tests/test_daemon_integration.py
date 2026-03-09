@@ -52,7 +52,7 @@ async def test_status_with_bootstrapped_runtime(bootstrapped_client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["agents_loaded"] == 1
-    assert data["version"] == "0.6.0"
+    assert data["version"] == "0.7.0"
 
 
 async def test_doctor_with_bootstrapped_runtime(bootstrapped_client):

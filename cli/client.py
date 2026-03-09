@@ -16,3 +16,10 @@ def api_get(path: str) -> dict:
     resp = httpx.get(url, timeout=5.0)
     resp.raise_for_status()
     return resp.json()
+
+
+def api_post(path: str, json: dict | None = None) -> dict:
+    url = f"{get_base_url()}{path}"
+    resp = httpx.post(url, json=json, timeout=5.0)
+    resp.raise_for_status()
+    return resp.json()
