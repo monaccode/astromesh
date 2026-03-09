@@ -15,6 +15,7 @@ app.add_typer(status.app, name="status")
 app.add_typer(doctor.app, name="doctor")
 app.add_typer(agents.app, name="agents")
 app.add_typer(providers.app, name="providers")
+app.add_typer(config.app, name="config")
 
 
 @app.command()

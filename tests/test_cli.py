@@ -108,3 +108,39 @@ def test_providers_list():
         result = runner.invoke(app, ["providers", "list"])
     assert result.exit_code == 0
     assert "ollama" in result.output
+
+
+def test_config_validate_valid(tmp_path):
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir()
+    (agents_dir / "test.agent.yaml").write_text("""
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: test
+spec:
+  identity:
+    display_name: Test
+""")
+    (tmp_path / "runtime.yaml").write_text("""
+apiVersion: astromesh/v1
+kind: RuntimeConfig
+metadata:
+  name: default
+spec:
+  api:
+    host: "0.0.0.0"
+    port: 8000
+""")
+
+    result = runner.invoke(app, ["config", "validate", "--path", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "valid" in result.output.lower()
+
+
+def test_config_validate_invalid_yaml(tmp_path):
+    (tmp_path / "runtime.yaml").write_text(": invalid: yaml: [")
+
+    result = runner.invoke(app, ["config", "validate", "--path", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "error" in result.output.lower() or "failed" in result.output.lower()
