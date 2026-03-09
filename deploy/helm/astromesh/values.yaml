@@ -228,3 +228,36 @@ redis:
 # ==============================================================================
 ollama:
   enabled: false
+
+# ==============================================================================
+# vLLM Model Server
+# ==============================================================================
+vllm:
+  # -- Enable vLLM deployment
+  enabled: false
+  image:
+    # -- vLLM image repository
+    repository: vllm/vllm-openai
+    # -- vLLM image tag
+    tag: latest
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+  # -- Model to serve
+  model: "mistralai/Mistral-7B-Instruct-v0.3"
+  # -- Extra arguments for vLLM server
+  extraArgs:
+    - "--max-model-len"
+    - "4096"
+  service:
+    # -- Service type
+    type: ClusterIP
+    # -- Service port
+    port: 8000
+  # -- Resource requests and limits (include GPU here)
+  resources:
+    limits:
+      nvidia.com/gpu: "1"
+  # -- Node selector for GPU nodes
+  nodeSelector: {}
+  # -- Tolerations for GPU nodes
+  tolerations: []
