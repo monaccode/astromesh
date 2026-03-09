@@ -300,3 +300,42 @@ tei:
   huggingfaceToken: ""
   # -- Use an existing Secret with key HF_TOKEN instead
   existingSecret: ""
+
+# ==============================================================================
+# Subchart: kube-prometheus-stack (Prometheus + Grafana + AlertManager)
+# ==============================================================================
+kube-prometheus-stack:
+  # -- Enable kube-prometheus-stack deployment
+  enabled: false
+  prometheus:
+    prometheusSpec:
+      # -- Allow ServiceMonitors from all namespaces
+      serviceMonitorSelectorNilUsesHelmValues: false
+  grafana:
+    # -- Grafana admin password
+    adminPassword: admin
+
+# ==============================================================================
+# Subchart: OpenTelemetry Collector
+# ==============================================================================
+opentelemetry-collector:
+  # -- Enable OpenTelemetry Collector deployment
+  enabled: false
+  # -- Collector deployment mode
+  mode: deployment
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      prometheus:
+        endpoint: 0.0.0.0:8889
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [prometheus]

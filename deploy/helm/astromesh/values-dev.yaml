@@ -30,3 +30,13 @@ tei:
     - name: embeddings
       modelId: "BAAI/bge-small-en-v1.5"
       port: 8002
+
+observability:
+  otel:
+    enabled: true
+
+kube-prometheus-stack:
+  enabled: true
+
+opentelemetry-collector:
+  enabled: true
