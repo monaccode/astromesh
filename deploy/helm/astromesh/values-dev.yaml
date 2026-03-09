@@ -19,3 +19,13 @@ redis:
 
 ollama:
   enabled: true
+
+vllm:
+  enabled: true
+  resources: {}  # No GPU limits for local dev
+
+tei:
+  instances:
+    - name: embeddings
+      modelId: "BAAI/bge-small-en-v1.5"
+      port: 8002
