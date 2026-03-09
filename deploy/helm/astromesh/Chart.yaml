@@ -1,0 +1,28 @@
+apiVersion: v2
+name: astromesh
+description: Astromesh Agent Runtime Platform — deploy AI agents on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.4.0"
+keywords:
+  - ai
+  - agents
+  - llm
+  - runtime
+home: https://github.com/monaccode/astromech-platform
+maintainers:
+  - name: monaccode
+
+dependencies:
+  - name: postgresql
+    version: "16.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "20.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: ollama
+    version: "1.x.x"
+    repository: https://otwld.github.io/ollama-helm
+    condition: ollama.enabled
