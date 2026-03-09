@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-09
+
+### Added
+
+- **ServiceManager** (`astromesh/runtime/services.py`) — controls which subsystems (api, agents, inference, memory, tools, channels, rag, observability) are active on each node
+- **PeerClient** (`astromesh/runtime/peers.py`) — HTTP client for inter-node communication with round-robin load balancing, health checks, and request forwarding
+- Config profiles for common node roles: `full.yaml`, `gateway.yaml`, `worker.yaml`, `inference.yaml` (`config/profiles/`)
+- Conditional bootstrap in AgentRuntime — only initializes subsystems enabled by ServiceManager
+- `spec.services` and `spec.peers` configuration sections in `runtime.yaml`
+- `astromeshctl peers list` command — display peer nodes with services and connectivity status
+- `astromeshctl services` command — display enabled/disabled services on the current node
+- Universal multi-stage Dockerfile for all node roles (`Dockerfile`)
+- Docker Compose mesh configuration for multi-node local development: gateway + worker + inference nodes (`docker/docker-compose.mesh.yml`)
+- `/v1/system/status` now includes `services` (enabled map) and `peers` (list with health)
+- `/v1/system/doctor` now checks peer connectivity in addition to local health
+- Phase 2 design and implementation plan documents (`docs/plans/2026-03-09-astromesh-os-phase2-*.md`)
+- Tests for ServiceManager, PeerClient, conditional bootstrap, mesh integration, CLI commands, and API extensions (7 new test files, 254 total tests passing)
+
+### Changed
+
+- `AgentRuntime` accepts optional `service_manager` and `peer_client` parameters (backward compatible — all services enabled when omitted)
+- `daemon/astromeshd.py` parses `spec.services` and `spec.peers` from runtime.yaml, wires into runtime
+- `cli/main.py` registers `peers` and `services` command groups
+
 ## [0.6.0] - 2026-03-09
 
 ### Added
@@ -166,7 +190,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/monaccode/astromesh-platform/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/monaccode/astromesh-platform/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/monaccode/astromesh-platform/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/monaccode/astromesh-platform/compare/v0.3.0...v0.4.0
