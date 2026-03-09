@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-03-09
+
+### Added
+
+- **APT package distribution** — users can install Astromesh via `apt install astromesh` from a GitHub Pages-hosted APT repository
+- `nfpm.yaml` — package definition for nfpm: self-contained Python venv at `/opt/astromesh/venv/`, symlinks to `/usr/bin/`, config files as conffiles (preserved on upgrade)
+- Maintainer scripts (`packaging/scripts/`):
+  - `preinstall.sh` — idempotent `astromesh` system user/group creation
+  - `postinstall.sh` — runtime dirs, permissions, systemd enable (no auto-start)
+  - `preremove.sh` — stop and disable service
+  - `postremove.sh` — cleanup on purge (data, logs, user), daemon-reload always
+- `packaging/build-deb.sh` — build orchestration: extracts version from pyproject.toml, creates venv with `[cli,daemon]` extras, strips `__pycache__`, runs nfpm
+- `.github/workflows/release.yml` — CI/CD pipeline triggered on `v*` tags:
+  - `build-deb` job: builds `.deb` package
+  - `publish-apt-repo` job: updates GitHub Pages APT repository with signed metadata (GPG)
+  - `release-assets` job: uploads `.deb` to GitHub Releases
+- `build-deb-test` job in CI workflow — verifies `.deb` builds correctly on every PR
+- `docs/INSTALLATION.md` — user-facing guide: APT repo setup, configuration, service management, upgrading, uninstalling
+
+### Changed
+
+- `packaging/systemd/astromeshd.service` — `ExecStart` updated from `/opt/astromesh/bin/astromeshd` to `/opt/astromesh/venv/bin/astromeshd`
+
 ## [0.8.0] - 2026-03-09
 
 ### Added
@@ -220,7 +243,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/monaccode/astromesh-platform/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/monaccode/astromesh-platform/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/monaccode/astromesh-platform/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/monaccode/astromesh-platform/compare/v0.5.0...v0.6.0
