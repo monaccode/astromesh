@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-09
+
+### Added
+
+- `astromeshd` daemon — single-process async runtime daemon with systemd integration (`daemon/astromeshd.py`)
+- Auto-detection of config directory: `/etc/astromesh/` (system mode) vs `./config/` (dev mode)
+- PID file management and graceful shutdown via SIGTERM/SIGHUP signal handling
+- systemd notify support via `sdnotify` for `Type=notify` service readiness
+- `astromeshctl` CLI management tool built with Typer + Rich (`cli/`)
+- CLI `status` command — daemon uptime, version, mode, loaded agents count
+- CLI `doctor` command — system health checks with per-provider diagnostics
+- CLI `agents list` command — display loaded agents in Rich table
+- CLI `providers list` command — display configured model providers
+- CLI `config validate` command — offline YAML validation without starting daemon
+- All CLI commands support `--json` flag for machine-readable output
+- `GET /v1/system/status` API endpoint — version, uptime, mode, PID, agents count
+- `GET /v1/system/doctor` API endpoint — runtime and provider health checks
+- systemd unit file with security hardening: `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome`, `PrivateTmp` (`packaging/systemd/astromeshd.service`)
+- Installation script for Linux system deployment: creates `astromesh` user, filesystem layout, permissions (`packaging/install.sh`)
+- Filesystem layout convention: `/etc/astromesh/` (config), `/var/lib/astromesh/` (state), `/var/log/astromesh/` (logs), `/opt/astromesh/` (binaries)
+- `cli` and `daemon` optional dependency groups in `pyproject.toml`
+- `astromeshd` and `astromeshctl` console script entry points
+- Design documents for Astromesh OS phases 1-4 (`docs/plans/2026-03-09-astromesh-os-*.md`)
+- Tests for daemon, CLI, system API, and integration (4 new test files)
+
+### Changed
+
+- Registered system routes in FastAPI app (`astromesh/api/main.py`)
+
 ## [0.5.0] - 2026-03-09
 
 ### Added
@@ -137,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/monaccode/astromesh-platform/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/monaccode/astromesh-platform/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/monaccode/astromesh-platform/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/monaccode/astromesh-platform/compare/v0.2.0...v0.3.0
