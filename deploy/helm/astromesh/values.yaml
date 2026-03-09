@@ -261,3 +261,32 @@ vllm:
   nodeSelector: {}
   # -- Tolerations for GPU nodes
   tolerations: []
+
+# ==============================================================================
+# HuggingFace Text Embeddings Inference (TEI)
+# ==============================================================================
+tei:
+  # -- List of TEI instances to deploy
+  instances: []
+    # - name: embeddings
+    #   modelId: "BAAI/bge-small-en-v1.5"
+    #   port: 8002
+    #   resources: {}
+    #   nodeSelector: {}
+    #   tolerations: []
+    # - name: reranker
+    #   modelId: "BAAI/bge-reranker-base"
+    #   port: 8003
+    #   resources: {}
+    #   nodeSelector: {}
+    #   tolerations: []
+  image:
+    # -- TEI image repository
+    repository: ghcr.io/huggingface/text-embeddings-inference
+    # -- TEI image tag
+    tag: latest
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+  service:
+    # -- Service type for TEI instances
+    type: ClusterIP

@@ -1,0 +1,20 @@
+{{- range .Values.tei.instances }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "astromesh.fullname" $ }}-tei-{{ .name }}
+  labels:
+    {{- include "astromesh.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: tei-{{ .name }}
+spec:
+  type: {{ $.Values.tei.service.type }}
+  ports:
+    - port: {{ .port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "astromesh.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: tei-{{ .name }}
+{{- end }}
