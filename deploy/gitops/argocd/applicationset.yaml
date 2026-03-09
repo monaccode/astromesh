@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: astromesh
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            namespace: astromesh-dev
+            valuesFile: values-dev.yaml
+          - env: staging
+            namespace: astromesh-staging
+            valuesFile: values-staging.yaml
+          - env: prod
+            namespace: astromesh-prod
+            valuesFile: values-prod.yaml
+  template:
+    metadata:
+      name: astromesh-{{env}}
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/monaccode/astromech-platform.git
+        targetRevision: HEAD
+        path: deploy/helm/astromesh
+        helm:
+          valueFiles:
+            - "{{valuesFile}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{namespace}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
