@@ -1,0 +1,27 @@
+apiVersion: astromesh/v1
+kind: RuntimeConfig
+metadata:
+  name: mesh-gateway
+spec:
+  api:
+    host: "0.0.0.0"
+    port: 8000
+  services:
+    api: true
+    agents: false
+    inference: false
+    memory: false
+    tools: false
+    channels: true
+    rag: false
+    observability: true
+  mesh:
+    enabled: true
+    node_name: gateway
+    bind: "0.0.0.0:8000"
+    seeds: []
+    heartbeat_interval: 5
+    gossip_interval: 2
+    gossip_fanout: 3
+    failure_timeout: 15
+    dead_timeout: 30
