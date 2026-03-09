@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-09
+
+### Added
+
+- **Astromesh Mesh** — gossip-based distributed multi-node agent execution
+- **MeshManager** (`astromesh/mesh/manager.py`) — HTTP gossip protocol with periodic heartbeats, failure detection (alive → suspect → dead), and seed-based cluster join/leave
+- **LeaderElector** (`astromesh/mesh/leader.py`) — bully algorithm leader election (highest node ID wins), automatic re-election on leader failure
+- **Scheduler** (`astromesh/mesh/scheduler.py`) — two-level scheduling: least-loaded agent placement across worker nodes, least-connections request routing
+- **NodeState/ClusterState** (`astromesh/mesh/state.py`) — mesh data models with serialization, gossip merge (keep latest heartbeat), and alive node filtering
+- **MeshConfig** (`astromesh/mesh/config.py`) — configuration for mesh networking: seeds, heartbeat/gossip intervals, failure/dead timeouts, gossip fanout
+- **Mesh API endpoints** (`astromesh/api/routes/mesh.py`) — `POST /v1/mesh/join`, `/leave`, `/heartbeat`, `/gossip`, `/election`, `GET /v1/mesh/state`
+- **PeerClient.from_mesh()** — bridges mesh discovery into existing peer forwarding infrastructure; dynamic peers from cluster state replace static config
+- `astromeshctl mesh status` — mesh cluster summary (nodes, leader, alive/suspect/dead counts)
+- `astromeshctl mesh nodes` — Rich table with all nodes: name, URL, services, agents, load, status, leader flag
+- `astromeshctl mesh leave` — graceful mesh departure
+- Mesh-enabled config profiles: `mesh-gateway.yaml`, `mesh-worker.yaml`, `mesh-inference.yaml` (`config/profiles/`)
+- Docker Compose gossip mesh for local development (`docker/docker-compose.gossip.yml`)
+- Background gossip and heartbeat loops in daemon with graceful cleanup on shutdown
+- `GET /v1/system/status` now includes `mesh` section (node_id, leader, cluster_size, status)
+- `psutil` optional dependency for CPU/memory load metrics (`[mesh]` extra)
+- Mesh design and implementation plan documents (`docs/plans/2026-03-09-astromesh-mesh-*.md`)
+- Tests for all mesh components: state, config, manager, leader, scheduler, API, PeerClient bridge, daemon wiring, and 3-node integration (78 new tests, 332 total)
+
+### Changed
+
+- `daemon/astromeshd.py` parses `spec.mesh` from runtime.yaml, creates MeshManager/LeaderElector when enabled, starts gossip/heartbeat background loops
+- `PeerClient` extended with `from_mesh()` classmethod for dynamic peer discovery
+- `cli/main.py` registers `mesh` command group
+- `cli/client.py` adds `api_post()` helper
+
 ## [0.7.0] - 2026-03-09
 
 ### Added
@@ -190,7 +220,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/monaccode/astromesh-platform/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/monaccode/astromesh-platform/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/monaccode/astromesh-platform/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/monaccode/astromesh-platform/compare/v0.4.0...v0.5.0
