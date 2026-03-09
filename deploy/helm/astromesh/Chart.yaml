@@ -26,3 +26,11 @@ dependencies:
     version: "~1.0"
     repository: https://otwld.github.io/ollama-helm
     condition: ollama.enabled
+  - name: kube-prometheus-stack
+    version: "~67.0"
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: kube-prometheus-stack.enabled
+  - name: opentelemetry-collector
+    version: "~0.108"
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    condition: opentelemetry-collector.enabled
