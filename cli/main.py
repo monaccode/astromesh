@@ -3,7 +3,7 @@
 import typer
 
 from astromesh import __version__
-from cli.commands import agents, doctor, providers, status
+from cli.commands import agents, config, doctor, providers, status
 
 app = typer.Typer(
     name="astromeshctl",
