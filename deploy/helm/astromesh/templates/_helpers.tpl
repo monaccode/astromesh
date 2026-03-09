@@ -108,7 +108,7 @@ OTel collector endpoint — auto-wire to subchart or use manual config
 */}}
 {{- define "astromesh.otel.endpoint" -}}
 {{- if (index .Values "opentelemetry-collector" "enabled") }}
-{{- printf "%s-opentelemetry-collector:4317" .Release.Name }}
+{{- printf "http://%s-opentelemetry-collector:4317" .Release.Name }}
 {{- else }}
 {{- .Values.observability.otel.endpoint }}
 {{- end }}
