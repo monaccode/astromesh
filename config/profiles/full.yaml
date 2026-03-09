@@ -1,0 +1,22 @@
+apiVersion: astromesh/v1
+kind: RuntimeConfig
+metadata:
+  name: full
+spec:
+  api:
+    host: "0.0.0.0"
+    port: 8000
+  services:
+    api: true
+    agents: true
+    inference: true
+    memory: true
+    tools: true
+    channels: true
+    rag: true
+    observability: true
+  peers: []
+  defaults:
+    orchestration:
+      pattern: react
+      max_iterations: 10

@@ -30,6 +30,8 @@ class StatusResponse(BaseModel):
     mode: str
     agents_loaded: int
     pid: int
+    services: dict[str, bool] = {}
+    peers: list[dict] = []
 
 
 class DoctorResponse(BaseModel):
@@ -46,8 +48,14 @@ def _detect_mode() -> str:
 @router.get("/status", response_model=StatusResponse)
 async def system_status():
     agents_loaded = 0
+    services = {}
+    peers = []
     if _runtime:
         agents_loaded = len(_runtime.list_agents())
+        if hasattr(_runtime, "service_manager") and _runtime.service_manager:
+            services = _runtime.service_manager.to_dict()
+        if hasattr(_runtime, "peer_client") and _runtime.peer_client:
+            peers = _runtime.peer_client.to_dict()
 
     return StatusResponse(
         version=__version__,
@@ -55,6 +63,8 @@ async def system_status():
         mode=_detect_mode(),
         agents_loaded=agents_loaded,
         pid=os.getpid(),
+        services=services,
+        peers=peers,
     )
 
 
@@ -82,6 +92,15 @@ async def system_doctor():
                         )
                     except Exception as e:
                         checks[f"provider:{name}"] = CheckResult(status="error", message=str(e))
+
+    # Check peers
+    if hasattr(_runtime, "peer_client") and _runtime.peer_client:
+        for peer in _runtime.peer_client.list_peers():
+            healthy = await _runtime.peer_client.health_check(peer["name"])
+            checks[f"peer:{peer['name']}"] = CheckResult(
+                status="ok" if healthy else "unreachable",
+                message=f"Peer {peer['name']} at {peer['url']}",
+            )
 
     all_ok = all(c.status == "ok" for c in checks.values())
     return DoctorResponse(healthy=all_ok, checks=checks)
