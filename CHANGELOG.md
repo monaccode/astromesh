@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-09
+
+### Added
+
+- Production-grade Helm chart for Kubernetes deployment (`deploy/helm/astromesh/`)
+- Helm chart core: Deployment, Service, Ingress, HPA, ConfigMaps, Secrets, ServiceAccount
+- Bitnami PostgreSQL and Redis as hybrid subchart dependencies (disableable for external services)
+- Ollama as optional subchart for local LLM inference
+- vLLM deployment and service templates with GPU scheduling and configurable model/args
+- HuggingFace TEI (Text Embeddings Inference) parametrized templates supporting N instances (embeddings, reranker)
+- HuggingFace token authentication (`secret-hf-token.yaml`) for gated model downloads
+- kube-prometheus-stack and OpenTelemetry Collector as optional observability subcharts
+- Auto-wiring of OTel collector endpoint when subchart is enabled (`astromesh.otel.endpoint` helper)
+- External Secrets Operator integration with provider-agnostic `SecretStore` and `ExternalSecret` templates
+- ArgoCD `ApplicationSet` for automated multi-environment GitOps deployment (`deploy/gitops/argocd/`)
+- Custom Resource Definitions for future Kubernetes Operator (`deploy/helm/astromesh/crds/`):
+  - `agents.astromesh.io` — Agent lifecycle management
+  - `providers.astromesh.io` — LLM provider configuration
+  - `channels.astromesh.io` — Channel integration management
+  - `ragpipelines.astromesh.io` — RAG pipeline configuration
+- Environment-specific values profiles: `values-dev.yaml`, `values-staging.yaml`, `values-prod.yaml`
+- Comprehensive Kubernetes deployment guide (`docs/KUBERNETES_DEPLOYMENT.md`)
+- Design documents for all 6 implementation phases (`docs/plans/2026-03-09-*.md`)
+
+### Changed
+
+- Updated `.gitignore` with Helm subchart tarball exclusion (`deploy/helm/astromesh/charts/*.tgz`)
+
 ## [0.4.0] - 2026-03-08
 
 ### Added
@@ -109,7 +137,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/monaccode/astromesh-platform/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/monaccode/astromesh-platform/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/monaccode/astromesh-platform/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/monaccode/astromesh-platform/compare/v0.1.0...v0.2.0
