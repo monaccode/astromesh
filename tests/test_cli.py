@@ -144,3 +144,57 @@ def test_config_validate_invalid_yaml(tmp_path):
     result = runner.invoke(app, ["config", "validate", "--path", str(tmp_path)])
     assert result.exit_code == 0
     assert "error" in result.output.lower() or "failed" in result.output.lower()
+
+
+def test_peers_list():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "version": "0.6.0",
+        "uptime_seconds": 100.0,
+        "mode": "dev",
+        "agents_loaded": 0,
+        "pid": 1234,
+        "services": {},
+        "peers": [
+            {"name": "inference-1", "url": "http://inference:8000", "services": ["inference"]},
+            {"name": "worker-1", "url": "http://worker:8000", "services": ["agents", "tools"]},
+        ],
+    }
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("cli.client.httpx.get", return_value=mock_response):
+        result = runner.invoke(app, ["peers", "list"])
+    assert result.exit_code == 0
+    assert "inference-1" in result.output
+    assert "worker-1" in result.output
+
+
+def test_services_list():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "version": "0.6.0",
+        "uptime_seconds": 100.0,
+        "mode": "dev",
+        "agents_loaded": 0,
+        "pid": 1234,
+        "services": {
+            "api": True,
+            "agents": True,
+            "inference": False,
+            "memory": True,
+            "tools": True,
+            "channels": False,
+            "rag": False,
+            "observability": True,
+        },
+        "peers": [],
+    }
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("cli.client.httpx.get", return_value=mock_response):
+        result = runner.invoke(app, ["services"])
+    assert result.exit_code == 0
+    assert "agents" in result.output
+    assert "inference" in result.output

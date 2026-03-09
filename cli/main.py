@@ -3,7 +3,7 @@
 import typer
 
 from astromesh import __version__
-from cli.commands import agents, config, doctor, providers, status
+from cli.commands import agents, config, doctor, peers, providers, services, status
 
 app = typer.Typer(
     name="astromeshctl",
@@ -16,6 +16,8 @@ app.add_typer(doctor.app, name="doctor")
 app.add_typer(agents.app, name="agents")
 app.add_typer(providers.app, name="providers")
 app.add_typer(config.app, name="config")
+app.add_typer(peers.app, name="peers")
+app.add_typer(services.app, name="services")
 
 
 @app.command()
