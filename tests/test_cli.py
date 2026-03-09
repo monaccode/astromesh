@@ -39,3 +39,38 @@ def test_status_daemon_not_running():
         result = runner.invoke(app, ["status"])
     assert result.exit_code == 0
     assert "not reachable" in result.output.lower() or "error" in result.output.lower()
+
+
+def test_doctor_healthy():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "healthy": True,
+        "checks": {
+            "runtime": {"status": "ok", "message": "Runtime initialized"},
+            "provider:ollama": {"status": "ok", "message": "Provider ollama health check"},
+        },
+    }
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("cli.client.httpx.get", return_value=mock_response):
+        result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "healthy" in result.output.lower() or "ok" in result.output.lower()
+
+
+def test_doctor_unhealthy():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "healthy": False,
+        "checks": {
+            "runtime": {"status": "unavailable", "message": "Runtime not initialized"},
+        },
+    }
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("cli.client.httpx.get", return_value=mock_response):
+        result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "unhealthy" in result.output.lower() or "unavailable" in result.output.lower()
