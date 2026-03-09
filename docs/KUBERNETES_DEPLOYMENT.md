@@ -437,11 +437,80 @@ kubectl get pods -n astromesh
 
 ---
 
-## Future Phases
+## External Secrets (ESO)
 
-### Phase 5 — External Secrets
-- External Secrets Operator integration
-- AWS Secrets Manager / GCP Secret Manager / HashiCorp Vault support
+For production environments, use the [External Secrets Operator](https://external-secrets.io/) to sync secrets from cloud providers instead of storing them in values files.
+
+### Prerequisites
+
+- External Secrets Operator installed in the cluster (`kubectl get crd externalsecrets.external-secrets.io`)
+
+### Configuration
+
+**1. Create a SecretStore (managed by the chart):**
+
+```yaml
+secrets:
+  create: false  # Disable inline secrets
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  secretStore:
+    enabled: true
+    kind: SecretStore
+    provider:
+      aws:
+        service: SecretsManager
+        region: us-east-1
+        auth:
+          secretRef:
+            accessKeyIDSecretRef:
+              name: aws-credentials
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: aws-credentials
+              key: secret-access-key
+  keys:
+    - secretKey: OPENAI_API_KEY
+      remoteRef:
+        key: astromesh/openai
+        property: api_key
+    - secretKey: DATABASE_PASSWORD
+      remoteRef:
+        key: astromesh/database
+        property: password
+```
+
+**2. Use an existing ClusterSecretStore:**
+
+```yaml
+externalSecrets:
+  enabled: true
+  secretStoreRef:
+    name: my-cluster-secret-store
+    kind: ClusterSecretStore
+  keys:
+    - secretKey: OPENAI_API_KEY
+      remoteRef:
+        key: astromesh/openai
+        property: api_key
+```
+
+### Supported Providers
+
+The `secretStore.provider` field accepts any ESO-supported provider spec. Common examples:
+
+| Provider | Key in `provider:` | Documentation |
+|----------|-------------------|---------------|
+| AWS Secrets Manager | `aws:` | [ESO AWS docs](https://external-secrets.io/latest/provider/aws-secrets-manager/) |
+| GCP Secret Manager | `gcpsm:` | [ESO GCP docs](https://external-secrets.io/latest/provider/google-secrets-manager/) |
+| HashiCorp Vault | `vault:` | [ESO Vault docs](https://external-secrets.io/latest/provider/hashicorp-vault/) |
+| Azure Key Vault | `azurekv:` | [ESO Azure docs](https://external-secrets.io/latest/provider/azure-key-vault/) |
+
+---
+
+## Future Phases
 
 ### Phase 6 — Kubernetes Operator
 - Custom CRDs: `Agent`, `Provider`, `Channel`, `RAGPipeline`
