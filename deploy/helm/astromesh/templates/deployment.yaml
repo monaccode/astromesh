@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "astromesh.fullname" . }}
+  labels:
+    {{- include "astromesh.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "astromesh.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config-runtime: {{ include (print $.Template.BasePath "/configmap-runtime.yaml") . | sha256sum }}
+        checksum/config-providers: {{ include (print $.Template.BasePath "/configmap-providers.yaml") . | sha256sum }}
+        checksum/config-channels: {{ include (print $.Template.BasePath "/configmap-channels.yaml") . | sha256sum }}
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "astromesh.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "astromesh.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: ASTROMESH_CONFIG_DIR
+              value: /app/config
+            # -- PostgreSQL connection
+            - name: DATABASE_HOST
+              value: {{ include "astromesh.postgresql.host" . | quote }}
+            - name: DATABASE_PORT
+              value: {{ include "astromesh.postgresql.port" . | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.postgresql.auth.database | default .Values.externalDatabase.database | quote }}
+            - name: DATABASE_USER
+              value: {{ .Values.postgresql.auth.username | default .Values.externalDatabase.username | quote }}
+            {{- if .Values.postgresql.enabled }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "astromesh.fullname" . }}-postgresql
+                  key: password
+            {{- else if .Values.externalDatabase.existingSecret }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalDatabase.existingSecret }}
+                  key: DATABASE_PASSWORD
+            {{- end }}
+            # -- Redis connection
+            - name: REDIS_HOST
+              value: {{ include "astromesh.redis.host" . | quote }}
+            - name: REDIS_PORT
+              value: {{ include "astromesh.redis.port" . | quote }}
+            {{- if and (not .Values.redis.enabled) .Values.externalRedis.existingSecret }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalRedis.existingSecret }}
+                  key: REDIS_PASSWORD
+            {{- end }}
+            # -- Secrets (API keys, tokens)
+            {{- $secretName := default (include "astromesh.fullname" .) .Values.secrets.existingSecret }}
+            {{- range $key, $value := .Values.secrets.values }}
+            {{- if $value }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $key }}
+            {{- end }}
+            {{- end }}
+            # -- OpenTelemetry
+            {{- if .Values.observability.otel.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.otel.endpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ include "astromesh.fullname" . | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: config-runtime
+              mountPath: /app/config/runtime.yaml
+              subPath: runtime.yaml
+              readOnly: true
+            - name: config-providers
+              mountPath: /app/config/providers.yaml
+              subPath: providers.yaml
+              readOnly: true
+            - name: config-channels
+              mountPath: /app/config/channels.yaml
+              subPath: channels.yaml
+              readOnly: true
+            {{- if .Values.config.agents }}
+            - name: config-agents
+              mountPath: /app/config/agents
+              readOnly: true
+            {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: config-runtime
+          configMap:
+            name: {{ include "astromesh.fullname" . }}-runtime
+        - name: config-providers
+          configMap:
+            name: {{ include "astromesh.fullname" . }}-providers
+        - name: config-channels
+          configMap:
+            name: {{ include "astromesh.fullname" . }}-channels
+        {{- if .Values.config.agents }}
+        - name: config-agents
+          configMap:
+            name: {{ include "astromesh.fullname" . }}-agents
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
