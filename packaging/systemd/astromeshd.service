@@ -1,0 +1,30 @@
+[Unit]
+Description=Astromesh Agent Runtime Daemon
+Documentation=https://github.com/monaccode/astromech-platform
+After=network-online.target postgresql.service redis.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=astromesh
+Group=astromesh
+ExecStart=/opt/astromesh/bin/astromeshd --config /etc/astromesh/
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+WatchdogSec=30
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/astromesh /var/log/astromesh
+PrivateTmp=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=astromeshd
+
+[Install]
+WantedBy=multi-user.target
