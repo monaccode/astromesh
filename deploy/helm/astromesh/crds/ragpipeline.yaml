@@ -1,0 +1,107 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ragpipelines.astromesh.io
+  labels:
+    app.kubernetes.io/part-of: astromesh
+spec:
+  group: astromesh.io
+  names:
+    kind: RAGPipeline
+    listKind: RAGPipelineList
+    plural: ragpipelines
+    singular: ragpipeline
+    shortNames:
+      - rag
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Store
+          type: string
+          jsonPath: .spec.store.type
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                chunking:
+                  type: object
+                  properties:
+                    strategy:
+                      type: string
+                    chunkSize:
+                      type: integer
+                    chunkOverlap:
+                      type: integer
+                  additionalProperties: true
+                embeddings:
+                  type: object
+                  properties:
+                    model:
+                      type: string
+                    provider:
+                      type: string
+                  additionalProperties: true
+                store:
+                  type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - pgvector
+                        - chromadb
+                        - qdrant
+                        - faiss
+                    config:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                  additionalProperties: true
+                reranking:
+                  type: object
+                  properties:
+                    model:
+                      type: string
+                    topK:
+                      type: integer
+                  additionalProperties: true
+              additionalProperties: true
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                observedGeneration:
+                  type: integer
+                  format: int64
+                message:
+                  type: string
