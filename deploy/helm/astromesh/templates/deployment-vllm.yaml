@@ -7,7 +7,7 @@ metadata:
     {{- include "astromesh.labels" . | nindent 4 }}
     app.kubernetes.io/component: vllm
 spec:
-  replicas: 1
+  replicas: {{ .Values.vllm.replicaCount | default 1 }}
   selector:
     matchLabels:
       {{- include "astromesh.selectorLabels" . | nindent 6 }}
@@ -32,6 +32,14 @@ spec:
             - name: http
               containerPort: 8000
               protocol: TCP
+          {{- if or .Values.vllm.huggingfaceToken .Values.vllm.existingSecret }}
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-hf-token" (include "astromesh.fullname" .)) .Values.vllm.existingSecret }}
+                  key: HF_TOKEN
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health

@@ -261,11 +261,17 @@ vllm:
   nodeSelector: {}
   # -- Tolerations for GPU nodes
   tolerations: []
+  # -- HuggingFace token for gated models (creates a Secret)
+  huggingfaceToken: ""
+  # -- Use an existing Secret with key HF_TOKEN instead
+  existingSecret: ""
 
 # ==============================================================================
 # HuggingFace Text Embeddings Inference (TEI)
 # ==============================================================================
 tei:
+  # -- Enable TEI deployments
+  enabled: false
   # -- List of TEI instances to deploy
   instances: []
     # - name: embeddings
@@ -290,3 +296,7 @@ tei:
   service:
     # -- Service type for TEI instances
     type: ClusterIP
+  # -- HuggingFace token for gated models (creates a Secret)
+  huggingfaceToken: ""
+  # -- Use an existing Secret with key HF_TOKEN instead
+  existingSecret: ""

@@ -25,6 +25,7 @@ vllm:
   resources: {}  # No GPU limits for local dev
 
 tei:
+  enabled: true
   instances:
     - name: embeddings
       modelId: "BAAI/bge-small-en-v1.5"

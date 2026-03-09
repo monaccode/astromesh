@@ -73,6 +73,7 @@ vllm:
       effect: NoSchedule
 
 tei:
+  enabled: true
   instances:
     - name: embeddings
       modelId: "BAAI/bge-small-en-v1.5"
