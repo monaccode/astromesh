@@ -30,6 +30,8 @@ async def test_system_status_with_runtime(client):
 
     mock_runtime = MagicMock()
     mock_runtime.list_agents.return_value = [{"name": "agent1"}, {"name": "agent2"}]
+    mock_runtime.service_manager = None
+    mock_runtime.peer_client = None
     system.set_runtime(mock_runtime)
 
     resp = await client.get("/v1/system/status")
@@ -68,4 +70,71 @@ async def test_system_doctor_with_runtime(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["checks"]["runtime"]["status"] == "ok"
+    system.set_runtime(None)
+
+
+async def test_system_status_includes_services(client):
+    from astromesh.api.routes import system
+    from astromesh.runtime.services import ServiceManager
+
+    mock_runtime = MagicMock()
+    mock_runtime.list_agents.return_value = []
+    mock_runtime.service_manager = ServiceManager({"inference": False})
+    mock_runtime.peer_client = None
+    system.set_runtime(mock_runtime)
+
+    resp = await client.get("/v1/system/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "services" in data
+    assert data["services"]["inference"] is False
+    assert data["services"]["api"] is True
+    system.set_runtime(None)
+
+
+async def test_system_status_includes_peers(client):
+    from astromesh.api.routes import system
+    from astromesh.runtime.peers import PeerClient
+
+    mock_runtime = MagicMock()
+    mock_runtime.list_agents.return_value = []
+    mock_runtime.service_manager = None
+    mock_runtime.peer_client = PeerClient(
+        [
+            {"name": "inference-1", "url": "http://inference:8000", "services": ["inference"]},
+        ]
+    )
+    system.set_runtime(mock_runtime)
+
+    resp = await client.get("/v1/system/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "peers" in data
+    assert len(data["peers"]) == 1
+    assert data["peers"][0]["name"] == "inference-1"
+    system.set_runtime(None)
+
+
+async def test_system_doctor_checks_peers(client):
+    from astromesh.api.routes import system
+    from astromesh.runtime.peers import PeerClient
+
+    mock_runtime = MagicMock()
+    mock_runtime.list_agents.return_value = []
+    mock_runtime._agents = {}
+    mock_runtime.service_manager = None
+
+    pc = PeerClient(
+        [
+            {"name": "inference-1", "url": "http://inference:8000", "services": ["inference"]},
+        ]
+    )
+    pc.health_check = AsyncMock(return_value=False)
+    mock_runtime.peer_client = pc
+    system.set_runtime(mock_runtime)
+
+    resp = await client.get("/v1/system/doctor")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "peer:inference-1" in data["checks"]
     system.set_runtime(None)
