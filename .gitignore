@@ -29,3 +29,5 @@ native/target/
 *.pyd
 *.dylib
 deploy/helm/astromesh/charts/*.tgz
+.worktrees/
+staging/
