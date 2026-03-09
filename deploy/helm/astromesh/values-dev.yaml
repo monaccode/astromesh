@@ -1,0 +1,21 @@
+# Development environment overrides
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+postgresql:
+  enabled: true
+  auth:
+    password: "dev-password"
+
+redis:
+  enabled: true
+
+ollama:
+  enabled: true

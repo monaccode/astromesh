@@ -1,0 +1,58 @@
+# Production environment overrides
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: "1"
+    memory: 2Gi
+  limits:
+    cpu: "4"
+    memory: 4Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: astromesh.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: astromesh-tls
+      hosts:
+        - astromesh.example.com
+
+# Use external managed databases in production
+postgresql:
+  enabled: false
+externalDatabase:
+  host: "your-rds-instance.region.rds.amazonaws.com"
+  port: "5432"
+  database: astromesh
+  username: astromesh
+  existingSecret: astromesh-db-credentials
+
+redis:
+  enabled: false
+externalRedis:
+  host: "your-elasticache.region.cache.amazonaws.com"
+  port: "6379"
+
+secrets:
+  create: false
+  existingSecret: astromesh-secrets
+
+observability:
+  prometheus:
+    enabled: true
+  otel:
+    enabled: true
+    endpoint: "http://otel-collector.monitoring:4317"
