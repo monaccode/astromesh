@@ -1,0 +1,82 @@
+# Astromesh OS — Gossip mesh for local development
+# Usage: docker compose -f docker/docker-compose.gossip.yml up
+
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      - ../config/profiles/mesh-gateway.yaml:/etc/astromesh/runtime.yaml:ro
+      - ../config/channels.yaml:/etc/astromesh/channels.yaml:ro
+    ports:
+      - "8000:8000"
+    networks:
+      - astromesh-gossip
+
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      - ../config/profiles/mesh-worker.yaml:/etc/astromesh/runtime.yaml:ro
+      - ../config/agents:/etc/astromesh/agents:ro
+      - ../config/providers.yaml:/etc/astromesh/providers.yaml:ro
+    depends_on:
+      gateway:
+        condition: service_started
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+    networks:
+      - astromesh-gossip
+
+  inference:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      - ../config/profiles/mesh-inference.yaml:/etc/astromesh/runtime.yaml:ro
+      - ../config/providers.yaml:/etc/astromesh/providers.yaml:ro
+    depends_on:
+      gateway:
+        condition: service_started
+    networks:
+      - astromesh-gossip
+
+  # --- Supporting infrastructure ---
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - astromesh-gossip
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    networks:
+      - astromesh-gossip
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: astromesh
+      POSTGRES_USER: astromesh
+      POSTGRES_PASSWORD: astromesh
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - astromesh-gossip
+
+volumes:
+  ollama-models:
+  redis-data:
+  postgres-data:
+
+networks:
+  astromesh-gossip:
+    driver: bridge
