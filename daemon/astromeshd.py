@@ -12,7 +12,7 @@ import logging
 import os
 import signal
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -29,6 +29,8 @@ class DaemonConfig:
     port: int = 8000
     log_level: str = "info"
     pid_file: str = DEFAULT_PID_FILE
+    services: dict[str, bool] = field(default_factory=dict)
+    peers: list[dict] = field(default_factory=list)
 
     @classmethod
     def from_config_dir(cls, config_dir: str) -> "DaemonConfig":
@@ -43,6 +45,8 @@ class DaemonConfig:
         return cls(
             host=api.get("host", cls.host),
             port=api.get("port", cls.port),
+            services=spec.get("services", {}),
+            peers=spec.get("peers", []),
         )
 
 
@@ -124,6 +128,8 @@ async def run_daemon(args: argparse.Namespace) -> None:
     from astromesh.api.main import app
     from astromesh.api.routes import agents, system
     from astromesh.runtime.engine import AgentRuntime
+    from astromesh.runtime.peers import PeerClient
+    from astromesh.runtime.services import ServiceManager
 
     config_dir = detect_config_dir(args.config)
     daemon_config = DaemonConfig.from_config_dir(config_dir)
@@ -132,13 +138,28 @@ async def run_daemon(args: argparse.Namespace) -> None:
     port = args.port or daemon_config.port
     pid_file = args.pid_file or daemon_config.pid_file
 
+    # Create service manager and peer client
+    service_manager = ServiceManager(daemon_config.services)
+    peer_client = PeerClient(daemon_config.peers)
+
+    enabled = service_manager.enabled_services()
+    logger.info("Enabled services: %s", ", ".join(enabled))
+    for warning in service_manager.validate():
+        logger.warning("Config warning: %s", warning)
+    if daemon_config.peers:
+        logger.info("Peers: %s", ", ".join(p["name"] for p in daemon_config.peers))
+
     mode = "system" if config_dir == SYSTEM_CONFIG_DIR else "dev"
     logger.info("Starting astromeshd in %s mode", mode)
     logger.info("Config directory: %s", config_dir)
 
     write_pid_file(pid_file)
 
-    runtime = AgentRuntime(config_dir=config_dir)
+    runtime = AgentRuntime(
+        config_dir=config_dir,
+        service_manager=service_manager,
+        peer_client=peer_client,
+    )
     await runtime.bootstrap()
 
     agents.set_runtime(runtime)

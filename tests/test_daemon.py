@@ -83,3 +83,50 @@ def test_parse_args_custom():
     assert args.config == "/etc/astromesh"
     assert args.port == 9000
     assert args.log_level == "debug"
+
+
+def test_daemon_config_parses_services(tmp_path):
+    runtime_yaml = tmp_path / "runtime.yaml"
+    runtime_yaml.write_text("""
+apiVersion: astromesh/v1
+kind: RuntimeConfig
+metadata:
+  name: default
+spec:
+  api:
+    host: "0.0.0.0"
+    port: 8000
+  services:
+    agents: true
+    inference: false
+    channels: false
+""")
+    config = DaemonConfig.from_config_dir(str(tmp_path))
+    assert config.services == {"agents": True, "inference": False, "channels": False}
+
+
+def test_daemon_config_parses_peers(tmp_path):
+    runtime_yaml = tmp_path / "runtime.yaml"
+    runtime_yaml.write_text("""
+apiVersion: astromesh/v1
+kind: RuntimeConfig
+metadata:
+  name: default
+spec:
+  api:
+    host: "0.0.0.0"
+    port: 8000
+  peers:
+    - name: inference-1
+      url: http://inference:8000
+      services: [inference]
+""")
+    config = DaemonConfig.from_config_dir(str(tmp_path))
+    assert len(config.peers) == 1
+    assert config.peers[0]["name"] == "inference-1"
+
+
+def test_daemon_config_defaults_services_and_peers(tmp_path):
+    config = DaemonConfig.from_config_dir(str(tmp_path))
+    assert config.services == {}
+    assert config.peers == []
