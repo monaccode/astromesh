@@ -28,3 +28,4 @@ native/target/
 *.so
 *.pyd
 *.dylib
+deploy/helm/astromesh/charts/*.tgz

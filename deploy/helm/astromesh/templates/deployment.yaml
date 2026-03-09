@@ -17,6 +17,9 @@ spec:
         checksum/config-runtime: {{ include (print $.Template.BasePath "/configmap-runtime.yaml") . | sha256sum }}
         checksum/config-providers: {{ include (print $.Template.BasePath "/configmap-providers.yaml") . | sha256sum }}
         checksum/config-channels: {{ include (print $.Template.BasePath "/configmap-channels.yaml") . | sha256sum }}
+        {{- if .Values.config.agents }}
+        checksum/config-agents: {{ include (print $.Template.BasePath "/configmap-agents.yaml") . | sha256sum }}
+        {{- end }}
       {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -42,7 +45,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8000
+              containerPort: {{ .Values.service.port }}
               protocol: TCP
           livenessProbe:
             httpGet:
@@ -72,7 +75,7 @@ spec:
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "astromesh.fullname" . }}-postgresql
+                  name: {{ .Release.Name }}-postgresql
                   key: password
             {{- else if .Values.externalDatabase.existingSecret }}
             - name: DATABASE_PASSWORD

@@ -7,7 +7,7 @@ Access the API at:
 {{- end }}
 {{- else }}
 Get the application URL by running:
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "{{ include "astromesh.selectorLabels" . | replace "\n" "," }}" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "astromesh.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8000:8000
 
 Then visit: http://localhost:8000/v1/health
