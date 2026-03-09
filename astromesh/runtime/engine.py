@@ -4,17 +4,28 @@ from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
 from astromesh.core.tools import ToolRegistry
-from astromesh.orchestration.patterns import ReActPattern, PlanAndExecutePattern, ParallelFanOutPattern, PipelinePattern
+from astromesh.orchestration.patterns import (
+    ReActPattern,
+    PlanAndExecutePattern,
+    ParallelFanOutPattern,
+    PipelinePattern,
+)
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
 
+
 class AgentRuntime:
-    def __init__(self, config_dir="./config"):
+    def __init__(self, config_dir="./config", service_manager=None, peer_client=None):
         self._config_dir = Path(config_dir)
         self._agents: dict[str, "Agent"] = {}
         self._prompt_engine = PromptEngine()
+        self.service_manager = service_manager
+        self.peer_client = peer_client
 
     async def bootstrap(self):
+        # Skip agent loading if agents service is disabled
+        if self.service_manager and not self.service_manager.is_enabled("agents"):
+            return
         agents_dir = self._config_dir / "agents"
         if not agents_dir.exists():
             return
@@ -44,12 +55,18 @@ class AgentRuntime:
         for name, tmpl in prompts.get("templates", {}).items():
             self._prompt_engine.register_template(name, tmpl)
         return Agent(
-            name=metadata["name"], version=metadata.get("version", "0.1.0"),
+            name=metadata["name"],
+            version=metadata.get("version", "0.1.0"),
             namespace=metadata.get("namespace", "default"),
             description=spec.get("identity", {}).get("description", ""),
-            router=router, memory=memory, tools=tools, pattern=pattern,
-            system_prompt=prompts.get("system", ""), prompt_engine=self._prompt_engine,
-            guardrails=spec.get("guardrails", {}), permissions=spec.get("permissions", {}),
+            router=router,
+            memory=memory,
+            tools=tools,
+            pattern=pattern,
+            system_prompt=prompts.get("system", ""),
+            prompt_engine=self._prompt_engine,
+            guardrails=spec.get("guardrails", {}),
+            permissions=spec.get("permissions", {}),
             orchestration_config=spec.get("orchestration", {}),
         )
 
@@ -60,12 +77,29 @@ class AgentRuntime:
         return await agent.run(query, session_id, context)
 
     def list_agents(self):
-        return [{"name": a.name, "version": a.version, "namespace": a.namespace} for a in self._agents.values()]
+        return [
+            {"name": a.name, "version": a.version, "namespace": a.namespace}
+            for a in self._agents.values()
+        ]
 
 
 class Agent:
-    def __init__(self, name, version, namespace, description, router, memory, tools,
-                 pattern, system_prompt, prompt_engine, guardrails, permissions, orchestration_config):
+    def __init__(
+        self,
+        name,
+        version,
+        namespace,
+        description,
+        router,
+        memory,
+        tools,
+        pattern,
+        system_prompt,
+        prompt_engine,
+        guardrails,
+        permissions,
+        orchestration_config,
+    ):
         self.name = name
         self.version = version
         self.namespace = namespace
@@ -84,11 +118,15 @@ class Agent:
         from datetime import datetime
         from astromesh.core.memory import ConversationTurn
 
-        query_text = query if isinstance(query, str) else " ".join(
-            p.get("text", "") for p in query if p.get("type") == "text"
+        query_text = (
+            query
+            if isinstance(query, str)
+            else " ".join(p.get("text", "") for p in query if p.get("type") == "text")
         )
         memory_context = await self._memory.build_context(session_id, query_text, max_tokens=4096)
-        rendered_prompt = self._prompt_engine.render(self._system_prompt, {**(context or {}), "memory": memory_context})
+        rendered_prompt = self._prompt_engine.render(
+            self._system_prompt, {**(context or {}), "memory": memory_context}
+        )
         tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
         max_iterations = self._orchestration_config.get("max_iterations", 10)
 
@@ -97,10 +135,18 @@ class Agent:
             return await self._router.route(full_messages, tools=tools)
 
         async def tool_fn(name, args):
-            return await self._tools.execute(name, args, {"agent": self.name, "session": session_id})
+            return await self._tools.execute(
+                name, args, {"agent": self.name, "session": session_id}
+            )
 
-        result = await self._pattern.execute(query=query, context=memory_context, model_fn=model_fn,
-            tool_fn=tool_fn, tools=tool_schemas, max_iterations=max_iterations)
+        result = await self._pattern.execute(
+            query=query,
+            context=memory_context,
+            model_fn=model_fn,
+            tool_fn=tool_fn,
+            tools=tool_schemas,
+            max_iterations=max_iterations,
+        )
 
         # Extract text for storage; keep full multimodal content in metadata.
         if isinstance(query, list):
@@ -113,10 +159,17 @@ class Agent:
 
         await self._memory.persist_turn(
             session_id,
-            ConversationTurn(role="user", content=user_content, timestamp=datetime.utcnow(), metadata=user_metadata),
+            ConversationTurn(
+                role="user",
+                content=user_content,
+                timestamp=datetime.utcnow(),
+                metadata=user_metadata,
+            ),
         )
         await self._memory.persist_turn(
             session_id,
-            ConversationTurn(role="assistant", content=result.get("answer", ""), timestamp=datetime.utcnow()),
+            ConversationTurn(
+                role="assistant", content=result.get("answer", ""), timestamp=datetime.utcnow()
+            ),
         )
         return result
