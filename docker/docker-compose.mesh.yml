@@ -1,0 +1,82 @@
+# Astromesh OS — Multi-node mesh for local development
+# Usage: docker compose -f docker/docker-compose.mesh.yml up
+
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      - ../config/profiles/gateway.yaml:/etc/astromesh/runtime.yaml:ro
+      - ../config/channels.yaml:/etc/astromesh/channels.yaml:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      worker:
+        condition: service_started
+    networks:
+      - astromesh-mesh
+
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      - ../config/profiles/worker.yaml:/etc/astromesh/runtime.yaml:ro
+      - ../config/agents:/etc/astromesh/agents:ro
+      - ../config/providers.yaml:/etc/astromesh/providers.yaml:ro
+    depends_on:
+      inference:
+        condition: service_started
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_started
+    networks:
+      - astromesh-mesh
+
+  inference:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      - ../config/profiles/inference.yaml:/etc/astromesh/runtime.yaml:ro
+      - ../config/providers.yaml:/etc/astromesh/providers.yaml:ro
+    networks:
+      - astromesh-mesh
+
+  # --- Supporting infrastructure ---
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - astromesh-mesh
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    networks:
+      - astromesh-mesh
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: astromesh
+      POSTGRES_USER: astromesh
+      POSTGRES_PASSWORD: astromesh
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - astromesh-mesh
+
+volumes:
+  ollama-models:
+  redis-data:
+  postgres-data:
+
+networks:
+  astromesh-mesh:
+    driver: bridge
