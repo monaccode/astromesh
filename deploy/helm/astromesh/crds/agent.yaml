@@ -1,0 +1,123 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: agents.astromesh.io
+  labels:
+    app.kubernetes.io/part-of: astromesh
+spec:
+  group: astromesh.io
+  names:
+    kind: Agent
+    listKind: AgentList
+    plural: agents
+    singular: agent
+    shortNames:
+      - ag
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Role
+          type: string
+          jsonPath: .spec.identity.role
+        - name: Pattern
+          type: string
+          jsonPath: .spec.orchestration.pattern
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - identity
+              properties:
+                identity:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    role:
+                      type: string
+                    description:
+                      type: string
+                  additionalProperties: true
+                model:
+                  type: object
+                  properties:
+                    primary:
+                      type: string
+                    fallback:
+                      type: string
+                    routing:
+                      type: string
+                  additionalProperties: true
+                prompts:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                orchestration:
+                  type: object
+                  properties:
+                    pattern:
+                      type: string
+                      enum:
+                        - react
+                        - plan_and_execute
+                        - parallel_fan_out
+                        - pipeline
+                        - supervisor
+                        - swarm
+                    max_iterations:
+                      type: integer
+                    timeout:
+                      type: integer
+                  additionalProperties: true
+                tools:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                memory:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                guardrails:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                permissions:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                observedGeneration:
+                  type: integer
+                  format: int64
+                message:
+                  type: string
