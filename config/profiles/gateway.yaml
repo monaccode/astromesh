@@ -1,0 +1,21 @@
+apiVersion: astromesh/v1
+kind: RuntimeConfig
+metadata:
+  name: gateway
+spec:
+  api:
+    host: "0.0.0.0"
+    port: 8000
+  services:
+    api: true
+    agents: false
+    inference: false
+    memory: false
+    tools: false
+    channels: true
+    rag: false
+    observability: true
+  peers:
+    - name: worker-1
+      url: http://worker:8000
+      services: [agents, tools, memory, rag]
