@@ -343,3 +343,70 @@ opentelemetry-collector:
         metrics:
           receivers: [otlp]
           exporters: [prometheus]
+
+# ==============================================================================
+# External Secrets Operator (ESO)
+# ==============================================================================
+externalSecrets:
+  # -- Enable ExternalSecret resource (requires ESO installed in cluster)
+  enabled: false
+  # -- Refresh interval for syncing secrets
+  refreshInterval: 1h
+  # -- Reference to an existing SecretStore (when secretStore.enabled=false)
+  secretStoreRef:
+    name: ""
+    kind: SecretStore
+  # -- Keys to fetch from the external provider
+  keys: []
+    # - secretKey: OPENAI_API_KEY
+    #   remoteRef:
+    #     key: astromesh/openai
+    #     property: api_key
+    # - secretKey: WHATSAPP_ACCESS_TOKEN
+    #   remoteRef:
+    #     key: astromesh/whatsapp
+    #     property: access_token
+    # - secretKey: DATABASE_PASSWORD
+    #   remoteRef:
+    #     key: astromesh/database
+    #     property: password
+
+  # -- SecretStore configuration (creates a SecretStore resource)
+  secretStore:
+    # -- Create a SecretStore resource
+    enabled: false
+    # -- "SecretStore" or "ClusterSecretStore"
+    kind: SecretStore
+    # -- Provider spec (passed directly to ESO — see examples below)
+    provider: {}
+      # --- AWS Secrets Manager example ---
+      # aws:
+      #   service: SecretsManager
+      #   region: us-east-1
+      #   auth:
+      #     secretRef:
+      #       accessKeyIDSecretRef:
+      #         name: aws-credentials
+      #         key: access-key-id
+      #       secretAccessKeySecretRef:
+      #         name: aws-credentials
+      #         key: secret-access-key
+      #
+      # --- GCP Secret Manager example ---
+      # gcpsm:
+      #   projectID: my-gcp-project
+      #   auth:
+      #     secretRef:
+      #       secretAccessKeySecretRef:
+      #         name: gcp-credentials
+      #         key: secret-access-credentials
+      #
+      # --- HashiCorp Vault example ---
+      # vault:
+      #   server: https://vault.example.com
+      #   path: secret
+      #   version: v2
+      #   auth:
+      #     kubernetes:
+      #       mountPath: kubernetes
+      #       role: astromesh
