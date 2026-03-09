@@ -16,6 +16,26 @@ class PeerClient:
         self._peer_index: dict[str, dict] = {p["name"]: p for p in self._peers}
         self._round_robin: dict[str, int] = {}
 
+    @classmethod
+    def from_mesh(cls, mesh) -> "PeerClient":
+        """Create a PeerClient backed by live mesh cluster state.
+
+        Excludes the local node and dead nodes. Returns a snapshot;
+        call again to get updated peers.
+        """
+        local_id = mesh.node_id
+        peers = []
+        for node in mesh.cluster_state().alive_nodes():
+            if node.node_id == local_id:
+                continue
+            peers.append({
+                "name": node.name,
+                "url": node.url,
+                "services": node.services,
+                "node_id": node.node_id,
+            })
+        return cls(peers)
+
     def find_peers(self, service: str) -> list[dict]:
         return [p for p in self._peers if service in p.get("services", [])]
 
