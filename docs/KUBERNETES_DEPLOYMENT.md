@@ -510,9 +510,68 @@ The `secretStore.provider` field accepts any ESO-supported provider spec. Common
 
 ---
 
-## Future Phases
+## Custom Resource Definitions (CRDs)
 
-### Phase 6 — Kubernetes Operator
-- Custom CRDs: `Agent`, `Provider`, `Channel`, `RAGPipeline`
-- Reconciliation logic for agent lifecycle management
-- Auto-scaling based on agent workload metrics
+The chart includes CRDs for the future Astromesh Kubernetes Operator. These are installed automatically by Helm in the `crds/` directory and are **not removed** on `helm uninstall`.
+
+### Available CRDs
+
+| CRD | Kind | Short Name | Description |
+|-----|------|------------|-------------|
+| `agents.astromesh.io` | Agent | `ag` | Agent definitions (identity, model, orchestration, tools) |
+| `providers.astromesh.io` | Provider | `prov` | LLM provider configs (type, endpoint, models, auth) |
+| `channels.astromesh.io` | Channel | `ch` | Channel integrations (WhatsApp, Slack, webhook) |
+| `ragpipelines.astromesh.io` | RAGPipeline | `rag` | RAG pipeline configs (chunking, embeddings, store) |
+
+All CRDs use API version `astromesh.io/v1alpha1` and include a `status` subresource with conditions.
+
+### Example Usage
+
+```yaml
+apiVersion: astromesh.io/v1alpha1
+kind: Agent
+metadata:
+  name: support-agent
+spec:
+  identity:
+    name: support-agent
+    role: customer-support
+    description: Handles customer support inquiries
+  model:
+    primary: gpt-4o
+    fallback: llama3.1:8b
+  orchestration:
+    pattern: react
+    max_iterations: 10
+```
+
+```bash
+kubectl apply -f my-agent.yaml
+kubectl get agents                    # or: kubectl get ag
+kubectl get providers                 # or: kubectl get prov
+kubectl get channels                  # or: kubectl get ch
+kubectl get ragpipelines              # or: kubectl get rag
+```
+
+### Printer Columns
+
+Each CRD includes custom printer columns for `kubectl get`:
+
+```
+$ kubectl get agents
+NAME            ROLE              PATTERN   READY   AGE
+support-agent   customer-support  react     True    5m
+
+$ kubectl get providers
+NAME     TYPE    ENDPOINT                     READY   AGE
+ollama   ollama  http://ollama:11434          True    5m
+openai   openai  https://api.openai.com/v1    True    5m
+```
+
+### Future: Operator Controller
+
+The CRDs are ready for a future Kubernetes Operator that will:
+- **Agent** — Reconcile agent ConfigMaps and restart pods on changes
+- **Provider** — Update provider configuration and run health checks
+- **Channel** — Manage channel integrations and credentials
+- **RAGPipeline** — Configure and manage RAG pipelines at runtime
