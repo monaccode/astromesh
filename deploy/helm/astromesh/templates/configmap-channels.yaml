@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "astromesh.fullname" . }}-channels
+  labels:
+    {{- include "astromesh.labels" . | nindent 4 }}
+data:
+  channels.yaml: |
+    {{- .Values.config.channels | nindent 4 }}

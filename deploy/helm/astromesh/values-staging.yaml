@@ -1,0 +1,33 @@
+# Staging environment overrides
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 75
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: astromesh-staging.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+postgresql:
+  enabled: true
+  auth:
+    password: ""  # Use existingSecret in practice
+
+redis:
+  enabled: true

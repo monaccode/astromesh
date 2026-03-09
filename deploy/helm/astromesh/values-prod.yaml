@@ -1,0 +1,105 @@
+# Production environment overrides
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: "1"
+    memory: 2Gi
+  limits:
+    cpu: "4"
+    memory: 4Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: astromesh.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: astromesh-tls
+      hosts:
+        - astromesh.example.com
+
+# Use external managed databases in production
+postgresql:
+  enabled: false
+externalDatabase:
+  host: "your-rds-instance.region.rds.amazonaws.com"
+  port: "5432"
+  database: astromesh
+  username: astromesh
+  existingSecret: astromesh-db-credentials
+
+redis:
+  enabled: false
+externalRedis:
+  host: "your-elasticache.region.cache.amazonaws.com"
+  port: "6379"
+
+secrets:
+  create: false
+  existingSecret: astromesh-secrets
+
+observability:
+  prometheus:
+    enabled: true
+  otel:
+    enabled: true
+    endpoint: "http://otel-collector.monitoring:4317"
+
+vllm:
+  enabled: true
+  model: "mistralai/Mistral-7B-Instruct-v0.3"
+  resources:
+    requests:
+      nvidia.com/gpu: "1"
+    limits:
+      nvidia.com/gpu: "1"
+  nodeSelector:
+    gpu: "true"
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+
+tei:
+  enabled: true
+  instances:
+    - name: embeddings
+      modelId: "BAAI/bge-small-en-v1.5"
+      port: 8002
+      resources:
+        requests:
+          nvidia.com/gpu: "1"
+        limits:
+          nvidia.com/gpu: "1"
+      nodeSelector:
+        gpu: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+    - name: reranker
+      modelId: "BAAI/bge-reranker-base"
+      port: 8003
+      resources:
+        requests:
+          nvidia.com/gpu: "1"
+        limits:
+          nvidia.com/gpu: "1"
+      nodeSelector:
+        gpu: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule

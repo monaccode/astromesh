@@ -1,0 +1,26 @@
+=== Astromesh Agent Runtime ===
+
+{{- if .Values.ingress.enabled }}
+Access the API at:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else }}
+Get the application URL by running:
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "astromesh.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8000:8000
+
+Then visit: http://localhost:8000/v1/health
+{{- end }}
+
+{{- if .Values.postgresql.enabled }}
+PostgreSQL: {{ include "astromesh.postgresql.host" . }}:5432
+{{- end }}
+
+{{- if .Values.redis.enabled }}
+Redis: {{ include "astromesh.redis.host" . }}:6379
+{{- end }}
+
+{{- if .Values.ollama.enabled }}
+Ollama: {{ .Release.Name }}-ollama:11434
+{{- end }}

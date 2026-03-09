@@ -1,0 +1,412 @@
+# -- Number of Astromesh API replicas
+replicaCount: 1
+
+image:
+  # -- Container image repository
+  repository: astromesh
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Image tag (defaults to Chart appVersion)
+  tag: ""
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+# -- Override chart name
+nameOverride: ""
+# -- Override fully qualified app name
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Annotations for the ServiceAccount
+  annotations: {}
+  # -- ServiceAccount name (generated if not set)
+  name: ""
+
+# -- Pod annotations
+podAnnotations: {}
+# -- Pod security context
+podSecurityContext: {}
+# -- Container security context
+securityContext: {}
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 8000
+
+ingress:
+  # -- Enable Ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Ingress annotations
+  annotations: {}
+  # -- Ingress hosts
+  hosts:
+    - host: astromesh.local
+      paths:
+        - path: /
+          pathType: Prefix
+  # -- Ingress TLS configuration
+  tls: []
+
+# -- Resource requests and limits
+resources: {}
+  # requests:
+  #   cpu: 250m
+  #   memory: 512Mi
+  # limits:
+  #   cpu: "1"
+  #   memory: 1Gi
+
+autoscaling:
+  # -- Enable HPA
+  enabled: false
+  # -- Minimum replicas
+  minReplicas: 1
+  # -- Maximum replicas
+  maxReplicas: 5
+  # -- Target CPU utilization percentage
+  targetCPUUtilizationPercentage: 80
+
+# -- Node selector
+nodeSelector: {}
+# -- Tolerations
+tolerations: []
+# -- Affinity rules
+affinity: {}
+
+# ==============================================================================
+# Astromesh Configuration (mounted as ConfigMaps)
+# ==============================================================================
+config:
+  # -- runtime.yaml content
+  runtime: |
+    apiVersion: astromesh/v1
+    kind: RuntimeConfig
+    metadata:
+      name: default
+    spec:
+      api:
+        host: "0.0.0.0"
+        port: 8000
+      defaults:
+        orchestration:
+          pattern: react
+          max_iterations: 10
+
+  # -- providers.yaml content
+  providers: |
+    apiVersion: astromesh/v1
+    kind: ProviderConfig
+    metadata:
+      name: default-providers
+    spec:
+      providers:
+        ollama:
+          type: ollama
+          endpoint: "http://ollama:11434"
+          models:
+            - "llama3.1:8b"
+          health_check_interval: 30
+        openai:
+          type: openai_compat
+          endpoint: "https://api.openai.com/v1"
+          api_key_env: OPENAI_API_KEY
+          models:
+            - "gpt-4o"
+            - "gpt-4o-mini"
+      routing:
+        default_strategy: cost_optimized
+        fallback_enabled: true
+        circuit_breaker:
+          failure_threshold: 3
+          recovery_timeout: 60
+
+  # -- channels.yaml content
+  channels: |
+    channels:
+      whatsapp:
+        verify_token: "${WHATSAPP_VERIFY_TOKEN}"
+        access_token: "${WHATSAPP_ACCESS_TOKEN}"
+        phone_number_id: "${WHATSAPP_PHONE_NUMBER_ID}"
+        app_secret: "${WHATSAPP_APP_SECRET}"
+        default_agent: "whatsapp-assistant"
+        rate_limit:
+          window_seconds: 60
+          max_messages: 30
+
+  # -- Agent YAML files (key = filename, value = content)
+  agents: {}
+    # support-agent.agent.yaml: |
+    #   apiVersion: astromesh/v1
+    #   kind: Agent
+    #   ...
+
+# ==============================================================================
+# Secrets
+# ==============================================================================
+secrets:
+  # -- Create a Secret resource
+  create: true
+  # -- Use an existing Secret instead
+  existingSecret: ""
+  # -- Secret values (only used if create=true)
+  values:
+    OPENAI_API_KEY: ""
+    WHATSAPP_VERIFY_TOKEN: ""
+    WHATSAPP_ACCESS_TOKEN: ""
+    WHATSAPP_PHONE_NUMBER_ID: ""
+    WHATSAPP_APP_SECRET: ""
+
+# ==============================================================================
+# Observability
+# ==============================================================================
+observability:
+  prometheus:
+    # -- Add Prometheus scrape annotations to Service
+    enabled: true
+  otel:
+    # -- Enable OpenTelemetry environment variables
+    enabled: false
+    # -- OTel collector gRPC endpoint
+    endpoint: "http://otel-collector:4317"
+
+# ==============================================================================
+# External Database (when postgresql.enabled=false)
+# ==============================================================================
+externalDatabase:
+  # -- External PostgreSQL host
+  host: ""
+  # -- External PostgreSQL port
+  port: "5432"
+  # -- External PostgreSQL database name
+  database: "astromesh"
+  # -- External PostgreSQL username
+  username: "astromesh"
+  # -- Name of existing Secret with key `DATABASE_PASSWORD`
+  existingSecret: ""
+
+# ==============================================================================
+# External Redis (when redis.enabled=false)
+# ==============================================================================
+externalRedis:
+  # -- External Redis host
+  host: ""
+  # -- External Redis port
+  port: "6379"
+  # -- Name of existing Secret with key `REDIS_PASSWORD`
+  existingSecret: ""
+
+# ==============================================================================
+# Subchart: PostgreSQL (Bitnami)
+# ==============================================================================
+postgresql:
+  enabled: true
+  auth:
+    database: astromesh
+    username: astromesh
+    password: "astromesh"
+  primary:
+    persistence:
+      size: 10Gi
+
+# ==============================================================================
+# Subchart: Redis (Bitnami)
+# ==============================================================================
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+
+# ==============================================================================
+# Subchart: Ollama
+# ==============================================================================
+ollama:
+  enabled: false
+
+# ==============================================================================
+# vLLM Model Server
+# ==============================================================================
+vllm:
+  # -- Enable vLLM deployment
+  enabled: false
+  image:
+    # -- vLLM image repository
+    repository: vllm/vllm-openai
+    # -- vLLM image tag
+    tag: latest
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+  # -- Model to serve
+  model: "mistralai/Mistral-7B-Instruct-v0.3"
+  # -- Extra arguments for vLLM server
+  extraArgs:
+    - "--max-model-len"
+    - "4096"
+  service:
+    # -- Service type
+    type: ClusterIP
+    # -- Service port
+    port: 8000
+  # -- Resource requests and limits (include GPU here)
+  resources:
+    limits:
+      nvidia.com/gpu: "1"
+  # -- Node selector for GPU nodes
+  nodeSelector: {}
+  # -- Tolerations for GPU nodes
+  tolerations: []
+  # -- HuggingFace token for gated models (creates a Secret)
+  huggingfaceToken: ""
+  # -- Use an existing Secret with key HF_TOKEN instead
+  existingSecret: ""
+
+# ==============================================================================
+# HuggingFace Text Embeddings Inference (TEI)
+# ==============================================================================
+tei:
+  # -- Enable TEI deployments
+  enabled: false
+  # -- List of TEI instances to deploy
+  instances: []
+    # - name: embeddings
+    #   modelId: "BAAI/bge-small-en-v1.5"
+    #   port: 8002
+    #   resources: {}
+    #   nodeSelector: {}
+    #   tolerations: []
+    # - name: reranker
+    #   modelId: "BAAI/bge-reranker-base"
+    #   port: 8003
+    #   resources: {}
+    #   nodeSelector: {}
+    #   tolerations: []
+  image:
+    # -- TEI image repository
+    repository: ghcr.io/huggingface/text-embeddings-inference
+    # -- TEI image tag
+    tag: latest
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+  service:
+    # -- Service type for TEI instances
+    type: ClusterIP
+  # -- HuggingFace token for gated models (creates a Secret)
+  huggingfaceToken: ""
+  # -- Use an existing Secret with key HF_TOKEN instead
+  existingSecret: ""
+
+# ==============================================================================
+# Subchart: kube-prometheus-stack (Prometheus + Grafana + AlertManager)
+# ==============================================================================
+kube-prometheus-stack:
+  # -- Enable kube-prometheus-stack deployment
+  enabled: false
+  prometheus:
+    prometheusSpec:
+      # -- Allow ServiceMonitors from all namespaces
+      serviceMonitorSelectorNilUsesHelmValues: false
+  grafana:
+    # -- Grafana admin password
+    adminPassword: admin
+
+# ==============================================================================
+# Subchart: OpenTelemetry Collector
+# ==============================================================================
+opentelemetry-collector:
+  # -- Enable OpenTelemetry Collector deployment
+  enabled: false
+  # -- Collector deployment mode
+  mode: deployment
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      debug: {}
+      prometheus:
+        endpoint: 0.0.0.0:8889
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [debug]
+        metrics:
+          receivers: [otlp]
+          exporters: [prometheus]
+
+# ==============================================================================
+# External Secrets Operator (ESO)
+# ==============================================================================
+externalSecrets:
+  # -- Enable ExternalSecret resource (requires ESO installed in cluster)
+  enabled: false
+  # -- Refresh interval for syncing secrets
+  refreshInterval: 1h
+  # -- Reference to an existing SecretStore (when secretStore.enabled=false)
+  secretStoreRef:
+    name: ""
+    kind: SecretStore
+  # -- Keys to fetch from the external provider
+  keys: []
+    # - secretKey: OPENAI_API_KEY
+    #   remoteRef:
+    #     key: astromesh/openai
+    #     property: api_key
+    # - secretKey: WHATSAPP_ACCESS_TOKEN
+    #   remoteRef:
+    #     key: astromesh/whatsapp
+    #     property: access_token
+    # - secretKey: DATABASE_PASSWORD
+    #   remoteRef:
+    #     key: astromesh/database
+    #     property: password
+
+  # -- SecretStore configuration (creates a SecretStore resource)
+  secretStore:
+    # -- Create a SecretStore resource
+    enabled: false
+    # -- "SecretStore" or "ClusterSecretStore"
+    kind: SecretStore
+    # -- Provider spec (passed directly to ESO — see examples below)
+    provider: {}
+      # --- AWS Secrets Manager example ---
+      # aws:
+      #   service: SecretsManager
+      #   region: us-east-1
+      #   auth:
+      #     secretRef:
+      #       accessKeyIDSecretRef:
+      #         name: aws-credentials
+      #         key: access-key-id
+      #       secretAccessKeySecretRef:
+      #         name: aws-credentials
+      #         key: secret-access-key
+      #
+      # --- GCP Secret Manager example ---
+      # gcpsm:
+      #   projectID: my-gcp-project
+      #   auth:
+      #     secretRef:
+      #       secretAccessKeySecretRef:
+      #         name: gcp-credentials
+      #         key: secret-access-credentials
+      #
+      # --- HashiCorp Vault example ---
+      # vault:
+      #   server: https://vault.example.com
+      #   path: secret
+      #   version: v2
+      #   auth:
+      #     kubernetes:
+      #       mountPath: kubernetes
+      #       role: astromesh

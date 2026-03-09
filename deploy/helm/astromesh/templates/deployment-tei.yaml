@@ -1,0 +1,69 @@
+{{- if .Values.tei.enabled }}
+{{- range $i, $instance := .Values.tei.instances }}
+{{- if gt $i 0 }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "astromesh.fullname" $ }}-tei-{{ $instance.name }}
+  labels:
+    {{- include "astromesh.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: tei-{{ $instance.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "astromesh.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: tei-{{ $instance.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "astromesh.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: tei-{{ $instance.name }}
+    spec:
+      containers:
+        - name: tei-{{ $instance.name }}
+          image: "{{ $.Values.tei.image.repository }}:{{ $.Values.tei.image.tag }}"
+          imagePullPolicy: {{ $.Values.tei.image.pullPolicy }}
+          args:
+            - "--model-id"
+            - {{ $instance.modelId | quote }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          {{- if or $.Values.tei.huggingfaceToken $.Values.tei.existingSecret }}
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-hf-token" (include "astromesh.fullname" $)) $.Values.tei.existingSecret }}
+                  key: HF_TOKEN
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          {{- with $instance.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with $instance.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $instance.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}

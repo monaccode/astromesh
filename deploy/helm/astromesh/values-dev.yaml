@@ -1,0 +1,42 @@
+# Development environment overrides
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+postgresql:
+  enabled: true
+  auth:
+    password: "dev-password"
+
+redis:
+  enabled: true
+
+ollama:
+  enabled: true
+
+vllm:
+  enabled: true
+  resources: {}  # No GPU limits for local dev
+
+tei:
+  enabled: true
+  instances:
+    - name: embeddings
+      modelId: "BAAI/bge-small-en-v1.5"
+      port: 8002
+
+observability:
+  otel:
+    enabled: true
+
+kube-prometheus-stack:
+  enabled: true
+
+opentelemetry-collector:
+  enabled: true

@@ -1,0 +1,91 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: channels.astromesh.io
+  labels:
+    app.kubernetes.io/part-of: astromesh
+spec:
+  group: astromesh.io
+  names:
+    kind: Channel
+    listKind: ChannelList
+    plural: channels
+    singular: channel
+    shortNames:
+      - ch
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Type
+          type: string
+          jsonPath: .spec.type
+        - name: Agent
+          type: string
+          jsonPath: .spec.defaultAgent
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - type
+                - defaultAgent
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - whatsapp
+                    - slack
+                    - telegram
+                    - webhook
+                defaultAgent:
+                  type: string
+                config:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                rateLimit:
+                  type: object
+                  properties:
+                    windowSeconds:
+                      type: integer
+                    maxMessages:
+                      type: integer
+                  additionalProperties: true
+              additionalProperties: true
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                observedGeneration:
+                  type: integer
+                  format: int64
+                message:
+                  type: string
