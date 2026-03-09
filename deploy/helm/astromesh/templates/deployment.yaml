@@ -108,9 +108,9 @@ spec:
             {{- end }}
             {{- end }}
             # -- OpenTelemetry
-            {{- if .Values.observability.otel.enabled }}
+            {{- if or .Values.observability.otel.enabled (index .Values "opentelemetry-collector" "enabled") }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: {{ .Values.observability.otel.endpoint | quote }}
+              value: {{ include "astromesh.otel.endpoint" . | quote }}
             - name: OTEL_SERVICE_NAME
               value: {{ include "astromesh.fullname" . | quote }}
             {{- end }}
