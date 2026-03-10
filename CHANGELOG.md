@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **License** — added canonical `LICENSE` file (Apache 2.0), `LICENSE.md` now references it; badge link updated
+- **License** — consolidated into single `LICENSE` file (Apache 2.0), removed `LICENSE.md`
+- **NOTICE.md** — updated repo URL, added managed runtime and enterprise support to commercial offerings
 - **Repo rename** — all references to `astromech-platform` replaced with `astromesh` across docs, configs, CI, Helm chart, Dockerfile, packaging, and docs-site (29 files, 78 occurrences)
 - **README CI badge** — CI badge now tracks `main` branch instead of `develop`
 - **Docs site visual redesign** — replaced emoji icons with SVG Lucide icons across all landing page components for consistent cross-platform rendering

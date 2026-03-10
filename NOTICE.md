@@ -16,7 +16,7 @@ with multiple models, tools, memory systems, retrieval pipelines, and external
 communication channels through a declarative configuration model.
 
 Project repository:
-https://github.com/<org>/astromesh
+[https://github.com/](https://github.com/)[/astromesh](https://github.com/)
 
 ---
 
@@ -27,7 +27,7 @@ Version 2.0.
 
 You may obtain a copy of the License at:
 
-http://www.apache.org/licenses/LICENSE-2.0
+[http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
 ---
 
@@ -71,8 +71,10 @@ or hosted platforms must not imply endorsement by the Astromesh project.
 The Astromesh ecosystem may include additional proprietary or commercial
 offerings such as:
 
-- Astromesh Enterprise
-- Astromesh Cloud
+- **Astromesh Enterprise**
+- **Astromesh Cloud**
+- Managed runtime infrastructure
+- Enterprise integrations and support
 
 These offerings may include components not distributed under the open
 source license.
@@ -87,3 +89,4 @@ that you provide attribution to the project.
 Suggested attribution:
 
 > Powered by Astromesh — Open Source Agent Runtime Platform
+
