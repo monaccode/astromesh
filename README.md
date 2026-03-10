@@ -5,6 +5,21 @@
   <img src="assets/astromesh-logo.png" alt="Astromesh Logo" width="900" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/ci.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/ci.yml/badge.svg?branch=develop" alt="CI"></a>
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/release.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/docs.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/docs.yml/badge.svg?branch=develop" alt="Docs"></a>
+  <a href="https://github.com/monaccode/astromesh/releases/latest"><img src="https://img.shields.io/github/v/release/monaccode/astromesh?include_prereleases&label=version" alt="Version"></a>
+  <a href="https://github.com/monaccode/astromesh/blob/develop/LICENSE.md"><img src="https://img.shields.io/github/license/monaccode/astromesh" alt="License"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+"></a>
+</p>
+
+<p align="center">
+  <a href="https://monaccode.github.io/astromesh/"><strong>Documentation</strong></a> · <a href="https://monaccode.github.io/astromesh/getting-started/quickstart/">Quick Start</a> · <a href="https://github.com/monaccode/astromesh/releases">Releases</a>
+</p>
+
+---
+
 > Build, orchestrate and run AI agents with multi-model routing, tools, memory, and RAG — all configured declaratively.
 
 Astromesh is an open-source runtime for agentic systems, designed to standardize how AI agents execute, reason, and interact with external systems.
@@ -35,11 +50,20 @@ Instead of writing orchestration logic yourself, you define agents declaratively
 
 ## Documentation
 
+**Full documentation site: [monaccode.github.io/astromesh](https://monaccode.github.io/astromesh/)**
+
+Includes getting started guides, architecture deep-dives, 7 deployment modes, configuration reference, and API docs.
+
+Additional references in this repo:
+
 - **Tech overview**: [`docs/TECH_OVERVIEW.md`](docs/TECH_OVERVIEW.md)
 - **General architecture**: [`docs/GENERAL_ARCHITECTURE.md`](docs/GENERAL_ARCHITECTURE.md)
 - **Kubernetes-style architecture diagrams**: [`docs/K8S_ARCHITECTURE.md`](docs/K8S_ARCHITECTURE.md)
 - **Configuration guide**: [`docs/CONFIGURATION_GUIDE.md`](docs/CONFIGURATION_GUIDE.md)
 - **WhatsApp integration**: [`docs/WHATSAPP_INTEGRATION.md`](docs/WHATSAPP_INTEGRATION.md)
+- **Maia mesh guide**: [`docs/MAIA_GUIDE.md`](docs/MAIA_GUIDE.md)
+- **Developer quick start**: [`docs/DEV_QUICKSTART.md`](docs/DEV_QUICKSTART.md)
+- **Installation (APT)**: [`docs/INSTALLATION.md`](docs/INSTALLATION.md)
 
 ---
 
@@ -200,7 +224,7 @@ pip install uv
 ### Clone the repository
 
 ```bash
-git clone https://github.com/your-org/astromesh
+git clone https://github.com/monaccode/astromesh.git
 cd astromesh
 ```
 

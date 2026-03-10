@@ -19,7 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Astromesh logo** in docs-site landing page hero with blue glow drop-shadow and entrance animation
 - "Read full pipeline documentation" CTA button below pipeline diagram linking to `/architecture/agent-pipeline/`
+- **README badges** — CI, Release, Docs (workflow status), Version, License, Python version
+- **README navigation links** — Documentation site, Quick Start, Releases centered below badges
+- Docs site link as primary documentation entry point in README
+- Additional doc references in README: Maia guide, Dev quickstart, Installation
+
+### Changed
+
+- **README** — clone URL updated from `your-org` to `monaccode`
 
 ### Fixed
 
