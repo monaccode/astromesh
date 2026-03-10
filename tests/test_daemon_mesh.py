@@ -1,6 +1,5 @@
 """Tests for daemon mesh wiring."""
 
-import pytest
 import yaml
 
 from daemon.astromeshd import DaemonConfig

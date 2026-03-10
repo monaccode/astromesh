@@ -10,7 +10,6 @@ from astromesh.api.routes import mesh as mesh_routes
 from astromesh.mesh.config import MeshConfig
 from astromesh.mesh.leader import LeaderElector
 from astromesh.mesh.manager import MeshManager
-from astromesh.mesh.state import NodeState
 from astromesh.runtime.services import ServiceManager
 
 
