@@ -21,6 +21,7 @@ class ToolType(str, Enum):
     MCP_HTTP = "mcp_http"
     WEBHOOK = "webhook"
     RAG = "rag"
+    AGENT = "agent"
 
 
 @dataclass
@@ -35,6 +36,8 @@ class ToolDefinition:
     timeout_seconds: int = 30
     rate_limit: dict | None = None
     permissions: list[str] = field(default_factory=list)
+    agent_config: dict | None = None
+    context_transform: str | None = None
 
 
 class ToolRegistry:
