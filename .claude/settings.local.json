@@ -8,7 +8,13 @@
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(xargs:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(git checkout:*)",
+      "Bash(git:*)",
+      "Bash(helm version:*)",
+      "Bash(echo exit: $?:*)",
+      "Bash(uv sync:*)",
+      "Bash(git check-ignore:*)"
     ]
   }
 }
