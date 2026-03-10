@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Developer Tools guide** (`docs-site/getting-started/developer-tools`) — restructured into three clear sections (CLI, Copilot, VS Code) with command examples, feature table, and quick reference
 - **Docs-site content** — formatting and alignment fixes across architecture, reference, and deployment pages
+- **License references in docs** — updated `README.md` and `docs/TECH_OVERVIEW.md` to Apache-2.0 and aligned with canonical `LICENSE`
 
 ## [0.14.0] - 2026-03-10
 

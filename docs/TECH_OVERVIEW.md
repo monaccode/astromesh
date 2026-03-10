@@ -275,5 +275,5 @@ See [docs/GENERAL_ARCHITECTURE.md](docs/GENERAL_ARCHITECTURE.md) for the full sy
 
  ## License
 
- MIT
+ Apache-2.0 (see `LICENSE`)
 
