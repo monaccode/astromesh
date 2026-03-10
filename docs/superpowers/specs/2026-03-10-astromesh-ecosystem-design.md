@@ -450,3 +450,98 @@ VS Code Extension
 ```
 
 The extension has **no logic of its own** — everything goes through the CLI.
+
+---
+
+## Clarifications and Decisions
+
+Issues identified during spec review, with resolutions.
+
+### Tool Type Mapping
+
+- `type: builtin` in agent YAML is a **user-facing alias** that maps internally to `ToolType.INTERNAL`
+- Existing `type: internal` tools continue to work unchanged
+- The `ToolLoader` resolves `builtin` → looks up in the built-in catalog; `internal` → uses inline handler as today
+- A new `BUILTIN` enum value is NOT added — it's syntactic sugar in YAML parsing
+
+### ToolResult Migration
+
+- `ToolResult` dataclass replaces the current `dict` return from `ToolRegistry.execute()`
+- Migration: `execute()` returns `ToolResult`; a `.to_dict()` method preserves backward compat for existing orchestration patterns
+- Orchestration patterns are updated incrementally to use `ToolResult` directly
+
+### Expression Language: Jinja2 Everywhere
+
+- **Decision:** Use Jinja2 for all expressions — `context_transform`, `input`, `switch` conditions
+- JMESPath was considered but mixing two languages is worse than one slightly less specialized language
+- Jinja2 is already used for prompts, so developers already know it
+- `context_transform` becomes a Jinja2 template that outputs JSON: `context_transform: '{"company": "{{ data.company }}"}'`
+
+### Supervisor/Swarm vs `type: agent` Tools
+
+- `type: agent` is the **new unified mechanism** for agent composition
+- Supervisor pattern uses `type: agent` tools as its workers (replaces internal `_workers` dict)
+- Swarm pattern uses `type: agent` tools for handoff targets
+- The patterns provide the coordination logic; `type: agent` provides the invocation mechanism
+
+### Observability: Relation to Existing Code
+
+- Existing `TelemetryManager` (OTLP gRPC) becomes the `otlp` collector backend
+- Existing `MetricsCollector` (Prometheus) is preserved as an optional export alongside the new metrics
+- Existing `CostTracker` (Rust-accelerated) is wrapped by the `llm.cost.usd` metric — not replaced
+- `internal` collector uses async buffered writes (batch of 50 or every 5s, whichever first) to avoid per-span DB overhead
+- Metric naming: spec uses dot notation (`agent.runs.total`) as the canonical name; Prometheus export converts to underscore (`astromesh_agent_runs_total`)
+- `sample_rate` applies to **traces only** — metrics are never sampled
+
+### Workflow Error Handling (Sub-project 4)
+
+```yaml
+steps:
+  - name: qualify
+    agent: sales-qualifier
+    input: "{{ steps.research.output }}"
+    retry:
+      max_attempts: 3
+      backoff: exponential     # exponential | fixed
+      initial_delay_seconds: 2
+    timeout_seconds: 60
+    on_error: log-and-skip     # goto step name, or "fail" to abort workflow
+
+  - name: log-and-skip
+    tool: cache_store
+    arguments:
+      key: "error_{{ trigger.id }}"
+      value: "{{ error.message }}"
+```
+
+- Each step can have `retry`, `timeout_seconds`, and `on_error`
+- `on_error` references another step name, or `"fail"` to abort the workflow
+- Workflow-level `timeout_seconds` in spec for overall deadline
+- Webhook/event triggers include deduplication via `trigger.id`
+
+### Workflow Trigger Types (Sub-project 4)
+
+- `api`: invoked via `POST /v1/workflows/{name}/run` — request body becomes `trigger`
+- `schedule`: cron syntax, executed by an in-process scheduler (APScheduler or similar)
+- `webhook`: unique URL per workflow `POST /v1/workflows/{name}/webhook` — payload becomes `trigger`
+- `event`: internal pub/sub (Redis Pub/Sub or in-memory) — listens for named events from other agents/workflows
+
+### Copilot Security Model (Sub-project 2)
+
+- **Filesystem:** read-only access to `./config/` and `./docs/`. Write access only to `./config/agents/` and `./config/workflows/` for generated YAMLs.
+- **Agent execution:** can run agents in **dry-run mode** (no side effects, no external tool calls) for testing
+- **System access:** no shell access, no Docker access, no network access beyond the Astromesh API
+- **Explicit confirmation:** destructive actions (overwrite existing YAML, delete agent) require user confirmation in CLI
+
+### CLI Packaging (Sub-project 2)
+
+- CLI ships as part of the `astromesh` package with an extra: `uv sync --extra cli`
+- Installs `astromesh` as a CLI entry point via `[project.scripts]` in `pyproject.toml`
+- No separate package — single monorepo with optional extras (consistent with current `--extra all` pattern)
+
+### Tool Catalog Adjustments
+
+- `generate_image` → moved to **MCP server** (requires external API/GPU, not lightweight)
+- `cache_store` → scope is **per-workflow-run** (isolated), TTL configurable with default 1h, backend: Redis if available, in-memory fallback
+- `text_summarize` → creates a **nested span** in tracing, cost tracked separately under `tool.text_summarize` metric, does NOT count against orchestration iteration limit
+- Total tools: **18 builtin + 3 MCP servers** (code_interpreter, shell_exec, generate_image)
