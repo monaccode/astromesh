@@ -27,21 +27,13 @@ This is the right choice when you want a production-ready single-server deployme
 
 ## Step-by-step Setup
 
-### 1. Install via APT
+### 1. Install via GitHub Release package
 
-Add the Astromesh repository and install:
+Download and install the latest `.deb` package:
 
 ```bash
-# Add the repository signing key
-curl -fsSL https://pkg.astromesh.dev/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh-archive-keyring.gpg
-
-# Add the repository
-echo "deb [signed-by=/usr/share/keyrings/astromesh-archive-keyring.gpg] https://pkg.astromesh.dev/apt stable main" | \
-  sudo tee /etc/apt/sources.list.d/astromesh.list
-
-# Install
-sudo apt update
-sudo apt install astromesh
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_<VERSION>_amd64.deb
+sudo apt install ./astromesh_<VERSION>_amd64.deb
 ```
 
 Expected output:
@@ -511,8 +503,8 @@ The gateway forwards agent execution requests to the worker, which forwards infe
 ## Upgrading
 
 ```bash
-sudo apt update
-sudo apt upgrade astromesh
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_<VERSION>_amd64.deb
+sudo apt install ./astromesh_<VERSION>_amd64.deb
 ```
 
 Expected output:
@@ -523,7 +515,7 @@ Restarting astromeshd...
 astromesh upgraded to 0.11.0.
 ```
 
-The APT package handles service restart automatically. To verify:
+The package handles service restart automatically. To verify:
 
 ```bash
 astromeshctl status

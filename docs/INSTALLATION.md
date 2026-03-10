@@ -1,13 +1,12 @@
 # Astromesh Installation Guide
 
-## APT Repository (Recommended)
+## Debian Package (Recommended)
 
-### 1. Add the repository
+### 1. Download from GitHub Releases
 
 ```bash
-curl -fsSL https://monaccode.github.io/astromesh/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh.gpg
-echo "deb [signed-by=/usr/share/keyrings/astromesh.gpg] https://monaccode.github.io/astromesh stable main" | sudo tee /etc/apt/sources.list.d/astromesh.list
-sudo apt update && sudo apt install astromesh
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_<VERSION>_amd64.deb
+sudo apt install ./astromesh_<VERSION>_amd64.deb
 ```
 
 ### 2. Configure
@@ -65,7 +64,8 @@ sudo /opt/astromesh/venv/bin/pip install torch faiss-cpu sentence-transformers
 ## Upgrading
 
 ```bash
-sudo apt update && sudo apt upgrade astromesh
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_<VERSION>_amd64.deb
+sudo apt install ./astromesh_<VERSION>_amd64.deb
 ```
 
 Your configuration files in `/etc/astromesh/` are preserved during upgrades. If a new version ships updated defaults, apt will ask how to handle the difference.

@@ -14,12 +14,11 @@ astromeshd --config ./config`,
     id: "os",
     label: "Astromesh OS",
     icon: `<rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>`,
-    code: `# Add APT repository
-curl -fsSL https://monaccode.github.io/astromesh/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh.gpg
-echo "deb [signed-by=/usr/share/keyrings/astromesh.gpg] https://monaccode.github.io/astromesh stable main" | sudo tee /etc/apt/sources.list.d/astromesh.list
+    code: `# Download latest .deb from GitHub Releases
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_<VERSION>_amd64.deb
 
 # Install and start
-sudo apt update && sudo apt install astromesh
+sudo apt install ./astromesh_<VERSION>_amd64.deb
 sudo astromeshctl init
 sudo systemctl enable --now astromeshd`,
   },

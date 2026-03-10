@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="https://monaccode.github.io/astromesh"
+GITHUB_REPO="monaccode/astromesh"
+GITHUB_API_URL="https://api.github.com/repos/${GITHUB_REPO}"
 REQUIRED_PYTHON="3.12"
 
 # ---------------------------------------------------------------------------
@@ -120,42 +121,34 @@ check_root() {
 }
 
 # ---------------------------------------------------------------------------
-# install_apt_repo — Add GPG key and APT sources list entry (idempotent)
+# install_deb_from_release — Download and install latest .deb from GitHub
 # ---------------------------------------------------------------------------
-install_apt_repo() {
-    local keyring="/usr/share/keyrings/astromesh-archive-keyring.gpg"
-    local sources_list="/etc/apt/sources.list.d/astromesh.list"
+install_deb_from_release() {
+    local tmpdir deb_url deb_file
+    tmpdir="$(mktemp -d)"
+    deb_file="${tmpdir}/astromesh_${ARCH}.deb"
 
-    # Skip if already configured
-    if [[ -f "${sources_list}" ]] && [[ -f "${keyring}" ]]; then
-        success "APT repository already configured — skipping."
-        return
+    info "Resolving latest .deb release for architecture: ${ARCH}"
+
+    deb_url="$(curl -fsSL "${GITHUB_API_URL}/releases/latest" | \
+        grep -Eo "https://github.com/${GITHUB_REPO}/releases/download/[^\"]+_${ARCH}\\.deb" | \
+        head -n 1)"
+
+    if [[ -z "${deb_url}" ]]; then
+        error "Could not find a .deb asset for ${ARCH} in latest release."
+        error "Check https://github.com/${GITHUB_REPO}/releases"
+        exit 1
     fi
 
-    info "Adding Astromesh APT repository..."
+    info "Downloading package from ${deb_url}"
+    curl -fL "${deb_url}" -o "${deb_file}"
 
-    # Install prerequisites
+    info "Installing package..."
     ${SUDO} apt-get update -qq
-    ${SUDO} apt-get install -y -qq curl gnupg ca-certificates >/dev/null
-
-    # Import GPG key
-    curl -fsSL "${REPO_URL}/gpg" | ${SUDO} gpg --dearmor -o "${keyring}"
-    success "GPG key installed."
-
-    # Add sources list entry
-    echo "deb [signed-by=${keyring} arch=${ARCH}] ${REPO_URL}/apt stable main" \
-        | ${SUDO} tee "${sources_list}" >/dev/null
-    success "APT source added."
-}
-
-# ---------------------------------------------------------------------------
-# install_package — Install the astromesh package via apt
-# ---------------------------------------------------------------------------
-install_package() {
-    info "Installing astromesh package..."
-    ${SUDO} apt-get update -qq
-    ${SUDO} apt-get install -y astromesh
+    ${SUDO} apt-get install -y "${deb_file}"
     success "Astromesh installed successfully!"
+
+    rm -rf "${tmpdir}"
 }
 
 # ---------------------------------------------------------------------------
@@ -167,8 +160,8 @@ suggest_docker() {
     echo ""
     info "You can run Astromesh using Docker instead:"
     echo ""
-    printf "  ${BOLD}curl -fsSL ${REPO_URL}/docker-compose.yml -o docker-compose.yml${NC}\n"
-    printf "  ${BOLD}docker compose up -d${NC}\n"
+    printf "  ${BOLD}git clone https://github.com/monaccode/astromesh.git${NC}\n"
+    printf "  ${BOLD}cd astromesh && docker compose -f recipes/single-node.yml up -d${NC}\n"
     echo ""
     info "Or install from source with uv:"
     echo ""
@@ -194,8 +187,7 @@ main() {
 
     check_python
     check_root
-    install_apt_repo
-    install_package
+    install_deb_from_release
 
     echo ""
     success "Installation complete! Starting initial setup..."

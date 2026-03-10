@@ -146,24 +146,20 @@ curl http://localhost:8000/v1/health
 
 For full Docker deployment guides including Docker Compose with Ollama, PostgreSQL, Redis, and the observability stack, see the [Docker Single Node](/astromesh/deployment/docker-single/) deployment guide.
 
-## APT Package (Linux)
+## Debian Package (Linux)
 
 For Debian and Ubuntu systems, Astromesh is available as a `.deb` package that installs the daemon, CLI, and systemd service.
 
-### 1. Add the GPG key and repository
+### 1. Download package from GitHub Releases
 
 ```bash
-curl -fsSL https://pkg.astromesh.dev/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh-archive-keyring.gpg
-
-echo "deb [signed-by=/usr/share/keyrings/astromesh-archive-keyring.gpg] https://pkg.astromesh.dev/apt stable main" \
-  | sudo tee /etc/apt/sources.list.d/astromesh.list
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_<VERSION>_amd64.deb
 ```
 
 ### 2. Install
 
 ```bash
-sudo apt update
-sudo apt install astromesh
+sudo apt install ./astromesh_<VERSION>_amd64.deb
 ```
 
 ### 3. Verify the installation
@@ -185,7 +181,7 @@ Agents:     3 loaded, 3 healthy
 API:        http://127.0.0.1:8000
 ```
 
-The APT package installs:
+The package installs:
 
 | Component | Location |
 |-----------|----------|
@@ -197,6 +193,8 @@ The APT package installs:
 | systemd unit | `/etc/systemd/system/astromeshd.service` |
 
 For detailed production configuration with systemd, see the [Astromesh OS](/astromesh/deployment/astromesh-os/) guide.
+
+> Note: A public APT repository URL is not available yet. Until then, install from GitHub Releases.
 
 ## Verify Installation
 
