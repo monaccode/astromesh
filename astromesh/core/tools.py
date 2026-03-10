@@ -59,6 +59,36 @@ class ToolRegistry:
             **kwargs,
         )
 
+    def register_agent_tool(
+        self,
+        name: str,
+        agent_name: str,
+        description: str,
+        parameters: dict | None = None,
+        context_transform: str | None = None,
+        **kwargs,
+    ):
+        """Register an agent as a callable tool."""
+        default_params = {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The query or task to send to the agent",
+                },
+            },
+            "required": ["query"],
+        }
+        self._tools[name] = ToolDefinition(
+            name=name,
+            description=description,
+            tool_type=ToolType.AGENT,
+            parameters=parameters or default_params,
+            agent_config={"agent_name": agent_name},
+            context_transform=context_transform,
+            **kwargs,
+        )
+
     async def execute(self, tool_name, arguments, context=None) -> dict:
         tool = self._tools.get(tool_name)
         if not tool:
