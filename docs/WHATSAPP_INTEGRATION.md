@@ -350,4 +350,3 @@ WhatsApp image messages can include a caption. When present, the caption is incl
 - **Apply rate limiting.** Use the `rate_limit` configuration in `config/channels.yaml` to cap outbound messages per time window. This protects against runaway loops and excessive API usage.
 - **Rotate access tokens.** Meta access tokens can expire. Use System User tokens for long-lived production deployments and rotate them periodically.
 - **Restrict network access.** In production, restrict inbound traffic to Meta's webhook IP ranges where possible.
-
