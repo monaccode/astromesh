@@ -30,6 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`POST /v1/metrics/reset`** — clear all metrics
 - **Ecosystem design spec** (`docs/superpowers/specs/2026-03-10-astromesh-ecosystem-design.md`) — 5 sub-project architecture for tools, observability, multi-agent, CLI/copilot, and VS Code extension
 - 93 new tests for all tools, tracing, collectors, APIs, and registry
+- **CLI Scaffolding Commands** — `astromeshctl new agent|workflow|tool` generates YAML/Python from Jinja2 templates with interactive prompts and `--force` overwrite support
+- **CLI Execution Commands** — `astromeshctl run <agent> "query"` executes agents via REST API; `astromeshctl dev` starts hot-reload dev server with `uvicorn --reload`
+- **CLI Observability Commands** — `astromeshctl traces <agent>` lists recent traces; `astromeshctl trace <id>` shows span tree; `astromeshctl metrics` and `astromeshctl cost` show aggregated metrics
+- **CLI Tools Commands** — `astromeshctl tools list` shows available builtin tools; `astromeshctl tools test <name> '{args}'` tests tools in isolation
+- **CLI Validation** — `astromeshctl validate` checks all `*.agent.yaml` and `*.workflow.yaml` files for schema compliance
+- **Copilot Agent** — `astromeshctl ask "question"` runs an astromesh-copilot agent locally with sandboxed filesystem access and `--context` file support; agent YAML at `config/agents/astromesh-copilot.agent.yaml`
+- **Agent-as-Tool** — new `type: agent` tool type allows agents to invoke other agents as tools; registered via `register_agent_tool()` with full ToolResult integration
+- **Context Transforms** — Jinja2-based data reshaping between agent-to-agent calls via `context_transform` field in tool YAML; uses `_DotDict` for dot-notation access
+- **Nested Agent Tracing** — agent-in-agent calls share trace tree via `parent_trace_id` propagation; child agents create spans under parent's trace
+- **Circular Reference Detection** — DFS cycle detection at bootstrap prevents infinite agent-as-tool reference loops
+- **Multi-agent Composition docs** — new docs-site page covering agent-as-tool, context transforms, and supervisor/swarm integration
+- 68 new tests for CLI commands, agent-as-tool, context transforms, supervisor/swarm agent integration
+- 33 CLI tests + 35 multi-agent tests
 
 ### Changed
 
@@ -47,6 +60,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`astromesh/runtime/engine.py`** — `_build_agent()` now resolves `type: builtin` tools via `ToolLoader`; `Agent.run()` wrapped with `TracingContext` for automatic span collection
 - **`astromesh/api/main.py`** — mounts `traces` and `metrics` routers at `/v1`
 - **`astromesh/observability/collector.py`** — refactored with `Collector` ABC; added `OTLPCollector` bridging to OpenTelemetry
+- **`astromesh/core/tools.py`** — added `ToolType.AGENT` enum, `agent_config`/`context_transform` fields to `ToolDefinition`, `register_agent_tool()` and `set_runtime()` methods, Jinja2 context transform execution in AGENT branch
+- **`astromesh/orchestration/supervisor.py`** — delegates to workers via `tool_fn` instead of direct `model_fn` calls, enabling agent-as-tool delegation
+- **`astromesh/orchestration/swarm.py`** — handoffs now use `tool_fn` to invoke agent tools, supporting `type: agent` handoff targets
+- **`astromesh/runtime/engine.py`** — wires `type: agent` tools in `_build_agent()`, passes runtime reference to ToolRegistry, adds `_detect_circular_refs()` DFS at bootstrap, `parent_trace_id` propagation
+- **`astromesh/observability/tracing.py`** — `start_span()` now accepts optional `parent_span_id` parameter for explicit parent override
+- **`cli/main.py`** — registered 8 new command groups (new, run, dev, traces, metrics, tools, validate, ask)
+- **`cli/client.py`** — added `api_post_with_timeout()` and `api_get_params()` helper methods
+- **`cli/output.py`** — added Rich formatters: `print_trace_list()`, `print_trace_tree()`, `print_metrics_table()`, `print_cost_table()`, `print_tool_list()`
 
 ### Added (docs-site)
 
