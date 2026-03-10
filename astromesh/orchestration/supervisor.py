@@ -21,7 +21,9 @@ class SupervisorPattern(OrchestrationPattern):
                 f' or provide final answer (respond with JSON {{"final_answer": "..."}})'
             )
 
-            response = await model_fn([{"role": "user", "content": supervisor_prompt}], tools)
+            response = await model_fn(
+                [{"role": "user", "content": supervisor_prompt}], tools
+            )
 
             try:
                 decision = json_mod.loads(response.content)
@@ -34,12 +36,19 @@ class SupervisorPattern(OrchestrationPattern):
                 return {"answer": decision["final_answer"], "steps": steps}
 
             if "delegate" in decision:
+                worker_name = decision["delegate"]
                 worker_task = decision.get("task", query)
-                worker_resp = await model_fn([{"role": "user", "content": worker_task}], tools)
+                # Use tool_fn to invoke agent tools (unified mechanism)
+                observation = await tool_fn(worker_name, {"query": worker_task})
+                worker_result = (
+                    observation.get("answer", str(observation))
+                    if isinstance(observation, dict)
+                    else str(observation)
+                )
                 steps.append(
                     AgentStep(
-                        thought=f"Delegated to {decision['delegate']}: {worker_task}",
-                        result=worker_resp.content,
+                        thought=f"Delegated to {worker_name}: {worker_task}",
+                        observation=worker_result,
                     )
                 )
 
