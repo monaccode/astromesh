@@ -1,3 +1,5 @@
+import pytest
+from unittest.mock import AsyncMock
 from astromesh.core.tools import ToolRegistry, ToolType, ToolDefinition
 
 
@@ -91,3 +93,72 @@ class TestRegisterAgentTool:
         )
         tool = registry._tools["qualify-lead"]
         assert tool.parameters == params
+
+
+class TestExecuteAgentTool:
+    @pytest.fixture
+    def runtime_mock(self):
+        runtime = AsyncMock()
+        runtime.run = AsyncMock(
+            return_value={"answer": "Lead is qualified", "steps": []}
+        )
+        return runtime
+
+    @pytest.fixture
+    def registry_with_agent(self, runtime_mock):
+        registry = ToolRegistry()
+        registry.set_runtime(runtime_mock)
+        registry.register_agent_tool(
+            name="qualify-lead",
+            agent_name="sales-qualifier",
+            description="Qualify a sales lead",
+        )
+        return registry
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_tool(self, registry_with_agent, runtime_mock):
+        result = await registry_with_agent.execute(
+            "qualify-lead",
+            {"query": "Is Acme Corp a good lead?"},
+            context={"session": "sess-1"},
+        )
+        runtime_mock.run.assert_called_once_with(
+            "sales-qualifier",
+            "Is Acme Corp a good lead?",
+            session_id="sess-1",
+            context=None,
+        )
+        assert result["answer"] == "Lead is qualified"
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_tool_no_runtime(self):
+        registry = ToolRegistry()
+        registry.register_agent_tool(
+            name="qualify-lead",
+            agent_name="sales-qualifier",
+            description="Qualify a sales lead",
+        )
+        result = await registry.execute("qualify-lead", {"query": "test"})
+        assert "error" in result
+        assert "runtime" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_tool_extracts_session(self, runtime_mock):
+        registry = ToolRegistry()
+        registry.set_runtime(runtime_mock)
+        registry.register_agent_tool(
+            name="qualify-lead",
+            agent_name="sales-qualifier",
+            description="Qualify a sales lead",
+        )
+        await registry.execute(
+            "qualify-lead",
+            {"query": "test"},
+            context={"session": "sess-42", "agent": "parent-agent"},
+        )
+        runtime_mock.run.assert_called_once_with(
+            "sales-qualifier",
+            "test",
+            session_id="sess-42",
+            context=None,
+        )

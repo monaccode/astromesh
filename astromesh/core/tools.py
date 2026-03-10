@@ -40,11 +40,32 @@ class ToolDefinition:
     context_transform: str | None = None
 
 
+class _DotDict(dict):
+    """Dict subclass enabling dot-notation access for Jinja2 templates."""
+
+    def __init__(self, data):
+        super().__init__(data)
+        for key, value in data.items():
+            if isinstance(value, dict):
+                self[key] = _DotDict(value)
+
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(f"No attribute '{key}'")
+
+
 class ToolRegistry:
     def __init__(self):
         self._tools: dict[str, ToolDefinition] = {}
         self._mcp_clients: dict[str, Any] = {}
         self._call_counts: dict[str, list[float]] = {}
+        self._runtime: Any | None = None
+
+    def set_runtime(self, runtime):
+        """Set the AgentRuntime reference for agent-as-tool execution."""
+        self._runtime = runtime
 
     def register(self, tool: ToolDefinition):
         self._tools[tool.name] = tool
@@ -103,6 +124,33 @@ class ToolRegistry:
             if not client:
                 return {"error": f"MCP server '{server_name}' not connected"}
             return await client.call_tool(tool.mcp_config["tool_name"], arguments)
+        elif tool.tool_type == ToolType.AGENT:
+            if not self._runtime:
+                return {"error": "AgentRuntime not set — cannot execute agent tool"}
+            agent_name = tool.agent_config["agent_name"]
+            query = arguments.get("query", "")
+            session_id = (context or {}).get("session", "")
+            transform_ctx = None
+            if tool.context_transform and tool.context_transform.strip():
+                try:
+                    from jinja2 import Environment, BaseLoader
+
+                    import json as json_mod
+
+                    env = Environment(loader=BaseLoader())
+                    tpl_str = (
+                        "{% set result = "
+                        + tool.context_transform
+                        + " %}{{ result | tojson }}"
+                    )
+                    template = env.from_string(tpl_str)
+                    rendered = template.render(data=_DotDict(arguments))
+                    transform_ctx = json_mod.loads(rendered)
+                except Exception as exc:
+                    return {"error": f"Context transform failed: {exc}"}
+            return await self._runtime.run(
+                agent_name, query, session_id=session_id, context=transform_ctx
+            )
         return {"error": f"Unsupported tool type: {tool.tool_type}"}
 
     def get_tool_schemas(self, agent_permissions=None) -> list[dict]:
