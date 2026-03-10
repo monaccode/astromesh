@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import json
 import sys
 from abc import ABC, abstractmethod
 from collections import deque
-from typing import IO
+from typing import IO, TYPE_CHECKING
 
 from astromesh.observability.tracing import TracingContext
+
+if TYPE_CHECKING:
+    from astromesh.observability.telemetry import TelemetryManager
 
 
 class Collector(ABC):
@@ -47,3 +52,24 @@ class InternalCollector(Collector):
 
     async def get_trace(self, trace_id: str) -> dict | None:
         return self._index.get(trace_id)
+
+
+class OTLPCollector(InternalCollector):
+    """Bridges TracingContext spans to OpenTelemetry via TelemetryManager."""
+
+    def __init__(
+        self,
+        telemetry_manager: TelemetryManager | None = None,
+        max_traces: int = 1000,
+    ):
+        super().__init__(max_traces=max_traces)
+        self._telemetry = telemetry_manager
+
+    async def emit_trace(self, ctx: TracingContext) -> None:
+        await super().emit_trace(ctx)
+        if self._telemetry and self._telemetry.get_tracer():
+            tracer = self._telemetry.get_tracer()
+            for span_data in ctx.to_dict().get("spans", []):
+                with tracer.start_as_current_span(span_data["name"]) as otel_span:
+                    for k, v in span_data.get("attributes", {}).items():
+                        otel_span.set_attribute(k, v)
