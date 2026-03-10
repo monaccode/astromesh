@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-03-10
+
+### Added
+
+- **Workflow Engine** — `WorkflowSpec`, `StepSpec`, `StepResult`, `RetryConfig` dataclasses for YAML-defined multi-step workflows (`astromesh/v1 Workflow`)
+- **Workflow Loader** — reads `*.workflow.yaml` from `config/workflows/`, validates schema, registers workflows at bootstrap
+- **Step Executor** — handles 3 step types: agent (via `runtime.run()`), tool (via `tool_registry.execute()`), switch (Jinja2 conditional with `goto`)
+- **Retry & Timeout** — per-step retry with fixed/exponential backoff via `asyncio.sleep`, per-step and workflow-level timeouts via `asyncio.wait_for`
+- **Error Handling** — `on_error` field per step (goto another step or `"fail"` to abort); workflow-level `timeout_seconds`
+- **Workflow API** — `POST /v1/workflows/{name}/run`, `GET /v1/workflows`, `GET /v1/workflows/{name}` with `set_workflow_engine()` injection pattern
+- **Built-in Dashboard** — single-page HTML at `GET /v1/dashboard/` with auto-refreshing (10s) panels for counters, histograms, traces, and workflows; dark theme matching Astromesh branding
+- **CLI Workflow Execution** — `astromeshctl run --workflow` now calls `POST /v1/workflows/{name}/run` (replaces Sub-project 4 stub)
+- **Example Workflow** — `config/workflows/example.workflow.yaml` (lead qualification pipeline with research → qualify → decide → send-email/log-and-skip)
+- 59 new tests for workflow models, loader, executor, engine, API, dashboard, and CLI wiring
+
+### Changed
+
+- **`astromesh/api/main.py`** — mounts `workflows.router` and `dashboard.router` at `/v1`
+- **`cli/commands/run.py`** — replaces "not yet implemented" stub with actual workflow API call
+- **`cli/templates/workflow.yaml.j2`** — updated with full workflow schema including triggers, steps, retry, and observability config
+
 ## [0.12.0] - 2026-03-10
 
 ### Added
@@ -387,7 +408,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/monaccode/astromesh/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/monaccode/astromesh/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/monaccode/astromesh/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/monaccode/astromesh-platform/compare/v0.9.0...v0.10.0

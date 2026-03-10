@@ -12,14 +12,14 @@ runner = CliRunner()
 def test_version():
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "0.12.0" in result.output
+    assert "0.13.0" in result.output
 
 
 def test_status_daemon_running():
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "version": "0.12.0",
+        "version": "0.13.0",
         "uptime_seconds": 123.45,
         "mode": "dev",
         "agents_loaded": 3,
@@ -30,7 +30,7 @@ def test_status_daemon_running():
     with patch("cli.client.httpx.get", return_value=mock_response):
         result = runner.invoke(app, ["status"])
     assert result.exit_code == 0
-    assert "0.12.0" in result.output
+    assert "0.13.0" in result.output
     assert "dev" in result.output
 
 
