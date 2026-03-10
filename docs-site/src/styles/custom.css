@@ -1,0 +1,8 @@
+/* Astromesh documentation custom styles */
+
+:root {
+  --sl-color-accent-low: #1a1a2e;
+  --sl-color-accent: #4361ee;
+  --sl-color-accent-high: #b8c0ff;
+  --sl-font-system: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}

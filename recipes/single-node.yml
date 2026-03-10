@@ -1,0 +1,40 @@
+# Astromesh Single-Node Recipe
+#
+# A minimal deployment with one full Astromesh node backed by a local Ollama
+# instance. Suitable for development, demos, and small single-machine setups.
+#
+# Usage:
+#   docker compose -f recipes/single-node.yml up -d
+#
+# To use cloud LLM providers, uncomment the API key variables below and set
+# them in your environment or a .env file.
+
+services:
+  astromesh:
+    image: monaccode/astromesh:latest
+    ports:
+      - "8000:8000"
+    environment:
+      ASTROMESH_ROLE: full
+      OLLAMA_HOST: http://ollama:11434
+      # OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    networks:
+      - astromesh-net
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - astromesh-net
+
+networks:
+  astromesh-net:
+
+volumes:
+  ollama-models:

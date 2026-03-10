@@ -1,8 +1,10 @@
 # Astromesh Maia — Automatic Discovery & Coordination
 
+> **Looking for a hands-on guide?** See [MAIA_GUIDE.md](MAIA_GUIDE.md) for Docker recipes, environment variables, and step-by-step setup instructions.
+
 **What it does:** Nodes find each other automatically, detect failures, elect a leader, and route requests intelligently — no manual peer configuration needed.
 
-**Related docs:** [OS](ASTROMESH_OS.md) · [Nodes](ASTROMESH_NODES.md) · [Architecture](GENERAL_ARCHITECTURE.md)
+**Related docs:** [OS](ASTROMESH_OS.md) · [Nodes](ASTROMESH_NODES.md) · [Architecture](GENERAL_ARCHITECTURE.md) · [Developer Guide](MAIA_GUIDE.md)
 
 ---
 
@@ -60,12 +62,12 @@ Every 2 seconds (configurable), each node picks random peers and exchanges state
 ```
 Worker                              Inference
   │                                    │
-  │  POST /v1/mesh/gossip             │
-  │  body: [my state, gateway state]  │
-  │  ──────────────────────────────►  │
+  │  POST /v1/mesh/gossip              │
+  │  body: [my state, gateway state]   │
+  │  ──────────────────────────────►   │
   │                                    │
   │  response: [inference state]       │
-  │  ◄──────────────────────────────  │
+  │  ◄──────────────────────────────   │
   │                                    │
   Both nodes now have the same view of the cluster.
 ```

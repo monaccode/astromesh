@@ -1,0 +1,228 @@
+---
+const tabs = [
+  {
+    id: "standalone",
+    label: "Standalone",
+    code: `git clone https://github.com/monaccode/astromech-platform.git
+cd astromech-platform
+uv sync --extra all
+astromeshctl init --dev
+astromeshd --config ./config`,
+  },
+  {
+    id: "os",
+    label: "Astromesh OS",
+    code: `# Add APT repository
+curl -fsSL https://monaccode.github.io/astromech-platform/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh.gpg
+echo "deb [signed-by=/usr/share/keyrings/astromesh.gpg] https://monaccode.github.io/astromech-platform stable main" | sudo tee /etc/apt/sources.list.d/astromesh.list
+
+# Install and start
+sudo apt update && sudo apt install astromesh
+sudo astromeshctl init
+sudo systemctl enable --now astromeshd`,
+  },
+  {
+    id: "docker",
+    label: "Docker",
+    code: `# Single node with Ollama
+docker compose -f recipes/single-node.yml up -d
+curl http://localhost:8000/v1/health`,
+  },
+  {
+    id: "maia",
+    label: "Maia Mesh",
+    code: `# 3-node mesh: gateway + worker + inference
+docker compose -f recipes/mesh-3node.yml up -d
+curl http://localhost:8000/v1/mesh/state`,
+  },
+  {
+    id: "maia-gpu",
+    label: "Maia + GPU",
+    code: `# Mesh with NVIDIA GPU inference
+docker compose -f recipes/mesh-gpu.yml up -d`,
+  },
+  {
+    id: "helm",
+    label: "Helm",
+    code: `cd deploy/helm/astromesh
+helm dependency update
+helm install astromesh . -f values-dev.yaml \\
+  --namespace astromesh --create-namespace
+kubectl get pods -n astromesh`,
+  },
+  {
+    id: "argocd",
+    label: "ArgoCD",
+    code: `# Multi-environment GitOps deployment
+kubectl apply -f deploy/gitops/argocd/applicationset.yaml
+# Creates: astromesh-dev, astromesh-staging, astromesh-prod`,
+  },
+];
+---
+
+<div class="deployment-tabs">
+  <div class="tab-bar" role="tablist" aria-label="Deployment modes">
+    {tabs.map((tab, i) => (
+      <button
+        role="tab"
+        id={`tab-${tab.id}`}
+        aria-selected={i === 0 ? "true" : "false"}
+        aria-controls={`panel-${tab.id}`}
+        class:list={["tab-button", { active: i === 0 }]}
+        data-tab={tab.id}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+
+  {tabs.map((tab, i) => (
+    <div
+      role="tabpanel"
+      id={`panel-${tab.id}`}
+      aria-labelledby={`tab-${tab.id}`}
+      class="tab-panel"
+      style={i === 0 ? "display: block;" : "display: none;"}
+    >
+      <div class="code-container">
+        <button class="copy-button" data-code={tab.code}>Copy</button>
+        <pre><code>{tab.code}</code></pre>
+      </div>
+    </div>
+  ))}
+</div>
+
+<script>
+  function initDeploymentTabs() {
+    const container = document.querySelector(".deployment-tabs");
+    if (!container) return;
+
+    const tabButtons = container.querySelectorAll<HTMLButtonElement>("[role='tab']");
+    const panels = container.querySelectorAll<HTMLDivElement>("[role='tabpanel']");
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tabId = btn.dataset.tab;
+
+        tabButtons.forEach((b) => {
+          b.classList.remove("active");
+          b.setAttribute("aria-selected", "false");
+        });
+        btn.classList.add("active");
+        btn.setAttribute("aria-selected", "true");
+
+        panels.forEach((panel) => {
+          panel.style.display = panel.id === `panel-${tabId}` ? "block" : "none";
+        });
+      });
+    });
+
+    const copyButtons = container.querySelectorAll<HTMLButtonElement>(".copy-button");
+    copyButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const code = btn.dataset.code ?? "";
+        navigator.clipboard.writeText(code).then(() => {
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 2000);
+        });
+      });
+    });
+  }
+
+  document.addEventListener("astro:page-load", initDeploymentTabs);
+  initDeploymentTabs();
+</script>
+
+<style>
+  .deployment-tabs {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    margin: 1.5rem 0;
+  }
+
+  .tab-bar {
+    display: flex;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-bg-nav);
+    scrollbar-width: thin;
+  }
+
+  .tab-bar::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .tab-bar::-webkit-scrollbar-thumb {
+    background: var(--sl-color-gray-4);
+    border-radius: 2px;
+  }
+
+  .tab-button {
+    flex-shrink: 0;
+    padding: 0.75rem 1.25rem;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--sl-color-gray-3);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .tab-button:hover {
+    color: var(--sl-color-text);
+  }
+
+  .tab-button.active {
+    color: var(--sl-color-accent);
+    border-bottom-color: var(--sl-color-accent);
+  }
+
+  .tab-panel {
+    padding: 0;
+  }
+
+  .code-container {
+    position: relative;
+  }
+
+  .copy-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.3rem 0.75rem;
+    background: var(--sl-color-bg-nav);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    color: var(--sl-color-gray-2);
+    font-size: 0.75rem;
+    cursor: pointer;
+    z-index: 1;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .copy-button:hover {
+    color: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+  }
+
+  pre {
+    margin: 0;
+    padding: 1.25rem;
+    background: var(--sl-color-bg);
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  code {
+    font-family: var(--sl-font-mono, ui-monospace, monospace);
+    color: var(--sl-color-text);
+  }
+</style>

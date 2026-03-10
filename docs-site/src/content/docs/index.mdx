@@ -1,0 +1,46 @@
+---
+title: Astromesh
+description: AI Agent Runtime Platform
+template: splash
+hero:
+  title: Astromesh
+  tagline: Multi-model, multi-pattern AI agent runtime with declarative YAML configuration.
+  actions:
+    - text: Get Started
+      link: /astromech-platform/getting-started/what-is-astromesh/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/monaccode/astromech-platform
+      icon: external
+      variant: minimal
+---
+
+import PipelineDiagram from '../../components/PipelineDiagram.astro';
+import FeatureCards from '../../components/FeatureCards.astro';
+import DeploymentTabs from '../../components/DeploymentTabs.astro';
+import AgentExample from '../../components/AgentExample.astro';
+
+## Agent Execution Pipeline
+
+Define agents in YAML. Astromesh handles the rest — from input safety checks to model routing to tool execution.
+
+<PipelineDiagram />
+
+## Features
+
+Everything you need to build, deploy, and scale AI agents.
+
+<FeatureCards />
+
+## Deploy Your Way
+
+From a single command to a production Kubernetes cluster.
+
+<DeploymentTabs />
+
+## Define an Agent in 20 Lines
+
+Create a YAML file, start the daemon, call the API.
+
+<AgentExample />

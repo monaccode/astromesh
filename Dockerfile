@@ -36,14 +36,25 @@ COPY cli/ cli/
 # Default config (overridden via volume mount)
 COPY config/ /etc/astromesh/
 
+# Smart entrypoint: env vars → config generation
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Create runtime directories
 RUN mkdir -p /var/lib/astromesh/data /var/lib/astromesh/models \
              /var/lib/astromesh/memory /var/log/astromesh/audit
+
+# Default environment variables
+ENV ASTROMESH_ROLE=full \
+    ASTROMESH_MESH_ENABLED=false \
+    ASTROMESH_NODE_NAME="" \
+    ASTROMESH_SEEDS="" \
+    ASTROMESH_PORT=8000
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import httpx; httpx.get('http://localhost:8000/v1/health').raise_for_status()"
 
-ENTRYPOINT ["astromeshd"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["--config", "/etc/astromesh"]

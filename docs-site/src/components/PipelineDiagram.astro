@@ -1,0 +1,154 @@
+---
+const steps = [
+  { icon: "📥", name: "Query", description: "User sends a query to the agent via REST API or WebSocket" },
+  { icon: "🛡️", name: "Input Guardrails", description: "PII detection, max length check, topic filtering on input" },
+  { icon: "📝", name: "Prompt Engine", description: "Jinja2 renders the system prompt with memory context and variables" },
+  { icon: "🔀", name: "Model Router", description: "Routes to the best provider using cost, latency, or quality strategy" },
+  { icon: "🔧", name: "Tool Calls", description: "Executes tools (internal, MCP, webhook, RAG) as directed by the LLM" },
+  { icon: "🔒", name: "Output Guardrails", description: "Content filter, cost limit, PII redaction on output" },
+  { icon: "📤", name: "Response", description: "Final response returned to the caller and persisted to memory" },
+];
+---
+
+<div class="pipeline">
+  {steps.map((step, i) => (
+    <>
+      <div class="step" style={`animation-delay: ${i * 0.15}s`} tabindex="0">
+        <span class="tooltip">{step.description}</span>
+        <span class="icon">{step.icon}</span>
+        <span class="name">{step.name}</span>
+      </div>
+      {i < steps.length - 1 && (
+        <span class="arrow" style={`animation-delay: ${i * 0.15 + 0.075}s`} aria-hidden="true">→</span>
+      )}
+    </>
+  ))}
+</div>
+
+<style>
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+    padding: 2.5rem 1rem 1.5rem;
+    overflow-x: auto;
+  }
+
+  .step {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--sl-color-accent);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg-nav);
+    cursor: default;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: fade-in 0.4s ease-out forwards;
+    min-width: 5.5rem;
+  }
+
+  .step:hover,
+  .step:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--sl-color-accent);
+  }
+
+  .icon {
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--sl-color-text);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .tooltip {
+    position: absolute;
+    bottom: calc(100% + 0.6rem);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--sl-color-bg-nav);
+    color: var(--sl-color-text);
+    border: 1px solid var(--sl-color-accent);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    width: max-content;
+    max-width: 14rem;
+    white-space: normal;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--sl-color-accent);
+  }
+
+  .step:hover .tooltip,
+  .step:focus .tooltip {
+    opacity: 1;
+  }
+
+  .arrow {
+    font-size: 1.25rem;
+    color: var(--sl-color-accent);
+    flex-shrink: 0;
+    opacity: 0;
+    animation: fade-in 0.3s ease-out forwards;
+    user-select: none;
+  }
+
+  @keyframes fade-in {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .pipeline {
+      flex-direction: column;
+      gap: 0.25rem;
+      padding: 1.5rem 1rem;
+    }
+
+    .arrow {
+      transform: rotate(90deg);
+    }
+
+    .tooltip {
+      bottom: auto;
+      top: calc(100% + 0.6rem);
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .tooltip::after {
+      top: auto;
+      bottom: 100%;
+      border-top-color: transparent;
+      border-bottom-color: var(--sl-color-accent);
+    }
+  }
+</style>

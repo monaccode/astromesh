@@ -1,0 +1,147 @@
+---
+const features = [
+  {
+    icon: "🤖",
+    title: "6 LLM Providers",
+    summary: "Connect to any model, local or cloud",
+    details:
+      "Ollama, OpenAI-compatible, vLLM, llama.cpp, HuggingFace TGI, ONNX Runtime. Automatic failover with circuit breaker (3 failures → 60s cooldown).",
+  },
+  {
+    icon: "🔄",
+    title: "6 Orchestration Patterns",
+    summary: "From simple to multi-agent",
+    details:
+      "ReAct (think-act-observe), Plan & Execute, Parallel Fan-Out, Pipeline, Supervisor (delegate to workers), Swarm (agents hand off conversations).",
+  },
+  {
+    icon: "🧠",
+    title: "3 Memory Types",
+    summary: "Persistent context across conversations",
+    details:
+      "Conversational (Redis/PG/SQLite), Semantic (pgvector/ChromaDB/Qdrant/FAISS), Episodic (PostgreSQL). Strategies: sliding window, summary, token budget.",
+  },
+  {
+    icon: "📚",
+    title: "RAG Pipeline",
+    summary: "Document ingestion to retrieval",
+    details:
+      "4 chunking strategies (fixed, recursive, sentence, semantic), 3 embedding providers, 4 vector stores, 2 rerankers (cross-encoder, Cohere).",
+  },
+  {
+    icon: "🌐",
+    title: "Mesh Discovery (Maia)",
+    summary: "Nodes find each other automatically",
+    details:
+      "Gossip-based discovery, failure detection (alive→suspect→dead), leader election, least-connections routing. No manual peer configuration.",
+  },
+  {
+    icon: "⚡",
+    title: "Rust Extensions",
+    summary: "5-50x speedup on CPU-bound paths",
+    details:
+      "Optional native Rust extensions via PyO3 for chunking, PII detection, tokenization, rate limiting. Pure Python fallback when not compiled.",
+  },
+];
+---
+
+<div class="feature-grid">
+  {features.map((feature) => (
+    <details class="feature-card">
+      <summary>
+        <span class="card-icon">{feature.icon}</span>
+        <div class="card-text">
+          <span class="card-title">{feature.title}</span>
+          <span class="card-summary">{feature.summary}</span>
+        </div>
+        <span class="chevron" aria-hidden="true">▸</span>
+      </summary>
+      <div class="card-details">
+        <p>{feature.details}</p>
+      </div>
+    </details>
+  ))}
+</div>
+
+<style>
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    padding: 1rem 0;
+  }
+
+  .feature-card {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg-nav);
+    transition: border-color 0.2s ease;
+  }
+
+  .feature-card:hover {
+    border-color: var(--sl-color-accent);
+  }
+
+  .feature-card summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .feature-card summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .card-icon {
+    font-size: 1.75rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--sl-color-text);
+  }
+
+  .card-summary {
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  .chevron {
+    font-size: 1rem;
+    color: var(--sl-color-gray-3);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .feature-card[open] .chevron {
+    transform: rotate(90deg);
+  }
+
+  .card-details {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+    margin: 0 0.75rem;
+    padding-top: 0.75rem;
+  }
+
+  .card-details p {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-2);
+  }
+</style>

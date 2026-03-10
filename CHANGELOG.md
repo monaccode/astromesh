@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-03-09
+
+### Added
+
+- **Docker Hub pre-built image** — `monaccode/astromesh:latest` with smart entrypoint that generates config from environment variables (`docker/entrypoint.sh`)
+- Entrypoint supports `ASTROMESH_ROLE`, `ASTROMESH_MESH_ENABLED`, `ASTROMESH_NODE_NAME`, `ASTROMESH_SEEDS`, `ASTROMESH_PORT` env vars for zero-config deployment
+- `ASTROMESH_AUTO_CONFIG=false` opt-out for users mounting their own `runtime.yaml`
+- **4 Docker Compose recipes** (`recipes/`) — pre-built image, no source checkout needed:
+  - `single-node.yml` — single full node with Ollama
+  - `mesh-3node.yml` — gateway + worker + inference with Maia gossip discovery
+  - `mesh-gpu.yml` — mesh with NVIDIA GPU acceleration for Ollama
+  - `dev-full.yml` — full stack with Prometheus, Grafana, and OpenTelemetry Collector
+- **Docker Hub CI** — `build-docker` job in `.github/workflows/release.yml` pushes `monaccode/astromesh:<version>` and `monaccode/astromesh:latest` on release tags
+- **Maia Developer Guide** (`docs/MAIA_GUIDE.md`) — hands-on guide with recipes reference, environment variables, config generation, profiles, scaling, troubleshooting
+- **Documentation site** (`docs-site/`) — Starlight (Astro) static site with 37 pages:
+  - Interactive landing page with animated pipeline diagram, expandable feature cards, deployment tabs with copy-to-clipboard, and agent YAML split-pane example
+  - Getting Started (4 pages): What is Astromesh, Installation, Quick Start, Your First Agent
+  - Architecture (4 pages): Overview, Four-Layer Design, Agent Execution Pipeline, K8s Architecture
+  - Configuration (6 pages): Init Wizard, Agent YAML Schema, Providers, Runtime Config, Profiles, Channels
+  - Deployment (7 pages): Standalone, Astromesh OS, Docker Single, Docker Maia, Docker Maia+GPU, Helm/K8s, ArgoCD/GitOps
+  - Advanced (4 pages): Rust Extensions, WhatsApp Integration, Observability, Maia Internals
+  - Reference (11 pages): Runtime Engine, Model Router, Tool Registry, Memory Manager, Daemon, CLI, Gossip Protocol, Scheduling, Env Vars, API Endpoints, CLI Commands
+- **Docs CI** — `.github/workflows/docs.yml` auto-deploys to GitHub Pages on push to `develop`
+- 4 interactive Astro components: `PipelineDiagram`, `FeatureCards`, `DeploymentTabs`, `AgentExample`
+
+### Changed
+
+- `Dockerfile` — added entrypoint script, ENV defaults, changed ENTRYPOINT from `astromeshd` to `/usr/local/bin/entrypoint.sh`
+- `docs/ASTROMESH_MAIA.md` — added pointer to MAIA_GUIDE.md developer guide
+- `docs/DEV_QUICKSTART.md` — added reference to `recipes/` for pre-built image users
+- `.gitignore` — added `docs-site/node_modules/`, `docs-site/dist/`, `docs-site/.astro/`
+
 ## [0.10.0] - 2026-03-09
 
 ### Added
@@ -269,7 +301,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/monaccode/astromesh-platform/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/monaccode/astromesh-platform/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/monaccode/astromesh-platform/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/monaccode/astromesh-platform/compare/v0.7.0...v0.8.0

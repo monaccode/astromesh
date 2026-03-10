@@ -1,0 +1,96 @@
+# Astromesh Full Development Stack
+#
+# A complete development environment with a single full-role Astromesh node,
+# Ollama for local inference, PostgreSQL (pgvector) for memory/RAG, Redis for
+# caching and shared state, and a full observability stack (OpenTelemetry
+# Collector, Prometheus, Grafana).
+#
+# Grafana is available at http://localhost:3000 (admin / admin).
+# Prometheus is available at http://localhost:9090.
+#
+# Usage:
+#   docker compose -f recipes/dev-full.yml up -d
+
+services:
+  astromesh:
+    image: monaccode/astromesh:latest
+    ports:
+      - "8000:8000"
+    environment:
+      ASTROMESH_ROLE: full
+      OLLAMA_HOST: http://ollama:11434
+    networks:
+      - astromesh-net
+    depends_on:
+      - ollama
+      - postgres
+      - redis
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - astromesh-net
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: astromesh
+      POSTGRES_USER: astromesh
+      POSTGRES_PASSWORD: astromesh
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - astromesh-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - astromesh-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ../docker/otel-config.yaml:/etc/otel-config.yaml
+    command: ["--config", "/etc/otel-config.yaml"]
+    networks:
+      - astromesh-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../docker/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - astromesh-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    networks:
+      - astromesh-net
+
+networks:
+  astromesh-net:
+
+volumes:
+  ollama-models:
+  postgres-data:
+  redis-data:

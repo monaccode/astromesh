@@ -1,0 +1,167 @@
+---
+const yamlCode = `apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: hello-agent
+
+spec:
+  identity:
+    description: A minimal test agent
+
+  model:
+    primary:
+      provider: ollama
+      model: llama3.1:8b
+      endpoint: http://ollama:11434
+      parameters:
+        temperature: 0.7
+
+  prompts:
+    system: |
+      You are a helpful assistant.
+      Keep responses brief.
+
+  orchestration:
+    pattern: react
+    max_iterations: 3`;
+
+const curlCode = `curl -X POST http://localhost:8000/v1/agents/hello-agent/run \\
+  -H "Content-Type: application/json" \\
+  -d '{"query": "What is 2+2?", "session_id": "demo"}'`;
+
+const responseCode = `{
+  "agent": "hello-agent",
+  "response": "2 + 2 = 4",
+  "session_id": "demo",
+  "tokens_used": 42,
+  "provider": "ollama",
+  "pattern": "react",
+  "iterations": 1
+}`;
+---
+
+<div class="agent-example">
+  <div class="pane">
+    <div class="pane-header">
+      <span class="pane-label">config/agents/hello.agent.yaml</span>
+      <button class="copy-btn" data-copy-target="yaml-code">Copy</button>
+    </div>
+    <pre class="pane-body"><code id="yaml-code">{yamlCode}</code></pre>
+  </div>
+
+  <div class="pane">
+    <div class="pane-header">
+      <span class="pane-label">Try it</span>
+      <button class="copy-btn" data-copy-target="curl-code">Copy</button>
+    </div>
+    <pre class="pane-body"><code id="curl-code">{curlCode}</code></pre>
+
+    <div class="pane-header pane-header--response">
+      <span class="pane-label">Response</span>
+    </div>
+    <pre class="pane-body pane-body--response"><code>{responseCode}</code></pre>
+  </div>
+</div>
+
+<style>
+  .agent-example {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+
+  @media (max-width: 768px) {
+    .agent-example {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .pane {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: var(--sl-color-bg-nav);
+  }
+
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-bg-nav);
+  }
+
+  .pane-header--response {
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .pane-label {
+    font-family: var(--sl-font-mono, ui-monospace, monospace);
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .copy-btn {
+    appearance: none;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.25rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-gray-3);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .copy-btn:hover {
+    color: var(--sl-color-text);
+    border-color: var(--sl-color-accent);
+  }
+
+  .pane-body {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+  }
+
+  .pane-body code {
+    font-family: var(--sl-font-mono, ui-monospace, monospace);
+    background: none;
+    padding: 0;
+    white-space: pre;
+  }
+
+  .pane-body--response {
+    background: var(--sl-color-accent-low);
+  }
+</style>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    document.querySelectorAll<HTMLButtonElement>(".copy-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const targetId = btn.getAttribute("data-copy-target");
+        if (!targetId) return;
+        const target = document.getElementById(targetId);
+        if (!target) return;
+
+        try {
+          await navigator.clipboard.writeText(target.textContent || "");
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 2000);
+        } catch {
+          // Clipboard API not available; silently ignore
+        }
+      });
+    });
+  });
+</script>

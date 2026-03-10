@@ -31,3 +31,6 @@ native/target/
 deploy/helm/astromesh/charts/*.tgz
 .worktrees/
 staging/
+docs-site/node_modules/
+docs-site/dist/
+docs-site/.astro/

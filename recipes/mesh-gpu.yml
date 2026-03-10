@@ -1,0 +1,93 @@
+# Astromesh 3-Node Mesh with GPU Acceleration
+#
+# Identical to mesh-3node.yml but with NVIDIA GPU reservations on the
+# inference and ollama services for hardware-accelerated model inference.
+#
+# Prerequisites:
+#   - NVIDIA GPU with drivers installed
+#   - NVIDIA Container Toolkit (nvidia-docker2)
+#
+# Usage:
+#   docker compose -f recipes/mesh-gpu.yml up -d
+
+services:
+  gateway:
+    image: monaccode/astromesh:latest
+    ports:
+      - "8000:8000"
+    environment:
+      ASTROMESH_ROLE: gateway
+      ASTROMESH_MESH_ENABLED: "true"
+      # Gateway IS the seed — no ASTROMESH_SEEDS needed
+    networks:
+      - astromesh-net
+
+  worker:
+    image: monaccode/astromesh:latest
+    environment:
+      ASTROMESH_ROLE: worker
+      ASTROMESH_MESH_ENABLED: "true"
+      ASTROMESH_SEEDS: http://gateway:8000
+    networks:
+      - astromesh-net
+    depends_on:
+      - gateway
+
+  inference:
+    image: monaccode/astromesh:latest
+    environment:
+      ASTROMESH_ROLE: inference
+      ASTROMESH_MESH_ENABLED: "true"
+      ASTROMESH_SEEDS: http://gateway:8000
+      OLLAMA_HOST: http://ollama:11434
+    networks:
+      - astromesh-net
+    depends_on:
+      - gateway
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - astromesh-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - astromesh-net
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: astromesh
+      POSTGRES_USER: astromesh
+      POSTGRES_PASSWORD: astromesh
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - astromesh-net
+
+networks:
+  astromesh-net:
+
+volumes:
+  ollama-models:
+  redis-data:
+  postgres-data:

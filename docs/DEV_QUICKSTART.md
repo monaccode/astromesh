@@ -27,11 +27,13 @@ curl http://localhost:8000/health
 
 ## Docker Mesh (3 Nodes)
 
+> **Using the pre-built image?** Skip `make dev-mesh` and use the ready-made compose recipes in [`recipes/`](../recipes/) instead — no source checkout needed. See the [Maia Developer Guide](MAIA_GUIDE.md) for details.
+
 ```bash
 make dev-mesh
 ```
 
-This starts a 3-node cluster:
+This starts a 3-node cluster (from source):
 
 - **Gateway** (port 8000) — receives API requests, routes to workers
 - **Worker** — executes agent pipelines and tool calls
