@@ -7,6 +7,7 @@
 ## Vision
 
 Make Astromesh the developer's preferred platform for agent orchestration by providing:
+
 - Standard built-in tools ready to use out of the box
 - Full observability for debugging and optimization
 - A CLI with integrated copilot for scaffolding, running, and managing agents
@@ -61,52 +62,73 @@ All sub-projects share 3 stable contracts:
 **Hybrid approach:** lightweight tools as Python built-in modules, heavy tools as packaged MCP servers.
 
 #### Information & Search
-| Tool | Type | Description |
-|------|------|-------------|
+
+
+| Tool         | Type    | Description                                          |
+| ------------ | ------- | ---------------------------------------------------- |
 | `web_search` | builtin | Web search (SearXNG self-hosted or Tavily/Brave API) |
-| `web_scrape` | builtin | Extract content from URL (HTML→markdown) |
-| `wikipedia` | builtin | Wikipedia API query |
+| `web_scrape` | builtin | Extract content from URL (HTML→markdown)             |
+| `wikipedia`  | builtin | Wikipedia API query                                  |
+
 
 #### HTTP & APIs
-| Tool | Type | Description |
-|------|------|-------------|
-| `http_request` | builtin | Generic GET/POST/PUT/DELETE with configurable auth |
-| `graphql_query` | builtin | Execute GraphQL queries |
+
+
+| Tool            | Type    | Description                                        |
+| --------------- | ------- | -------------------------------------------------- |
+| `http_request`  | builtin | Generic GET/POST/PUT/DELETE with configurable auth |
+| `graphql_query` | builtin | Execute GraphQL queries                            |
+
 
 #### Files & Data
-| Tool | Type | Description |
-|------|------|-------------|
-| `read_file` | builtin | Read local files (text, CSV, JSON, PDF) |
-| `write_file` | builtin | Write/create files |
-| `sql_query` | builtin | Execute SQL queries (PostgreSQL, SQLite, MySQL) |
+
+
+| Tool         | Type    | Description                                     |
+| ------------ | ------- | ----------------------------------------------- |
+| `read_file`  | builtin | Read local files (text, CSV, JSON, PDF)         |
+| `write_file` | builtin | Write/create files                              |
+| `sql_query`  | builtin | Execute SQL queries (PostgreSQL, SQLite, MySQL) |
+
 
 #### Code & Computation
-| Tool | Type | Description |
-|------|------|-------------|
-| `code_interpreter` | mcp | Execute Python in sandbox (Docker) |
-| `shell_exec` | mcp | Execute shell commands in sandbox |
+
+
+| Tool               | Type | Description                        |
+| ------------------ | ---- | ---------------------------------- |
+| `code_interpreter` | mcp  | Execute Python in sandbox (Docker) |
+| `shell_exec`       | mcp  | Execute shell commands in sandbox  |
+
 
 #### Communication
-| Tool | Type | Description |
-|------|------|-------------|
-| `send_email` | builtin | Send email via SMTP |
-| `send_slack` | builtin | Send Slack message via webhook/API |
-| `send_webhook` | builtin | Generic POST to webhook URL |
+
+
+| Tool           | Type    | Description                        |
+| -------------- | ------- | ---------------------------------- |
+| `send_email`   | builtin | Send email via SMTP                |
+| `send_slack`   | builtin | Send Slack message via webhook/API |
+| `send_webhook` | builtin | Generic POST to webhook URL        |
+
 
 #### Utilities
-| Tool | Type | Description |
-|------|------|-------------|
-| `datetime_now` | builtin | Current date/time with timezone |
-| `json_transform` | builtin | Transform JSON with JMESPath/JSONPath |
-| `text_summarize` | builtin | Summarize long text (uses agent's model) |
-| `generate_image` | builtin | Generate image (configurable provider: DALL-E, Stable Diffusion, etc.) |
-| `cache_store` | builtin | Temporary key-value cache (Redis/in-memory) for sharing data between tool calls |
+
+
+| Tool             | Type    | Description                                                                     |
+| ---------------- | ------- | ------------------------------------------------------------------------------- |
+| `datetime_now`   | builtin | Current date/time with timezone                                                 |
+| `json_transform` | builtin | Transform JSON with JMESPath/JSONPath                                           |
+| `text_summarize` | builtin | Summarize long text (uses agent's model)                                        |
+| `generate_image` | builtin | Generate image (configurable provider: DALL-E, Stable Diffusion, etc.)          |
+| `cache_store`    | builtin | Temporary key-value cache (Redis/in-memory) for sharing data between tool calls |
+
 
 #### RAG (existing, exposed as tools)
-| Tool | Type | Description |
-|------|------|-------------|
-| `rag_query` | builtin | Wrapper over existing RAGPipeline |
+
+
+| Tool         | Type    | Description                       |
+| ------------ | ------- | --------------------------------- |
+| `rag_query`  | builtin | Wrapper over existing RAGPipeline |
 | `rag_ingest` | builtin | Ingest document into RAG pipeline |
+
 
 ### Tool Architecture
 
@@ -147,12 +169,14 @@ class BuiltinTool(ABC):
 ```
 
 **ToolContext** provides controlled access to:
+
 - `trace_span` — for emitting observability spans
 - `agent_config` — config of invoking agent (read-only)
 - `cache` — shared cache_store
 - `secrets` — resolved env vars from YAML
 
 **ToolResult** standardizes responses:
+
 ```python
 @dataclass
 class ToolResult:
@@ -230,17 +254,19 @@ Each span: `trace_id`, `span_id`, `parent_span_id`, `name`, `start_time`, `durat
 
 **2. Metrics**
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `agent.runs.total` | counter | Executions by agent/status |
-| `agent.run.duration_ms` | histogram | End-to-end latency |
-| `llm.tokens.input` | counter | Input tokens by provider/model |
-| `llm.tokens.output` | counter | Output tokens |
-| `llm.cost.usd` | counter | Estimated accumulated cost |
-| `tool.calls.total` | counter | Calls by tool/status |
-| `tool.call.duration_ms` | histogram | Latency by tool |
-| `orchestration.iterations` | histogram | Iterations by pattern |
-| `memory.operations` | counter | Reads/writes by backend |
+
+| Metric                     | Type      | Description                    |
+| -------------------------- | --------- | ------------------------------ |
+| `agent.runs.total`         | counter   | Executions by agent/status     |
+| `agent.run.duration_ms`    | histogram | End-to-end latency             |
+| `llm.tokens.input`         | counter   | Input tokens by provider/model |
+| `llm.tokens.output`        | counter   | Output tokens                  |
+| `llm.cost.usd`             | counter   | Estimated accumulated cost     |
+| `tool.calls.total`         | counter   | Calls by tool/status           |
+| `tool.call.duration_ms`    | histogram | Latency by tool                |
+| `orchestration.iterations` | histogram | Iterations by pattern          |
+| `memory.operations`        | counter   | Reads/writes by backend        |
+
 
 **3. Structured Logging** — JSON to stdout, compatible with any collector:
 
@@ -426,15 +452,17 @@ Built-in web UI consuming `/v1/traces/` and `/v1/metrics/` endpoints. Displays t
 
 ### Features
 
-| Feature | Implementation |
-|---|---|
-| YAML IntelliSense | JSON Schema for `*.agent.yaml` and `*.workflow.yaml` |
-| Workflow visualizer | Panel rendering Workflow YAML as node graph |
-| Run agent | Play button → executes via CLI |
-| Traces panel | Sidebar with expandable span trees |
-| Metrics dashboard | Webview with token/cost/latency charts |
-| Copilot chat | Chat panel invoking `astromesh ask` |
-| Diagnostics | Equivalent to `astromesh doctor` |
+
+| Feature             | Implementation                                       |
+| ------------------- | ---------------------------------------------------- |
+| YAML IntelliSense   | JSON Schema for `*.agent.yaml` and `*.workflow.yaml` |
+| Workflow visualizer | Panel rendering Workflow YAML as node graph          |
+| Run agent           | Play button → executes via CLI                       |
+| Traces panel        | Sidebar with expandable span trees                   |
+| Metrics dashboard   | Webview with token/cost/latency charts               |
+| Copilot chat        | Chat panel invoking `astromesh ask`                  |
+| Diagnostics         | Equivalent to `astromesh doctor`                     |
+
 
 ### Architecture
 
@@ -545,3 +573,4 @@ steps:
 - `cache_store` → scope is **per-workflow-run** (isolated), TTL configurable with default 1h, backend: Redis if available, in-memory fallback
 - `text_summarize` → creates a **nested span** in tracing, cost tracked separately under `tool.text_summarize` metric, does NOT count against orchestration iteration limit
 - Total tools: **18 builtin + 3 MCP servers** (code_interpreter, shell_exec, generate_image)
+
