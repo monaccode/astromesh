@@ -107,6 +107,18 @@ class AgentRuntime:
                     parameters=instance.parameters,
                     rate_limit=tool_def.get("rate_limit"),
                 )
+            elif tool_type == "agent":
+                tools.register_agent_tool(
+                    name=tool_def["name"],
+                    agent_name=tool_def["agent"],
+                    description=tool_def.get(
+                        "description",
+                        f"Invoke agent '{tool_def['agent']}'",
+                    ),
+                    parameters=tool_def.get("parameters"),
+                    context_transform=tool_def.get("context_transform"),
+                )
+                tools.set_runtime(self)
         pattern_map = {
             "react": ReActPattern,
             "plan_and_execute": PlanAndExecutePattern,

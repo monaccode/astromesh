@@ -297,3 +297,76 @@ class TestCircularAgentDetection:
         ]
         # Should not raise
         runtime._detect_circular_refs(configs)
+
+
+class TestBuildAgentWiring:
+    def _make_config(self, tools=None):
+        return {
+            "apiVersion": "astromesh/v1",
+            "kind": "Agent",
+            "metadata": {"name": "test-agent", "version": "0.1.0"},
+            "spec": {
+                "identity": {"description": "Test"},
+                "model": {"routing": {"strategy": "cost_optimized"}},
+                "tools": tools or [],
+                "orchestration": {"pattern": "react"},
+                "prompts": {"system": "You are a test agent."},
+                "memory": {},
+                "guardrails": {},
+                "permissions": {},
+            },
+        }
+
+    def test_build_agent_registers_agent_tools(self):
+        from astromesh.runtime.engine import AgentRuntime
+
+        runtime = AgentRuntime(config_dir="./config")
+        config = self._make_config(
+            tools=[
+                {
+                    "name": "qualify-lead",
+                    "type": "agent",
+                    "agent": "sales-qualifier",
+                    "description": "Qualify a lead",
+                },
+            ]
+        )
+        agent = runtime._build_agent(config)
+        assert "qualify-lead" in agent._tools._tools
+        tool = agent._tools._tools["qualify-lead"]
+        assert tool.tool_type == ToolType.AGENT
+        assert tool.agent_config["agent_name"] == "sales-qualifier"
+
+    def test_build_agent_sets_runtime_on_registry(self):
+        from astromesh.runtime.engine import AgentRuntime
+
+        runtime = AgentRuntime(config_dir="./config")
+        config = self._make_config(
+            tools=[
+                {
+                    "name": "sub-agent",
+                    "type": "agent",
+                    "agent": "worker",
+                },
+            ]
+        )
+        agent = runtime._build_agent(config)
+        assert agent._tools._runtime is runtime
+
+    def test_build_agent_with_context_transform(self):
+        from astromesh.runtime.engine import AgentRuntime
+
+        runtime = AgentRuntime(config_dir="./config")
+        config = self._make_config(
+            tools=[
+                {
+                    "name": "qualify-lead",
+                    "type": "agent",
+                    "agent": "sales-qualifier",
+                    "context_transform": "{company: data.company}",
+                },
+            ]
+        )
+        agent = runtime._build_agent(config)
+        tool = agent._tools._tools["qualify-lead"]
+        assert tool.context_transform == "{company: data.company}"
