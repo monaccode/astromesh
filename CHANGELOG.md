@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Release workflow** — disabled APT repo publish step while public endpoint is pending
+
 ### Fixed
 
 - **DevToolkit tab icons** — normalized SVG sizing via CSS (`14px` fixed dimensions) so CLI, Copilot, and VS Code icons render at consistent visual weight
