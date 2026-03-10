@@ -1,0 +1,41 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: {{ name }}
+  version: "0.1.0"
+  namespace: default
+
+spec:
+  identity:
+    display_name: "{{ display_name }}"
+    description: "{{ description }}"
+
+  model:
+    primary:
+      provider: {{ provider }}
+      model: "{{ model }}"
+      parameters:
+        temperature: {{ temperature }}
+        max_tokens: {{ max_tokens }}
+
+  prompts:
+    system: |
+      You are {{ display_name }}. {{ description }}
+
+  orchestration:
+    pattern: {{ orchestration_pattern }}
+    max_iterations: 5
+{% if tools %}
+
+  tools:
+{% for tool in tools %}
+    - type: builtin
+      name: {{ tool }}
+{% endfor %}
+{% endif %}
+
+  memory:
+    conversational:
+      backend: sqlite
+      strategy: sliding_window
+      max_turns: 20

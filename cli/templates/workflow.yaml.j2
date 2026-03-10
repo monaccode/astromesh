@@ -1,0 +1,18 @@
+apiVersion: astromesh/v1
+kind: Workflow
+metadata:
+  name: {{ name }}
+  version: "0.1.0"
+  namespace: default
+
+spec:
+  description: "{{ description }}"
+  steps: []
+  # Define workflow steps here, for example:
+  # steps:
+  #   - name: step-1
+  #     agent: my-agent
+  #     input: "{{ '{{' }} query {{ '}}' }}"
+  #   - name: step-2
+  #     agent: another-agent
+  #     input: "{{ '{{' }} steps.step-1.output {{ '}}' }}"

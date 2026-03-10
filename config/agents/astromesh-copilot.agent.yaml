@@ -1,0 +1,62 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: astromesh-copilot
+  version: "0.1.0"
+  namespace: system
+
+spec:
+  identity:
+    display_name: "Astromesh Copilot"
+    description: "CLI assistant for Astromesh development — validates configs, explains traces, suggests improvements"
+
+  model:
+    primary:
+      provider: ollama
+      model: "llama3.1:8b"
+      parameters:
+        temperature: 0.3
+        max_tokens: 4096
+
+  prompts:
+    system: |
+      You are the Astromesh Copilot, an expert assistant for the Astromesh AI agent orchestration platform.
+
+      You help developers:
+      - Create and validate agent YAML configurations
+      - Debug trace data and identify performance issues
+      - Explain orchestration patterns (ReAct, PlanAndExecute, etc.)
+      - Suggest built-in tools for specific use cases
+      - Troubleshoot provider connectivity and routing
+
+      You have access to tools for reading project config files, validating YAML, listing available tools, and analyzing traces.
+      Always be precise and reference specific file paths and configuration keys.
+      When suggesting changes, show the exact YAML diff.
+
+  orchestration:
+    pattern: react
+    max_iterations: 5
+    timeout: 30
+
+  tools:
+    - type: builtin
+      name: validate_yaml
+    - type: builtin
+      name: list_builtin_tools
+    - type: builtin
+      name: read_file
+
+  memory:
+    conversational:
+      backend: sqlite
+      strategy: sliding_window
+      max_turns: 20
+
+  permissions:
+    filesystem:
+      read: ["./config/", "./docs/"]
+      write: ["./config/agents/", "./config/workflows/"]
+    network:
+      allowed: ["localhost:8000"]
+    execution:
+      dry_run: true

@@ -1,0 +1,36 @@
+"""{{ name }} — {{ description }}"""
+
+from typing import Any
+
+from astromesh.tools.base import BuiltinTool
+
+
+class {{ class_name }}Tool(BuiltinTool):
+    """{{ description }}"""
+
+    @property
+    def name(self) -> str:
+        return "{{ name }}"
+
+    @property
+    def description(self) -> str:
+        return "{{ description }}"
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "input": {
+                    "type": "string",
+                    "description": "Input for the tool",
+                },
+            },
+            "required": ["input"],
+        }
+
+    async def execute(self, **kwargs: Any) -> dict[str, Any]:
+        """Execute the tool with the given arguments."""
+        input_value = kwargs.get("input", "")
+        # TODO: Implement tool logic here
+        return {"result": f"Executed {{ name }} with: {input_value}"}
