@@ -14,6 +14,19 @@ from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
 
 
+def _make_builtin_handler(tool_instance, agent_name):
+    """Create an async handler closure for a builtin tool instance."""
+
+    async def _handler(**arguments):
+        from astromesh.tools.base import ToolContext
+
+        ctx = ToolContext(agent_name=agent_name, session_id="", trace_span=None)
+        result = await tool_instance.execute(arguments, ctx)
+        return result.to_dict()
+
+    return _handler
+
+
 class AgentRuntime:
     def __init__(self, config_dir="./config", service_manager=None, peer_client=None):
         self._config_dir = Path(config_dir)
@@ -40,6 +53,22 @@ class AgentRuntime:
         router = ModelRouter(spec.get("model", {}).get("routing", {"strategy": "cost_optimized"}))
         memory = MemoryManager(agent_id=metadata["name"], config=spec.get("memory", {}))
         tools = ToolRegistry()
+        from astromesh.tools import ToolLoader
+
+        loader = ToolLoader()
+        loader.auto_discover()
+        for tool_def in spec.get("tools", []):
+            tool_type = tool_def.get("type", "internal")
+            if tool_type == "builtin":
+                instance = loader.create(tool_def["name"], config=tool_def.get("config"))
+                handler = _make_builtin_handler(instance, metadata["name"])
+                tools.register_internal(
+                    name=tool_def["name"],
+                    handler=handler,
+                    description=instance.description,
+                    parameters=instance.parameters,
+                    rate_limit=tool_def.get("rate_limit"),
+                )
         pattern_map = {
             "react": ReActPattern,
             "plan_and_execute": PlanAndExecutePattern,
