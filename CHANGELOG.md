@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-03-10
+
 ### Added
 
 - **Built-in Tool Framework** — `BuiltinTool` ABC, `ToolResult`/`ToolContext` dataclasses, and `ToolLoader` with auto-discovery for registering tools via `type: builtin` in agent YAML
@@ -385,8 +387,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.11.0...HEAD
-[0.11.0]: https://github.com/monaccode/astromesh-platform/compare/v0.10.0...v0.11.0
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/monaccode/astromesh/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/monaccode/astromesh/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/monaccode/astromesh-platform/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/monaccode/astromesh-platform/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/monaccode/astromesh-platform/compare/v0.7.0...v0.8.0
