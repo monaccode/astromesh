@@ -13,6 +13,7 @@ export default defineConfig({
       ],
       components: {
         ThemeSelect: './src/components/ThemeSelect.astro',
+        SocialIcons: './src/components/SocialIcons.astro',
       },
       sidebar: [
         {
