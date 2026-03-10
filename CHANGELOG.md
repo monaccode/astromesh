@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-03-10
+
+### Added
+
+- **VS Code Extension** (`vscode-extension/`) — official extension wrapping `astromeshctl` CLI with zero business logic in the extension
+  - **YAML IntelliSense** — JSON Schemas for `*.agent.yaml` and `*.workflow.yaml` with auto-completion, validation, and hover docs (requires Red Hat YAML extension)
+  - **Run Agent** — play button on `.agent.yaml` files, extracts agent name from YAML, prompts for query, shows response in Output panel
+  - **Run Workflow** — play button on `.workflow.yaml` files with `--workflow` flag passthrough
+  - **Workflow Visualizer** — webview DAG panel with color-coded step types (agent=green, tool=yellow, switch=purple), connectors, and goto labels
+  - **Traces Panel** — TreeDataProvider sidebar with expandable span trees, auto-refresh (configurable interval), and manual refresh command
+  - **Metrics Dashboard** — webview panel with counters grid and histograms table, auto-refresh every 10s, VS Code theme integration
+  - **Copilot Chat** — interactive chat panel wrapping `astromesh ask` with user/assistant message bubbles and loading states
+  - **Diagnostics** — command wrapping `astromesh doctor` with check-by-check output and health status notification
+  - **Status Bar** — daemon status indicator showing agent count, version, mode; click to run diagnostics
+  - **CLI Wrapper** (`src/cli.ts`) — `AstromeshCli` class with `exec`, `execJson`, `buildArgs`, `parseJsonOutput` for spawning CLI commands
+  - Extension settings: `astromesh.cliPath`, `astromesh.daemonUrl`, `astromesh.traces.autoRefresh`, `astromesh.traces.refreshInterval`
+  - 6 extension unit tests (CLI wrapper + traces logic)
+- **Developer Tools Guide** (`docs-site/src/content/docs/getting-started/developer-tools.md`) — step-by-step workflow from scaffold to production: Define → Run → Debug → Optimize → Deploy
+- **VS Code Extension Reference** (`docs-site/src/content/docs/reference/os/vscode-extension.md`) — full feature reference with installation, settings, and usage
+- **Developer Tools doc** (`docs/DEVELOPER_TOOLS.md`) — CLI command table, Copilot, VS Code Extension features, Dashboard overview
+- **README Developer Experience section** — toolkit table (CLI, Copilot, VS Code, Dashboard) with 5-command workflow example
+- **README Roadmap update** — 10 completed items including VS Code extension, 5 remaining items
+- docs-site sidebar entries for Developer Tools and VS Code Extension (42 pages total)
+
+### Changed
+
+- **README Tool System section** — updated to reflect 18 built-in tools, 3 MCP servers, agent tools, webhooks, RAG
+- **README Observability section** — expanded with CLI commands, dashboard URL, OTel export, VS Code integration
+
 ## [0.13.0] - 2026-03-10
 
 ### Added
@@ -408,7 +437,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/monaccode/astromesh/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/monaccode/astromesh/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/monaccode/astromesh/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/monaccode/astromesh/compare/v0.10.0...v0.11.0
