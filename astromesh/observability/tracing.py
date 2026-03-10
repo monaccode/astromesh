@@ -72,8 +72,8 @@ class TracingContext:
         self.is_sampled = random.random() < sample_rate
         self._span_stack: list[Span] = []
 
-    def start_span(self, name: str, attributes: dict | None = None) -> Span:
-        parent_id = self._span_stack[-1].span_id if self._span_stack else None
+    def start_span(self, name: str, attributes: dict | None = None, parent_span_id: str | None = None) -> Span:
+        parent_id = parent_span_id or (self._span_stack[-1].span_id if self._span_stack else None)
         span = Span(name=name, trace_id=self.trace_id, parent_span_id=parent_id)
         if attributes:
             span.attributes.update(attributes)

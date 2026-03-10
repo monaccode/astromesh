@@ -210,13 +210,13 @@ class Agent:
                 else " ".join(p.get("text", "") for p in query if p.get("type") == "text")
             )
 
-            mem_span = tracing.start_span("memory_build", parent_span_id=root_span.span_id)
+            mem_span = tracing.start_span("memory_build")
             memory_context = await self._memory.build_context(
                 session_id, query_text, max_tokens=4096
             )
             tracing.finish_span(mem_span)
 
-            prompt_span = tracing.start_span("prompt_render", parent_span_id=root_span.span_id)
+            prompt_span = tracing.start_span("prompt_render")
             rendered_prompt = self._prompt_engine.render(
                 self._system_prompt, {**(context or {}), "memory": memory_context}
             )
