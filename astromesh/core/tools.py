@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 try:
     from astromesh._native import RustRateLimiter
+
     _NATIVE_RATE_LIMITER = RustRateLimiter()
     _HAS_NATIVE_RL = True
 except ImportError:
@@ -46,8 +47,14 @@ class ToolRegistry:
         self._tools[tool.name] = tool
 
     def register_internal(self, name, handler, description, parameters, **kwargs):
-        self._tools[name] = ToolDefinition(name=name, description=description,
-            tool_type=ToolType.INTERNAL, parameters=parameters, handler=handler, **kwargs)
+        self._tools[name] = ToolDefinition(
+            name=name,
+            description=description,
+            tool_type=ToolType.INTERNAL,
+            parameters=parameters,
+            handler=handler,
+            **kwargs,
+        )
 
     async def execute(self, tool_name, arguments, context=None) -> dict:
         tool = self._tools.get(tool_name)
@@ -71,8 +78,16 @@ class ToolRegistry:
             if agent_permissions and tool.permissions:
                 if not any(p in agent_permissions for p in tool.permissions):
                     continue
-            schemas.append({"type": "function", "function": {
-                "name": name, "description": tool.description, "parameters": tool.parameters}})
+            schemas.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "description": tool.description,
+                        "parameters": tool.parameters,
+                    },
+                }
+            )
         return schemas
 
     async def register_mcp_server(self, server_name: str, client) -> int:
@@ -89,6 +104,29 @@ class ToolRegistry:
             )
             tools_registered += 1
         return tools_registered
+
+    async def register_builtin(self, name: str, config: dict | None = None):
+        """Register a built-in tool by name from the catalog."""
+        from astromesh.tools import ToolLoader
+
+        loader = ToolLoader()
+        loader.auto_discover()
+        instance = loader.create(name, config=config)
+        await instance.validate_config(config or {})
+
+        async def _handler(**arguments):
+            from astromesh.tools.base import ToolContext
+
+            ctx = ToolContext(agent_name="", session_id="", trace_span=None, cache={}, secrets={})
+            result = await instance.execute(arguments, ctx)
+            return result.to_dict()
+
+        self.register_internal(
+            name=instance.name,
+            handler=_handler,
+            description=instance.description,
+            parameters=instance.parameters,
+        )
 
     def _check_rate_limit(self, tool_name, rate_limit):
         if _HAS_NATIVE_RL and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
