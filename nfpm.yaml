@@ -5,7 +5,7 @@ version: "${VERSION}"
 maintainer: "monaccode <dev@monaccode.com>"
 description: "Astromesh Agent Runtime Platform"
 homepage: "https://github.com/monaccode/astromesh"
-license: MIT
+license: Apache-2.0
 
 depends:
   - python3 (>= 3.12)
