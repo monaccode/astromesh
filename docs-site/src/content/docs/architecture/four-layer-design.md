@@ -133,11 +133,11 @@ The Model Router manages multi-provider LLM inference. Given a completion reques
 
 ```
                     ┌─────────────┐
-    Request ──────► │ ModelRouter  │
-                    │              │
-                    │ 1. Rank      │──► Strategy-based ordering
-                    │ 2. Try       │──► Circuit breaker check
-                    │ 3. Fallback  │──► Next provider on failure
+    Request ──────► │ ModelRouter │
+                    │             │
+                    │ 1. Rank     │──► Strategy-based ordering
+                    │ 2. Try      │──► Circuit breaker check
+                    │ 3. Fallback │──► Next provider on failure
                     └──────┬──────┘
                            │
               ┌────────────┼────────────┐

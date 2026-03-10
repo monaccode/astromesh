@@ -74,32 +74,32 @@ config/
 
          │
          ▼
-┌─────────────────────┐
-│     Bootstrap       │
-│                     │
-│  1. Read runtime.yaml (global settings)
-│  2. Scan agents/*.agent.yaml
-│  3. For each agent YAML:
-│     a. Parse & validate schema
-│     b. Create ModelRouter (primary + fallback providers)
-│     c. Create MemoryManager (backends per memory type)
-│     d. Create ToolRegistry (internal, MCP, webhook, RAG)
-│     e. Create PromptEngine (load Jinja2 templates)
-│     f. Create GuardrailsEngine (input + output guards)
-│     g. Create OrchestrationPattern (ReAct, PlanAndExecute, etc.)
-│     h. Assemble Agent instance
-│  4. Load channel adapters
-│  5. Runtime ready
-└─────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│     Bootstrap                                                        │
+│                                                                      │
+│  1. Read runtime.yaml (global settings)                              │
+│  2. Scan agents/*.agent.yaml                                         │ 
+│  3. For each agent YAML:                                             │  
+│     a. Parse & validate schema                                       │      
+│     b. Create ModelRouter (primary + fallback providers)             │
+│     c. Create MemoryManager (backends per memory type)               │
+│     d. Create ToolRegistry (internal, MCP, webhook, RAG)             │
+│     e. Create PromptEngine (load Jinja2 templates)                   │
+│     f. Create GuardrailsEngine (input + output guards)               │
+│     g. Create OrchestrationPattern (ReAct, PlanAndExecute, etc.)     │
+│     h. Assemble Agent instance                                       │
+│  4. Load channel adapters                                            │      
+│  5. Runtime ready                                                    │ 
+└──────────────────────────────────────────────────────────────────────┘
          │
          ▼
-┌─────────────────────┐
-│   Agent Instances    │
-│                     │
-│  assistant  ────── Agent(router, memory, tools, prompts, guards, orch)
-│  researcher ────── Agent(router, memory, tools, prompts, guards, orch)
-│  support    ────── Agent(router, memory, tools, prompts, guards, orch)
-└─────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│   Agent Instances                                                       │
+│                                                                         │
+│  assistant  ────── Agent(router, memory, tools, prompts, guards, orch)  │
+│  researcher ────── Agent(router, memory, tools, prompts, guards, orch)  │
+│  support    ────── Agent(router, memory, tools, prompts, guards, orch)  │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Agent Lifecycle

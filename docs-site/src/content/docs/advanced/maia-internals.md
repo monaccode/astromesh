@@ -55,14 +55,14 @@ Maia uses a **push-pull gossip** protocol. Every `gossip_interval` seconds (defa
 ```
 Node A                            Node B
   |                                  |
-  |--- POST /v1/mesh/gossip ------> |
-  |    Body: { nodes: [A, C, D] }   |
+  |--- POST /v1/mesh/gossip ------>  |
+  |    Body: { nodes: [A, C, D] }    |
   |                                  |
   | <--- 200 OK -------------------- |
-  |    Body: { nodes: [B, C, E] }   |
+  |    Body: { nodes: [B, C, E] }    |
   |                                  |
-  |    A now knows: A, B, C, D, E   |
-  |    B now knows: A, B, C, D, E   |
+  |    A now knows: A, B, C, D, E    |
+  |    B now knows: A, B, C, D, E    |
 ```
 
 Because each node contacts `gossip_fanout` random peers per round, information spreads exponentially. In a 10-node cluster with fanout of 3, all nodes converge within 3-4 gossip rounds (6-8 seconds at default intervals).
@@ -128,13 +128,13 @@ Node A (id: aaa)          Node B (id: bbb)          Node C (id: ccc)
      |-- POST /v1/mesh/election --> B (higher id)        |
      |-- POST /v1/mesh/election -----------------------> C (higher id)
      |                         |                         |
-     | <--- "I'm higher" ---- |                         |
+     | <--- "I'm higher" ---- |                          |
      | <--- "I'm higher" --------------------------------|
      |                         |                         |
      | (A backs off)           |                         |
      |                         |-- POST /v1/mesh/election -> C
      |                         |                         |
-     |                         | <-- "I'm higher" ------|
+     |                         | <-- "I'm higher" ------ |
      |                         |                         |
      |                         | (B backs off)           |
      |                         |                         |

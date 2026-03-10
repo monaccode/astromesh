@@ -110,16 +110,16 @@ Astromesh follows a **four-layer architecture** where everything flows through t
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    API Layer (FastAPI)                   │
+│                    API Layer (FastAPI)                  │
 │         REST endpoints  ·  WebSocket streaming          │
 ├─────────────────────────────────────────────────────────┤
-│                    Runtime Engine                        │
+│                    Runtime Engine                       │
 │         YAML loading  ·  Agent lifecycle                │
 ├─────────────────────────────────────────────────────────┤
-│                    Core Services                         │
+│                    Core Services                        │
 │  ModelRouter · MemoryManager · ToolRegistry · Guardrails│
 ├─────────────────────────────────────────────────────────┤
-│                    Infrastructure                        │
+│                    Infrastructure                       │
 │  Providers · Backends · Vector Stores · Observability   │
 └─────────────────────────────────────────────────────────┘
 ```

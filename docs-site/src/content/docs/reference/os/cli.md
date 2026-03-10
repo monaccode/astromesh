@@ -205,13 +205,13 @@ Generate a new agent YAML configuration file.
 
 ```
 $ astromeshctl new agent my-bot --provider openai --model gpt-4o --orchestration plan_and_execute
-╭─ astromesh new agent ─────────────────────────╮
+╭─ astromesh new agent ────────────────────────────╮
 │ Created agent: ./config/agents/my-bot.agent.yaml │
-│                                                │
-│   Provider: openai                             │
-│   Model: gpt-4o                                │
-│   Pattern: plan_and_execute                    │
-╰────────────────────────────────────────────────╯
+│                                                  │
+│   Provider: openai                               │
+│   Model: gpt-4o                                  │
+│   Pattern: plan_and_execute                      │
+╰──────────────────────────────────────────────────╯
 ```
 
 | Flag | Default | Description |
@@ -229,9 +229,9 @@ Generate a new workflow YAML configuration file.
 
 ```
 $ astromeshctl new workflow data-pipeline
-╭─ astromesh new workflow ──────────────────────────────╮
+╭─ astromesh new workflow ─────────────────────────────────────────╮
 │ Created workflow: ./config/workflows/data-pipeline.workflow.yaml │
-╰───────────────────────────────────────────────────────╯
+╰──────────────────────────────────────────────────────────────────╯
 ```
 
 | Flag | Default | Description |
@@ -272,7 +272,7 @@ $ astromeshctl run support-agent "What are your business hours?"
 ╭─ support-agent ──────────────────────────────────────────╮
 │ Our business hours are Monday through Friday, 9 AM to    │
 │ 5 PM EST. We're closed on weekends and major holidays.   │
-╰── trace: abc-123 | tokens: 342 ─────────────────────────╯
+╰── trace: abc-123 | tokens: 342 ──────────────────────────╯
 ```
 
 | Flag | Default | Description |
@@ -435,7 +435,7 @@ $ astromeshctl ask "What orchestration pattern should I use for a research agent
 │ For a research agent, I'd recommend the                  │
 │ `plan_and_execute` pattern. It first generates a plan    │
 │ of steps, then executes each step sequentially...        │
-╰── trace: cop-789 ───────────────────────────────────────╯
+╰── trace: cop-789 ────────────────────────────────────────╯
 ```
 
 | Flag | Default | Description |

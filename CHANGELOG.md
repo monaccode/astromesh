@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Developer Toolkit component** (`docs-site/src/components/DevToolkit.astro`) — interactive tabbed showcase on the docs homepage highlighting CLI, Copilot, and VS Code Extension with capability cards, accent colors, and "Coming Soon" cluster orchestration callout
+
+### Changed
+
+- **Developer Tools guide** (`docs-site/getting-started/developer-tools`) — restructured into three clear sections (CLI, Copilot, VS Code) with command examples, feature table, and quick reference
+- **Docs-site content** — formatting and alignment fixes across architecture, reference, and deployment pages
+
 ## [0.14.0] - 2026-03-10
 
 ### Added

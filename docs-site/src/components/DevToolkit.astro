@@ -1,0 +1,451 @@
+---
+const tools = [
+  {
+    id: "cli",
+    label: "CLI",
+    title: "astromeshctl",
+    tagline: "Your command center",
+    description: "16 commands to scaffold, run, debug, monitor, and deploy agents — without ever leaving the terminal.",
+    accent: "#00d4ff",
+    icon: `<path d="M4 17l6-6-6-6"/><path d="M12 19h8"/>`,
+    capabilities: [
+      { cmd: "new agent", desc: "Scaffold a YAML agent" },
+      { cmd: "run", desc: "Execute instantly" },
+      { cmd: "traces", desc: "Full execution trees" },
+      { cmd: "metrics", desc: "Token & cost tracking" },
+      { cmd: "doctor", desc: "Health diagnostics" },
+      { cmd: "ask", desc: "AI copilot, inline" },
+    ],
+    cta: { text: "CLI Reference", href: "/astromesh/reference/os/cli/" },
+  },
+  {
+    id: "copilot",
+    label: "Copilot",
+    title: "Built-in AI Copilot",
+    tagline: "Answers that know your project",
+    description: "An AI assistant embedded in both CLI and VS Code that understands your agents, configs, and runtime — ask anything.",
+    accent: "#8b5cf6",
+    icon: `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>`,
+    capabilities: [
+      { cmd: "ask \"Why is this slow?\"", desc: "Performance insights" },
+      { cmd: "ask \"Add a RAG pipeline\"", desc: "Config generation" },
+      { cmd: "ask \"Explain this trace\"", desc: "Debugging help" },
+      { cmd: "ask \"Compare providers\"", desc: "Decision support" },
+      { cmd: "Copilot Chat panel", desc: "Interactive in VS Code" },
+      { cmd: "Context-aware", desc: "Reads your YAML files" },
+    ],
+    cta: { text: "Copilot Guide", href: "/astromesh/getting-started/developer-tools/#step-5-ask-the-copilot" },
+  },
+  {
+    id: "vscode",
+    label: "VS Code",
+    title: "VS Code Extension",
+    tagline: "Your editor becomes mission control",
+    description: "7 integrated features turn VS Code into a full agent development environment — from IntelliSense to live traces.",
+    accent: "#3fb950",
+    icon: `<rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>`,
+    capabilities: [
+      { cmd: "YAML IntelliSense", desc: "Auto-complete & validation" },
+      { cmd: "▶ Play Button", desc: "Run agents from editor" },
+      { cmd: "Traces Panel", desc: "Expandable span trees" },
+      { cmd: "Metrics Dashboard", desc: "Real-time charts" },
+      { cmd: "Workflow Visualizer", desc: "DAG visualization" },
+      { cmd: "Copilot Chat", desc: "AI assistant panel" },
+    ],
+    cta: { text: "Extension Docs", href: "/astromesh/reference/os/vscode-extension/" },
+  },
+];
+---
+
+<div class="toolkit-root">
+  <!-- Section header -->
+  <div class="toolkit-header">
+    <span class="toolkit-overline">Developer Experience</span>
+    <h2 class="toolkit-heading">Your Toolkit</h2>
+    <p class="toolkit-sub">Three tools, one workflow. Define agents in YAML, run them instantly, debug with full traces — all wired together.</p>
+  </div>
+
+  <!-- Tab nav -->
+  <nav class="toolkit-tabs" role="tablist">
+    {tools.map((t, i) => (
+      <button
+        class={`toolkit-tab ${i === 0 ? "active" : ""}`}
+        role="tab"
+        aria-selected={i === 0 ? "true" : "false"}
+        data-tab={t.id}
+        style={`--tab-accent: ${t.accent}`}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <Fragment set:html={t.icon} />
+        </svg>
+        <span>{t.label}</span>
+      </button>
+    ))}
+  </nav>
+
+  <!-- Panels -->
+  {tools.map((t, i) => (
+    <article
+      class={`toolkit-panel ${i === 0 ? "active" : ""}`}
+      data-panel={t.id}
+      style={`--panel-accent: ${t.accent}`}
+    >
+      <div class="panel-hero">
+        <div class="panel-icon-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <Fragment set:html={t.icon} />
+          </svg>
+        </div>
+        <div class="panel-intro">
+          <h3 class="panel-title">{t.title}</h3>
+          <p class="panel-tagline">{t.tagline}</p>
+          <p class="panel-desc">{t.description}</p>
+        </div>
+      </div>
+
+      <div class="panel-grid">
+        {t.capabilities.map((cap, ci) => (
+          <div class="cap-card" style={`--ci: ${ci}`}>
+            <code class="cap-cmd">{cap.cmd}</code>
+            <span class="cap-desc">{cap.desc}</span>
+          </div>
+        ))}
+      </div>
+
+      <a class="panel-cta" href={t.cta.href}>
+        {t.cta.text}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </a>
+    </article>
+  ))}
+
+  <!-- Future callout -->
+  <div class="toolkit-future">
+    <div class="future-beacon"></div>
+    <div class="future-content">
+      <span class="future-label">Coming Soon</span>
+      <p class="future-text">Connect to remote Astromesh clusters from VS Code — deploy, monitor, and orchestrate agents across production environments, all from your editor.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabs = document.querySelectorAll('.toolkit-tab');
+    const panels = document.querySelectorAll('.toolkit-panel');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const id = tab.getAttribute('data-tab');
+        tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+        panels.forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        document.querySelector(`[data-panel="${id}"]`)?.classList.add('active');
+      });
+    });
+  });
+</script>
+
+<style>
+  /* ── Root ──────────────────────────────── */
+  .toolkit-root {
+    padding: 2rem 0 1rem;
+  }
+
+  /* ── Header ────────────────────────────── */
+  .toolkit-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .toolkit-overline {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sl-color-accent);
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+  }
+
+  .toolkit-heading {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin: 0.25rem 0 0.6rem;
+    background: linear-gradient(135deg, var(--sl-color-text) 40%, var(--sl-color-accent-high) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .toolkit-sub {
+    max-width: 520px;
+    margin: 0 auto;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-2);
+    opacity: 0.8;
+  }
+
+  /* ── Tabs ───────────────────────────────── */
+  .toolkit-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .toolkit-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 1.1rem;
+    border: 1px solid var(--am-border);
+    border-radius: 100px;
+    background: var(--am-surface);
+    color: var(--sl-color-gray-2);
+    font-family: var(--sl-font);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+
+  .toolkit-tab:hover {
+    border-color: color-mix(in srgb, var(--tab-accent) 40%, transparent);
+    color: var(--sl-color-text);
+  }
+
+  .toolkit-tab.active {
+    border-color: color-mix(in srgb, var(--tab-accent) 60%, transparent);
+    background: color-mix(in srgb, var(--tab-accent) 10%, transparent);
+    color: var(--tab-accent);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--tab-accent) 12%, transparent);
+  }
+
+  .toolkit-tab svg {
+    opacity: 0.7;
+  }
+  .toolkit-tab.active svg {
+    opacity: 1;
+  }
+
+  /* ── Panels ─────────────────────────────── */
+  .toolkit-panel {
+    display: none;
+    opacity: 0;
+    animation: panel-in 0.35s ease forwards;
+  }
+
+  .toolkit-panel.active {
+    display: block;
+  }
+
+  @keyframes panel-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Panel hero */
+  .panel-hero {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border-radius: var(--am-radius);
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--panel-accent) 6%, transparent),
+      var(--am-surface)
+    );
+    border: 1px solid color-mix(in srgb, var(--panel-accent) 15%, transparent);
+  }
+
+  .panel-icon-wrap {
+    width: 3.5rem;
+    height: 3.5rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--panel-accent) 15%, transparent);
+    color: var(--panel-accent);
+    flex-shrink: 0;
+    box-shadow: 0 0 24px color-mix(in srgb, var(--panel-accent) 15%, transparent);
+  }
+
+  .panel-intro {
+    min-width: 0;
+  }
+
+  .panel-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--sl-color-text);
+    margin: 0 0 0.15rem;
+    letter-spacing: -0.01em;
+  }
+
+  .panel-tagline {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--panel-accent);
+    margin: 0 0 0.5rem;
+    opacity: 0.9;
+  }
+
+  .panel-desc {
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-2);
+    margin: 0;
+    opacity: 0.8;
+  }
+
+  /* Capabilities grid */
+  .panel-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .cap-card {
+    padding: 0.75rem 0.85rem;
+    border-radius: calc(var(--am-radius) - 2px);
+    background: var(--am-surface);
+    border: 1px solid var(--am-border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+    opacity: 0;
+    animation: cap-in 0.3s ease forwards;
+    animation-delay: calc(var(--ci) * 0.05s);
+  }
+
+  .cap-card:hover {
+    border-color: color-mix(in srgb, var(--panel-accent) 35%, transparent);
+    transform: translateY(-1px);
+  }
+
+  @keyframes cap-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .cap-cmd {
+    font-family: var(--sl-font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--panel-accent);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cap-desc {
+    font-size: 0.76rem;
+    color: var(--sl-color-gray-2);
+    opacity: 0.7;
+  }
+
+  /* CTA link */
+  .panel-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--panel-accent);
+    text-decoration: none;
+    padding: 0.5rem 0;
+    transition: gap 0.2s ease;
+  }
+
+  .panel-cta:hover {
+    gap: 0.65rem;
+    text-decoration: none !important;
+  }
+
+  /* ── Future callout ─────────────────────── */
+  .toolkit-future {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    margin-top: 2rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--am-radius);
+    background: color-mix(in srgb, #f59e0b 4%, transparent);
+    border: 1px solid color-mix(in srgb, #f59e0b 18%, transparent);
+  }
+
+  .future-beacon {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    flex-shrink: 0;
+    margin-top: 0.45rem;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+    animation: beacon-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes beacon-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .future-content {
+    min-width: 0;
+  }
+
+  .future-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #f59e0b;
+  }
+
+  .future-text {
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-2);
+    margin: 0.25rem 0 0;
+    opacity: 0.8;
+  }
+
+  /* ── Responsive ─────────────────────────── */
+  @media (max-width: 640px) {
+    .panel-hero {
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .panel-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .toolkit-heading {
+      font-size: 1.4rem;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .panel-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .toolkit-tabs {
+      flex-wrap: wrap;
+    }
+  }
+</style>

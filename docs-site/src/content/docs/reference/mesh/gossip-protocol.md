@@ -15,7 +15,7 @@ Astromesh uses **push-pull gossip**: when two nodes exchange state, both sides s
     Node A                          Node B
       │                               │
       │  1. Select random peer        │
-      │──────── push state ──────────▶│
+      │──────── push state ─────────▶ │
       │                               │
       │                               │  2. Merge received state
       │                               │     with local state

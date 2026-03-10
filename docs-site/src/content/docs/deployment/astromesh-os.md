@@ -327,7 +327,7 @@ Expected output:
 ┌──────────┬─────────────────────────┬──────────────────┬─────────┐
 │ Name     │ Description             │ Model            │ Pattern │
 ├──────────┼─────────────────────────┼──────────────────┼─────────┤
-│ default  │ Default assistant agent │ ollama/llama3.1:8b │ react   │
+│ default  │ Default assistant agent │ ollama/llama3.1:8b │ react │
 └──────────┴─────────────────────────┴──────────────────┴─────────┘
 ```
 
@@ -349,7 +349,7 @@ Expected output:
 ┌─────────┬────────┬─────────────────────────┬──────────┐
 │ Name    │ Type   │ Endpoint                │ Status   │
 ├─────────┼────────┼─────────────────────────┼──────────┤
-│ ollama  │ ollama │ http://localhost:11434   │ ● Healthy│
+│ ollama  │ ollama │ http://localhost:11434  │ ● Healthy│
 └─────────┴────────┴─────────────────────────┴──────────┘
 ```
 

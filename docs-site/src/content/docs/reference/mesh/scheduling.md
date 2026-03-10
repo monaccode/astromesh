@@ -118,16 +118,16 @@ Complete flow for an incoming API request in mesh mode:
 Client request: POST /v1/agents/assistant/run
                     │
                     ▼
-           ┌───────────────┐
+           ┌────────────────┐
            │ Receiving Node │
-           └───────┬───────┘
+           └───────┬────────┘
                    │
-         ┌─────────▼──────────┐
+         ┌─────────▼───────────┐
          │ Agent loaded        │
          │ locally?            │
-         └─────────┬──────────┘
+         └─────────┬───────────┘
               │          │
-           Yes │          │ No
+          Yes │          │ No
               │          │
               ▼          ▼
      ┌────────────┐  ┌──────────────────┐
@@ -140,7 +140,7 @@ Client request: POST /v1/agents/assistant/run
            │         │ Any peers found?  │
            │         └────────┬──────────┘
            │              │        │
-           │           Yes │        │ No
+           │          Yes │        │ No
            │              │        │
            │              ▼        ▼
            │    ┌─────────────┐  Return 404

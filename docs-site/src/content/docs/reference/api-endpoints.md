@@ -200,8 +200,8 @@ Query semantic memory for an agent.
 
 **Path parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter | Type | Description  |
+|-----------|------|--------------|
 | `agent` | `string` | Agent name |
 
 **Query parameters:**

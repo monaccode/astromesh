@@ -237,24 +237,24 @@ Iteration 1:
 ┌─────────────────────────────────────────────────┐
 │ THINK: LLM receives messages + tool schemas     │
 │        LLM decides: "I need to search the KB"   │
-│                                                  │
-│ ACT:   LLM returns tool_call:                    │
-│        search_knowledge_base(query="password     │
-│        reset procedure")                         │
-│                                                  │
-│ OBSERVE: Tool executes, returns results:         │
-│          "To reset your password, go to..."      │
-│          Result is added to message history       │
+│                                                 │
+│ ACT:   LLM returns tool_call:                   │
+│        search_knowledge_base(query="password    │
+│        reset procedure")                        │
+│                                                 │
+│ OBSERVE: Tool executes, returns results:        │
+│          "To reset your password, go to..."     │
+│          Result is added to message history     │
 └─────────────────────────────────────────────────┘
 
 Iteration 2:
 ┌─────────────────────────────────────────────────┐
-│ THINK: LLM receives updated messages (with       │
-│        tool results)                             │
-│        LLM decides: "I have enough info"         │
-│                                                  │
-│ ACT:   LLM returns a text response (no tool      │
-│        call) → this is the final answer          │
+│ THINK: LLM receives updated messages (with      │
+│        tool results)                            │
+│        LLM decides: "I have enough info"        │
+│                                                 │
+│ ACT:   LLM returns a text response (no tool     │
+│        call) → this is the final answer         │
 └─────────────────────────────────────────────────┘
 ```
 

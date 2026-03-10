@@ -9,8 +9,8 @@ The Memory Manager provides agents with persistent context across conversations 
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  MemoryManager                       │
-│                                                      │
+│                  MemoryManager                      │
+│                                                     │
 │  ┌───────────────┐ ┌──────────────┐ ┌─────────────┐ │
 │  │ Conversational│ │   Semantic   │ │   Episodic  │ │
 │  │               │ │              │ │             │ │
@@ -18,11 +18,11 @@ The Memory Manager provides agents with persistent context across conversations 
 │  │ (turns)       │ │ embeddings   │ │ (actions)   │ │
 │  │               │ │ (similarity) │ │             │ │
 │  └───────┬───────┘ └──────┬───────┘ └──────┬──────┘ │
-│          │                │                │         │
-│          ▼                ▼                ▼         │
-│     ┌─────────┐    ┌───────────┐    ┌──────────┐   │
-│     │ Backend │    │  Backend  │    │ Backend  │   │
-│     └─────────┘    └───────────┘    └──────────┘   │
+│          │                │                │        │
+│          ▼                ▼                ▼        │
+│     ┌─────────┐    ┌───────────┐    ┌──────────┐    │
+│     │ Backend │    │  Backend  │    │ Backend  │    │
+│     └─────────┘    └───────────┘    └──────────┘    │
 └─────────────────────────────────────────────────────┘
 ```
 

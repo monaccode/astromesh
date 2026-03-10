@@ -11,12 +11,12 @@ The Model Router selects which LLM provider handles each request based on config
                     Incoming Request
                          │
                          ▼
-              ┌─────────────────────┐
+              ┌──────────────────────┐
               │   Routing Strategy   │
               │  (cost / latency /   │
               │   quality / round    │
               │   robin / capability)│
-              └──────────┬──────────┘
+              └──────────┬───────────┘
                          │
               ┌──────────▼──────────┐
               │  Circuit Breaker    │
@@ -37,9 +37,9 @@ The Model Router selects which LLM provider handles each request based on config
                    On failure
                          │
                          ▼
-              ┌─────────────────────┐
+              ┌──────────────────────┐
               │  Fallback Provider   │
-              └─────────────────────┘
+              └──────────────────────┘
 ```
 
 ## Routing Strategies
@@ -77,9 +77,9 @@ Each provider has an independent circuit breaker that prevents cascading failure
     ┌──────────────┐
     │              │
     ▼              │
-┌────────┐   3 failures   ┌────────┐   60s cooldown   ┌───────────┐
-│ Closed │ ──────────────▶ │  Open  │ ───────────────▶ │ Half-Open │
-└────────┘                 └────────┘                  └───────────┘
+┌────────┐   3 failures     ┌────────┐   60s cooldown    ┌────────────┐
+│ Closed │ ──────────────▶ │  Open  │ ───────────────▶  |  Half-Open │
+└────────┘                  └────────┘                   └────────────┘
     ▲                                                       │
     │              success                                  │
     └───────────────────────────────────────────────────────┘

@@ -300,7 +300,7 @@ spec:
 
 ```
 ┌─────────────────────────────────────────────┐
-│              Supervisor Agent                │
+│              Supervisor Agent               │
 │                                             │
 │  "Research X, then write a report"          │
 │       │                                     │
@@ -366,15 +366,15 @@ spec:
 5. When an agent produces a direct response (no handoff, no tool call), the conversation ends
 
 ```
-┌──────────────┐     handoff     ┌──────────────────┐
+┌──────────────┐     handoff      ┌──────────────────┐
 │  customer-   │ ──────────────▶ │  billing-        │
-│  support     │                 │  specialist      │
-└──────────────┘                 └────────┬─────────┘
+│  support     │                  │  specialist      │
+└──────────────┘                  └────────┬─────────┘
                                           │ handoff
                                           ▼
                                  ┌──────────────────┐
-                                 │  human-           │
-                                 │  escalation       │
+                                 │  human-          │
+                                 │  escalation      │
                                  └──────────────────┘
 ```
 

@@ -12,19 +12,19 @@ This page offers a high-level map of the system -- its layered architecture, cor
 Every component in Astromesh belongs to one of four layers. Each layer has a single responsibility and communicates only with its adjacent layers through well-defined interfaces.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    API Layer (FastAPI)                   │
-│         REST endpoints  ·  WebSocket streaming          │
-├─────────────────────────────────────────────────────────┤
-│                    Runtime Engine                        │
-│         YAML loading  ·  Agent lifecycle                 │
-├─────────────────────────────────────────────────────────┤
-│                    Core Services                         │
-│  ModelRouter · MemoryManager · ToolRegistry · Guardrails │
-├─────────────────────────────────────────────────────────┤
-│                    Infrastructure                        │
-│  Providers · Backends · Vector Stores · Observability    │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                    API Layer (FastAPI)                    │
+│         REST endpoints  ·  WebSocket streaming            │
+├───────────────────────────────────────────────────────────┤
+│                    Runtime Engine                         │
+│         YAML loading  ·  Agent lifecycle                  │
+├───────────────────────────────────────────────────────────┤
+│                    Core Services                          │
+│  ModelRouter · MemoryManager · ToolRegistry · Guardrails  │
+├───────────────────────────────────────────────────────────┤
+│                    Infrastructure                         │
+│  Providers · Backends · Vector Stores · Observability     │
+└───────────────────────────────────────────────────────────┘
 ```
 
 **Layer 1 -- API Layer** accepts HTTP and WebSocket requests and routes them to the Runtime Engine. It never contains business logic -- it only translates transport protocols into runtime calls.

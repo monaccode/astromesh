@@ -497,35 +497,36 @@ The Astromesh operator follows the standard Kubernetes controller pattern: watch
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Astromesh Operator                         │
-│                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐                  │
-│  │  Agent Controller │  │Provider Controller│                 │
-│  │                   │  │                   │                 │
-│  │ Watch: Agent CRs  │  │ Watch: Provider   │                │
-│  │ Reconcile:        │  │ Reconcile:        │                │
-│  │  - Bootstrap agent│  │  - Health check   │                │
-│  │  - Wire deps      │  │  - Update status  │                │
-│  │  - Update status  │  │  - Circuit breaker│                │
-│  └──────────────────┘  └──────────────────┘                  │
-│                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐                  │
-│  │Channel Controller │  │  RAG Controller   │                │
-│  │                   │  │                   │                │
-│  │ Watch: Channel CRs│  │ Watch: RAGPipeline│                │
-│  │ Reconcile:        │  │ Reconcile:        │                │
-│  │  - Register webhook│ │  - Connect store  │                │
-│  │  - Validate creds │  │  - Run ingestion  │                │
-│  │  - Link agent     │  │  - Update index   │                │
-│  └──────────────────┘  └──────────────────┘                  │
-│                                                              │
-│  ┌─────────────────────────────────────────┐                 │
-│  │           Shared Components              │                │
-│  │  - AgentRuntime (in-process)             │                │
-│  │  - Metrics exporter (Prometheus)         │                │
-│  │  - Leader election                       │                │
-│  │  - Webhook admission controller          │                │
-│  └─────────────────────────────────────────┘                 │
+│                    Astromesh Operator                       │
+│                                                             │
+│  ┌───────────────────┐  ┌───────────────────┐               │
+│  │  Agent Controller │  │Provider Controller│               │
+│  │                   │  │                   │               │
+│  │ Watch: Agent CRs  │  │ Watch: Provider   │               │
+│  │ Reconcile:        │  │ Reconcile:        │               │
+│  │  - Bootstrap agent│  │  - Health check   │               │
+│  │  - Wire deps      │  │  - Update status  │               │
+│  │  - Update status  │  │  - Circuit breaker│               │
+│  └───────────────────┘  └───────────────────┘               │
+│                                                             │
+│  ┌───────────────────┐ ┌───────────────────┐                │
+│  │Channel Controller │ │  RAG Controller   │                │
+│  │                   │ │                   │                │
+│  │ Watch: Channel CRs│ │ Watch: RAGPipeline│                │
+│  │ Reconcile:        │ │ Reconcile:        │                │
+│  │ - Register        │ │                   │                │
+│  │    webhook        │ │  - Connect store  │                │
+│  │ - Validate creds  │ │  - Run ingestion  │                │
+│  │ - Link agent      │ │  - Update index   │                │
+│  └───────────────────┘ └───────────────────┘                │
+│                                                             │
+│  ┌─────────────────────────────────────────┐                │
+│  │           Shared Components             │                │
+│  │  - AgentRuntime (in-process)            │                │
+│  │  - Metrics exporter (Prometheus)        │                │
+│  │  - Leader election                      │                │
+│  │  - Webhook admission controller         │                │
+│  └─────────────────────────────────────────┘                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -576,20 +577,20 @@ The Astromesh architecture separates the control plane (configuration, lifecycle
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CONTROL PLANE                            │
-│                                                                  │
-│  Kubernetes API Server                                           │
+│                         CONTROL PLANE                           │
+│                                                                 │
+│  Kubernetes API Server                                          │
 │  ├── Agent CRDs          ← Desired state                        │
 │  ├── Provider CRDs       ← Provider registry                    │
 │  ├── Channel CRDs        ← Channel config                       │
 │  └── RAGPipeline CRDs    ← Knowledge config                     │
-│                                                                  │
-│  Astromesh Operator                                              │
+│                                                                 │
+│  Astromesh Operator                                             │
 │  ├── Controllers         ← Watch + reconcile                    │
 │  ├── Admission webhooks  ← Validate before persist              │
 │  └── Leader election     ← HA active-passive                    │
-│                                                                  │
-│  Policies                                                        │
+│                                                                 │
+│  Policies                                                       │
 │  ├── Routing strategies  ← How to select providers              │
 │  ├── Guardrail rules     ← Safety policies                      │
 │  ├── Tool permissions    ← Access control                       │
@@ -600,25 +601,25 @@ The Astromesh architecture separates the control plane (configuration, lifecycle
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                          DATA PLANE                              │
-│                                                                  │
-│  Agent Runtime Pods                                              │
+│                          DATA PLANE                             │
+│                                                                 │
+│  Agent Runtime Pods                                             │
 │  ├── FastAPI server      ← HTTP/WS request handling             │
 │  ├── Agent instances     ← Bootstrapped from CRDs               │
 │  ├── Model Router        ← Provider selection + circuit breaker │
 │  └── Orchestration       ← ReAct / Plan / Supervisor loops      │
-│                                                                  │
-│  Inference Services                                              │
+│                                                                 │
+│  Inference Services                                             │
 │  ├── Ollama pods         ← Local LLM inference                  │
 │  ├── vLLM pods           ← High-throughput GPU inference        │
 │  └── Embedding pods      ← Text embedding service               │
-│                                                                  │
-│  Storage Services                                                │
+│                                                                 │
+│  Storage Services                                               │
 │  ├── PostgreSQL + pgvector  ← Relational + vector storage       │
 │  ├── Redis                  ← Conversation cache                │
 │  └── Qdrant / ChromaDB     ← Dedicated vector stores            │
-│                                                                  │
-│  Observability                                                   │
+│                                                                 │
+│  Observability                                                  │
 │  ├── OpenTelemetry Collector ← Trace collection                 │
 │  ├── Prometheus              ← Metrics scraping                 │
 │  └── Grafana                 ← Dashboards                       │

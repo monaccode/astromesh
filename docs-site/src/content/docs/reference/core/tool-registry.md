@@ -290,15 +290,15 @@ LLM returns tool_call
 └────────┬─────────┘
          │ Within limits
          ▼
-┌──────────────────┐
-│ Execute Tool     │
-│                  │
-│  internal: call Python function
-│  mcp: proxy to MCP server
-│  webhook: HTTP POST to URL
-│  rag: run vector query
-│  agent: invoke target agent pipeline
-└────────┬─────────┘
+┌────────────────────────────────────────────┐
+│ Execute Tool                               │
+│                                            │
+│  internal: call Python function            │
+│  mcp: proxy to MCP server                  │
+│  webhook: HTTP POST to URL                 │
+│  rag: run vector query                     │   
+│  agent: invoke target agent pipeline       │
+└────────┬───────────────────────────────────┘
          │
          ▼
   Return result to LLM
