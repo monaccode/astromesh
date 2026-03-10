@@ -20,9 +20,12 @@ class ONNXModelServer:
     async def load(self):
         try:
             import onnxruntime as ort
+
             opts = ort.SessionOptions()
             opts.intra_op_num_threads = self._config.num_threads
-            opts.graph_optimization_level = ort.GraphOptimizationLevel(self._config.optimization_level)
+            opts.graph_optimization_level = ort.GraphOptimizationLevel(
+                self._config.optimization_level
+            )
             providers = ["CPUExecutionProvider"]
             if self._config.device == "cuda":
                 providers.insert(0, "CUDAExecutionProvider")

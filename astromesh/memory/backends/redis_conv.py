@@ -13,13 +13,15 @@ class RedisConversationBackend(ConversationBackend):
 
     async def save_turn(self, session_id, turn):
         key = f"conv:{session_id}"
-        turn_data = json.dumps({
-            "role": turn.role,
-            "content": turn.content,
-            "timestamp": turn.timestamp.isoformat(),
-            "metadata": turn.metadata,
-            "token_count": turn.token_count,
-        })
+        turn_data = json.dumps(
+            {
+                "role": turn.role,
+                "content": turn.content,
+                "timestamp": turn.timestamp.isoformat(),
+                "metadata": turn.metadata,
+                "token_count": turn.token_count,
+            }
+        )
         await self._redis.rpush(key, turn_data)
         await self._redis.expire(key, self._ttl)
 
@@ -28,13 +30,15 @@ class RedisConversationBackend(ConversationBackend):
         turns = []
         for r in raw:
             data = json.loads(r)
-            turns.append(ConversationTurn(
-                role=data["role"],
-                content=data["content"],
-                timestamp=datetime.fromisoformat(data["timestamp"]),
-                metadata=data.get("metadata", {}),
-                token_count=data.get("token_count", 0),
-            ))
+            turns.append(
+                ConversationTurn(
+                    role=data["role"],
+                    content=data["content"],
+                    timestamp=datetime.fromisoformat(data["timestamp"]),
+                    metadata=data.get("metadata", {}),
+                    token_count=data.get("token_count", 0),
+                )
+            )
         return turns
 
     async def clear(self, session_id):

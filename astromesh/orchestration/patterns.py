@@ -9,6 +9,7 @@ try:
 except ImportError:
     _native_json_loads = None
 
+
 def _loads(text):
     if _native_json_loads is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
         return _native_json_loads(text)
@@ -26,7 +27,9 @@ class AgentStep:
 
 class OrchestrationPattern(ABC):
     @abstractmethod
-    async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10) -> dict: ...
+    async def execute(
+        self, query, context, model_fn, tool_fn, tools, max_iterations=10
+    ) -> dict: ...
 
 
 class ReActPattern(OrchestrationPattern):
@@ -73,7 +76,7 @@ class PlanAndExecutePattern(OrchestrationPattern):
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         # Step 1: Ask model to create a plan
-        plan_prompt = f"Create a step-by-step plan to answer: {query}\nReturn JSON: {{\"steps\": [{{\"step\": 1, \"description\": \"...\", \"tool\": null, \"depends_on\": []}}]}}"
+        plan_prompt = f'Create a step-by-step plan to answer: {query}\nReturn JSON: {{"steps": [{{"step": 1, "description": "...", "tool": null, "depends_on": []}}]}}'
         plan_response = await model_fn([{"role": "user", "content": plan_prompt}], tools)
 
         try:
@@ -93,14 +96,22 @@ class PlanAndExecutePattern(OrchestrationPattern):
                 for tc in step_response.tool_calls:
                     obs = await tool_fn(tc["name"], tc["arguments"])
                     results.append({"step": step_info["step"], "result": str(obs)})
-                    steps.append(AgentStep(thought=step_response.content, action=tc["name"],
-                        action_input=tc["arguments"], observation=str(obs)))
+                    steps.append(
+                        AgentStep(
+                            thought=step_response.content,
+                            action=tc["name"],
+                            action_input=tc["arguments"],
+                            observation=str(obs),
+                        )
+                    )
             else:
                 results.append({"step": step_info["step"], "result": step_response.content})
                 steps.append(AgentStep(result=step_response.content))
 
         # Step 3: Synthesize final answer
-        synthesis_prompt = f"Synthesize a final answer from these results: {results}\nOriginal question: {query}"
+        synthesis_prompt = (
+            f"Synthesize a final answer from these results: {results}\nOriginal question: {query}"
+        )
         final = await model_fn([{"role": "user", "content": synthesis_prompt}], [])
         steps.append(AgentStep(result=final.content))
 
@@ -112,7 +123,9 @@ class ParallelFanOutPattern(OrchestrationPattern):
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         # Decompose into subtasks
-        decompose_prompt = f"Decompose this into 2-4 independent subtasks (JSON list of strings): {query}"
+        decompose_prompt = (
+            f"Decompose this into 2-4 independent subtasks (JSON list of strings): {query}"
+        )
         decompose_resp = await model_fn([{"role": "user", "content": decompose_prompt}], [])
 
         try:
@@ -156,8 +169,14 @@ class PipelinePattern(OrchestrationPattern):
             if response.tool_calls:
                 for tc in response.tool_calls:
                     obs = await tool_fn(tc["name"], tc["arguments"])
-                    steps.append(AgentStep(thought=f"Stage: {stage}", action=tc["name"],
-                        action_input=tc["arguments"], observation=str(obs)))
+                    steps.append(
+                        AgentStep(
+                            thought=f"Stage: {stage}",
+                            action=tc["name"],
+                            action_input=tc["arguments"],
+                            observation=str(obs),
+                        )
+                    )
                     current_input = str(obs)
             else:
                 steps.append(AgentStep(thought=f"Stage: {stage}", result=response.content))

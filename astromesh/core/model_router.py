@@ -14,6 +14,7 @@ from astromesh.providers.base import (
 
 try:
     from astromesh._native import rust_detect_vision, rust_ema_update
+
     _HAS_NATIVE_ROUTING = True
 except ImportError:
     _HAS_NATIVE_ROUTING = False
@@ -30,7 +31,7 @@ class ModelRouter:
     CIRCUIT_BREAKER_THRESHOLD = 3
     CIRCUIT_BREAKER_COOLDOWN_S = 60.0
     EMA_ALPHA = 0.8  # weight for existing average
-    EMA_BETA = 0.2   # weight for new observation
+    EMA_BETA = 0.2  # weight for new observation
 
     def __init__(self, config: dict):
         self._providers: dict[str, ProviderProtocol] = {}
@@ -91,8 +92,7 @@ class ModelRouter:
                         )
                     else:
                         health.avg_latency_ms = (
-                            self.EMA_ALPHA * health.avg_latency_ms
-                            + self.EMA_BETA * elapsed_ms
+                            self.EMA_ALPHA * health.avg_latency_ms + self.EMA_BETA * elapsed_ms
                         )
                 health.consecutive_failures = 0
                 health.is_healthy = True
@@ -111,9 +111,7 @@ class ModelRouter:
 
                 if health.consecutive_failures >= self.CIRCUIT_BREAKER_THRESHOLD:
                     health.circuit_open = True
-                    health.circuit_open_until = (
-                        time.time() + self.CIRCUIT_BREAKER_COOLDOWN_S
-                    )
+                    health.circuit_open_until = time.time() + self.CIRCUIT_BREAKER_COOLDOWN_S
                     health.is_healthy = False
 
         raise RuntimeError(f"All providers exhausted. Last error: {last_error}")

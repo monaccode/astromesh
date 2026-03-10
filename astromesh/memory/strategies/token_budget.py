@@ -4,6 +4,7 @@ from astromesh.core.memory import ConversationTurn
 
 try:
     from astromesh._native import RustTokenBudget
+
     _HAS_NATIVE = True
 except ImportError:
     _HAS_NATIVE = False

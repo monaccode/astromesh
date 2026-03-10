@@ -99,7 +99,7 @@ class OpenAICompatProvider:
             async for line in resp.aiter_lines():
                 if not line or not line.startswith("data: "):
                     continue
-                raw = line[len("data: "):]
+                raw = line[len("data: ") :]
                 if raw.strip() == "[DONE]":
                     yield CompletionChunk(
                         content="", model=model, provider="openai_compat", done=True

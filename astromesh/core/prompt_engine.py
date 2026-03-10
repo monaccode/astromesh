@@ -2,9 +2,14 @@ from jinja2 import Environment, BaseLoader, Undefined
 
 
 class SilentUndefined(Undefined):
-    def __str__(self): return ""
-    def __iter__(self): return iter([])
-    def __bool__(self): return False
+    def __str__(self):
+        return ""
+
+    def __iter__(self):
+        return iter([])
+
+    def __bool__(self):
+        return False
 
 
 class PromptEngine:

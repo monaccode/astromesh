@@ -19,6 +19,7 @@ class TorchModelServer:
     async def load(self):
         try:
             import torch
+
             self._model = torch.jit.load(self._config.model_path)
             device = torch.device(self._config.device)
             self._model = self._model.to(device)
@@ -30,5 +31,6 @@ class TorchModelServer:
         if not self._model:
             await self.load()
         import torch
+
         with torch.no_grad():
             return self._model(inputs)

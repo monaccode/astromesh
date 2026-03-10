@@ -36,9 +36,9 @@ class WhatsAppClient(ChannelAdapter):
         """Validate X-Hub-Signature-256 header from Meta."""
         if not self.app_secret:
             return True  # Skip validation if no secret configured
-        expected = "sha256=" + hmac.new(
-            self.app_secret.encode(), payload, hashlib.sha256
-        ).hexdigest()
+        expected = (
+            "sha256=" + hmac.new(self.app_secret.encode(), payload, hashlib.sha256).hexdigest()
+        )
         return hmac.compare_digest(expected, signature)
 
     async def parse_incoming(self, payload: dict) -> list[ChannelMessage]:
@@ -56,13 +56,15 @@ class WhatsAppClient(ChannelAdapter):
                         text = msg["text"]["body"]
                     elif msg_type in _WA_MEDIA_TYPES:
                         media_data = msg.get(msg_type, {})
-                        media.append(MediaAttachment(
-                            media_type=_WA_MEDIA_TYPES[msg_type],
-                            mime_type=media_data.get("mime_type", f"{msg_type}/*"),
-                            content=None,
-                            source_id=media_data.get("id", ""),
-                            filename=media_data.get("filename"),
-                        ))
+                        media.append(
+                            MediaAttachment(
+                                media_type=_WA_MEDIA_TYPES[msg_type],
+                                mime_type=media_data.get("mime_type", f"{msg_type}/*"),
+                                content=None,
+                                source_id=media_data.get("id", ""),
+                                filename=media_data.get("filename"),
+                            )
+                        )
                         # Some media messages include a caption as text.
                         caption = media_data.get("caption")
                         if caption:
@@ -70,15 +72,17 @@ class WhatsAppClient(ChannelAdapter):
                     else:
                         continue  # Skip unsupported message types.
 
-                    messages.append(ChannelMessage(
-                        sender_id=msg["from"],
-                        text=text,
-                        media=media,
-                        message_id=msg["id"],
-                        timestamp=msg.get("timestamp", ""),
-                        channel="whatsapp",
-                        raw_payload=msg,
-                    ))
+                    messages.append(
+                        ChannelMessage(
+                            sender_id=msg["from"],
+                            text=text,
+                            media=media,
+                            message_id=msg["id"],
+                            timestamp=msg.get("timestamp", ""),
+                            channel="whatsapp",
+                            raw_payload=msg,
+                        )
+                    )
         return messages
 
     async def send_text(self, recipient_id: str, text: str) -> dict:

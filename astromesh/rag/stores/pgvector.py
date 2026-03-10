@@ -36,9 +36,7 @@ class PGVectorStore(VectorStore):
                 """)
         return self._pool
 
-    async def upsert(
-        self, doc_id: str, embedding: list[float], content: str, metadata: dict
-    ):
+    async def upsert(self, doc_id: str, embedding: list[float], content: str, metadata: dict):
         pool = await self._get_pool()
         vec_str = "[" + ",".join(str(v) for v in embedding) + "]"
         async with pool.acquire() as conn:
@@ -100,9 +98,7 @@ class PGVectorStore(VectorStore):
     async def delete(self, doc_id: str):
         pool = await self._get_pool()
         async with pool.acquire() as conn:
-            await conn.execute(
-                f"DELETE FROM {self.table} WHERE doc_id = $1", doc_id
-            )
+            await conn.execute(f"DELETE FROM {self.table} WHERE doc_id = $1", doc_id)
 
     async def close(self):
         if self._pool:

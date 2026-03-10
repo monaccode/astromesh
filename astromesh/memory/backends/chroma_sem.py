@@ -45,13 +45,15 @@ class ChromaSemanticBackend(SemanticBackend):
                 distance = results["distances"][0][i] if results["distances"] else 0.0
                 similarity = 1.0 - distance
                 if similarity >= threshold:
-                    memories.append(SemanticMemory(
-                        content=results["documents"][0][i],
-                        embedding=[],
-                        metadata=results["metadatas"][0][i] if results["metadatas"] else {},
-                        similarity=similarity,
-                        source=doc_id,
-                    ))
+                    memories.append(
+                        SemanticMemory(
+                            content=results["documents"][0][i],
+                            embedding=[],
+                            metadata=results["metadatas"][0][i] if results["metadatas"] else {},
+                            similarity=similarity,
+                            source=doc_id,
+                        )
+                    )
         return memories
 
     async def delete(self, agent_id, memory_id):

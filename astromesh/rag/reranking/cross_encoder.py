@@ -17,9 +17,7 @@ class CrossEncoderReranker(Reranker):
             self._model = CrossEncoder(self.model_name)
         return self._model
 
-    async def rerank(
-        self, query: str, documents: list[dict], top_k: int = 5
-    ) -> list[dict]:
+    async def rerank(self, query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
         if not documents:
             return []
 

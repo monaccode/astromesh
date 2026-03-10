@@ -28,18 +28,26 @@ class MCPServer:
                 tools = []
                 if self._runtime:
                     for agent_info in self._runtime.list_agents():
-                        tools.append({
-                            "name": f"agent_{agent_info['name']}",
-                            "description": f"Run agent: {agent_info['name']}",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "query": {"type": "string", "description": "The query to send"},
-                                    "session_id": {"type": "string", "description": "Session ID"},
+                        tools.append(
+                            {
+                                "name": f"agent_{agent_info['name']}",
+                                "description": f"Run agent: {agent_info['name']}",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "query": {
+                                            "type": "string",
+                                            "description": "The query to send",
+                                        },
+                                        "session_id": {
+                                            "type": "string",
+                                            "description": "Session ID",
+                                        },
+                                    },
+                                    "required": ["query"],
                                 },
-                                "required": ["query"],
-                            },
-                        })
+                            }
+                        )
                 result = {"tools": tools}
             elif method == "tools/call":
                 tool_name = params.get("name", "")

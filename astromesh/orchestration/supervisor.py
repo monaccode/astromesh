@@ -17,8 +17,8 @@ class SupervisorPattern(OrchestrationPattern):
                 f"You are a supervisor managing workers: {worker_names}\n"
                 f"Task: {query}\n"
                 f"Previous steps: {[s.result or s.observation for s in steps]}\n"
-                f"Decide: delegate to a worker (respond with JSON {{\"delegate\": \"worker_name\", \"task\": \"...\"}})"
-                f" or provide final answer (respond with JSON {{\"final_answer\": \"...\"}})"
+                f'Decide: delegate to a worker (respond with JSON {{"delegate": "worker_name", "task": "..."}})'
+                f' or provide final answer (respond with JSON {{"final_answer": "..."}})'
             )
 
             response = await model_fn([{"role": "user", "content": supervisor_prompt}], tools)
@@ -36,8 +36,11 @@ class SupervisorPattern(OrchestrationPattern):
             if "delegate" in decision:
                 worker_task = decision.get("task", query)
                 worker_resp = await model_fn([{"role": "user", "content": worker_task}], tools)
-                steps.append(AgentStep(
-                    thought=f"Delegated to {decision['delegate']}: {worker_task}",
-                    result=worker_resp.content))
+                steps.append(
+                    AgentStep(
+                        thought=f"Delegated to {decision['delegate']}: {worker_task}",
+                        result=worker_resp.content,
+                    )
+                )
 
         return {"answer": "Max iterations reached", "steps": steps}

@@ -27,10 +27,12 @@ class FixedChunker(ChunkingStrategy):
         while start < len(document):
             end = start + self.chunk_size
             content = document[start:end]
-            chunks.append({
-                "content": content,
-                "metadata": {**metadata, "chunk_index": i, "strategy": "fixed"},
-            })
+            chunks.append(
+                {
+                    "content": content,
+                    "metadata": {**metadata, "chunk_index": i, "strategy": "fixed"},
+                }
+            )
             i += 1
             start += self.chunk_size - self.overlap
             if start >= len(document):

@@ -31,15 +31,11 @@ class QdrantStore(VectorStore):
             if not any(c.name == self.collection_name for c in collections):
                 self._client.create_collection(
                     collection_name=self.collection_name,
-                    vectors_config=VectorParams(
-                        size=self.dimensions, distance=Distance.COSINE
-                    ),
+                    vectors_config=VectorParams(size=self.dimensions, distance=Distance.COSINE),
                 )
         return self._client
 
-    async def upsert(
-        self, doc_id: str, embedding: list[float], content: str, metadata: dict
-    ):
+    async def upsert(self, doc_id: str, embedding: list[float], content: str, metadata: dict):
         from qdrant_client.models import PointStruct
 
         client = self._get_client()
@@ -62,8 +58,7 @@ class QdrantStore(VectorStore):
         query_filter = None
         if filters:
             conditions = [
-                FieldCondition(key=k, match=MatchValue(value=v))
-                for k, v in filters.items()
+                FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filters.items()
             ]
             query_filter = Filter(must=conditions)
 
@@ -78,9 +73,7 @@ class QdrantStore(VectorStore):
             {
                 "doc_id": str(hit.id),
                 "content": hit.payload.get("content", ""),
-                "metadata": {
-                    k: v for k, v in hit.payload.items() if k != "content"
-                },
+                "metadata": {k: v for k, v in hit.payload.items() if k != "content"},
                 "score": hit.score,
             }
             for hit in results

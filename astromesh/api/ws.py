@@ -37,18 +37,24 @@ async def agent_websocket(websocket: WebSocket, agent_name: str):
             message = json.loads(data)
             query = message.get("query", "")
 
-            await manager.send_message({
-                "type": "status",
-                "status": "processing",
-                "agent": agent_name,
-            }, websocket)
+            await manager.send_message(
+                {
+                    "type": "status",
+                    "status": "processing",
+                    "agent": agent_name,
+                },
+                websocket,
+            )
 
             # Placeholder response — will be wired to runtime
-            await manager.send_message({
-                "type": "response",
-                "agent": agent_name,
-                "answer": f"[WebSocket] Received: {query}",
-                "session_id": session_id,
-            }, websocket)
+            await manager.send_message(
+                {
+                    "type": "response",
+                    "agent": agent_name,
+                    "answer": f"[WebSocket] Received: {query}",
+                    "session_id": session_id,
+                },
+                websocket,
+            )
     except WebSocketDisconnect:
         manager.disconnect(websocket, session_id)

@@ -18,9 +18,7 @@ class CohereReranker(Reranker):
         self.api_key = api_key
         self.model = model
 
-    async def rerank(
-        self, query: str, documents: list[dict], top_k: int = 5
-    ) -> list[dict]:
+    async def rerank(self, query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
         if not documents:
             return []
 
@@ -47,9 +45,11 @@ class CohereReranker(Reranker):
         results: list[dict] = []
         for item in data.get("results", []):
             idx = item["index"]
-            results.append({
-                **documents[idx],
-                "rerank_score": item["relevance_score"],
-            })
+            results.append(
+                {
+                    **documents[idx],
+                    "rerank_score": item["relevance_score"],
+                }
+            )
 
         return results

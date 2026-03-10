@@ -21,9 +21,7 @@ class FAISSStore(VectorStore):
             self._index = faiss.IndexFlatIP(self.dimensions)
         return self._index
 
-    async def upsert(
-        self, doc_id: str, embedding: list[float], content: str, metadata: dict
-    ):
+    async def upsert(self, doc_id: str, embedding: list[float], content: str, metadata: dict):
         index = self._get_index()
         vec = np.array([embedding], dtype=np.float32)
 
@@ -41,11 +39,13 @@ class FAISSStore(VectorStore):
         idx = index.ntotal
         index.add(vec)
         self._id_map[doc_id] = idx
-        self._docs.append({
-            "doc_id": doc_id,
-            "content": content,
-            "metadata": metadata,
-        })
+        self._docs.append(
+            {
+                "doc_id": doc_id,
+                "content": content,
+                "metadata": metadata,
+            }
+        )
 
     async def search(
         self,
@@ -78,12 +78,14 @@ class FAISSStore(VectorStore):
                 if not all(doc["metadata"].get(fk) == fv for fk, fv in filters.items()):
                     continue
 
-            results.append({
-                "doc_id": doc["doc_id"],
-                "content": doc["content"],
-                "metadata": doc["metadata"],
-                "score": float(score),
-            })
+            results.append(
+                {
+                    "doc_id": doc["doc_id"],
+                    "content": doc["content"],
+                    "metadata": doc["metadata"],
+                    "score": float(score),
+                }
+            )
             if len(results) >= top_k:
                 break
 

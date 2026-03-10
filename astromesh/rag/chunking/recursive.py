@@ -29,10 +29,12 @@ class RecursiveChunker(ChunkingStrategy):
         pieces = self._split_recursive(document, self.separators)
         chunks: list[dict] = []
         for i, piece in enumerate(pieces):
-            chunks.append({
-                "content": piece,
-                "metadata": {**metadata, "chunk_index": i, "strategy": "recursive"},
-            })
+            chunks.append(
+                {
+                    "content": piece,
+                    "metadata": {**metadata, "chunk_index": i, "strategy": "recursive"},
+                }
+            )
         return chunks
 
     def _split_recursive(self, text: str, separators: list[str]) -> list[str]:

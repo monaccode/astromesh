@@ -4,6 +4,7 @@ from datetime import datetime
 
 try:
     from astromesh._native import RustCostIndex
+
     _HAS_NATIVE_COST = True
 except ImportError:
     _HAS_NATIVE_COST = False
@@ -35,8 +36,14 @@ class CostTracker:
         self._records.append(record)
         if self._native_index is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
             self._native_index.record(
-                record.agent_name, record.session_id, record.model, record.provider,
-                record.cost_usd, record.latency_ms, record.input_tokens, record.output_tokens,
+                record.agent_name,
+                record.session_id,
+                record.model,
+                record.provider,
+                record.cost_usd,
+                record.latency_ms,
+                record.input_tokens,
+                record.output_tokens,
                 record.timestamp.timestamp(),
             )
 
@@ -56,12 +63,16 @@ class CostTracker:
             "exceeded": spent >= budget,
         }
 
-    def get_total_cost(self, agent_name: str | None = None,
-                       session_id: str | None = None,
-                       since: datetime | None = None) -> float:
+    def get_total_cost(
+        self,
+        agent_name: str | None = None,
+        session_id: str | None = None,
+        since: datetime | None = None,
+    ) -> float:
         if self._native_index is not None and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
             return self._native_index.total_cost(
-                agent_name, session_id,
+                agent_name,
+                session_id,
                 since.timestamp() if since else None,
             )
         records = self._records

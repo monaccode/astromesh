@@ -28,12 +28,14 @@ class PeerClient:
         for node in mesh.cluster_state().alive_nodes():
             if node.node_id == local_id:
                 continue
-            peers.append({
-                "name": node.name,
-                "url": node.url,
-                "services": node.services,
-                "node_id": node.node_id,
-            })
+            peers.append(
+                {
+                    "name": node.name,
+                    "url": node.url,
+                    "services": node.services,
+                    "node_id": node.node_id,
+                }
+            )
         return cls(peers)
 
     def find_peers(self, service: str) -> list[dict]:

@@ -7,7 +7,9 @@ from astromesh.core.memory import SemanticBackend, SemanticMemory
 
 
 class PGVectorSemanticBackend(SemanticBackend):
-    def __init__(self, pool: asyncpg.Pool | None = None, dsn: str | None = None, dimension: int = 1536):
+    def __init__(
+        self, pool: asyncpg.Pool | None = None, dsn: str | None = None, dimension: int = 1536
+    ):
         self._pool = pool
         self._dsn = dsn
         self._dimension = dimension
@@ -58,7 +60,9 @@ class PGVectorSemanticBackend(SemanticBackend):
             SemanticMemory(
                 content=row["content"],
                 embedding=[],
-                metadata=json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                metadata=json.loads(row["metadata"])
+                if isinstance(row["metadata"], str)
+                else row["metadata"],
                 similarity=float(row["similarity"]),
                 source=row["id"],
             )

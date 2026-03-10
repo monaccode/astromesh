@@ -67,8 +67,12 @@ class PGEpisodicBackend(EpisodicBackend):
             EpisodicMemory(
                 event_type=row["event_type"],
                 summary=row["summary"],
-                context=json.loads(row["context"]) if isinstance(row["context"], str) else row["context"],
-                outcome=json.loads(row["outcome"]) if isinstance(row["outcome"], str) else row["outcome"],
+                context=json.loads(row["context"])
+                if isinstance(row["context"], str)
+                else row["context"],
+                outcome=json.loads(row["outcome"])
+                if isinstance(row["outcome"], str)
+                else row["outcome"],
                 importance_score=row["importance_score"],
                 timestamp=row["timestamp"],
             )

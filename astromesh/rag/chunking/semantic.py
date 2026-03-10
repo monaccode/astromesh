@@ -52,10 +52,12 @@ class SemanticChunker(ChunkingStrategy):
         for idx, group in enumerate(groups):
             content = "".join(group).strip()
             if content:
-                chunks.append({
-                    "content": content,
-                    "metadata": {**metadata, "chunk_index": idx, "strategy": "semantic"},
-                })
+                chunks.append(
+                    {
+                        "content": content,
+                        "metadata": {**metadata, "chunk_index": idx, "strategy": "semantic"},
+                    }
+                )
 
         return chunks
 

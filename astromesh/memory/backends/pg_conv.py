@@ -61,7 +61,9 @@ class PGConversationBackend(ConversationBackend):
                 role=row["role"],
                 content=row["content"],
                 timestamp=row["timestamp"],
-                metadata=json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                metadata=json.loads(row["metadata"])
+                if isinstance(row["metadata"], str)
+                else row["metadata"],
                 token_count=row["token_count"] or 0,
             )
             for row in rows
@@ -69,9 +71,7 @@ class PGConversationBackend(ConversationBackend):
 
     async def clear(self, session_id):
         async with self._pool.acquire() as conn:
-            await conn.execute(
-                "DELETE FROM conversation_history WHERE session_id = $1", session_id
-            )
+            await conn.execute("DELETE FROM conversation_history WHERE session_id = $1", session_id)
             await conn.execute(
                 "DELETE FROM conversation_summaries WHERE session_id = $1", session_id
             )

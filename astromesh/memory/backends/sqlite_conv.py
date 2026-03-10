@@ -25,10 +25,7 @@ class SQLiteConversationBackend(ConversationBackend):
             ")"
         )
         await self._db.execute(
-            "CREATE TABLE IF NOT EXISTS summaries ("
-            "session_id TEXT PRIMARY KEY, "
-            "summary TEXT"
-            ")"
+            "CREATE TABLE IF NOT EXISTS summaries (session_id TEXT PRIMARY KEY, summary TEXT)"
         )
         await self._db.commit()
 
@@ -67,12 +64,8 @@ class SQLiteConversationBackend(ConversationBackend):
         ]
 
     async def clear(self, session_id):
-        await self._db.execute(
-            "DELETE FROM conversations WHERE session_id = ?", (session_id,)
-        )
-        await self._db.execute(
-            "DELETE FROM summaries WHERE session_id = ?", (session_id,)
-        )
+        await self._db.execute("DELETE FROM conversations WHERE session_id = ?", (session_id,))
+        await self._db.execute("DELETE FROM summaries WHERE session_id = ?", (session_id,))
         await self._db.commit()
 
     async def get_summary(self, session_id):

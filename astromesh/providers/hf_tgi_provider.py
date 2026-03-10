@@ -77,11 +77,9 @@ class HFTGIProvider:
             async for line in resp.aiter_lines():
                 if not line or not line.startswith("data: "):
                     continue
-                raw = line[len("data: "):]
+                raw = line[len("data: ") :]
                 if raw.strip() == "[DONE]":
-                    yield CompletionChunk(
-                        content="", model=model, provider="hf_tgi", done=True
-                    )
+                    yield CompletionChunk(content="", model=model, provider="hf_tgi", done=True)
                     break
                 import json
 

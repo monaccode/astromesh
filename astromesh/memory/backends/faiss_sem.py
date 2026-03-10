@@ -24,12 +24,14 @@ class FAISSSemanticBackend(SemanticBackend):
         # Normalize for cosine similarity with IndexFlatIP
         faiss.normalize_L2(vec)
         self._indices[agent_id].add(vec)
-        self._data[agent_id].append({
-            "id": memory_id,
-            "content": content,
-            "embedding": embedding,
-            "metadata": metadata,
-        })
+        self._data[agent_id].append(
+            {
+                "id": memory_id,
+                "content": content,
+                "embedding": embedding,
+                "metadata": metadata,
+            }
+        )
         return memory_id
 
     async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7):
@@ -47,13 +49,15 @@ class FAISSSemanticBackend(SemanticBackend):
             if idx < 0 or float(score) < threshold:
                 continue
             entry = self._data[agent_id][idx]
-            results.append(SemanticMemory(
-                content=entry["content"],
-                embedding=entry["embedding"],
-                metadata=entry["metadata"],
-                similarity=float(score),
-                source=entry["id"],
-            ))
+            results.append(
+                SemanticMemory(
+                    content=entry["content"],
+                    embedding=entry["embedding"],
+                    metadata=entry["metadata"],
+                    similarity=float(score),
+                    source=entry["id"],
+                )
+            )
         return results
 
     async def delete(self, agent_id, memory_id):

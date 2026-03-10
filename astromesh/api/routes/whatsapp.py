@@ -1,4 +1,5 @@
 """WhatsApp channel webhook handler."""
+
 from __future__ import annotations
 
 import logging

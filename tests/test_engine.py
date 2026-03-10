@@ -1,6 +1,7 @@
 import pytest
 from astromesh.runtime.engine import AgentRuntime
 
+
 @pytest.fixture
 def config_dir(tmp_path):
     agents_dir = tmp_path / "agents"
@@ -29,10 +30,12 @@ spec:
 """)
     return str(tmp_path)
 
+
 async def test_runtime_loads_agents(config_dir):
     runtime = AgentRuntime(config_dir=config_dir)
     await runtime.bootstrap()
     assert "test-agent" in runtime._agents
+
 
 async def test_runtime_agent_properties(config_dir):
     runtime = AgentRuntime(config_dir=config_dir)
@@ -42,11 +45,13 @@ async def test_runtime_agent_properties(config_dir):
     assert agent.version == "0.1.0"
     assert agent.namespace == "test"
 
+
 async def test_runtime_missing_agent(config_dir):
     runtime = AgentRuntime(config_dir=config_dir)
     await runtime.bootstrap()
     with pytest.raises(ValueError, match="not found"):
         await runtime.run("nonexistent", "hello", "s1")
+
 
 async def test_runtime_list_agents(config_dir):
     runtime = AgentRuntime(config_dir=config_dir)

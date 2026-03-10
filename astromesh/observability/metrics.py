@@ -64,15 +64,23 @@ class MetricsCollector:
 
     def record_agent_run(self, agent_name: str, pattern: str, status: str, latency_s: float):
         if "agent_runs" in self._counters:
-            self._counters["agent_runs"].labels(agent_name=agent_name, pattern=pattern, status=status).inc()
+            self._counters["agent_runs"].labels(
+                agent_name=agent_name, pattern=pattern, status=status
+            ).inc()
         if "agent_latency" in self._histograms:
-            self._histograms["agent_latency"].labels(agent_name=agent_name, pattern=pattern).observe(latency_s)
+            self._histograms["agent_latency"].labels(
+                agent_name=agent_name, pattern=pattern
+            ).observe(latency_s)
 
     def record_provider_call(self, provider: str, model: str, status: str, latency_s: float):
         if "provider_calls" in self._counters:
-            self._counters["provider_calls"].labels(provider=provider, model=model, status=status).inc()
+            self._counters["provider_calls"].labels(
+                provider=provider, model=model, status=status
+            ).inc()
         if "provider_latency" in self._histograms:
-            self._histograms["provider_latency"].labels(provider=provider, model=model).observe(latency_s)
+            self._histograms["provider_latency"].labels(provider=provider, model=model).observe(
+                latency_s
+            )
 
     def record_tool_execution(self, tool_name: str, status: str):
         if "tool_executions" in self._counters:
@@ -80,8 +88,12 @@ class MetricsCollector:
 
     def record_tokens(self, agent_name: str, input_tokens: int, output_tokens: int):
         if "tokens_used" in self._counters:
-            self._counters["tokens_used"].labels(agent_name=agent_name, direction="input").inc(input_tokens)
-            self._counters["tokens_used"].labels(agent_name=agent_name, direction="output").inc(output_tokens)
+            self._counters["tokens_used"].labels(agent_name=agent_name, direction="input").inc(
+                input_tokens
+            )
+            self._counters["tokens_used"].labels(agent_name=agent_name, direction="output").inc(
+                output_tokens
+            )
 
     def set_active_sessions(self, agent_name: str, count: int):
         if "active_sessions" in self._gauges:

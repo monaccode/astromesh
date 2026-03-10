@@ -36,11 +36,19 @@ class ModelRegistry:
         self._models: dict[str, ModelInfo] = {}
         self._models_dir = Path(models_dir)
 
-    def register(self, name: str, version: str, format: ModelFormat,
-                 path: str, task: str, metadata: dict | None = None) -> ModelInfo:
+    def register(
+        self,
+        name: str,
+        version: str,
+        format: ModelFormat,
+        path: str,
+        task: str,
+        metadata: dict | None = None,
+    ) -> ModelInfo:
         key = f"{name}:{version}"
-        info = ModelInfo(name=name, version=version, format=format,
-                        path=path, task=task, metadata=metadata or {})
+        info = ModelInfo(
+            name=name, version=version, format=format, path=path, task=task, metadata=metadata or {}
+        )
         self._models[key] = info
         return info
 
@@ -76,6 +84,7 @@ class ModelRegistry:
     async def _load_onnx(self, info: ModelInfo):
         try:
             import onnxruntime as ort
+
             providers = ["CPUExecutionProvider"]
             if info.metadata.get("device") == "cuda":
                 providers.insert(0, "CUDAExecutionProvider")
@@ -86,6 +95,7 @@ class ModelRegistry:
     async def _load_pytorch(self, info: ModelInfo):
         try:
             import torch
+
             model = torch.jit.load(info.path)
             model.eval()
             return model
@@ -101,6 +111,7 @@ class ModelRegistry:
             return info.instance.run(None, input_data)
         elif info.format == ModelFormat.PYTORCH:
             import torch
+
             with torch.no_grad():
                 return info.instance(input_data)
 

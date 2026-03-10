@@ -31,19 +31,13 @@ class ChromaStore(VectorStore):
             else:
                 self._client = chromadb.Client()
 
-            self._collection = self._client.get_or_create_collection(
-                name=self.collection_name
-            )
+            self._collection = self._client.get_or_create_collection(name=self.collection_name)
         return self._collection
 
-    async def upsert(
-        self, doc_id: str, embedding: list[float], content: str, metadata: dict
-    ):
+    async def upsert(self, doc_id: str, embedding: list[float], content: str, metadata: dict):
         collection = self._get_collection()
         # Chroma requires metadata values to be str, int, float, or bool
-        clean_meta = {
-            k: v for k, v in metadata.items() if isinstance(v, (str, int, float, bool))
-        }
+        clean_meta = {k: v for k, v in metadata.items() if isinstance(v, (str, int, float, bool))}
         collection.upsert(
             ids=[doc_id],
             embeddings=[embedding],
@@ -70,12 +64,14 @@ class ChromaStore(VectorStore):
         docs: list[dict] = []
         if results and results["ids"]:
             for i, doc_id in enumerate(results["ids"][0]):
-                docs.append({
-                    "doc_id": doc_id,
-                    "content": results["documents"][0][i] if results["documents"] else "",
-                    "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
-                    "score": 1 - results["distances"][0][i] if results["distances"] else 0.0,
-                })
+                docs.append(
+                    {
+                        "doc_id": doc_id,
+                        "content": results["documents"][0][i] if results["documents"] else "",
+                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
+                        "score": 1 - results["distances"][0][i] if results["distances"] else 0.0,
+                    }
+                )
         return docs
 
     async def delete(self, doc_id: str):

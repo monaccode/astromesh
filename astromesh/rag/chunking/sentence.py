@@ -28,20 +28,24 @@ class SentenceChunker(ChunkingStrategy):
 
         for sentence in sentences:
             if current and len(current) + len(sentence) > self.chunk_size:
-                chunks.append({
-                    "content": current.strip(),
-                    "metadata": {**metadata, "chunk_index": i, "strategy": "sentence"},
-                })
+                chunks.append(
+                    {
+                        "content": current.strip(),
+                        "metadata": {**metadata, "chunk_index": i, "strategy": "sentence"},
+                    }
+                )
                 i += 1
                 current = sentence
             else:
                 current += sentence
 
         if current.strip():
-            chunks.append({
-                "content": current.strip(),
-                "metadata": {**metadata, "chunk_index": i, "strategy": "sentence"},
-            })
+            chunks.append(
+                {
+                    "content": current.strip(),
+                    "metadata": {**metadata, "chunk_index": i, "strategy": "sentence"},
+                }
+            )
 
         return chunks
 

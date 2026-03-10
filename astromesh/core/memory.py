@@ -95,9 +95,7 @@ class MemoryManager:
         token_budget = max_tokens
 
         if self._conversation:
-            strategy = self.config.get("conversational", {}).get(
-                "strategy", "sliding_window"
-            )
+            strategy = self.config.get("conversational", {}).get("strategy", "sliding_window")
             if strategy == "sliding_window":
                 turns = await self._conversation.get_history(session_id)
                 context["conversation"] = turns
@@ -120,9 +118,7 @@ class MemoryManager:
 
         if self._semantic and self._embed:
             query_emb = await self._embed(current_query)
-            threshold = self.config.get("semantic", {}).get(
-                "similarity_threshold", 0.75
-            )
+            threshold = self.config.get("semantic", {}).get("similarity_threshold", 0.75)
             max_results = self.config.get("semantic", {}).get("max_results", 10)
             context["semantic"] = await self._semantic.search(
                 self.agent_id, query_emb, top_k=max_results, threshold=threshold
@@ -142,12 +138,7 @@ class MemoryManager:
                 summary = await self._summarize(history[:-10])
                 await self._conversation.save_summary(session_id, summary)
 
-        if (
-            self._semantic
-            and self._embed
-            and turn.role == "assistant"
-            and turn.token_count > 50
-        ):
+        if self._semantic and self._embed and turn.role == "assistant" and turn.token_count > 50:
             emb = await self._embed(turn.content)
             await self._semantic.store(
                 self.agent_id,

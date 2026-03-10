@@ -9,22 +9,24 @@ from dataclasses import dataclass, field
 @dataclass
 class MediaAttachment:
     """A media item attached to an incoming channel message."""
-    media_type: str          # "image", "audio", "video", "document"
-    mime_type: str           # "image/jpeg", "audio/ogg", etc.
-    content: bytes | None    # Raw downloaded bytes (None if not yet fetched)
-    source_id: str           # Channel-specific media ID (e.g. WhatsApp media ID)
+
+    media_type: str  # "image", "audio", "video", "document"
+    mime_type: str  # "image/jpeg", "audio/ogg", etc.
+    content: bytes | None  # Raw downloaded bytes (None if not yet fetched)
+    source_id: str  # Channel-specific media ID (e.g. WhatsApp media ID)
     filename: str | None = None  # Original filename if available
 
 
 @dataclass
 class ChannelMessage:
     """Channel-agnostic representation of an incoming message."""
-    sender_id: str           # Channel-specific user ID (phone number, user ID, etc.)
-    text: str | None         # Text content (may be None for media-only messages)
+
+    sender_id: str  # Channel-specific user ID (phone number, user ID, etc.)
+    text: str | None  # Text content (may be None for media-only messages)
     media: list[MediaAttachment]  # Attached media items
-    message_id: str          # Channel-specific message ID
+    message_id: str  # Channel-specific message ID
     timestamp: str
-    channel: str             # "whatsapp", "telegram", etc.
+    channel: str  # "whatsapp", "telegram", etc.
     raw_payload: dict = field(default_factory=dict)  # Original payload for debugging
 
 

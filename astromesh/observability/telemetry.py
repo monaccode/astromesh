@@ -72,11 +72,15 @@ class TelemetryManager:
 
 class _NoOpSpan:
     """No-op span for when telemetry is disabled."""
+
     def __enter__(self):
         return self
+
     def __exit__(self, *args):
         pass
+
     def set_attribute(self, key, value):
         pass
+
     def add_event(self, name, attributes=None):
         pass

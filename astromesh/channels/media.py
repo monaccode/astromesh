@@ -46,20 +46,24 @@ async def build_multimodal_query(
                     attachment.source_id,
                     attachment.media_type,
                 )
-                content_parts.append({
-                    "type": "text",
-                    "text": f"[Attached {attachment.media_type}: download failed]",
-                })
+                content_parts.append(
+                    {
+                        "type": "text",
+                        "text": f"[Attached {attachment.media_type}: download failed]",
+                    }
+                )
                 continue
 
         if attachment.mime_type.startswith(_VISION_MIME_PREFIXES[0]):
             # Images → base64 data URL for vision models.
             b64 = base64.b64encode(attachment.content).decode()
             data_url = f"data:{attachment.mime_type};base64,{b64}"
-            content_parts.append({
-                "type": "image_url",
-                "image_url": {"url": data_url},
-            })
+            content_parts.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": data_url},
+                }
+            )
         else:
             # Non-image media → text description so the agent is aware.
             desc = f"[Attached {attachment.media_type}: {attachment.mime_type}"

@@ -15,7 +15,7 @@ class SwarmPattern(OrchestrationPattern):
 
         for _ in range(max_iterations):
             agent_prompt = f"You are agent '{current_agent}'. Available agents to hand off to: {list(self._agents.keys()) or ['default']}\n"
-            agent_prompt += "Respond with your answer, or hand off with JSON {\"handoff\": \"agent_name\", \"context\": \"...\"}"
+            agent_prompt += 'Respond with your answer, or hand off with JSON {"handoff": "agent_name", "context": "..."}'
 
             full_messages = [{"role": "system", "content": agent_prompt}] + messages
             response = await model_fn(full_messages, tools)
@@ -23,9 +23,12 @@ class SwarmPattern(OrchestrationPattern):
             try:
                 parsed = json_mod.loads(response.content)
                 if "handoff" in parsed:
-                    steps.append(AgentStep(
-                        thought=f"Agent '{current_agent}' hands off to '{parsed['handoff']}'",
-                        result=parsed.get("context", "")))
+                    steps.append(
+                        AgentStep(
+                            thought=f"Agent '{current_agent}' hands off to '{parsed['handoff']}'",
+                            result=parsed.get("context", ""),
+                        )
+                    )
                     current_agent = parsed["handoff"]
                     messages.append({"role": "assistant", "content": response.content})
                     continue
@@ -35,8 +38,14 @@ class SwarmPattern(OrchestrationPattern):
             if response.tool_calls:
                 for tc in response.tool_calls:
                     obs = await tool_fn(tc["name"], tc["arguments"])
-                    steps.append(AgentStep(thought=response.content, action=tc["name"],
-                        action_input=tc["arguments"], observation=str(obs)))
+                    steps.append(
+                        AgentStep(
+                            thought=response.content,
+                            action=tc["name"],
+                            action_input=tc["arguments"],
+                            observation=str(obs),
+                        )
+                    )
                     messages.append({"role": "tool", "content": str(obs), "tool_call_id": tc["id"]})
             else:
                 steps.append(AgentStep(result=response.content))

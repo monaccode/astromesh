@@ -6,6 +6,7 @@ router = APIRouter()
 # In-memory storage (will be replaced by runtime in production)
 _runtime = None
 
+
 def set_runtime(runtime):
     global _runtime
     _runtime = runtime

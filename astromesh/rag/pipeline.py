@@ -28,9 +28,7 @@ class RAGPipeline:
         self._store = vector_store
         self._reranker = reranker
 
-    async def ingest(
-        self, document: str, metadata: dict, doc_id_prefix: str = "doc"
-    ) -> int:
+    async def ingest(self, document: str, metadata: dict, doc_id_prefix: str = "doc") -> int:
         chunks = (
             self._chunker.chunk(document, metadata)
             if self._chunker
@@ -38,23 +36,13 @@ class RAGPipeline:
         )
         for i, chunk in enumerate(chunks):
             doc_id = f"{doc_id_prefix}_{i}"
-            embedding = (
-                await self._embedder.embed(chunk["content"])
-                if self._embedder
-                else []
-            )
+            embedding = await self._embedder.embed(chunk["content"]) if self._embedder else []
             await self._store.upsert(doc_id, embedding, chunk["content"], chunk["metadata"])
         return len(chunks)
 
     async def query(self, query: str, top_k: int = 5) -> RAGResult:
-        query_embedding = (
-            await self._embedder.embed(query) if self._embedder else []
-        )
-        results = (
-            await self._store.search(query_embedding, top_k=top_k * 2)
-            if self._store
-            else []
-        )
+        query_embedding = await self._embedder.embed(query) if self._embedder else []
+        results = await self._store.search(query_embedding, top_k=top_k * 2) if self._store else []
         if self._reranker and results:
             results = await self._reranker.rerank(query, results, top_k=top_k)
         else:

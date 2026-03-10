@@ -3,9 +3,7 @@ from abc import ABC, abstractmethod
 
 class VectorStore(ABC):
     @abstractmethod
-    async def upsert(
-        self, doc_id: str, embedding: list[float], content: str, metadata: dict
-    ): ...
+    async def upsert(self, doc_id: str, embedding: list[float], content: str, metadata: dict): ...
 
     @abstractmethod
     async def search(
