@@ -3,7 +3,7 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://monaccode.github.io',
-  base: '/astromech-platform',
+  base: '/astromesh',
   integrations: [
     starlight({
       title: 'Astromesh',
