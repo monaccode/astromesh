@@ -1,5 +1,7 @@
 # Astromesh License
 
+> Canonical OSS license text is in [`LICENSE`](LICENSE). This document contains additional project policy notes.
+
 Copyright (c) 2026 Astromesh Contributors.
 
 Astromesh, this repository, and the project materials included in it are
