@@ -40,127 +40,167 @@ const responseCode = `{
 }`;
 ---
 
-<div class="agent-example">
-  <div class="pane">
-    <div class="pane-header">
-      <span class="pane-label">config/agents/hello.agent.yaml</span>
-      <button class="copy-btn" data-copy-target="yaml-code">Copy</button>
+<div class="agent-ex">
+  <div class="ex-pane">
+    <div class="ex-header">
+      <div class="ex-dots" aria-hidden="true">
+        <span class="dot dot--red"></span>
+        <span class="dot dot--yellow"></span>
+        <span class="dot dot--green"></span>
+      </div>
+      <span class="ex-filename">config/agents/hello.agent.yaml</span>
+      <button class="ex-copy" data-copy-target="ex-yaml">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
     </div>
-    <pre class="pane-body"><code id="yaml-code">{yamlCode}</code></pre>
+    <pre class="ex-code"><code id="ex-yaml">{yamlCode}</code></pre>
   </div>
 
-  <div class="pane">
-    <div class="pane-header">
-      <span class="pane-label">Try it</span>
-      <button class="copy-btn" data-copy-target="curl-code">Copy</button>
+  <div class="ex-pane">
+    <div class="ex-header">
+      <div class="ex-dots" aria-hidden="true">
+        <span class="dot dot--red"></span>
+        <span class="dot dot--yellow"></span>
+        <span class="dot dot--green"></span>
+      </div>
+      <span class="ex-filename">Terminal</span>
+      <button class="ex-copy" data-copy-target="ex-curl">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
     </div>
-    <pre class="pane-body"><code id="curl-code">{curlCode}</code></pre>
+    <pre class="ex-code"><code id="ex-curl">{curlCode}</code></pre>
 
-    <div class="pane-header pane-header--response">
-      <span class="pane-label">Response</span>
+    <div class="ex-response-divider">
+      <span class="ex-response-label">Response</span>
     </div>
-    <pre class="pane-body pane-body--response"><code>{responseCode}</code></pre>
+    <pre class="ex-code ex-code--response"><code>{responseCode}</code></pre>
   </div>
 </div>
 
 <style>
-  .agent-example {
+  .agent-ex {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: 0.75rem;
     margin: 1.5rem 0;
   }
 
   @media (max-width: 768px) {
-    .agent-example {
-      grid-template-columns: 1fr;
-    }
+    .agent-ex { grid-template-columns: 1fr; }
   }
 
-  .pane {
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.5rem;
+  .ex-pane {
+    border-radius: var(--am-radius, 0.625rem);
+    border: 1px solid var(--am-border, rgba(255,255,255,0.08));
     overflow: hidden;
-    background: var(--sl-color-bg-nav);
+    background: var(--am-surface, rgba(255,255,255,0.02));
   }
 
-  .pane-header {
+  .ex-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.6rem;
     padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--sl-color-gray-5);
-    background: var(--sl-color-bg-nav);
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--am-border, rgba(255,255,255,0.06));
   }
 
-  .pane-header--response {
-    border-top: 1px solid var(--sl-color-gray-5);
+  .ex-dots {
+    display: flex;
+    gap: 0.35rem;
   }
 
-  .pane-label {
-    font-family: var(--sl-font-mono, ui-monospace, monospace);
-    font-size: 0.8rem;
+  .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+  }
+
+  .dot--red { background: #ff5f57; }
+  .dot--yellow { background: #febc2e; }
+  .dot--green { background: #28c840; }
+
+  .ex-filename {
+    flex: 1;
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.72rem;
     color: var(--sl-color-gray-3);
+    opacity: 0.7;
   }
 
-  .copy-btn {
+  .ex-copy {
     appearance: none;
-    border: 1px solid var(--sl-color-gray-5);
+    border: 1px solid transparent;
     border-radius: 0.25rem;
-    background: var(--sl-color-bg);
+    background: none;
     color: var(--sl-color-gray-3);
-    font-size: 0.7rem;
-    padding: 0.2rem 0.5rem;
+    padding: 0.2rem;
     cursor: pointer;
-    transition: color 0.2s ease, border-color 0.2s ease;
+    opacity: 0.5;
+    transition: opacity 0.2s, color 0.2s;
   }
 
-  .copy-btn:hover {
-    color: var(--sl-color-text);
-    border-color: var(--sl-color-accent);
+  .ex-copy:hover {
+    opacity: 1;
+    color: var(--sl-color-accent);
   }
 
-  .pane-body {
+  .ex-code {
     margin: 0;
-    padding: 0.75rem 1rem;
+    padding: 0.85rem 1rem;
     overflow-x: auto;
-    font-size: 0.8rem;
-    line-height: 1.6;
-    background: var(--sl-color-bg);
+    font-size: 0.78rem;
+    line-height: 1.65;
+    background: transparent;
     color: var(--sl-color-text);
   }
 
-  .pane-body code {
-    font-family: var(--sl-font-mono, ui-monospace, monospace);
+  .ex-code code {
+    font-family: var(--sl-font-mono, monospace);
     background: none;
     padding: 0;
     white-space: pre;
   }
 
-  .pane-body--response {
-    background: var(--sl-color-accent-low);
+  .ex-response-divider {
+    border-top: 1px solid var(--am-border, rgba(255,255,255,0.06));
+    padding: 0.3rem 0.75rem;
+    background: rgba(0,0,0,0.1);
+  }
+
+  .ex-response-label {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sl-color-accent);
+    opacity: 0.7;
+  }
+
+  .ex-code--response {
+    background: rgba(59, 130, 246, 0.04);
   }
 </style>
 
 <script>
   document.addEventListener("astro:page-load", () => {
-    document.querySelectorAll<HTMLButtonElement>(".copy-btn").forEach((btn) => {
+    document.querySelectorAll<HTMLButtonElement>(".ex-copy").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const targetId = btn.getAttribute("data-copy-target");
-        if (!targetId) return;
-        const target = document.getElementById(targetId);
-        if (!target) return;
-
+        const id = btn.getAttribute("data-copy-target");
+        if (!id) return;
+        const el = document.getElementById(id);
+        if (!el) return;
         try {
-          await navigator.clipboard.writeText(target.textContent || "");
-          const original = btn.textContent;
-          btn.textContent = "Copied!";
-          setTimeout(() => {
-            btn.textContent = original;
-          }, 2000);
-        } catch {
-          // Clipboard API not available; silently ignore
-        }
+          await navigator.clipboard.writeText(el.textContent || "");
+          btn.style.color = "var(--sl-color-accent)";
+          btn.style.opacity = "1";
+          setTimeout(() => { btn.style.color = ""; btn.style.opacity = ""; }, 2000);
+        } catch {}
       });
     });
   });

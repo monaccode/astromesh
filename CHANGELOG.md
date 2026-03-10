@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs site visual redesign** — replaced emoji icons with SVG Lucide icons across all landing page components for consistent cross-platform rendering
+- **PipelineDiagram** — redesigned with gradient icon circles, numbered steps, dashed SVG connectors, glow effects, and staggered animations; each step is now a clickable link to its relevant docs page
+- **FeatureCards** — per-card accent colors with tinted SVG icon backgrounds, refined expand/collapse chevron
+- **DeploymentTabs** — dark chrome tab bar with per-mode SVG icons, unified glass-morphism surface
+- **AgentExample** — macOS-style window chrome (traffic light dots), uppercase response label
+- **Custom CSS** — replaced Inter font with DM Sans + JetBrains Mono; added custom design tokens (`--am-glow`, `--am-surface`, `--am-border`) for cohesive aerospace aesthetic
+
+### Added
+
+- "Read full pipeline documentation" CTA button below pipeline diagram linking to `/architecture/agent-pipeline/`
+
+### Fixed
+
+- "Get Started" hero button now correctly links to `/astromesh/getting-started/what-is-astromesh/` (was missing `/astromesh` base path)
+- Docs CI workflow updated to Node 22 for Astro 5.x compatibility
+- Removed broken GitHub raw logo image from landing page
+- WhatsApp integration docs formatting fix
+
 ## [0.11.0] - 2026-03-09
 
 ### Added

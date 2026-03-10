@@ -1,147 +1,184 @@
 ---
 const features = [
   {
-    icon: "🤖",
     title: "6 LLM Providers",
     summary: "Connect to any model, local or cloud",
-    details:
-      "Ollama, OpenAI-compatible, vLLM, llama.cpp, HuggingFace TGI, ONNX Runtime. Automatic failover with circuit breaker (3 failures → 60s cooldown).",
+    details: "Ollama, OpenAI-compatible, vLLM, llama.cpp, HuggingFace TGI, ONNX Runtime. Automatic failover with circuit breaker (3 failures \u2192 60s cooldown).",
+    svg: `<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>`,
+    accent: "#3b82f6",
   },
   {
-    icon: "🔄",
     title: "6 Orchestration Patterns",
     summary: "From simple to multi-agent",
-    details:
-      "ReAct (think-act-observe), Plan & Execute, Parallel Fan-Out, Pipeline, Supervisor (delegate to workers), Swarm (agents hand off conversations).",
+    details: "ReAct (think-act-observe), Plan & Execute, Parallel Fan-Out, Pipeline, Supervisor (delegate to workers), Swarm (agents hand off conversations).",
+    svg: `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
+    accent: "#8b5cf6",
   },
   {
-    icon: "🧠",
     title: "3 Memory Types",
     summary: "Persistent context across conversations",
-    details:
-      "Conversational (Redis/PG/SQLite), Semantic (pgvector/ChromaDB/Qdrant/FAISS), Episodic (PostgreSQL). Strategies: sliding window, summary, token budget.",
+    details: "Conversational (Redis/PG/SQLite), Semantic (pgvector/ChromaDB/Qdrant/FAISS), Episodic (PostgreSQL). Strategies: sliding window, summary, token budget.",
+    svg: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>`,
+    accent: "#06b6d4",
   },
   {
-    icon: "📚",
     title: "RAG Pipeline",
     summary: "Document ingestion to retrieval",
-    details:
-      "4 chunking strategies (fixed, recursive, sentence, semantic), 3 embedding providers, 4 vector stores, 2 rerankers (cross-encoder, Cohere).",
+    details: "4 chunking strategies (fixed, recursive, sentence, semantic), 3 embedding providers, 4 vector stores, 2 rerankers (cross-encoder, Cohere).",
+    svg: `<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>`,
+    accent: "#10b981",
   },
   {
-    icon: "🌐",
     title: "Mesh Discovery (Maia)",
     summary: "Nodes find each other automatically",
-    details:
-      "Gossip-based discovery, failure detection (alive→suspect→dead), leader election, least-connections routing. No manual peer configuration.",
+    details: "Gossip-based discovery, failure detection (alive\u2192suspect\u2192dead), leader election, least-connections routing. No manual peer configuration.",
+    svg: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
+    accent: "#f59e0b",
   },
   {
-    icon: "⚡",
     title: "Rust Extensions",
     summary: "5-50x speedup on CPU-bound paths",
-    details:
-      "Optional native Rust extensions via PyO3 for chunking, PII detection, tokenization, rate limiting. Pure Python fallback when not compiled.",
+    details: "Optional native Rust extensions via PyO3 for chunking, PII detection, tokenization, rate limiting. Pure Python fallback when not compiled.",
+    svg: `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
+    accent: "#ef4444",
   },
 ];
 ---
 
-<div class="feature-grid">
-  {features.map((feature) => (
-    <details class="feature-card">
+<div class="features">
+  {features.map((f, i) => (
+    <details class="fcard" style={`--accent: ${f.accent}; --i: ${i}`}>
       <summary>
-        <span class="card-icon">{feature.icon}</span>
-        <div class="card-text">
-          <span class="card-title">{feature.title}</span>
-          <span class="card-summary">{feature.summary}</span>
+        <div class="fcard-icon" >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <Fragment set:html={f.svg} />
+          </svg>
         </div>
-        <span class="chevron" aria-hidden="true">▸</span>
+        <div class="fcard-text">
+          <span class="fcard-title">{f.title}</span>
+          <span class="fcard-summary">{f.summary}</span>
+        </div>
+        <svg class="fcard-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <polyline points="6 4 10 8 6 12"/>
+        </svg>
       </summary>
-      <div class="card-details">
-        <p>{feature.details}</p>
+      <div class="fcard-body">
+        <p>{f.details}</p>
       </div>
     </details>
   ))}
 </div>
 
 <style>
-  .feature-grid {
+  .features {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 0.75rem;
     padding: 1rem 0;
   }
 
-  .feature-card {
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.75rem;
-    background: var(--sl-color-bg-nav);
-    transition: border-color 0.2s ease;
+  .fcard {
+    border-radius: var(--am-radius, 0.625rem);
+    background: var(--am-surface, rgba(255,255,255,0.03));
+    border: 1px solid var(--am-border, rgba(255,255,255,0.08));
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+
+    opacity: 0;
+    animation: card-in 0.5s ease forwards;
+    animation-delay: calc(var(--i) * 0.07s);
   }
 
-  .feature-card:hover {
-    border-color: var(--sl-color-accent);
+  .fcard:hover {
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 15%, transparent);
   }
 
-  .feature-card summary {
+  .fcard summary {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem;
+    padding: 0.9rem 1rem;
     cursor: pointer;
     list-style: none;
   }
 
-  .feature-card summary::-webkit-details-marker {
-    display: none;
-  }
+  .fcard summary::-webkit-details-marker { display: none; }
 
-  .card-icon {
-    font-size: 1.75rem;
-    line-height: 1;
+  .fcard-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
     flex-shrink: 0;
   }
 
-  .card-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
+  .fcard-text {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
   }
 
-  .card-title {
-    font-size: 0.95rem;
-    font-weight: 700;
+  .fcard-title {
+    font-size: 0.9rem;
+    font-weight: 600;
     color: var(--sl-color-text);
+    letter-spacing: 0.005em;
   }
 
-  .card-summary {
-    font-size: 0.8rem;
+  .fcard-summary {
+    font-size: 0.78rem;
     color: var(--sl-color-gray-2);
+    opacity: 0.75;
   }
 
-  .chevron {
-    font-size: 1rem;
+  .fcard-chevron {
     color: var(--sl-color-gray-3);
-    transition: transform 0.2s ease;
     flex-shrink: 0;
+    transition: transform 0.25s ease, color 0.25s ease;
+    opacity: 0.6;
   }
 
-  .feature-card[open] .chevron {
+  .fcard[open] .fcard-chevron {
     transform: rotate(90deg);
+    color: var(--accent);
+    opacity: 1;
   }
 
-  .card-details {
+  .fcard-body {
     padding: 0 1rem 1rem;
-    border-top: 1px solid var(--sl-color-gray-5);
-    margin: 0 0.75rem;
-    padding-top: 0.75rem;
+    border-top: 1px solid var(--am-border, rgba(255,255,255,0.06));
+    margin: 0 0.5rem;
+    padding-top: 0.65rem;
   }
 
-  .card-details p {
+  .fcard-body p {
     margin: 0;
-    font-size: 0.85rem;
-    line-height: 1.6;
-    color: var(--sl-color-gray-2);
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: var(--sl-color-text);
+    opacity: 0.75;
+  }
+
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .features {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
