@@ -74,6 +74,85 @@ Spans are nested: an `agent.run` span contains one or more `provider.call` spans
 
 When OpenTelemetry is not installed, `TelemetryManager` returns `_NoOpSpan` instances. These implement `__enter__`, `__exit__`, `set_attribute`, and `add_event` as no-ops. No code changes are needed — the tracing context managers work identically whether OTel is present or not.
 
+### Lightweight Tracing (TracingContext)
+
+In addition to full OpenTelemetry export, Astromesh includes a lightweight built-in tracing system that works without any external dependencies. Every agent run automatically collects spans into a `TracingContext`:
+
+```python
+from astromesh.observability.tracing import TracingContext
+
+ctx = TracingContext(agent_name="my-agent", session_id="sess_123")
+span = ctx.start_span("agent.run", {"agent": "my-agent"})
+
+# Nested spans
+child = ctx.start_span("llm.complete", parent_span_id=span.span_id)
+child.set_attribute("input_tokens", 150)
+ctx.finish_span(child)
+
+ctx.finish_span(span)
+trace_data = ctx.to_dict()
+```
+
+**Automatic spans in Agent.run():**
+
+Every call to `Agent.run()` produces these spans automatically:
+
+| Span Name | Parent | Attributes | Description |
+|-----------|--------|-----------|-------------|
+| `agent.run` | (root) | `agent`, `session` | Full execution lifecycle |
+| `memory_build` | `agent.run` | — | Build memory context |
+| `prompt_render` | `agent.run` | — | Render Jinja2 prompt |
+| `llm.complete` | `agent.run` | `input_tokens`, `output_tokens` | Each LLM call |
+| `tool.call` | `agent.run` | `tool` | Each tool execution |
+| `orchestration` | `agent.run` | `pattern` | Orchestration pattern execution |
+| `memory_persist` | `agent.run` | — | Persist conversation turns |
+
+The trace is attached to the agent response:
+
+```json
+{
+  "answer": "...",
+  "trace": {
+    "trace_id": "abc123",
+    "agent": "my-agent",
+    "spans": [
+      {
+        "name": "agent.run",
+        "span_id": "s1",
+        "start_time": "2026-03-10T...",
+        "end_time": "2026-03-10T...",
+        "duration_ms": 2340,
+        "attributes": {"agent": "my-agent"},
+        "status": "OK"
+      }
+    ]
+  }
+}
+```
+
+**Trace Collectors:**
+
+Traces are stored via pluggable collectors:
+
+| Collector | Use Case | Storage |
+|-----------|----------|---------|
+| `StdoutCollector` | Development/debugging | Writes JSON to stdout |
+| `InternalCollector` | Small deployments | In-memory deque (default 10K traces) |
+| `OTLPCollector` | Production | In-memory + bridges to OpenTelemetry via TelemetryManager |
+
+```python
+from astromesh.observability.collector import InternalCollector, OTLPCollector
+from astromesh.observability.telemetry import TelemetryManager
+
+# Development: in-memory only
+collector = InternalCollector(max_traces=10000)
+
+# Production: in-memory + OTel export
+telemetry = TelemetryManager()
+telemetry.setup()
+collector = OTLPCollector(telemetry_manager=telemetry)
+```
+
 ### Viewing Traces
 
 Send traces to any OpenTelemetry-compatible backend:
@@ -83,6 +162,34 @@ Send traces to any OpenTelemetry-compatible backend:
 - **Grafana Tempo** — included in the `dev-full` Docker recipe
 
 Open the backend UI and search by service name `astromesh` to see agent execution traces with timing breakdowns.
+
+### Traces API
+
+Query collected traces via REST:
+
+**List traces:**
+```
+GET /v1/traces/?agent=my-agent&limit=20
+```
+
+```json
+{
+  "traces": [
+    {
+      "trace_id": "abc123",
+      "agent": "my-agent",
+      "spans": [...]
+    }
+  ]
+}
+```
+
+**Get specific trace:**
+```
+GET /v1/traces/{trace_id}
+```
+
+Returns 404 if not found.
 
 ## Metrics (Prometheus)
 
@@ -228,6 +335,40 @@ tracker.get_usage_summary(agent_name="support-agent")
 ```
 
 When Rust native extensions are compiled, cost aggregation uses `RustCostIndex` for faster queries over large record sets. See the [Rust Native Extensions](/astromesh/advanced/rust-extensions/) guide.
+
+## Metrics API
+
+In addition to Prometheus metrics, Astromesh provides a simple REST API for in-memory counters and histograms:
+
+**Get current metrics:**
+```
+GET /v1/metrics/
+```
+
+```json
+{
+  "counters": {
+    "agent.runs": 150,
+    "tool.executions": 420
+  },
+  "histograms": {
+    "agent.latency_ms": {
+      "count": 150,
+      "sum": 345000,
+      "avg": 2300,
+      "min": 450,
+      "max": 8900
+    }
+  }
+}
+```
+
+**Reset all metrics:**
+```
+POST /v1/metrics/reset
+```
+
+These metrics are stored in memory and reset on daemon restart. For persistent metrics, use the Prometheus integration described above.
 
 ## Docker Setup
 

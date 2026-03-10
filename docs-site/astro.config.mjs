@@ -71,6 +71,7 @@ export default defineConfig({
             { label: 'Runtime Engine', slug: 'reference/core/runtime-engine' },
             { label: 'Model Router', slug: 'reference/core/model-router' },
             { label: 'Tool Registry', slug: 'reference/core/tool-registry' },
+            { label: 'Built-in Tools', slug: 'reference/core/builtin-tools' },
             { label: 'Memory Manager', slug: 'reference/core/memory-manager' },
             { label: 'Daemon (astromeshd)', slug: 'reference/os/daemon' },
             { label: 'CLI (astromeshctl)', slug: 'reference/os/cli' },

@@ -7,11 +7,12 @@ The Tool Registry manages tool discovery, registration, schema generation, and e
 
 ## Tool Types
 
-Astromesh supports four tool types, each with a different execution model:
+Astromesh supports five tool types, each with a different execution model:
 
 | Type | Source | Execution | Use Case |
 |------|--------|-----------|----------|
-| **internal** | Python functions in the codebase | Direct async function call | Built-in capabilities (search, calculation, file I/O) |
+| **builtin** | Astromesh's 17 built-in Python tools | ToolLoader auto-discovery + async execute | Common tasks (HTTP, files, search, DB, email) |
+| **internal** | Custom Python functions in the codebase | Direct async function call | Custom capabilities specific to your application |
 | **MCP** | External MCP servers (stdio/SSE/HTTP) | Client connects to MCP server, proxies tool calls | Third-party integrations, IDE tools, database access |
 | **webhook** | External HTTP endpoints | HTTP POST to configured URL | Legacy APIs, microservices, serverless functions |
 | **RAG** | RAG pipeline exposed as a tool | Runs ingest/query pipeline internally | Knowledge retrieval, document Q&A |
@@ -19,6 +20,33 @@ Astromesh supports four tool types, each with a different execution model:
 ## Registration
 
 Tools are registered in the agent YAML under `spec.tools`:
+
+### Built-in Tools
+
+Astromesh ships with 17 ready-to-use tools. Use `type: builtin` and the tool resolves automatically via `ToolLoader`:
+
+```yaml
+spec:
+  tools:
+    - name: web_search
+      type: builtin
+      config:
+        provider: tavily
+        api_key: ${TAVILY_API_KEY}
+    - name: http_request
+      type: builtin
+      config:
+        timeout_seconds: 30
+    - name: sql_query
+      type: builtin
+      config:
+        connection_string: "sqlite:///data/app.db"
+        read_only: true
+```
+
+At bootstrap, `_build_agent()` creates each builtin tool via `ToolLoader.create()` and registers it as an internal tool. No handler function or parameter schema is needed — these come from the tool class itself.
+
+See the full catalog in the [Built-in Tools](/astromesh/reference/core/builtin-tools/) reference.
 
 ### Internal Tools
 

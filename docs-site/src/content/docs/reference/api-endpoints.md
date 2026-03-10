@@ -353,6 +353,127 @@ Query a RAG collection.
 }
 ```
 
+### `GET /v1/tools/builtin`
+
+List all available built-in tools with metadata.
+
+**Response:**
+```json
+{
+  "tools": [
+    {
+      "name": "datetime_now",
+      "description": "Get the current date and time with optional timezone",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "description": "Timezone name (e.g. 'UTC', 'US/Eastern')"
+          }
+        }
+      }
+    }
+  ],
+  "count": 17
+}
+```
+
+---
+
+## Observability API
+
+### `GET /v1/traces/`
+
+List collected traces with optional filtering.
+
+**Query parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `agent` | `string` | — | Filter by agent name |
+| `limit` | `integer` | `20` | Max traces to return (1-100) |
+
+**Response:**
+```json
+{
+  "traces": [
+    {
+      "trace_id": "abc123",
+      "agent": "assistant",
+      "session_id": "sess_xyz",
+      "spans": [
+        {
+          "name": "agent.run",
+          "span_id": "s1",
+          "duration_ms": 2340,
+          "attributes": {"agent": "assistant"},
+          "status": "OK"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+### `GET /v1/traces/{trace_id}`
+
+Get a specific trace by ID.
+
+**Path parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `trace_id` | `string` | Trace identifier |
+
+**Errors:**
+
+| Status | Description |
+|--------|-------------|
+| `404` | Trace not found |
+
+---
+
+### `GET /v1/metrics/`
+
+Get in-memory counters and histograms.
+
+**Response:**
+```json
+{
+  "counters": {
+    "agent.runs": 150,
+    "tool.executions": 420
+  },
+  "histograms": {
+    "agent.latency_ms": {
+      "count": 150,
+      "sum": 345000,
+      "avg": 2300,
+      "min": 450,
+      "max": 8900
+    }
+  }
+}
+```
+
+---
+
+### `POST /v1/metrics/reset`
+
+Clear all in-memory metrics.
+
+**Response:**
+```json
+{
+  "status": "reset"
+}
+```
+
+---
+
 ## System API (Astromesh OS)
 
 ### `GET /v1/system/status`
