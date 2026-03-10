@@ -30,6 +30,14 @@ jobs:
           cache: npm
           cache-dependency-path: docs-site/package-lock.json
 
+      - name: Setup npm
+        run: npm install -g npm@11.6.0
+
+      - name: Show Node and npm versions
+        run: |
+          node -v
+          npm -v
+
       - name: Install dependencies
         working-directory: docs-site
         run: npm ci
