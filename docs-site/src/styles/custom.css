@@ -3,24 +3,41 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Override Starlight accent palette */
-  --sl-color-accent-low: #0c1631;
-  --sl-color-accent: #3b82f6;
-  --sl-color-accent-high: #93c5fd;
+  /* Override Starlight accent palette — derived from logo cyan */
+  --sl-color-accent-low: #071825;
+  --sl-color-accent: #00d4ff;
+  --sl-color-accent-high: #67e8f9;
 
   /* Custom tokens */
-  --am-glow: rgba(59, 130, 246, 0.35);
-  --am-glow-strong: rgba(59, 130, 246, 0.6);
+  --am-glow: rgba(0, 212, 255, 0.35);
+  --am-glow-strong: rgba(0, 212, 255, 0.6);
   --am-surface: rgba(255, 255, 255, 0.03);
   --am-border: rgba(255, 255, 255, 0.08);
-  --am-border-hover: rgba(59, 130, 246, 0.4);
-  --am-gradient-start: #3b82f6;
-  --am-gradient-end: #818cf8;
+  --am-border-hover: rgba(0, 212, 255, 0.4);
+  --am-gradient-start: #00d4ff;
+  --am-gradient-end: #06b6d4;
   --am-radius: 0.625rem;
 
   /* Fonts */
   --sl-font: 'DM Sans', system-ui, sans-serif;
   --sl-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ── Force dark mode permanently ──────────────── */
+:root {
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  /* Redirect light tokens to dark values */
+  --sl-color-accent-low: #071825;
+  --sl-color-accent: #00d4ff;
+  --sl-color-accent-high: #67e8f9;
+  --sl-color-bg: var(--sl-color-gray-6);
+  --sl-color-bg-nav: var(--sl-color-gray-6);
+  --sl-color-bg-sidebar: var(--sl-color-gray-6);
+  --sl-color-text: var(--sl-color-gray-1);
+  --sl-color-text-accent: var(--sl-color-accent-high);
 }
 
 /* Splash page hero refinements */
@@ -31,7 +48,7 @@
 .hero img {
   max-width: min(420px, 90vw);
   height: auto;
-  filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.25));
+  filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.25));
   animation: hero-logo-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 

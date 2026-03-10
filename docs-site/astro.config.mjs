@@ -11,6 +11,9 @@ export default defineConfig({
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromesh' },
       ],
+      components: {
+        ThemeSelect: './src/components/ThemeSelect.astro',
+      },
       sidebar: [
         {
           label: 'Getting Started',

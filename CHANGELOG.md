@@ -19,9 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DeploymentTabs** — dark chrome tab bar with per-mode SVG icons, unified glass-morphism surface
 - **AgentExample** — macOS-style window chrome (traffic light dots), uppercase response label
 - **Custom CSS** — replaced Inter font with DM Sans + JetBrains Mono; added custom design tokens (`--am-glow`, `--am-surface`, `--am-border`) for cohesive aerospace aesthetic
+- **Color palette rebrand** — accent palette shifted from blue (`#3b82f6`) to logo-derived cyan (`#00d4ff`); updated all CSS variables, component fallback values, and gradient endpoints (`#06b6d4`) across `custom.css`, `PipelineDiagram`, `FeatureCards`, `DeploymentTabs`, and `AgentExample`
 
 ### Added
 
+- **Dark mode lock** — theme toggle removed via Starlight `ThemeSelect` component override; dark mode is now permanent with CSS fallback for any light-theme tokens
 - **Astromesh logo** in docs-site landing page hero with blue glow drop-shadow and entrance animation
 - "Read full pipeline documentation" CTA button below pipeline diagram linking to `/architecture/agent-pipeline/`
 - **README badges** — CI, Release, Docs (workflow status), Version, License, Python version
