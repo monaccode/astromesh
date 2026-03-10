@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Repo rename** — all references to `astromech-platform` replaced with `astromesh` across docs, configs, CI, Helm chart, Dockerfile, packaging, and docs-site (29 files, 78 occurrences)
 - **Docs site visual redesign** — replaced emoji icons with SVG Lucide icons across all landing page components for consistent cross-platform rendering
-- **PipelineDiagram** — redesigned with gradient icon circles, numbered steps, dashed SVG connectors, glow effects, and staggered animations; each step is now a clickable link to its relevant docs page
+- **PipelineDiagram** — redesigned with gradient icon circles, numbered steps, dashed SVG connectors, glow effects, and staggered animations; each step is now a clickable link to its relevant docs page; responsive flex layout (no horizontal scroll)
 - **FeatureCards** — per-card accent colors with tinted SVG icon backgrounds, refined expand/collapse chevron
 - **DeploymentTabs** — dark chrome tab bar with per-mode SVG icons, unified glass-morphism surface
 - **AgentExample** — macOS-style window chrome (traffic light dots), uppercase response label
@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs CI workflow updated to Node 22 for Astro 5.x compatibility
 - Removed broken GitHub raw logo image from landing page
 - WhatsApp integration docs formatting fix
+- Deployment options table in "What is Astromesh?" now uses "View guide →" link text instead of repeating the deployment name
 
 ## [0.11.0] - 2026-03-09
 
