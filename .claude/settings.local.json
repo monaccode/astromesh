@@ -15,7 +15,26 @@
       "Bash(echo exit: $?:*)",
       "Bash(uv sync:*)",
       "Bash(git check-ignore:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Read(//c/Users/jfulf/AppData/Local/Temp/claude/D--monaccode-astromech-platform/tasks/**)",
+      "Bash(find /d/monaccode/astromech-platform/docs-site -name \"astro.config.*\" -o -name \"starlight.config.*\" 2>/dev/null | head -20)",
+      "Bash(cd docs-site:*)",
+      "Bash(cd D:/monaccode/astromech-platform/docs-site && npx astro build 2>&1 | tail -20)",
+      "Bash(cd D:/monaccode/astromech-platform/docs-site && npx astro build 2>&1 | tail -10)",
+      "Bash(cd D:/monaccode/astromech-platform/docs-site && npx astro build 2>&1 | tail -5)",
+      "Bash(find /d/monaccode/astromech-platform -type f -name \"*workflow*\" 2>/dev/null | grep -v \".venv\\\\|node_modules\\\\|.git\" | head -20)",
+      "Bash(find /d/monaccode/astromech-platform/docs-site/src -type f \\\\\\( -name \"*.astro\" -o -name \"*.md\" -o -name \"*.mdx\" \\\\\\) 2>/dev/null | sort)",
+      "Bash(find /d/monaccode/astromech-platform -maxdepth 3 -type f \\\\\\( -name \"package.json\" -o -name \"tsconfig.json\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.venv/*\" 2>/dev/null | head -20)",
+      "Bash(find /d/monaccode/astromech-platform -type f -name \"*.vsix\" -o -name \"vscode*\" -o -name \"extension-*\" 2>/dev/null | grep -v node_modules)",
+      "Bash(CLAUDE_PLUGIN_ROOT=\"C:/Users/jfulf/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.0\" && bash \"$CLAUDE_PLUGIN_ROOT/lib/brainstorm-server/start-server.sh\" --project-dir \"D:/monaccode/astromech-platform\")",
+      "Bash(cd /d/monaccode/astromech-platform/vscode-extension && npm install 2>&1)",
+      "Bash(cd /d/monaccode/astromech-platform/vscode-extension && ./node_modules/.bin/tsc --noEmit 2>&1)",
+      "Bash(cd /d/monaccode/astromech-platform/vscode-extension && ./node_modules/.bin/tsc --outDir dist --rootDir . 2>&1)",
+      "Bash(cd /d/monaccode/astromech-platform/vscode-extension && ./node_modules/.bin/mocha dist/test/suite/cli.test.js 2>&1)",
+      "Bash(cd /d/monaccode/astromech-platform/vscode-extension && ./node_modules/.bin/mocha --ui tdd dist/test/suite/cli.test.js 2>&1)",
+      "Bash(cd \"D:/monaccode/astromech-platform/vscode-extension\" && npx tsc --outDir dist --rootDir . --module commonjs --target ES2022 --esModuleInterop true --skipLibCheck true test/suite/traces.test.ts 2>&1 && npx mocha --ui tdd dist/test/suite/traces.test.js 2>&1)",
+      "Bash(cd \"D:/monaccode/astromech-platform/vscode-extension\" && node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('schemas/agent.schema.json','utf8'\\)\\); console.log\\('agent: Valid'\\)\" && node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('schemas/workflow.schema.json','utf8'\\)\\); console.log\\('workflow: Valid'\\)\")",
+      "Bash(cd \"D:/monaccode/astromech-platform/vscode-extension\" && npx mocha --ui tdd dist/test/suite/cli.test.js dist/test/suite/traces.test.js 2>&1)"
     ]
   }
 }
