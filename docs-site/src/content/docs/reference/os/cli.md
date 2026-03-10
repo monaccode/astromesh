@@ -194,3 +194,261 @@ Run 'astromeshd' to start.
 | `--dev` | Generate development-friendly defaults (in-memory backends, debug logging, Ollama provider) |
 | `--non-interactive` | Use all defaults without prompting. Suitable for CI/scripts |
 | `--output PATH` | Directory to write config files. Default: `./config/` |
+
+---
+
+## Scaffolding Commands
+
+### `astromeshctl new agent <name>`
+
+Generate a new agent YAML configuration file.
+
+```
+$ astromeshctl new agent my-bot --provider openai --model gpt-4o --orchestration plan_and_execute
+╭─ astromesh new agent ─────────────────────────╮
+│ Created agent: ./config/agents/my-bot.agent.yaml │
+│                                                │
+│   Provider: openai                             │
+│   Model: gpt-4o                                │
+│   Pattern: plan_and_execute                    │
+╰────────────────────────────────────────────────╯
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--provider` | `ollama` | LLM provider |
+| `--model` | `llama3.1:8b` | Model name |
+| `--orchestration` | `react` | Orchestration pattern |
+| `--tools` | -- | Tools to include (repeatable) |
+| `--output-dir` | `./config/agents` | Output directory |
+| `--force` | `false` | Overwrite existing file |
+
+### `astromeshctl new workflow <name>`
+
+Generate a new workflow YAML configuration file.
+
+```
+$ astromeshctl new workflow data-pipeline
+╭─ astromesh new workflow ──────────────────────────────╮
+│ Created workflow: ./config/workflows/data-pipeline.workflow.yaml │
+╰───────────────────────────────────────────────────────╯
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--output-dir` | `./config/workflows` | Output directory |
+| `--force` | `false` | Overwrite existing file |
+
+### `astromeshctl new tool <name>`
+
+Scaffold a new custom tool as a Python file. The name should be in `snake_case`.
+
+```
+$ astromeshctl new tool web_scraper --description "Scrape web pages"
+╭─ astromesh new tool ─────────────────────────╮
+│ Created tool: ./web_scraper.py               │
+│                                              │
+│   Class: WebScraperTool                      │
+│   Description: Scrape web pages              │
+╰──────────────────────────────────────────────╯
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--description` | `A custom tool` | Tool description |
+| `--output-dir` | `.` | Output directory |
+| `--force` | `false` | Overwrite existing file |
+
+---
+
+## Execution Commands
+
+### `astromeshctl run <agent> "query"`
+
+Execute an agent with a query via the local API server.
+
+```
+$ astromeshctl run support-agent "What are your business hours?"
+╭─ support-agent ──────────────────────────────────────────╮
+│ Our business hours are Monday through Friday, 9 AM to    │
+│ 5 PM EST. We're closed on weekends and major holidays.   │
+╰── trace: abc-123 | tokens: 342 ─────────────────────────╯
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--session` | auto-generated UUID | Session ID for multi-turn conversations |
+| `--json` | `false` | Output raw JSON response |
+| `--timeout` | `60.0` | Request timeout in seconds |
+| `--workflow` | `false` | Run as workflow instead of agent (Sub-project 4) |
+| `--input` | -- | Workflow input data as JSON string |
+
+### `astromeshctl dev`
+
+Start the Astromesh development server with hot-reload. Watches `astromesh/` and `config/` directories for changes and automatically restarts.
+
+```
+$ astromeshctl dev
+╭─ astromesh dev ──────────────────────────────╮
+│ Astromesh Dev Server                         │
+│                                              │
+│   Host:   0.0.0.0                            │
+│   Port:   8000                               │
+│   Config: ./config                           │
+│   Reload: enabled                            │
+╰──────────────────────────────────────────────╯
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--host` | `0.0.0.0` | Bind host |
+| `--port` | `8000` | Bind port |
+| `--config` | `./config` | Config directory |
+| `--no-open` | `false` | Skip opening browser |
+
+---
+
+## Observability Commands
+
+### `astromeshctl traces list <agent>`
+
+List recent execution traces for an agent.
+
+```
+$ astromeshctl traces list support-agent --last 5
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--last` | `10` | Number of recent traces to show |
+| `--json` | `false` | Output raw JSON |
+
+### `astromeshctl trace <trace_id>`
+
+Show detailed trace information with a span tree visualization.
+
+```
+$ astromeshctl trace abc-123-def-456
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--json` | `false` | Output raw JSON |
+
+### `astromeshctl metrics`
+
+Show aggregated runtime metrics for all agents or a specific agent.
+
+```
+$ astromeshctl metrics --agent support-agent
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--agent` | -- | Filter by agent name |
+| `--json` | `false` | Output raw JSON |
+
+### `astromeshctl cost`
+
+Show a cost summary across all agents and providers.
+
+```
+$ astromeshctl cost
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--json` | `false` | Output raw JSON |
+
+---
+
+## Tool Commands
+
+### `astromeshctl tools list`
+
+List all available built-in tools registered in the runtime.
+
+```
+$ astromeshctl tools list
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--json` | `false` | Output raw JSON |
+
+### `astromeshctl tools test <name> '<args>'`
+
+Test a tool in isolation by calling it with JSON arguments.
+
+```
+$ astromeshctl tools test get_current_time '{}'
+Tool:   get_current_time
+Status: ok
+Result:
+{
+  "datetime": "2026-03-10T14:23:45Z"
+}
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--json` | `false` | Output raw JSON |
+
+The second argument is a JSON string with the tool's input arguments. Use `'{}'` for tools that take no arguments.
+
+---
+
+## Validation
+
+### `astromeshctl validate`
+
+Validate all YAML configuration files under the project config directory. Checks for valid YAML syntax, required fields (`apiVersion`, `kind`, `metadata.name`), and correct `kind` values based on file naming conventions.
+
+```
+$ astromeshctl validate
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┓
+┃ File                              ┃ Status ┃ Message ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━┩
+│ config/agents/support.agent.yaml  │ valid  │ OK      │
+│ config/agents/hello.agent.yaml    │ valid  │ OK      │
+│ config/runtime.yaml               │ valid  │ OK      │
+└───────────────────────────────────┴────────┴─────────┘
+
+All files valid: 3 file(s) checked
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `./config` | Path to config directory |
+
+---
+
+## Copilot
+
+### `astromeshctl ask "question"`
+
+Ask the Astromesh Copilot a question. The copilot is a built-in agent (`astromesh-copilot`) that can validate configs, explain traces, suggest tools, and help debug provider issues.
+
+```
+$ astromeshctl ask "What orchestration pattern should I use for a research agent?"
+╭─ Astromesh Copilot ──────────────────────────────────────╮
+│ For a research agent, I'd recommend the                  │
+│ `plan_and_execute` pattern. It first generates a plan    │
+│ of steps, then executes each step sequentially...        │
+╰── trace: cop-789 ───────────────────────────────────────╯
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--context` | -- | Path to a context file (must be under `config/` or `docs/`, max 100KB) |
+| `--dry-run` | `false` | Run in dry-run mode (no side effects) |
+| `--session` | auto-generated UUID | Session ID for multi-turn conversation |
+| `--json` | `false` | Output raw JSON |
+
+**Example with context file:**
+
+```bash
+astromeshctl ask "Is this agent config correct?" --context config/agents/hello.agent.yaml
+```
+
+The copilot will read the file and include its contents as context when answering your question.

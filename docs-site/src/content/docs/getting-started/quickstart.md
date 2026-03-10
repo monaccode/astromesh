@@ -91,29 +91,34 @@ Run 'astromeshd --config ./config' to start the daemon.
 
 The `--dev` flag tells the init wizard to use the local `./config/` directory instead of `/etc/astromesh/`. It detects available providers, validates agent YAML files, and generates any missing configuration.
 
-## Step 4: Start the Daemon
+## Step 4: Start the Dev Server
 
-Start the Astromesh daemon with debug logging:
+Start the Astromesh development server with hot-reload:
 
 ```bash
-uv run astromeshd --config ./config --log-level debug
+uv run astromeshctl dev
 ```
 
 Expected output:
 
 ```
-INFO:     Astromesh daemon starting
-INFO:     Loading configuration from ./config
-INFO:     Registered provider: ollama (http://localhost:11434)
-INFO:     Loaded agent: support-agent (plan_and_execute, ollama/llama3.1:8b)
-INFO:     Loaded agent: sales-qualifier (react, ollama/llama3.1:8b)
-INFO:     Loaded agent: whatsapp-assistant (react, ollama/llama3.1:8b)
-INFO:     3 agents loaded, 0 errors
+╭─ astromesh dev ──────────────────────────────╮
+│ Astromesh Dev Server                         │
+│                                              │
+│   Host:   0.0.0.0                            │
+│   Port:   8000                               │
+│   Config: ./config                           │
+│   Reload: enabled                            │
+╰──────────────────────────────────────────────╯
 INFO:     Started server on http://0.0.0.0:8000
 INFO:     Application startup complete
 ```
 
-Leave this terminal running — the daemon serves the API.
+The dev server watches `astromesh/` and `config/` for changes and automatically restarts. Leave this terminal running.
+
+:::tip
+You can also start the daemon directly with `uv run astromeshd --config ./config --log-level debug` for production-style startup without hot-reload.
+:::
 
 ## Step 5: Verify
 
@@ -138,7 +143,24 @@ You should see `"status": "healthy"` and `"agents_loaded": 3` confirming all thr
 
 ## Step 6: Run an Agent
 
-Send a query to the support agent:
+You can run agents using either the CLI or the REST API.
+
+### Using the CLI
+
+```bash
+uv run astromeshctl run support-agent "What are your business hours?"
+```
+
+Expected output:
+
+```
+╭─ support-agent ──────────────────────────────────────────╮
+│ Our business hours are Monday through Friday, 9:00 AM to │
+│ 5:00 PM EST. We're closed on weekends and major holidays.│
+╰── trace: abc-123 | tokens: 342 ─────────────────────────╯
+```
+
+### Using the REST API
 
 ```bash
 curl -X POST http://localhost:8000/v1/agents/support-agent/run \
@@ -185,6 +207,37 @@ When you sent that request, the following pipeline executed inside Astromesh:
 
 All of this was driven by the agent's YAML configuration — no application code was written.
 
+## Scaffold a New Agent with the CLI
+
+Instead of writing YAML from scratch, use the CLI scaffolding commands to generate agents, workflows, and tools:
+
+```bash
+uv run astromeshctl new agent my-bot --provider ollama --model llama3.1:8b --orchestration react
+```
+
+This creates `config/agents/my-bot.agent.yaml` with a ready-to-use template. The dev server will auto-detect it if it is running.
+
+You can also scaffold workflows and custom tools:
+
+```bash
+uv run astromeshctl new workflow data-pipeline
+uv run astromeshctl new tool web_scraper --description "Scrape web pages"
+```
+
+## Ask the Copilot
+
+The built-in copilot can answer questions about Astromesh, validate your configs, and suggest improvements:
+
+```bash
+uv run astromeshctl ask "What orchestration pattern should I use for a research agent?"
+```
+
+Pass a config file as context for targeted advice:
+
+```bash
+uv run astromeshctl ask "Is this config correct?" --context config/agents/my-bot.agent.yaml
+```
+
 ## Next Steps
 
-Now that you have Astromesh running, create your own custom agent from scratch in the [Your First Agent](/astromesh/getting-started/first-agent/) guide.
+Now that you have Astromesh running, create your own custom agent from scratch in the [Your First Agent](/astromesh/getting-started/first-agent/) guide, or explore the full [CLI Commands](/astromesh/reference/cli-commands/) reference.

@@ -324,6 +324,7 @@ The Tool Registry:
    - **MCP**: Sends a JSON-RPC request to the MCP server
    - **Webhook**: Makes an HTTP request to the configured endpoint
    - **RAG**: Runs a query through the RAG pipeline
+   - **Agent**: Invokes the target agent's full pipeline via `AgentRuntime.run()` (see [Nested Agent Execution](#nested-agent-execution) below)
 4. **Returns the result** -- The tool's output is formatted as a tool result message and added to the conversation, so the LLM can see it in the next iteration.
 
 ```python
@@ -352,6 +353,37 @@ async def execute(self, tool_name: str, arguments: dict, agent_name: str):
 ```
 
 After tool execution, the result is appended to the message history and the orchestration pattern loops back to Step 8 for the next iteration.
+
+### Nested Agent Execution
+
+When a tool has `type: agent`, tool execution triggers a complete nested pipeline. The ToolRegistry calls `AgentRuntime.run()` for the target agent, which goes through steps 2--12 of this pipeline independently. The target agent has its own memory, guardrails, orchestration pattern, and tools.
+
+**Trace continuity:** The parent agent's `trace_id` is passed to the child agent via the `parent_trace_id` parameter. The child agent sets its tracing context to the same trace ID, so all spans from both agents appear in a single trace tree. This gives end-to-end visibility into multi-agent workflows:
+
+```
+Trace: abc-123
+├── agent.run (parent-agent)
+│   ├── memory_build
+│   ├── prompt_render
+│   ├── orchestration
+│   │   ├── llm.complete
+│   │   ├── tool.call (child-tool)          ← agent tool
+│   │   │   └── agent.run (child-agent)     ← nested pipeline (steps 2-12)
+│   │   │       ├── memory_build
+│   │   │       ├── prompt_render
+│   │   │       ├── orchestration
+│   │   │       │   ├── llm.complete
+│   │   │       │   └── tool.call (regular-tool)
+│   │   │       └── memory_persist
+│   │   └── llm.complete                    ← parent continues with result
+│   └── memory_persist
+```
+
+**Context transforms:** If the agent tool has a `context_transform` defined, the ToolRegistry renders the Jinja2 template with the LLM's tool call arguments and passes the resulting JSON as the `context` parameter to the child agent. This context is available in the child agent's prompt template variables, allowing data to be reshaped between agent boundaries.
+
+**Circular reference safety:** At bootstrap, `_detect_circular_refs()` builds a directed graph of agent-to-agent dependencies and runs DFS cycle detection. If a cycle is found (e.g., agent A calls agent B calls agent A), bootstrap fails immediately with a `ValueError`. This prevents infinite recursion at runtime.
+
+For a full guide on configuring multi-agent systems, see [Multi-agent Composition](/astromesh/configuration/multi-agent/).
 
 ---
 
@@ -456,11 +488,13 @@ config/
 │                               │   ├── Select semantic backend (optional)
 │                               │   ├── Select episodic backend (optional)
 │                               │   └── Set memory strategy
+│                               ├── Detect circular agent refs (DFS)
 │                               ├── Build ToolRegistry
 │                               │   ├── Register internal tools
 │                               │   ├── Connect to MCP servers
 │                               │   ├── Register webhook tools
-│                               │   └── Register RAG tools
+│                               │   ├── Register RAG tools
+│                               │   └── Register agent tools
 │                               ├── Select OrchestrationPattern
 │                               ├── Build PromptEngine
 │                               │   └── Register system prompt template

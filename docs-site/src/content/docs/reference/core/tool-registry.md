@@ -7,7 +7,7 @@ The Tool Registry manages tool discovery, registration, schema generation, and e
 
 ## Tool Types
 
-Astromesh supports five tool types, each with a different execution model:
+Astromesh supports six tool types, each with a different execution model:
 
 | Type | Source | Execution | Use Case |
 |------|--------|-----------|----------|
@@ -16,6 +16,7 @@ Astromesh supports five tool types, each with a different execution model:
 | **MCP** | External MCP servers (stdio/SSE/HTTP) | Client connects to MCP server, proxies tool calls | Third-party integrations, IDE tools, database access |
 | **webhook** | External HTTP endpoints | HTTP POST to configured URL | Legacy APIs, microservices, serverless functions |
 | **RAG** | RAG pipeline exposed as a tool | Runs ingest/query pipeline internally | Knowledge retrieval, document Q&A |
+| **agent** | Another Astromesh agent | Invokes target agent's full pipeline via `AgentRuntime.run()` | Multi-agent composition, delegation, specialist agents |
 
 ## Registration
 
@@ -155,6 +156,33 @@ spec:
 | `top_k` | No | `5` | Number of results to return |
 | `score_threshold` | No | `0.0` | Minimum similarity score (0.0 -- 1.0) |
 
+### Agent Tools
+
+Agent tools let one agent invoke another agent as a tool. The target agent runs its full execution pipeline (memory, guardrails, orchestration) and returns the result.
+
+```yaml
+spec:
+  tools:
+    - name: qualify-lead
+      type: agent
+      agent: sales-qualifier
+      description: "Qualify a sales lead using BANT methodology"
+      context_transform: '{"company": "{{ data.company }}", "budget": "{{ data.budget }}"}'
+```
+
+| Agent Field | Required | Default | Description |
+|-------------|----------|---------|-------------|
+| `agent` | Yes | -- | `metadata.name` of the target agent (must exist in `config/agents/`) |
+| `description` | No | `"Invoke agent '<name>'"` | Description shown to the LLM |
+| `parameters` | No | `{query: string}` | Custom JSON Schema overriding the default single-query parameter |
+| `context_transform` | No | -- | Jinja2 template to reshape arguments before passing to the target agent |
+
+**Context transforms** use Jinja2 to reshape the LLM's tool call arguments into a context object for the target agent. The arguments are available as `data` with dot-notation access (e.g., `data.company`). The rendered result must be valid JSON and is passed as the `context` parameter to the target agent's `run()` method, where it becomes available in the agent's prompt template variables.
+
+**Circular reference detection:** At bootstrap, the runtime builds a dependency graph from all agent YAML files and runs DFS cycle detection. If agent A calls agent B which calls agent A, bootstrap fails with a clear error message. Diamond patterns (A calls B and C, both call D) are allowed.
+
+For a full guide on multi-agent composition, see [Multi-agent Composition](/astromesh/configuration/multi-agent/).
+
 ## Schema Generation
 
 The ToolRegistry converts tool definitions into OpenAI-compatible function calling format for LLM consumption. This happens automatically when the orchestration pattern builds the request.
@@ -269,6 +297,7 @@ LLM returns tool_call
 │  mcp: proxy to MCP server
 │  webhook: HTTP POST to URL
 │  rag: run vector query
+│  agent: invoke target agent pipeline
 └────────┬─────────┘
          │
          ▼

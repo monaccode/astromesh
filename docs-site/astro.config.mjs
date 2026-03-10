@@ -41,6 +41,7 @@ export default defineConfig({
             { label: 'Provider Configuration', slug: 'configuration/providers' },
             { label: 'Runtime Config', slug: 'configuration/runtime-config' },
             { label: 'Profiles Reference', slug: 'configuration/profiles' },
+            { label: 'Multi-agent Composition', slug: 'configuration/multi-agent' },
             { label: 'Channels', slug: 'configuration/channels' },
           ],
         },
