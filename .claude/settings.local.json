@@ -14,7 +14,8 @@
       "Bash(helm version:*)",
       "Bash(echo exit: $?:*)",
       "Bash(uv sync:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
