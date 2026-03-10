@@ -1,3 +1,4 @@
+{# cli/templates/workflow.yaml.j2 #}
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -7,12 +8,24 @@ metadata:
 
 spec:
   description: "{{ description }}"
+  trigger: api
+  timeout_seconds: 300
+
   steps: []
   # Define workflow steps here, for example:
   # steps:
   #   - name: step-1
   #     agent: my-agent
-  #     input: "{{ '{{' }} query {{ '}}' }}"
+  #     input: "{{ '{{' }} trigger.query {{ '}}' }}"
   #   - name: step-2
   #     agent: another-agent
   #     input: "{{ '{{' }} steps.step-1.output {{ '}}' }}"
+  #   - name: decide
+  #     switch:
+  #       - when: "{{ '{{' }} steps.step-1.output.score > 5 {{ '}}' }}"
+  #         goto: step-3
+  #       - default: true
+  #         goto: step-4
+
+  observability:
+    collector: internal

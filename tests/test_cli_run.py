@@ -59,10 +59,18 @@ def test_run_agent_with_json_output():
     assert "trace_id" in result.output
 
 
-def test_run_workflow_stub():
-    result = runner.invoke(app, ["run", "my-workflow", "--workflow", "--input", "{}"])
+def test_run_workflow():
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "workflow": "my-workflow",
+        "status": "completed",
+        "steps_executed": 2,
+    }
+    mock_response.raise_for_status = MagicMock()
+    with patch("cli.client.httpx.post", return_value=mock_response):
+        result = runner.invoke(app, ["run", "my-workflow", "--workflow", "--input", "{}"])
     assert result.exit_code == 0
-    assert "not yet implemented" in result.output.lower() or "sub-project 4" in result.output.lower()
+    assert "completed" in result.output.lower() or "my-workflow" in result.output
 
 
 # --- Dev command tests ---

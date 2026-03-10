@@ -1,0 +1,46 @@
+apiVersion: astromesh/v1
+kind: Workflow
+metadata:
+  name: lead-qualification
+  version: "0.1.0"
+  namespace: default
+
+spec:
+  description: "Qualify incoming leads through research and scoring"
+  trigger: api
+  timeout_seconds: 300
+
+  steps:
+    - name: research
+      agent: web-researcher
+      input: "{{ trigger.query }}"
+
+    - name: qualify
+      agent: sales-qualifier
+      input: "{{ steps.research.output }}"
+      retry:
+        max_attempts: 3
+        backoff: exponential
+        initial_delay_seconds: 2
+      timeout_seconds: 60
+      on_error: log-and-skip
+
+    - name: decide
+      switch:
+        - when: "{{ steps.qualify.output.data.score > 7 }}"
+          goto: notify
+        - default: true
+          goto: log-and-skip
+
+    - name: notify
+      agent: email-composer
+      input: "{{ steps.qualify.output }}"
+
+    - name: log-and-skip
+      tool: cache_store
+      arguments:
+        key: "skipped_{{ trigger.id }}"
+        value: "{{ steps.qualify.output }}"
+
+  observability:
+    collector: internal

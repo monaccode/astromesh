@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from astromesh import __version__
 from astromesh.api.routes import (
     agents,
+    dashboard,
     memory,
     tools,
     rag,
@@ -10,6 +11,7 @@ from astromesh.api.routes import (
     mesh,
     traces,
     metrics,
+    workflows,
 )
 from astromesh.api import ws
 
@@ -25,6 +27,8 @@ app.include_router(system.router, prefix="/v1")
 app.include_router(mesh.router, prefix="/v1")
 app.include_router(traces.router, prefix="/v1")
 app.include_router(metrics.router, prefix="/v1")
+app.include_router(workflows.router, prefix="/v1")
+app.include_router(dashboard.router, prefix="/v1")
 
 
 @app.get("/v1/health")
