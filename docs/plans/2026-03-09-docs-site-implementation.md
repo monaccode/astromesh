@@ -59,13 +59,13 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://monaccode.github.io',
-  base: '/astromech-platform',
+  base: '/astromesh',
   integrations: [
     starlight({
       title: 'Astromesh',
       description: 'AI Agent Runtime Platform',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromech-platform' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromesh' },
       ],
       sidebar: [
         {
@@ -136,7 +136,7 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl: 'https://github.com/monaccode/astromech-platform/edit/develop/docs-site/',
+        baseUrl: 'https://github.com/monaccode/astromesh/edit/develop/docs-site/',
       },
       customCss: ['./src/styles/custom.css'],
     }),
@@ -368,7 +368,7 @@ import PipelineDiagram from '../../components/PipelineDiagram.astro';
 <PipelineDiagram />
 ```
 
-Run: `cd docs-site && npm run dev` — open `http://localhost:4321/astromech-platform/test/` and verify the pipeline renders with animation.
+Run: `cd docs-site && npm run dev` — open `http://localhost:4321/astromesh/test/` and verify the pipeline renders with animation.
 
 **Step 3: Commit**
 
@@ -557,8 +557,8 @@ const tabs = [
   {
     id: 'standalone',
     label: 'Standalone',
-    code: `git clone https://github.com/monaccode/astromech-platform.git
-cd astromech-platform
+    code: `git clone https://github.com/monaccode/astromesh.git
+cd astromesh
 uv sync --extra all
 astromeshctl init --dev
 astromeshd --config ./config`,
@@ -567,8 +567,8 @@ astromeshd --config ./config`,
     id: 'os',
     label: 'Astromesh OS',
     code: `# Add APT repository
-curl -fsSL https://monaccode.github.io/astromech-platform/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh.gpg
-echo "deb [signed-by=/usr/share/keyrings/astromesh.gpg] https://monaccode.github.io/astromech-platform stable main" | sudo tee /etc/apt/sources.list.d/astromesh.list
+curl -fsSL https://monaccode.github.io/astromesh/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh.gpg
+echo "deb [signed-by=/usr/share/keyrings/astromesh.gpg] https://monaccode.github.io/astromesh stable main" | sudo tee /etc/apt/sources.list.d/astromesh.list
 
 # Install and start
 sudo apt update && sudo apt install astromesh
@@ -960,11 +960,11 @@ hero:
   tagline: Multi-model, multi-pattern AI agent runtime with declarative YAML configuration.
   actions:
     - text: Get Started
-      link: /astromech-platform/getting-started/what-is-astromesh/
+      link: /astromesh/getting-started/what-is-astromesh/
       icon: right-arrow
       variant: primary
     - text: View on GitHub
-      link: https://github.com/monaccode/astromech-platform
+      link: https://github.com/monaccode/astromesh
       icon: external
       variant: minimal
 ---
@@ -1003,7 +1003,7 @@ Create a YAML file, start the daemon, call the API.
 
 Run: `cd docs-site && npm run dev`
 
-Open `http://localhost:4321/astromech-platform/` and verify:
+Open `http://localhost:4321/astromesh/` and verify:
 - Hero section renders with title, tagline, buttons
 - Pipeline diagram animates sequentially
 - Feature cards expand/collapse on click
@@ -1459,7 +1459,7 @@ Expected: Build succeeds with zero errors. Warnings about unused images or missi
 cd docs-site && npm run preview
 ```
 
-Open `http://localhost:4321/astromech-platform/` and verify:
+Open `http://localhost:4321/astromesh/` and verify:
 - Landing page renders all 4 interactive components
 - Sidebar navigation shows all sections with correct hierarchy
 - Each page loads and renders content

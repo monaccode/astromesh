@@ -5,7 +5,7 @@ description: Detailed walkthrough of each architectural layer
 
 Astromesh is organized into four distinct layers, each with a clear boundary and responsibility. This page walks through every layer in detail -- the modules it contains, the interfaces it exposes, and how it connects to adjacent layers.
 
-For a high-level overview, see [Architecture Overview](/astromech-platform/architecture/overview/). For a request-level trace, see [Agent Execution Pipeline](/astromech-platform/architecture/agent-pipeline/).
+For a high-level overview, see [Architecture Overview](/astromesh/architecture/overview/). For a request-level trace, see [Agent Execution Pipeline](/astromesh/architecture/agent-pipeline/).
 
 ## Layer 1: API Layer
 
@@ -106,7 +106,7 @@ The bootstrap process reads all YAML files, validates them, and assembles fully 
 
 ### Agent Execution
 
-When a request arrives for a specific agent, `AgentRuntime.run(agent_name, query, session_id)` looks up the agent by name and delegates to `Agent.run()`, which executes the full pipeline (covered in detail in [Agent Execution Pipeline](/astromech-platform/architecture/agent-pipeline/)).
+When a request arrives for a specific agent, `AgentRuntime.run(agent_name, query, session_id)` looks up the agent by name and delegates to `Agent.run()`, which executes the full pipeline (covered in detail in [Agent Execution Pipeline](/astromesh/architecture/agent-pipeline/)).
 
 Each `Agent` instance holds references to:
 

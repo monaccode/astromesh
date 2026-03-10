@@ -642,6 +642,6 @@ This separation means you can:
 
 ## What's Next
 
-- **[Architecture Overview](/astromech-platform/architecture/overview/)** -- High-level view of how all components fit together.
-- **[Four-Layer Design](/astromech-platform/architecture/four-layer-design/)** -- Detailed walkthrough of each architectural layer in the current (non-Kubernetes) runtime.
-- **[Agent Execution Pipeline](/astromech-platform/architecture/agent-pipeline/)** -- Step-by-step request flow through the data plane.
+- **[Architecture Overview](/astromesh/architecture/overview/)** -- High-level view of how all components fit together.
+- **[Four-Layer Design](/astromesh/architecture/four-layer-design/)** -- Detailed walkthrough of each architectural layer in the current (non-Kubernetes) runtime.
+- **[Agent Execution Pipeline](/astromesh/architecture/agent-pipeline/)** -- Step-by-step request flow through the data plane.

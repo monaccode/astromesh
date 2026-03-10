@@ -227,7 +227,7 @@ tracker.get_usage_summary(agent_name="support-agent")
 # }
 ```
 
-When Rust native extensions are compiled, cost aggregation uses `RustCostIndex` for faster queries over large record sets. See the [Rust Native Extensions](/astromech-platform/advanced/rust-extensions/) guide.
+When Rust native extensions are compiled, cost aggregation uses `RustCostIndex` for faster queries over large record sets. See the [Rust Native Extensions](/astromesh/advanced/rust-extensions/) guide.
 
 ## Docker Setup
 

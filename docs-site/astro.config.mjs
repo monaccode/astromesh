@@ -9,7 +9,7 @@ export default defineConfig({
       title: 'Astromesh',
       description: 'AI Agent Runtime Platform',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromech-platform' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromesh' },
       ],
       sidebar: [
         {
@@ -80,7 +80,7 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl: 'https://github.com/monaccode/astromech-platform/edit/develop/docs-site/',
+        baseUrl: 'https://github.com/monaccode/astromesh/edit/develop/docs-site/',
       },
       customCss: ['./src/styles/custom.css'],
     }),

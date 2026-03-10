@@ -12,8 +12,8 @@
 ## Quick Start (Single Node)
 
 ```bash
-git clone https://github.com/monaccode/astromech-platform.git
-cd astromech-platform
+git clone https://github.com/monaccode/astromesh.git
+cd astromesh
 uv sync --extra all
 make dev-single
 # or: astromeshctl init --dev && astromeshd --config ./config --log-level debug
@@ -131,7 +131,7 @@ See `config/agents/support-agent.agent.yaml` for a full example with tools, memo
 For deploying on servers:
 
 ```bash
-curl -fsSL https://monaccode.github.io/astromech-platform/get-astromesh.sh | bash
+curl -fsSL https://monaccode.github.io/astromesh/get-astromesh.sh | bash
 ```
 
 This installs the `astromeshd` daemon and `astromeshctl` CLI, then runs `astromeshctl init` to configure the node.

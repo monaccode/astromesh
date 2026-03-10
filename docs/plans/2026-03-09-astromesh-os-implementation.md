@@ -1361,7 +1361,7 @@ Create `packaging/systemd/astromeshd.service`:
 ```ini
 [Unit]
 Description=Astromesh Agent Runtime Daemon
-Documentation=https://github.com/monaccode/astromech-platform
+Documentation=https://github.com/monaccode/astromesh
 After=network-online.target postgresql.service redis.service
 Wants=network-online.target
 

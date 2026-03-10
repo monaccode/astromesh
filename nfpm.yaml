@@ -4,7 +4,7 @@ platform: linux
 version: "${VERSION}"
 maintainer: "monaccode <dev@monaccode.com>"
 description: "Astromesh Agent Runtime Platform"
-homepage: "https://github.com/monaccode/astromech-platform"
+homepage: "https://github.com/monaccode/astromesh"
 license: MIT
 
 depends:

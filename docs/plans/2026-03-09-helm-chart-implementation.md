@@ -31,7 +31,7 @@ keywords:
   - agents
   - llm
   - runtime
-home: https://github.com/monaccode/astromech-platform
+home: https://github.com/monaccode/astromesh
 maintainers:
   - name: monaccode
 

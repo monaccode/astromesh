@@ -32,7 +32,7 @@ astromeshd --config /etc/astromesh --port 9000
 astromeshd --workers 4 --port 8000
 ```
 
-For detailed daemon documentation, see [Daemon (astromeshd)](/astromech-platform/reference/os/daemon/).
+For detailed daemon documentation, see [Daemon (astromeshd)](/astromesh/reference/os/daemon/).
 
 ## astromeshctl
 

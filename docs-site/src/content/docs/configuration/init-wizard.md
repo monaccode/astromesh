@@ -47,7 +47,7 @@ Your role determines which services run on this node:
 | **worker** | Runs agents, tools, memory, and RAG pipelines. Does not serve inference or external channels | api, agents, memory, tools, rag, observability |
 | **inference** | Dedicated LLM inference node. Serves model requests only | api, inference, observability |
 
-The wizard writes a `runtime.yaml` using the corresponding [profile](/astromech-platform/configuration/profiles/) for the selected role.
+The wizard writes a `runtime.yaml` using the corresponding [profile](/astromesh/configuration/profiles/) for the selected role.
 
 ### Step 2: Provider Configuration
 

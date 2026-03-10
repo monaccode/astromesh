@@ -61,7 +61,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 ArgoCD needs read access to your Git repository. For private repos, add credentials:
 
 ```bash
-argocd repo add https://github.com/monaccode/astromech-platform.git \
+argocd repo add https://github.com/monaccode/astromesh.git \
   --username git \
   --password ghp_your_token
 ```
@@ -69,7 +69,7 @@ argocd repo add https://github.com/monaccode/astromech-platform.git \
 Expected output:
 
 ```
-Repository 'https://github.com/monaccode/astromech-platform.git' added
+Repository 'https://github.com/monaccode/astromesh.git' added
 ```
 
 ## Step-by-step Setup
@@ -103,7 +103,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/monaccode/astromech-platform.git
+        repoURL: https://github.com/monaccode/astromesh.git
         targetRevision: HEAD
         path: deploy/helm/astromesh
         helm:
@@ -248,7 +248,7 @@ Expected output:
 Name:               astromesh-prod
 Server:             https://kubernetes.default.svc
 Namespace:          astromesh-prod
-Repo:               https://github.com/monaccode/astromech-platform.git
+Repo:               https://github.com/monaccode/astromesh.git
 Path:               deploy/helm/astromesh
 Target:             HEAD
 Status:             Synced
@@ -550,7 +550,7 @@ helm template astromesh ./deploy/helm/astromesh -f deploy/helm/astromesh/values-
 
 ArgoCD stores manifests in Git, which means secrets should not be committed in plain text. Use one of these approaches:
 
-1. **External Secrets Operator** -- secrets synced from AWS/GCP/Vault (see [Helm guide](/astromech-platform/deployment/helm-kubernetes/#external-secrets-eso))
+1. **External Secrets Operator** -- secrets synced from AWS/GCP/Vault (see [Helm guide](/astromesh/deployment/helm-kubernetes/#external-secrets-eso))
 2. **Sealed Secrets** -- encrypted in Git, decrypted in cluster
 3. **existingSecret** -- create secrets out-of-band, reference by name in values
 
@@ -575,7 +575,7 @@ rpc error: code = Unknown desc = authentication required
 Add or update repository credentials:
 
 ```bash
-argocd repo add https://github.com/monaccode/astromech-platform.git \
+argocd repo add https://github.com/monaccode/astromesh.git \
   --username git \
   --password ghp_new_token
 ```

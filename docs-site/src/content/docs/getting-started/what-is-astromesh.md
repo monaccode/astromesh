@@ -138,14 +138,14 @@ Astromesh supports multiple deployment models depending on your scale and operat
 
 | Deployment | Best For | Guide |
 |-----------|----------|-------|
-| **Standalone (from source)** | Development, CI, experimentation | [Standalone](/astromech-platform/deployment/standalone/) |
-| **Astromesh OS** | Single-server production with systemd | [Astromesh OS](/astromech-platform/deployment/astromesh-os/) |
-| **Docker Single Node** | Containerized single-server deployment | [Docker Single Node](/astromech-platform/deployment/docker-single/) |
-| **Docker Maia** | Multi-node mesh with gossip protocol | [Docker Maia](/astromech-platform/deployment/docker-maia/) |
-| **Docker Maia + GPU** | Multi-node mesh with GPU model serving | [Docker Maia + GPU](/astromech-platform/deployment/docker-maia-gpu/) |
-| **Helm / Kubernetes** | Cloud-native orchestrated deployment | [Helm / Kubernetes](/astromech-platform/deployment/helm-kubernetes/) |
-| **ArgoCD / GitOps** | GitOps-driven continuous deployment | [ArgoCD / GitOps](/astromech-platform/deployment/argocd-gitops/) |
+| **Standalone (from source)** | Development, CI, experimentation | [Standalone](/astromesh/deployment/standalone/) |
+| **Astromesh OS** | Single-server production with systemd | [Astromesh OS](/astromesh/deployment/astromesh-os/) |
+| **Docker Single Node** | Containerized single-server deployment | [Docker Single Node](/astromesh/deployment/docker-single/) |
+| **Docker Maia** | Multi-node mesh with gossip protocol | [Docker Maia](/astromesh/deployment/docker-maia/) |
+| **Docker Maia + GPU** | Multi-node mesh with GPU model serving | [Docker Maia + GPU](/astromesh/deployment/docker-maia-gpu/) |
+| **Helm / Kubernetes** | Cloud-native orchestrated deployment | [Helm / Kubernetes](/astromesh/deployment/helm-kubernetes/) |
+| **ArgoCD / GitOps** | GitOps-driven continuous deployment | [ArgoCD / GitOps](/astromesh/deployment/argocd-gitops/) |
 
 ## Next Steps
 
-Ready to get started? Head to the [Installation](/astromech-platform/getting-started/installation/) guide to set up Astromesh on your machine.
+Ready to get started? Head to the [Installation](/astromesh/getting-started/installation/) guide to set up Astromesh on your machine.

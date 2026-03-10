@@ -8,8 +8,8 @@ This guide takes you from zero to a running agent in five steps. By the end, you
 ## Step 1: Clone and Install
 
 ```bash
-git clone https://github.com/monaccode/astromech-platform.git
-cd astromech-platform
+git clone https://github.com/monaccode/astromesh.git
+cd astromesh
 uv sync --extra all
 ```
 
@@ -187,4 +187,4 @@ All of this was driven by the agent's YAML configuration — no application code
 
 ## Next Steps
 
-Now that you have Astromesh running, create your own custom agent from scratch in the [Your First Agent](/astromech-platform/getting-started/first-agent/) guide.
+Now that you have Astromesh running, create your own custom agent from scratch in the [Your First Agent](/astromesh/getting-started/first-agent/) guide.

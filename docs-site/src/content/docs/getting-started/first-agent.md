@@ -477,4 +477,4 @@ You started with a 30-line minimal agent and built up to a production-ready defi
 
 ## Next Steps
 
-Dive deeper into the configuration options in the [Agent YAML Schema](/astromech-platform/configuration/agent-yaml/) reference, or explore the available [Orchestration Patterns](/astromech-platform/architecture/agent-pipeline/) to understand when to use each reasoning strategy.
+Dive deeper into the configuration options in the [Agent YAML Schema](/astromesh/configuration/agent-yaml/) reference, or explore the available [Orchestration Patterns](/astromesh/architecture/agent-pipeline/) to understand when to use each reasoning strategy.

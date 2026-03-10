@@ -5,8 +5,8 @@
 ### 1. Add the repository
 
 ```bash
-curl -fsSL https://monaccode.github.io/astromech-platform/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh.gpg
-echo "deb [signed-by=/usr/share/keyrings/astromesh.gpg] https://monaccode.github.io/astromech-platform stable main" | sudo tee /etc/apt/sources.list.d/astromesh.list
+curl -fsSL https://monaccode.github.io/astromesh/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/astromesh.gpg
+echo "deb [signed-by=/usr/share/keyrings/astromesh.gpg] https://monaccode.github.io/astromesh stable main" | sudo tee /etc/apt/sources.list.d/astromesh.list
 sudo apt update && sudo apt install astromesh
 ```
 
@@ -90,10 +90,10 @@ This removes all files, data, logs, and the `astromesh` system user.
 
 ## Manual Installation
 
-Download the `.deb` directly from [GitHub Releases](https://github.com/monaccode/astromech-platform/releases):
+Download the `.deb` directly from [GitHub Releases](https://github.com/monaccode/astromesh/releases):
 
 ```bash
-curl -LO https://github.com/monaccode/astromech-platform/releases/latest/download/astromesh_<VERSION>_amd64.deb
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_<VERSION>_amd64.deb
 sudo dpkg -i astromesh_*_amd64.deb
 sudo apt-get -f install  # resolve dependencies if needed
 ```

@@ -24,7 +24,7 @@ These variables affect runtime behavior regardless of deployment method.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ASTROMESH_CONFIG_DIR` | (auto-detect) | Explicit path to the configuration directory. Overrides auto-detection (see [Daemon reference](/astromech-platform/reference/os/daemon/)) |
+| `ASTROMESH_CONFIG_DIR` | (auto-detect) | Explicit path to the configuration directory. Overrides auto-detection (see [Daemon reference](/astromesh/reference/os/daemon/)) |
 | `ASTROMESH_FORCE_PYTHON` | (unset) | Set to `1` to disable Rust native extensions and use pure-Python fallbacks. Useful for debugging or environments where Rust extensions cannot be compiled |
 | `ASTROMESH_LOG_LEVEL` | `info` | Logging level: `debug`, `info`, `warning`, `error` |
 | `ASTROMESH_LOG_FORMAT` | `text` | Log format: `text` (human-readable) or `json` (structured) |

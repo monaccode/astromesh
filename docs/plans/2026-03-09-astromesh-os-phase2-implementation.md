@@ -1323,7 +1323,7 @@ FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="Astromesh OS" \
       org.opencontainers.image.description="Astromesh Agent Runtime Platform" \
-      org.opencontainers.image.source="https://github.com/monaccode/astromech-platform"
+      org.opencontainers.image.source="https://github.com/monaccode/astromesh"
 
 WORKDIR /opt/astromesh
 

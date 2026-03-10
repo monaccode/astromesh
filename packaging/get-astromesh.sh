@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="https://monaccode.github.io/astromech-platform"
+REPO_URL="https://monaccode.github.io/astromesh"
 REQUIRED_PYTHON="3.12"
 
 # ---------------------------------------------------------------------------
@@ -173,8 +173,8 @@ suggest_docker() {
     info "Or install from source with uv:"
     echo ""
     printf "  ${BOLD}pip install uv${NC}\n"
-    printf "  ${BOLD}git clone https://github.com/monaccode/astromech-platform.git${NC}\n"
-    printf "  ${BOLD}cd astromech-platform && uv sync --extra all${NC}\n"
+    printf "  ${BOLD}git clone https://github.com/monaccode/astromesh.git${NC}\n"
+    printf "  ${BOLD}cd astromesh && uv sync --extra all${NC}\n"
     echo ""
 }
 

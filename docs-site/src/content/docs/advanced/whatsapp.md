@@ -250,7 +250,7 @@ For production use:
 
 5. **Docker or Kubernetes** — Deploy using the standard Astromesh Docker image or Helm chart. The WhatsApp channel adapter is included by default.
 
-6. **Monitor the webhook** — Use the observability stack to track webhook latency, agent execution time, and error rates. See the [Observability Stack](/astromech-platform/advanced/observability/) guide.
+6. **Monitor the webhook** — Use the observability stack to track webhook latency, agent execution time, and error rates. See the [Observability Stack](/astromesh/advanced/observability/) guide.
 
 ## Troubleshooting
 

@@ -42,14 +42,14 @@ uv installed successfully.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/monaccode/astromech-platform.git
-cd astromech-platform
+git clone https://github.com/monaccode/astromesh.git
+cd astromesh
 ```
 
 Expected output:
 
 ```
-Cloning into 'astromech-platform'...
+Cloning into 'astromesh'...
 remote: Enumerating objects: 1234, done.
 remote: Counting objects: 100% (1234/1234), done.
 Receiving objects: 100% (1234/1234), 256.00 KiB | 2.56 MiB/s, done.

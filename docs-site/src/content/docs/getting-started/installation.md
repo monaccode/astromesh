@@ -22,8 +22,8 @@ This is the recommended method for development, experimentation, and contributin
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/monaccode/astromech-platform.git
-cd astromech-platform
+git clone https://github.com/monaccode/astromesh.git
+cd astromesh
 ```
 
 ### 2. Install dependencies
@@ -144,7 +144,7 @@ curl http://localhost:8000/v1/health
 }
 ```
 
-For full Docker deployment guides including Docker Compose with Ollama, PostgreSQL, Redis, and the observability stack, see the [Docker Single Node](/astromech-platform/deployment/docker-single/) deployment guide.
+For full Docker deployment guides including Docker Compose with Ollama, PostgreSQL, Redis, and the observability stack, see the [Docker Single Node](/astromesh/deployment/docker-single/) deployment guide.
 
 ## APT Package (Linux)
 
@@ -196,7 +196,7 @@ The APT package installs:
 | Logs | `/var/log/astromesh/` |
 | systemd unit | `/etc/systemd/system/astromeshd.service` |
 
-For detailed production configuration with systemd, see the [Astromesh OS](/astromech-platform/deployment/astromesh-os/) guide.
+For detailed production configuration with systemd, see the [Astromesh OS](/astromesh/deployment/astromesh-os/) guide.
 
 ## Verify Installation
 
@@ -221,4 +221,4 @@ A `"status": "healthy"` response confirms the runtime has started, loaded its co
 
 ## Next Steps
 
-With Astromesh installed, head to the [Quick Start](/astromech-platform/getting-started/quickstart/) guide to run your first agent in under 5 minutes.
+With Astromesh installed, head to the [Quick Start](/astromesh/getting-started/quickstart/) guide to run your first agent in under 5 minutes.

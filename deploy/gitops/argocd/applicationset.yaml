@@ -22,7 +22,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/monaccode/astromech-platform.git
+        repoURL: https://github.com/monaccode/astromesh.git
         targetRevision: HEAD
         path: deploy/helm/astromesh
         helm:

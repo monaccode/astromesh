@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Repo rename** — all references to `astromech-platform` replaced with `astromesh` across docs, configs, CI, Helm chart, Dockerfile, packaging, and docs-site (29 files, 78 occurrences)
 - **Docs site visual redesign** — replaced emoji icons with SVG Lucide icons across all landing page components for consistent cross-platform rendering
 - **PipelineDiagram** — redesigned with gradient icon circles, numbered steps, dashed SVG connectors, glow effects, and staggered animations; each step is now a clickable link to its relevant docs page
 - **FeatureCards** — per-card accent colors with tinted SVG icon backgrounds, refined expand/collapse chevron

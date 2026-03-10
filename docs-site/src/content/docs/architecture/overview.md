@@ -5,7 +5,7 @@ description: High-level view of Astromesh components and design principles
 
 Astromesh is a **multi-model, multi-pattern AI agent runtime platform**. It provides a complete framework for defining, deploying, and operating intelligent agents through declarative YAML configuration files rather than imperative code.
 
-This page offers a high-level map of the system -- its layered architecture, core capabilities, design philosophy, and project layout. For detailed breakdowns of each layer, see [Four-Layer Design](/astromech-platform/architecture/four-layer-design/). For a step-by-step trace of a request, see [Agent Execution Pipeline](/astromech-platform/architecture/agent-pipeline/).
+This page offers a high-level map of the system -- its layered architecture, core capabilities, design philosophy, and project layout. For detailed breakdowns of each layer, see [Four-Layer Design](/astromesh/architecture/four-layer-design/). For a step-by-step trace of a request, see [Agent Execution Pipeline](/astromesh/architecture/agent-pipeline/).
 
 ## The 4-Layer Architecture
 
@@ -225,6 +225,6 @@ astromesh-platform/
 
 ## What's Next
 
-- **[Four-Layer Design](/astromech-platform/architecture/four-layer-design/)** -- Detailed walkthrough of each architectural layer, including component diagrams, configuration tables, and interface contracts.
-- **[Agent Execution Pipeline](/astromech-platform/architecture/agent-pipeline/)** -- Step-by-step trace of how a request flows through an agent, from HTTP arrival to response delivery.
-- **[Kubernetes-Style Architecture](/astromech-platform/architecture/k8s-architecture/)** -- How Astromesh's resource model mirrors Kubernetes CRDs, and the future operator design for cloud-native deployment.
+- **[Four-Layer Design](/astromesh/architecture/four-layer-design/)** -- Detailed walkthrough of each architectural layer, including component diagrams, configuration tables, and interface contracts.
+- **[Agent Execution Pipeline](/astromesh/architecture/agent-pipeline/)** -- Step-by-step trace of how a request flows through an agent, from HTTP arrival to response delivery.
+- **[Kubernetes-Style Architecture](/astromesh/architecture/k8s-architecture/)** -- How Astromesh's resource model mirrors Kubernetes CRDs, and the future operator design for cloud-native deployment.

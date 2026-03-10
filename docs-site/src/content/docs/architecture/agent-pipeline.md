@@ -5,7 +5,7 @@ description: Step-by-step walkthrough of how a request flows through an agent
 
 When a request reaches Astromesh, it passes through a 12-step pipeline before a response is returned. This page traces every step in detail -- what happens, which module handles it, and what data flows between stages.
 
-For the architectural context behind this pipeline, see [Four-Layer Design](/astromech-platform/architecture/four-layer-design/). For the high-level system map, see [Architecture Overview](/astromech-platform/architecture/overview/).
+For the architectural context behind this pipeline, see [Four-Layer Design](/astromesh/architecture/four-layer-design/). For the high-level system map, see [Architecture Overview](/astromesh/architecture/overview/).
 
 ## Pipeline Overview
 
@@ -520,4 +520,4 @@ Step                        Module                          Layer
                             api/ws.py
 ```
 
-Each step cleanly separates the orchestration logic (Core Services) from the concrete implementations (Infrastructure), maintaining the strict layer boundaries described in [Four-Layer Design](/astromech-platform/architecture/four-layer-design/).
+Each step cleanly separates the orchestration logic (Core Services) from the concrete implementations (Infrastructure), maintaining the strict layer boundaries described in [Four-Layer Design](/astromesh/architecture/four-layer-design/).
