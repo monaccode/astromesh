@@ -146,59 +146,117 @@ class Agent:
     async def run(self, query, session_id, context=None):
         from datetime import datetime
         from astromesh.core.memory import ConversationTurn
+        from astromesh.observability.tracing import TracingContext, SpanStatus
 
-        query_text = (
-            query
-            if isinstance(query, str)
-            else " ".join(p.get("text", "") for p in query if p.get("type") == "text")
-        )
-        memory_context = await self._memory.build_context(session_id, query_text, max_tokens=4096)
-        rendered_prompt = self._prompt_engine.render(
-            self._system_prompt, {**(context or {}), "memory": memory_context}
-        )
-        tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
-        max_iterations = self._orchestration_config.get("max_iterations", 10)
+        tracing = TracingContext(agent_name=self.name, session_id=session_id)
+        root_span = tracing.start_span("agent.run", {"agent": self.name, "session": session_id})
 
-        async def model_fn(messages, tools):
-            full_messages = [{"role": "system", "content": rendered_prompt}] + messages
-            return await self._router.route(full_messages, tools=tools)
-
-        async def tool_fn(name, args):
-            return await self._tools.execute(
-                name, args, {"agent": self.name, "session": session_id}
+        try:
+            query_text = (
+                query
+                if isinstance(query, str)
+                else " ".join(p.get("text", "") for p in query if p.get("type") == "text")
             )
 
-        result = await self._pattern.execute(
-            query=query,
-            context=memory_context,
-            model_fn=model_fn,
-            tool_fn=tool_fn,
-            tools=tool_schemas,
-            max_iterations=max_iterations,
-        )
+            mem_span = tracing.start_span("memory_build", parent_span_id=root_span.span_id)
+            memory_context = await self._memory.build_context(
+                session_id, query_text, max_tokens=4096
+            )
+            tracing.finish_span(mem_span)
 
-        # Extract text for storage; keep full multimodal content in metadata.
-        if isinstance(query, list):
-            text_parts = [p.get("text", "") for p in query if p.get("type") == "text"]
-            user_content = " ".join(text_parts)
-            user_metadata = {"multimodal_content": query}
-        else:
-            user_content = query
-            user_metadata = {}
+            prompt_span = tracing.start_span("prompt_render", parent_span_id=root_span.span_id)
+            rendered_prompt = self._prompt_engine.render(
+                self._system_prompt, {**(context or {}), "memory": memory_context}
+            )
+            tracing.finish_span(prompt_span)
 
-        await self._memory.persist_turn(
-            session_id,
-            ConversationTurn(
-                role="user",
-                content=user_content,
-                timestamp=datetime.utcnow(),
-                metadata=user_metadata,
-            ),
-        )
-        await self._memory.persist_turn(
-            session_id,
-            ConversationTurn(
-                role="assistant", content=result.get("answer", ""), timestamp=datetime.utcnow()
-            ),
-        )
-        return result
+            tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
+            max_iterations = self._orchestration_config.get("max_iterations", 10)
+
+            async def model_fn(messages, tools):
+                llm_span = tracing.start_span(
+                    "llm.complete", parent_span_id=root_span.span_id
+                )
+                full_messages = [{"role": "system", "content": rendered_prompt}] + messages
+                try:
+                    response = await self._router.route(full_messages, tools=tools)
+                    if hasattr(response, "usage") and response.usage:
+                        llm_span.set_attribute(
+                            "input_tokens", response.usage.get("input_tokens", 0)
+                        )
+                        llm_span.set_attribute(
+                            "output_tokens", response.usage.get("output_tokens", 0)
+                        )
+                    tracing.finish_span(llm_span)
+                    return response
+                except Exception:
+                    tracing.finish_span(llm_span, status=SpanStatus.ERROR)
+                    raise
+
+            async def tool_fn(name, args):
+                tool_span = tracing.start_span(
+                    "tool.call", {"tool": name}, parent_span_id=root_span.span_id
+                )
+                try:
+                    observation = await self._tools.execute(
+                        name, args, {"agent": self.name, "session": session_id}
+                    )
+                    tracing.finish_span(tool_span)
+                    return observation
+                except Exception:
+                    tracing.finish_span(tool_span, status=SpanStatus.ERROR)
+                    raise
+
+            orch_span = tracing.start_span(
+                "orchestration",
+                {"pattern": self._orchestration_config.get("pattern", "react")},
+                parent_span_id=root_span.span_id,
+            )
+            result = await self._pattern.execute(
+                query=query,
+                context=memory_context,
+                model_fn=model_fn,
+                tool_fn=tool_fn,
+                tools=tool_schemas,
+                max_iterations=max_iterations,
+            )
+            tracing.finish_span(orch_span)
+
+            # Extract text for storage; keep full multimodal content in metadata.
+            if isinstance(query, list):
+                text_parts = [p.get("text", "") for p in query if p.get("type") == "text"]
+                user_content = " ".join(text_parts)
+                user_metadata = {"multimodal_content": query}
+            else:
+                user_content = query
+                user_metadata = {}
+
+            persist_span = tracing.start_span(
+                "memory_persist", parent_span_id=root_span.span_id
+            )
+            await self._memory.persist_turn(
+                session_id,
+                ConversationTurn(
+                    role="user",
+                    content=user_content,
+                    timestamp=datetime.utcnow(),
+                    metadata=user_metadata,
+                ),
+            )
+            await self._memory.persist_turn(
+                session_id,
+                ConversationTurn(
+                    role="assistant",
+                    content=result.get("answer", ""),
+                    timestamp=datetime.utcnow(),
+                ),
+            )
+            tracing.finish_span(persist_span)
+
+            tracing.finish_span(root_span)
+            result["trace"] = tracing.to_dict()
+            return result
+
+        except Exception:
+            tracing.finish_span(root_span, status=SpanStatus.ERROR)
+            raise

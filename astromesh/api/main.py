@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from astromesh import __version__
-from astromesh.api.routes import agents, memory, tools, rag, whatsapp, system, mesh
+from astromesh.api.routes import agents, memory, tools, rag, whatsapp, system, mesh, traces
 from astromesh.api import ws
 
 app = FastAPI(title="Astromesh Agent Runtime API", version=__version__)
@@ -13,6 +13,7 @@ app.include_router(ws.router, prefix="/v1")
 app.include_router(whatsapp.router, prefix="/v1")
 app.include_router(system.router, prefix="/v1")
 app.include_router(mesh.router, prefix="/v1")
+app.include_router(traces.router, prefix="/v1")
 
 
 @app.get("/v1/health")
