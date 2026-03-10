@@ -21,3 +21,7 @@ chmod 640 /etc/astromesh/agents/* /etc/astromesh/profiles/*
 # Reload systemd and enable service (do NOT start — user must configure first)
 systemctl daemon-reload
 systemctl enable astromeshd.service
+
+echo ""
+echo "  Run 'astromeshctl init' to configure this node."
+echo ""

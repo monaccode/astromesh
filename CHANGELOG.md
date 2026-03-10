@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-03-09
+
+### Added
+
+- **`astromeshctl init` wizard** — interactive setup command that guides developers from zero to a running node: role selection, provider configuration, mesh setup, config file generation, and validation (`cli/commands/init.py`)
+- Wizard supports `--non-interactive` mode for CI/scripting (defaults: role=full, provider=ollama)
+- Wizard supports `--dev` flag to force local `./config/` mode even as root
+- Provider auto-detection: checks Ollama connectivity, prompts API keys for OpenAI/Anthropic, writes `.env` file
+- Mesh configuration step for non-full roles: node name, seed URLs, gossip parameters
+- Config validation step reusing `astromeshctl config validate` logic
+- Sample agents automatically copied to `{config_dir}/agents/` during init
+- **One-liner install script** (`packaging/get-astromesh.sh`) — `curl | bash` installer with OS detection, APT repo setup, Python version check, and Docker fallback for non-Debian systems
+- **Makefile** with developer targets: `dev-single`, `dev-mesh`, `dev-stop`, `dev-logs`, `test`, `test-cov`, `lint`, `fmt`, `build-deb`, `build-rust`
+- **Developer Quick-Start guide** (`docs/DEV_QUICKSTART.md`) — prerequisites, single-node setup, Docker mesh, first agent, Makefile reference, troubleshooting
+- Tests for init wizard: profile copy, provider generation (ollama/openai/anthropic), `.env` writing, idempotency, non-interactive mode, validation, dev mode, agents directory (10 new tests, 342 total)
+
+### Changed
+
+- `packaging/systemd/astromeshd.service` — added `EnvironmentFile=-/etc/astromesh/.env` for API key injection
+- `packaging/scripts/postinstall.sh` — added hint to run `astromeshctl init` after package install
+- `cli/main.py` — registered `init` command
+
+### Fixed
+
+- Version assertions in `test_cli.py` and `test_daemon_integration.py` updated from hardcoded `0.7.0` to match current version
+
 ## [0.9.0] - 2026-03-09
 
 ### Added
@@ -243,7 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh-platform/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/monaccode/astromesh-platform/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/monaccode/astromesh-platform/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/monaccode/astromesh-platform/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/monaccode/astromesh-platform/compare/v0.6.0...v0.7.0

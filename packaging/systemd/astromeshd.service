@@ -8,6 +8,7 @@ Wants=network-online.target
 Type=notify
 User=astromesh
 Group=astromesh
+EnvironmentFile=-/etc/astromesh/.env
 ExecStart=/opt/astromesh/venv/bin/astromeshd --config /etc/astromesh/
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
