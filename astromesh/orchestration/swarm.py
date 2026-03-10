@@ -14,8 +14,13 @@ class SwarmPattern(OrchestrationPattern):
         messages = [{"role": "user", "content": query}]
 
         for _ in range(max_iterations):
-            agent_prompt = f"You are agent '{current_agent}'. Available agents to hand off to: {list(self._agents.keys()) or ['default']}\n"
-            agent_prompt += 'Respond with your answer, or hand off with JSON {"handoff": "agent_name", "context": "..."}'
+            agent_prompt = (
+                f"You are agent '{current_agent}'. "
+                f"Available agents to hand off to: "
+                f"{list(self._agents.keys()) or ['default']}\n"
+                'Respond with your answer, or hand off with JSON '
+                '{"handoff": "agent_name", "context": "..."}'
+            )
 
             full_messages = [{"role": "system", "content": agent_prompt}] + messages
             response = await model_fn(full_messages, tools)
@@ -23,14 +28,21 @@ class SwarmPattern(OrchestrationPattern):
             try:
                 parsed = json_mod.loads(response.content)
                 if "handoff" in parsed:
+                    target = parsed["handoff"]
+                    handoff_context = parsed.get("context", "")
                     steps.append(
                         AgentStep(
-                            thought=f"Agent '{current_agent}' hands off to '{parsed['handoff']}'",
-                            result=parsed.get("context", ""),
+                            thought=f"Agent '{current_agent}' hands off to '{target}'",
+                            result=handoff_context,
                         )
                     )
-                    current_agent = parsed["handoff"]
-                    messages.append({"role": "assistant", "content": response.content})
+                    # Invoke the target agent via tool_fn if it's a known agent
+                    if target in self._agents:
+                        await tool_fn(target, {"query": handoff_context})
+                    current_agent = target
+                    messages.append(
+                        {"role": "assistant", "content": response.content}
+                    )
                     continue
             except (json_mod.JSONDecodeError, KeyError):
                 pass
@@ -46,9 +58,19 @@ class SwarmPattern(OrchestrationPattern):
                             observation=str(obs),
                         )
                     )
-                    messages.append({"role": "tool", "content": str(obs), "tool_call_id": tc["id"]})
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "content": str(obs),
+                            "tool_call_id": tc["id"],
+                        }
+                    )
             else:
                 steps.append(AgentStep(result=response.content))
-                return {"answer": response.content, "steps": steps, "final_agent": current_agent}
+                return {
+                    "answer": response.content,
+                    "steps": steps,
+                    "final_agent": current_agent,
+                }
 
         return {"answer": "Max iterations reached", "steps": steps}
