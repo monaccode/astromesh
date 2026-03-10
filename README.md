@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/monaccode/astromesh/actions/workflows/ci.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/ci.yml/badge.svg?branch=develop" alt="CI"></a>
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/ci.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release.yml/badge.svg" alt="Release"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/docs.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/docs.yml/badge.svg?branch=develop" alt="Docs"></a>
   <a href="https://github.com/monaccode/astromesh/releases/latest"><img src="https://img.shields.io/github/v/release/monaccode/astromesh?include_prereleases&label=version" alt="Version"></a>
