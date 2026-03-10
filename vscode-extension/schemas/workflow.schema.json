@@ -1,0 +1,210 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://astromesh.dev/schemas/workflow.schema.json",
+  "title": "Astromesh Workflow",
+  "description": "Schema for Astromesh workflow configuration files (*.workflow.yaml)",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "astromesh/v1",
+      "description": "API version. Must be 'astromesh/v1'."
+    },
+    "kind": {
+      "type": "string",
+      "const": "Workflow",
+      "description": "Resource kind. Must be 'Workflow'."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Workflow metadata.",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique workflow identifier (kebab-case recommended).",
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version string (e.g. '1.0.0').",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Logical namespace for grouping workflows.",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what the workflow does."
+        },
+        "labels": {
+          "type": "object",
+          "description": "Arbitrary key/value labels.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "description": "Workflow specification.",
+      "required": ["steps"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Description of the workflow's purpose (may also live in metadata)."
+        },
+        "trigger": {
+          "type": "string",
+          "description": "How the workflow is initiated.",
+          "enum": ["api", "schedule", "webhook", "event"]
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "description": "Maximum wall-clock seconds before the entire workflow is aborted.",
+          "minimum": 1
+        },
+        "steps": {
+          "type": "array",
+          "description": "Ordered list of workflow steps.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "observability": {
+          "type": "object",
+          "description": "Telemetry configuration for this workflow.",
+          "additionalProperties": false,
+          "properties": {
+            "collector": {
+              "type": "string",
+              "description": "Telemetry collector backend.",
+              "enum": ["stdout", "otlp", "internal"]
+            },
+            "tracing": {
+              "type": "boolean",
+              "description": "Enable distributed tracing for this workflow."
+            },
+            "metrics": {
+              "type": "boolean",
+              "description": "Enable metrics collection for this workflow."
+            },
+            "sample_rate": {
+              "type": "number",
+              "description": "Fraction of executions to sample (0.0–1.0).",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "description": "A single workflow step. Exactly one of 'agent', 'tool', or 'switch' must be present.",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique step name within the workflow. Used as a reference target for 'goto'."
+        },
+        "agent": {
+          "type": "string",
+          "description": "Name of the agent to invoke. Mutually exclusive with 'tool' and 'switch'."
+        },
+        "tool": {
+          "type": "string",
+          "description": "Name of the tool to invoke directly. Mutually exclusive with 'agent' and 'switch'."
+        },
+        "switch": {
+          "type": "array",
+          "description": "Conditional branching. Mutually exclusive with 'agent' and 'tool'.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/switchBranch"
+          }
+        },
+        "input": {
+          "type": "string",
+          "description": "Input string passed to the agent. Supports Jinja2 template syntax (e.g. '{{ steps.previous.output }}')."
+        },
+        "arguments": {
+          "type": "object",
+          "description": "Named arguments passed to the tool. Supports Jinja2 values.",
+          "additionalProperties": true
+        },
+        "context_transform": {
+          "type": "string",
+          "description": "Jinja2 expression to reshape context before passing it to the step."
+        },
+        "retry": {
+          "$ref": "#/$defs/retryPolicy"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "description": "Per-step timeout in seconds. Overrides the workflow-level timeout.",
+          "minimum": 1
+        },
+        "on_error": {
+          "type": "string",
+          "description": "Step name to jump to on error, or a built-in error action.",
+          "examples": ["fail", "log-and-skip", "retry"]
+        }
+      }
+    },
+    "switchBranch": {
+      "type": "object",
+      "description": "A single branch within a switch step.",
+      "required": ["goto"],
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "type": "string",
+          "description": "Jinja2 boolean expression that must be truthy for this branch to be taken (omit for the default branch)."
+        },
+        "default": {
+          "type": "boolean",
+          "description": "If true, this branch is taken when no other 'when' condition matches.",
+          "const": true
+        },
+        "goto": {
+          "type": "string",
+          "description": "Name of the step to execute if this branch is taken."
+        }
+      }
+    },
+    "retryPolicy": {
+      "type": "object",
+      "description": "Retry policy for a step that fails.",
+      "additionalProperties": false,
+      "properties": {
+        "max_attempts": {
+          "type": "integer",
+          "description": "Maximum number of total attempts (including the first try).",
+          "minimum": 1
+        },
+        "backoff": {
+          "type": "string",
+          "description": "Delay strategy between retries.",
+          "enum": ["fixed", "exponential"]
+        },
+        "initial_delay_seconds": {
+          "type": "number",
+          "description": "Initial delay before the first retry, in seconds.",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

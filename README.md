@@ -64,6 +64,7 @@ Additional references in this repo:
 - **Maia mesh guide**: [`docs/MAIA_GUIDE.md`](docs/MAIA_GUIDE.md)
 - **Developer quick start**: [`docs/DEV_QUICKSTART.md`](docs/DEV_QUICKSTART.md)
 - **Installation (APT)**: [`docs/INSTALLATION.md`](docs/INSTALLATION.md)
+- **Developer tools**: [`docs/DEVELOPER_TOOLS.md`](docs/DEVELOPER_TOOLS.md)
 
 ---
 
@@ -148,16 +149,17 @@ Supported vector stores:
 
 ### Tool System
 
-Agents can interact with external systems using tools.
+Agents interact with external systems using tools:
 
-Supported tool types:
+| Type | Description |
+|------|-------------|
+| **Built-in** (18 tools) | web_search, http_request, sql_query, send_email, read_file, and more |
+| **MCP Servers** (3) | code_interpreter, shell_exec, generate_image |
+| **Agent tools** | Invoke other agents as tools for multi-agent composition |
+| **Webhooks** | Call external HTTP endpoints |
+| **RAG** | Query and ingest documents |
 
-- Python functions
-- MCP tools
-- Webhooks
-- RAG pipelines
-
-The runtime automatically exposes tools to models using structured schemas.
+Tools are configured declaratively in agent YAML with zero-code setup for built-ins.
 
 ---
 
@@ -179,12 +181,44 @@ Astromesh supports external messaging integrations.
 
 ### Observability
 
-Built-in monitoring stack:
+Full observability stack with zero configuration:
 
-- OpenTelemetry tracing
-- Prometheus metrics
-- cost tracking
-- token usage monitoring
+- **Structured tracing** — span trees for every agent execution
+- **Metrics** — counters and histograms (runs, tokens, cost, latency)
+- **Built-in dashboard** — web UI at `/v1/dashboard/`
+- **CLI access** — `astromeshctl traces`, `astromeshctl metrics`, `astromeshctl cost`
+- **OpenTelemetry export** — compatible with Jaeger, Grafana Tempo, etc.
+- **VS Code integration** — traces panel and metrics dashboard in your editor
+
+---
+
+### Developer Experience
+
+Astromesh provides a complete developer toolkit:
+
+| Tool | Description |
+|------|-------------|
+| **CLI** (`astromeshctl`) | Scaffold agents, run workflows, inspect traces, view metrics, validate configs |
+| **Copilot** | Built-in AI assistant that helps build and debug agents |
+| **VS Code Extension** | YAML IntelliSense, workflow visualizer, traces panel, metrics dashboard, copilot chat |
+| **Built-in Dashboard** | Web UI at `/v1/dashboard/` with real-time observability |
+
+```bash
+# Scaffold a new agent
+astromeshctl new agent customer-support
+
+# Run it
+astromeshctl run customer-support "How do I reset my password?"
+
+# See what happened
+astromeshctl traces customer-support --last 5
+
+# Check costs
+astromeshctl cost --window 24h
+
+# Ask the copilot for help
+astromeshctl ask "Why is my agent slow?"
+```
 
 ---
 
@@ -367,14 +401,21 @@ See [`docs/NATIVE_ESTENSIONS_RUST.md`](docs/NATIVE_ESTENSIONS_RUST.md) for detai
 
 ## Roadmap
 
-Planned capabilities:
-
-- distributed agent execution
-- GPU-aware model scheduling
-- event-driven agents
-- multi-tenant runtime
-- agent lifecycle management
-- agent marketplace
+- [x] Multi-model runtime with 6 providers
+- [x] 6 orchestration patterns (ReAct, Plan&Execute, Pipeline, Fan-Out, Supervisor, Swarm)
+- [x] Memory system (conversational, semantic, episodic)
+- [x] RAG pipeline with 4 vector stores
+- [x] 18 built-in tools + 3 MCP servers
+- [x] Full observability (tracing, metrics, dashboard)
+- [x] CLI with copilot
+- [x] Multi-agent composition (agent-as-tool)
+- [x] Workflow YAML engine
+- [x] VS Code extension
+- [ ] Distributed agent execution
+- [ ] GPU-aware model scheduling
+- [ ] Event-driven agents
+- [ ] Multi-tenant runtime
+- [ ] Agent marketplace
 
 ---
 

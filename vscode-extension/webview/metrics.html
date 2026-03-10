@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root { --bg: var(--vscode-editor-background); --surface: var(--vscode-sideBar-background); --border: var(--vscode-panel-border); --text: var(--vscode-editor-foreground); --muted: var(--vscode-descriptionForeground); --accent: #00d4ff; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--vscode-font-family); background: var(--bg); color: var(--text); padding: 1rem; }
+  h1 { font-size: 1.1rem; margin-bottom: 1rem; }
+  h1 span { color: var(--accent); }
+  h3 { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 1rem 0 0.5rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+  .counter { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; }
+  .counter .label { font-size: 0.7rem; color: var(--muted); } .counter .value { font-size: 1.4rem; font-weight: 600; color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 1rem; }
+  th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  .empty { color: var(--muted); font-style: italic; }
+  #status { font-size: 0.7rem; color: var(--muted); margin-top: 1rem; }
+</style>
+</head>
+<body>
+<h1><span>Astromesh</span> Metrics</h1>
+<h3>Counters</h3>
+<div id="counters" class="grid"><span class="empty">Loading...</span></div>
+<h3>Histograms</h3>
+<div id="histograms"><span class="empty">Loading...</span></div>
+<div id="status"></div>
+<script>
+  const vscode = acquireVsCodeApi();
+
+  window.addEventListener("message", (event) => {
+    const { counters, histograms } = event.data;
+    renderCounters(counters || {});
+    renderHistograms(histograms || {});
+    document.getElementById("status").textContent = "Updated: " + new Date().toLocaleTimeString();
+  });
+
+  function renderCounters(c) {
+    const el = document.getElementById("counters");
+    const keys = Object.keys(c);
+    if (!keys.length) { el.innerHTML = '<span class="empty">No counters</span>'; return; }
+    el.innerHTML = keys.map(k => '<div class="counter"><div class="label">' + k + '</div><div class="value">' + c[k] + '</div></div>').join("");
+  }
+
+  function renderHistograms(h) {
+    const el = document.getElementById("histograms");
+    const keys = Object.keys(h);
+    if (!keys.length) { el.innerHTML = '<span class="empty">No histograms</span>'; return; }
+    let html = "<table><tr><th>Metric</th><th>Count</th><th>Avg</th><th>Min</th><th>Max</th></tr>";
+    for (const [k, v] of Object.entries(h)) {
+      html += "<tr><td>" + k + "</td><td>" + v.count + "</td><td>" + (v.avg != null ? v.avg.toFixed(1) : "-") + "</td><td>" + (v.min != null ? v.min.toFixed(1) : "-") + "</td><td>" + (v.max != null ? v.max.toFixed(1) : "-") + "</td></tr>";
+    }
+    el.innerHTML = html + "</table>";
+  }
+
+  vscode.postMessage({ type: "ready" });
+</script>
+</body>
+</html>

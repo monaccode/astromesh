@@ -1,0 +1,84 @@
+{
+  "name": "astromesh",
+  "displayName": "Astromesh",
+  "description": "AI Agent Runtime Platform — orchestrate, debug, and monitor agents from VS Code",
+  "version": "0.1.0",
+  "publisher": "monaccode",
+  "license": "Apache-2.0",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Debuggers", "Machine Learning"],
+  "keywords": ["ai", "agents", "llm", "orchestration", "astromesh"],
+  "activationEvents": [
+    "workspaceContains:**/*.agent.yaml",
+    "workspaceContains:**/*.workflow.yaml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "astromesh.runAgent", "title": "Astromesh: Run Agent", "icon": "$(play)" },
+      { "command": "astromesh.runWorkflow", "title": "Astromesh: Run Workflow", "icon": "$(play)" },
+      { "command": "astromesh.doctor", "title": "Astromesh: Diagnostics" },
+      { "command": "astromesh.copilot", "title": "Astromesh: Ask Copilot" },
+      { "command": "astromesh.showMetrics", "title": "Astromesh: Metrics Dashboard" },
+      { "command": "astromesh.showWorkflow", "title": "Astromesh: Visualize Workflow" },
+      { "command": "astromesh.refreshTraces", "title": "Astromesh: Refresh Traces", "icon": "$(refresh)" }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "astromesh", "title": "Astromesh", "icon": "$(hubot)" }
+      ]
+    },
+    "views": {
+      "astromesh": [
+        { "id": "astromesh.traces", "name": "Traces" }
+      ]
+    },
+    "menus": {
+      "editor/title": [
+        { "command": "astromesh.runAgent", "when": "resourceFilename =~ /\\.agent\\.yaml$/", "group": "navigation" },
+        { "command": "astromesh.showWorkflow", "when": "resourceFilename =~ /\\.workflow\\.yaml$/", "group": "navigation" }
+      ]
+    },
+    "configuration": {
+      "title": "Astromesh",
+      "properties": {
+        "astromesh.cliPath": {
+          "type": "string",
+          "default": "astromeshctl",
+          "description": "Path to astromeshctl binary"
+        },
+        "astromesh.daemonUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Astromesh daemon URL"
+        },
+        "astromesh.traces.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-refresh traces panel"
+        },
+        "astromesh.traces.refreshInterval": {
+          "type": "number",
+          "default": 10,
+          "description": "Traces refresh interval in seconds"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "vsce package",
+    "lint": "eslint src/"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^20.0.0",
+    "@vscode/test-electron": "^2.3.0",
+    "@vscode/vsce": "^2.22.0",
+    "esbuild": "^0.19.0",
+    "mocha": "^10.2.0",
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root { --bg: var(--vscode-editor-background); --surface: var(--vscode-sideBar-background); --border: var(--vscode-panel-border); --text: var(--vscode-editor-foreground); --muted: var(--vscode-descriptionForeground); --accent: #00d4ff; --agent: #3fb950; --tool: #d29922; --switch: #a371f7; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--vscode-font-family); background: var(--bg); color: var(--text); padding: 1.5rem; }
+  h1 { font-size: 1.1rem; margin-bottom: 1rem; } h1 span { color: var(--accent); }
+  .dag { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1.25rem; min-width: 220px; text-align: center; position: relative; }
+  .step .name { font-weight: 600; font-size: 0.9rem; }
+  .step .type { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 3px; display: inline-block; margin-top: 0.3rem; }
+  .step.agent { border-left: 3px solid var(--agent); } .step.agent .type { background: #23863620; color: var(--agent); }
+  .step.tool { border-left: 3px solid var(--tool); } .step.tool .type { background: #d2992220; color: var(--tool); }
+  .step.switch { border-left: 3px solid var(--switch); } .step.switch .type { background: #a371f720; color: var(--switch); }
+  .connector { width: 2px; height: 24px; background: var(--border); }
+  .arrow { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--border); }
+  .goto-label { font-size: 0.65rem; color: var(--muted); font-style: italic; margin-top: 0.2rem; }
+  .empty { color: var(--muted); font-style: italic; text-align: center; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<h1><span>Workflow</span> <span id="wf-name"></span></h1>
+<div id="dag" class="dag"><span class="empty">Open a .workflow.yaml file and run "Astromesh: Visualize Workflow"</span></div>
+<script>
+  const vscode = acquireVsCodeApi();
+
+  window.addEventListener("message", (event) => {
+    const { name, steps } = event.data;
+    document.getElementById("wf-name").textContent = name || "";
+    renderDag(steps || []);
+  });
+
+  function renderDag(steps) {
+    const el = document.getElementById("dag");
+    if (!steps.length) { el.innerHTML = '<span class="empty">No steps found</span>'; return; }
+    let html = "";
+    steps.forEach(function(step, i) {
+      var type = step.agent ? "agent" : step.tool ? "tool" : "switch";
+      var target = step.agent || step.tool || "switch";
+      html += '<div class="step ' + type + '"><div class="name">' + step.name + '</div><div class="type">' + type + ": " + target + '</div>';
+      if (step.on_error) html += '<div class="goto-label">on_error &rarr; ' + step.on_error + '</div>';
+      if (type === "switch" && step.branches) {
+        step.branches.forEach(function(c) {
+          var label = c.when ? c.when.replace(/\{\{|\}\}/g, "").trim().slice(0, 40) : "default";
+          html += '<div class="goto-label">' + label + ' &rarr; ' + c.goto + '</div>';
+        });
+      }
+      html += "</div>";
+      if (i < steps.length - 1) html += '<div class="connector"></div><div class="arrow"></div>';
+    });
+    el.innerHTML = html;
+  }
+
+  vscode.postMessage({ type: "ready" });
+</script>
+</body>
+</html>

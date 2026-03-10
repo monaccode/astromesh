@@ -22,6 +22,7 @@ export default defineConfig({
             { label: 'Installation', slug: 'getting-started/installation' },
             { label: 'Quick Start', slug: 'getting-started/quickstart' },
             { label: 'Your First Agent', slug: 'getting-started/first-agent' },
+            { label: 'Developer Tools', slug: 'getting-started/developer-tools' },
           ],
         },
         {
@@ -76,6 +77,7 @@ export default defineConfig({
             { label: 'Memory Manager', slug: 'reference/core/memory-manager' },
             { label: 'Daemon (astromeshd)', slug: 'reference/os/daemon' },
             { label: 'CLI (astromeshctl)', slug: 'reference/os/cli' },
+            { label: 'VS Code Extension', slug: 'reference/os/vscode-extension' },
             { label: 'Gossip Protocol', slug: 'reference/mesh/gossip-protocol' },
             { label: 'Scheduling & Routing', slug: 'reference/mesh/scheduling' },
             { label: 'Environment Variables', slug: 'reference/env-vars' },

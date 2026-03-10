@@ -1,0 +1,499 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://astromesh.dev/schemas/agent.schema.json",
+  "title": "Astromesh Agent",
+  "description": "Schema for Astromesh agent configuration files (*.agent.yaml)",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "astromesh/v1",
+      "description": "API version. Must be 'astromesh/v1'."
+    },
+    "kind": {
+      "type": "string",
+      "const": "Agent",
+      "description": "Resource kind. Must be 'Agent'."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Agent metadata.",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique agent identifier. Must be kebab-case.",
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version string (e.g. '1.0.0').",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Logical namespace for grouping agents.",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "labels": {
+          "type": "object",
+          "description": "Arbitrary key/value labels.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "description": "Agent specification.",
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "type": "object",
+          "description": "Human-facing identity information.",
+          "additionalProperties": false,
+          "properties": {
+            "display_name": {
+              "type": "string",
+              "description": "Human-readable name displayed in UIs."
+            },
+            "description": {
+              "type": "string",
+              "description": "Short description of what the agent does."
+            },
+            "avatar": {
+              "type": "string",
+              "description": "Avatar identifier or URL."
+            }
+          }
+        },
+        "model": {
+          "type": "object",
+          "description": "LLM model configuration.",
+          "additionalProperties": false,
+          "properties": {
+            "primary": {
+              "$ref": "#/$defs/modelConfig",
+              "description": "Primary model configuration."
+            },
+            "fallback": {
+              "$ref": "#/$defs/modelConfig",
+              "description": "Fallback model used when the primary is unavailable."
+            },
+            "routing": {
+              "type": "object",
+              "description": "Model routing configuration.",
+              "additionalProperties": false,
+              "properties": {
+                "strategy": {
+                  "type": "string",
+                  "description": "Routing strategy.",
+                  "enum": [
+                    "cost_optimized",
+                    "latency_optimized",
+                    "quality_first",
+                    "round_robin",
+                    "capability_match"
+                  ]
+                },
+                "health_check_interval": {
+                  "type": "integer",
+                  "description": "Seconds between provider health checks.",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        },
+        "prompts": {
+          "type": "object",
+          "description": "Prompt templates for the agent.",
+          "additionalProperties": false,
+          "properties": {
+            "system": {
+              "type": "string",
+              "description": "System prompt. Supports Jinja2 template syntax."
+            }
+          }
+        },
+        "orchestration": {
+          "type": "object",
+          "description": "Execution orchestration settings.",
+          "additionalProperties": false,
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Orchestration pattern to use.",
+              "enum": [
+                "react",
+                "plan_and_execute",
+                "pipeline",
+                "parallel_fan_out",
+                "supervisor",
+                "swarm"
+              ]
+            },
+            "max_iterations": {
+              "type": "integer",
+              "description": "Maximum number of reasoning/tool-call iterations.",
+              "minimum": 1
+            },
+            "timeout_seconds": {
+              "type": "integer",
+              "description": "Maximum wall-clock seconds before the run is aborted.",
+              "minimum": 1
+            },
+            "timeout": {
+              "type": "integer",
+              "description": "Alias for timeout_seconds (deprecated — prefer timeout_seconds).",
+              "minimum": 1
+            }
+          }
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tools available to the agent.",
+          "items": {
+            "type": "object",
+            "description": "Tool definition.",
+            "required": ["name", "type"],
+            "additionalProperties": true,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Unique tool name used in function-calling."
+              },
+              "type": {
+                "type": "string",
+                "description": "Tool integration type.",
+                "enum": [
+                  "builtin",
+                  "internal",
+                  "mcp_stdio",
+                  "mcp_sse",
+                  "mcp_http",
+                  "webhook",
+                  "rag",
+                  "agent"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "description": "Human-readable description exposed to the LLM."
+              },
+              "agent": {
+                "type": "string",
+                "description": "Target agent name when type is 'agent'."
+              },
+              "context_transform": {
+                "type": "string",
+                "description": "Jinja2 expression to transform context before invoking the tool."
+              },
+              "config": {
+                "type": "object",
+                "description": "Tool-specific configuration.",
+                "additionalProperties": true
+              },
+              "parameters": {
+                "type": "object",
+                "description": "Parameter definitions for this tool.",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "description": "Memory backend configuration.",
+          "additionalProperties": false,
+          "properties": {
+            "conversational": {
+              "type": "object",
+              "description": "Chat-history (conversational) memory.",
+              "additionalProperties": false,
+              "properties": {
+                "backend": {
+                  "type": "string",
+                  "description": "Storage backend identifier.",
+                  "enum": ["sqlite", "redis", "postgres", "in_memory"]
+                },
+                "strategy": {
+                  "type": "string",
+                  "description": "Context-window management strategy.",
+                  "enum": ["sliding_window", "summary", "token_budget"]
+                },
+                "max_messages": {
+                  "type": "integer",
+                  "description": "Maximum number of messages to retain.",
+                  "minimum": 1
+                },
+                "max_turns": {
+                  "type": "integer",
+                  "description": "Alias for max_messages (turn = user+assistant pair).",
+                  "minimum": 1
+                },
+                "ttl": {
+                  "type": "integer",
+                  "description": "Time-to-live in seconds for stored conversations.",
+                  "minimum": 1
+                }
+              }
+            },
+            "semantic": {
+              "type": "object",
+              "description": "Vector-embedding (semantic) memory.",
+              "additionalProperties": false,
+              "properties": {
+                "backend": {
+                  "type": "string",
+                  "description": "Vector store backend identifier.",
+                  "enum": ["chromadb", "pgvector", "qdrant", "in_memory"]
+                },
+                "similarity_threshold": {
+                  "type": "number",
+                  "description": "Minimum cosine similarity for retrieval.",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "max_results": {
+                  "type": "integer",
+                  "description": "Maximum number of semantic results to inject.",
+                  "minimum": 1
+                }
+              }
+            },
+            "episodic": {
+              "type": "object",
+              "description": "Event-log (episodic) memory.",
+              "additionalProperties": true
+            }
+          }
+        },
+        "guardrails": {
+          "type": "object",
+          "description": "Input and output guardrails.",
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "array",
+              "description": "Guardrails applied to incoming user messages.",
+              "items": {
+                "$ref": "#/$defs/guardrailRule"
+              }
+            },
+            "output": {
+              "type": "array",
+              "description": "Guardrails applied to LLM responses.",
+              "items": {
+                "$ref": "#/$defs/guardrailRule"
+              }
+            }
+          }
+        },
+        "observability": {
+          "type": "object",
+          "description": "Tracing and metrics configuration.",
+          "additionalProperties": false,
+          "properties": {
+            "tracing": {
+              "type": "boolean",
+              "description": "Enable distributed tracing."
+            },
+            "metrics": {
+              "type": "boolean",
+              "description": "Enable metrics collection."
+            },
+            "collector": {
+              "type": "string",
+              "description": "Telemetry collector backend.",
+              "enum": ["stdout", "otlp", "internal"]
+            },
+            "sample_rate": {
+              "type": "number",
+              "description": "Fraction of requests to sample (0.0–1.0).",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "permissions": {
+          "type": "object",
+          "description": "Runtime permission constraints.",
+          "additionalProperties": true,
+          "properties": {
+            "allowed_actions": {
+              "type": "array",
+              "description": "Explicit list of tool/action names the agent may invoke.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "filesystem": {
+              "type": "object",
+              "description": "Filesystem access restrictions.",
+              "additionalProperties": false,
+              "properties": {
+                "read": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "write": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "network": {
+              "type": "object",
+              "description": "Network access restrictions.",
+              "additionalProperties": false,
+              "properties": {
+                "allowed": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "execution": {
+              "type": "object",
+              "description": "Execution mode restrictions.",
+              "additionalProperties": false,
+              "properties": {
+                "dry_run": {
+                  "type": "boolean",
+                  "description": "If true, side-effecting tools are simulated."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "modelConfig": {
+      "type": "object",
+      "description": "Configuration for a single LLM model endpoint.",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "LLM provider identifier.",
+          "enum": [
+            "ollama",
+            "openai",
+            "openai_compat",
+            "vllm",
+            "llamacpp",
+            "huggingface",
+            "onnx"
+          ]
+        },
+        "model": {
+          "type": "string",
+          "description": "Model name or tag (e.g. 'llama3.1:8b', 'gpt-4o-mini')."
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Base URL for the model API.",
+          "format": "uri"
+        },
+        "api_key_env": {
+          "type": "string",
+          "description": "Name of the environment variable holding the API key."
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Sampling temperature (top-level shorthand for parameters.temperature).",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "max_tokens": {
+          "type": "integer",
+          "description": "Maximum tokens to generate (top-level shorthand).",
+          "minimum": 1
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Additional model parameters passed verbatim to the provider.",
+          "additionalProperties": false,
+          "properties": {
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "max_tokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "top_p": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "frequency_penalty": {
+              "type": "number",
+              "minimum": -2,
+              "maximum": 2
+            },
+            "presence_penalty": {
+              "type": "number",
+              "minimum": -2,
+              "maximum": 2
+            },
+            "stop": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" } }
+              ],
+              "description": "Stop sequences."
+            }
+          }
+        }
+      }
+    },
+    "guardrailRule": {
+      "type": "object",
+      "description": "A single guardrail rule.",
+      "required": ["type"],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Guardrail type identifier.",
+          "examples": [
+            "pii_detection",
+            "max_length",
+            "cost_limit",
+            "content_filter",
+            "prompt_injection"
+          ]
+        },
+        "action": {
+          "type": "string",
+          "description": "Action to take when the guardrail triggers.",
+          "enum": ["redact", "block", "warn", "log"]
+        },
+        "max_chars": {
+          "type": "integer",
+          "description": "Character limit (used with max_length type).",
+          "minimum": 1
+        },
+        "max_tokens_per_turn": {
+          "type": "integer",
+          "description": "Token budget per turn (used with cost_limit type).",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}
