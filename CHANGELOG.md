@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Built-in Tool Framework** — `BuiltinTool` ABC, `ToolResult`/`ToolContext` dataclasses, and `ToolLoader` with auto-discovery for registering tools via `type: builtin` in agent YAML
+- **17 Built-in Tools** across 7 categories:
+  - **Utilities** — `datetime_now` (timezone-aware), `json_transform` (Jinja2 templates), `cache_store` (key-value sharing between tool calls)
+  - **HTTP** — `http_request` (GET/POST/PUT/DELETE/PATCH with localhost blocking), `graphql_query`
+  - **Web** — `web_search` (Tavily provider), `web_scrape` (HTML-to-text), `wikipedia` (article summaries)
+  - **Files** — `read_file`, `write_file` (both with configurable `allowed_paths` restrictions)
+  - **Database** — `sql_query` (SQLite, `read_only: true` by default, blocks INSERT/UPDATE/DELETE/DROP)
+  - **Communication** — `send_webhook`, `send_slack` (via webhook), `send_email` (async SMTP via `asyncio.to_thread`)
+  - **AI** — `text_summarize` (delegates to agent's model via `model_fn`, skips short text)
+  - **RAG** — `rag_query`, `rag_ingest` (wraps existing RAG pipeline)
+- **`GET /v1/tools/builtin`** — API endpoint listing all available builtin tools with metadata (name, description, parameters)
+- **TracingContext** — lightweight span-based tracing with `start_span()`/`finish_span()`, nested spans, and `to_dict()` serialization
+- **Runtime tracing** — `Agent.run()` automatically creates spans for `memory_build`, `prompt_render`, `llm.complete`, `tool.call`, `orchestration`, `memory_persist`; trace attached to result as `result["trace"]`
+- **StructuredLogger** — JSON-to-stdout logger with `info()`/`warning()`/`error()`/`debug()` methods
+- **Trace collectors** — `StdoutCollector` (JSON to stream), `InternalCollector` (in-memory deque with index), `OTLPCollector` (bridges to existing `TelemetryManager` for OpenTelemetry export)
+- **`GET /v1/traces/`** — list traces with optional `?agent=` filter and `?limit=` pagination
+- **`GET /v1/traces/{trace_id}`** — retrieve individual trace by ID (404 on miss)
+- **`GET /v1/metrics/`** — in-memory counters and histograms (count, sum, avg, min, max)
+- **`POST /v1/metrics/reset`** — clear all metrics
+- **Ecosystem design spec** (`docs/superpowers/specs/2026-03-10-astromesh-ecosystem-design.md`) — 5 sub-project architecture for tools, observability, multi-agent, CLI/copilot, and VS Code extension
+- 93 new tests for all tools, tracing, collectors, APIs, and registry
+
 ### Changed
 
 - **License** — consolidated into single `LICENSE` file (Apache 2.0), removed `LICENSE.md`
@@ -20,8 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AgentExample** — macOS-style window chrome (traffic light dots), uppercase response label
 - **Custom CSS** — replaced Inter font with DM Sans + JetBrains Mono; added custom design tokens (`--am-glow`, `--am-surface`, `--am-border`) for cohesive aerospace aesthetic
 - **Color palette rebrand** — accent palette shifted from blue (`#3b82f6`) to logo-derived cyan (`#00d4ff`); updated all CSS variables, component fallback values, and gradient endpoints (`#06b6d4`) across `custom.css`, `PipelineDiagram`, `FeatureCards`, `DeploymentTabs`, and `AgentExample`
+- **`astromesh/runtime/engine.py`** — `_build_agent()` now resolves `type: builtin` tools via `ToolLoader`; `Agent.run()` wrapped with `TracingContext` for automatic span collection
+- **`astromesh/api/main.py`** — mounts `traces` and `metrics` routers at `/v1`
+- **`astromesh/observability/collector.py`** — refactored with `Collector` ABC; added `OTLPCollector` bridging to OpenTelemetry
 
-### Added
+### Added (docs-site)
 
 - **Dark mode lock** — theme toggle removed via Starlight `ThemeSelect` component override; dark mode is now permanent with CSS fallback for any light-theme tokens
 - **Astromesh logo** in docs-site landing page hero with blue glow drop-shadow and entrance animation
@@ -31,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs site link as primary documentation entry point in README
 - Additional doc references in README: Maia guide, Dev quickstart, Installation
 
-### Changed
+### Changed (docs-site)
 
 - **README** — clone URL updated from `your-org` to `monaccode`
 
