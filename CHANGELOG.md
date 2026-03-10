@@ -5,10 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.15.0] - 2026-03-10
 
 ### Added
 
+- **Version badge in docs-site header** (`docs-site/src/components/SocialIcons.astro`) — displays active version (from `pyproject.toml`) as a clickable pill badge next to the GitHub icon, linking to the release page
 - **Developer Toolkit component** (`docs-site/src/components/DevToolkit.astro`) — interactive tabbed showcase on the docs homepage highlighting CLI, Copilot, and VS Code Extension with capability cards, accent colors, and "Coming Soon" cluster orchestration callout
 
 ### Changed
@@ -16,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Developer Tools guide** (`docs-site/getting-started/developer-tools`) — restructured into three clear sections (CLI, Copilot, VS Code) with command examples, feature table, and quick reference
 - **Docs-site content** — formatting and alignment fixes across architecture, reference, and deployment pages
 - **License references in docs** — updated `README.md` and `docs/TECH_OVERVIEW.md` to Apache-2.0 and aligned with canonical `LICENSE`
+- **Installation docs** — switched from APT repo URL to GitHub `.deb` releases for clearer install instructions
+
+### Fixed
+
+- **Release packaging** — hardened version checks and packaging scripts for reliable releases
 
 ## [0.14.0] - 2026-03-10
 
@@ -447,7 +453,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/monaccode/astromesh/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/monaccode/astromesh/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/monaccode/astromesh/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/monaccode/astromesh/compare/v0.11.0...v0.12.0
