@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -138,9 +139,15 @@ class ToolRegistry:
                     import json as json_mod
 
                     env = Environment(loader=BaseLoader())
+                    # Quote bare dict keys: {score: ...} -> {'score': ...}
+                    fixed_transform = re.sub(
+                        r"(?<=[{,])\s*(\w+)\s*:",
+                        lambda m: f" '{m.group(1)}':",
+                        tool.context_transform,
+                    )
                     tpl_str = (
                         "{% set result = "
-                        + tool.context_transform
+                        + fixed_transform
                         + " %}{{ result | tojson }}"
                     )
                     template = env.from_string(tpl_str)
