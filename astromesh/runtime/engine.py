@@ -99,11 +99,11 @@ class AgentRuntime:
             orchestration_config=spec.get("orchestration", {}),
         )
 
-    async def run(self, agent_name, query, session_id, context=None):
+    async def run(self, agent_name, query, session_id, context=None, parent_trace_id=None):
         agent = self._agents.get(agent_name)
         if not agent:
             raise ValueError(f"Agent '{agent_name}' not found")
-        return await agent.run(query, session_id, context)
+        return await agent.run(query, session_id, context, parent_trace_id=parent_trace_id)
 
     def list_agents(self):
         return [
@@ -143,12 +143,14 @@ class Agent:
         self._permissions = permissions
         self._orchestration_config = orchestration_config
 
-    async def run(self, query, session_id, context=None):
+    async def run(self, query, session_id, context=None, parent_trace_id=None):
         from datetime import datetime
         from astromesh.core.memory import ConversationTurn
         from astromesh.observability.tracing import TracingContext, SpanStatus
 
         tracing = TracingContext(agent_name=self.name, session_id=session_id)
+        if parent_trace_id:
+            tracing.trace_id = parent_trace_id  # share trace tree
         root_span = tracing.start_span("agent.run", {"agent": self.name, "session": session_id})
 
         try:

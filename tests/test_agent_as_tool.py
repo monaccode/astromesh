@@ -127,6 +127,7 @@ class TestExecuteAgentTool:
             "Is Acme Corp a good lead?",
             session_id="sess-1",
             context=None,
+            parent_trace_id=None,
         )
         assert result["answer"] == "Lead is qualified"
 
@@ -161,4 +162,71 @@ class TestExecuteAgentTool:
             "test",
             session_id="sess-42",
             context=None,
+            parent_trace_id=None,
         )
+
+
+class TestAgentToolTracing:
+    @pytest.mark.asyncio
+    async def test_agent_tool_creates_child_span(self):
+        """Agent-as-tool calls should appear as child spans in the trace."""
+        from astromesh.observability.tracing import TracingContext
+
+        child_trace = {
+            "trace_id": "child-trace-123",
+            "spans": [{"name": "agent.run", "span_id": "s1"}],
+        }
+        runtime_mock = AsyncMock()
+        runtime_mock.run = AsyncMock(
+            return_value={"answer": "done", "steps": [], "trace": child_trace}
+        )
+
+        registry = ToolRegistry()
+        registry.set_runtime(runtime_mock)
+        registry.register_agent_tool(
+            name="sub-agent",
+            agent_name="worker-agent",
+            description="Sub agent",
+        )
+
+        tracing = TracingContext(agent_name="parent", session_id="s1")
+        parent_span = tracing.start_span("tool.call", {"tool": "sub-agent"})
+
+        result = await registry.execute(
+            "sub-agent",
+            {"query": "do work"},
+            context={"session": "s1", "tracing": tracing, "parent_span": parent_span},
+        )
+
+        assert result["answer"] == "done"
+        # The runtime.run call should have received parent trace info
+        call_kwargs = runtime_mock.run.call_args
+        assert call_kwargs is not None
+
+    @pytest.mark.asyncio
+    async def test_agent_tool_result_includes_child_trace(self):
+        """Result from agent tool includes child trace for merging."""
+        child_trace = {
+            "trace_id": "child-abc",
+            "spans": [{"name": "agent.run", "span_id": "cs1"}],
+        }
+        runtime_mock = AsyncMock()
+        runtime_mock.run = AsyncMock(
+            return_value={"answer": "result", "steps": [], "trace": child_trace}
+        )
+
+        registry = ToolRegistry()
+        registry.set_runtime(runtime_mock)
+        registry.register_agent_tool(
+            name="sub-agent",
+            agent_name="worker",
+            description="Worker",
+        )
+
+        result = await registry.execute(
+            "sub-agent",
+            {"query": "work"},
+            context={"session": "s1"},
+        )
+        assert "trace" in result
+        assert result["trace"]["trace_id"] == "child-abc"

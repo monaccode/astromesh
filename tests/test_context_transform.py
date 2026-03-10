@@ -36,6 +36,7 @@ class TestContextTransform:
             "hello world",
             session_id="s1",
             context=None,
+            parent_trace_id=None,
         )
 
     @pytest.mark.asyncio
@@ -114,4 +115,5 @@ class TestContextTransform:
             "go",
             session_id="s5",
             context=None,
+            parent_trace_id=None,
         )

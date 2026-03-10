@@ -155,8 +155,13 @@ class ToolRegistry:
                     transform_ctx = json_mod.loads(rendered)
                 except Exception as exc:
                     return {"error": f"Context transform failed: {exc}"}
+            parent_trace_id = (context or {}).get("trace_id")
             return await self._runtime.run(
-                agent_name, query, session_id=session_id, context=transform_ctx
+                agent_name,
+                query,
+                session_id=session_id,
+                context=transform_ctx,
+                parent_trace_id=parent_trace_id,
             )
         return {"error": f"Unsupported tool type: {tool.tool_type}"}
 
