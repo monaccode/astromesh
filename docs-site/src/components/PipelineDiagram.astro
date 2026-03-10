@@ -34,6 +34,7 @@ const steps = [
     flex-wrap: nowrap;
     padding: 2.5rem 1rem 1.5rem;
     overflow-x: auto;
+    overflow-y: visible;
   }
 
   .step {
@@ -51,12 +52,14 @@ const steps = [
     transform: translateY(12px);
     animation: fade-in 0.4s ease-out forwards;
     min-width: 5.5rem;
+    z-index: 1;
   }
 
   .step:hover,
   .step:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px var(--sl-color-accent);
+    z-index: 20;
   }
 
   .icon {
@@ -74,7 +77,7 @@ const steps = [
 
   .tooltip {
     position: absolute;
-    bottom: calc(100% + 0.6rem);
+    top: calc(100% + 0.6rem);
     left: 50%;
     transform: translateX(-50%);
     background: var(--sl-color-bg-nav);
@@ -91,18 +94,18 @@ const steps = [
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.2s ease;
-    z-index: 10;
+    z-index: 30;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
 
   .tooltip::after {
     content: "";
     position: absolute;
-    top: 100%;
+    bottom: 100%;
     left: 50%;
     transform: translateX(-50%);
     border: 6px solid transparent;
-    border-top-color: var(--sl-color-accent);
+    border-bottom-color: var(--sl-color-accent);
   }
 
   .step:hover .tooltip,
@@ -138,17 +141,7 @@ const steps = [
     }
 
     .tooltip {
-      bottom: auto;
-      top: calc(100% + 0.6rem);
-      left: 50%;
-      transform: translateX(-50%);
-    }
-
-    .tooltip::after {
-      top: auto;
-      bottom: 100%;
-      border-top-color: transparent;
-      border-bottom-color: var(--sl-color-accent);
+      max-width: min(14rem, calc(100vw - 3rem));
     }
   }
 </style>
