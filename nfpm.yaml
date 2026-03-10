@@ -13,8 +13,9 @@ depends:
 
 contents:
   # Venv with all dependencies
-  - src: staging/venv/**
-    dst: /opt/astromesh/venv/
+  - src: staging/venv
+    dst: /opt/astromesh/venv
+    type: tree
 
   # Symlinks to /usr/bin
   - src: /opt/astromesh/venv/bin/astromeshd
