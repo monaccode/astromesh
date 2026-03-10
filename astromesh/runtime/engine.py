@@ -42,10 +42,48 @@ class AgentRuntime:
         agents_dir = self._config_dir / "agents"
         if not agents_dir.exists():
             return
+        configs = []
         for f in agents_dir.glob("*.agent.yaml"):
-            config = yaml.safe_load(f.read_text())
+            configs.append(yaml.safe_load(f.read_text()))
+        self._detect_circular_refs(configs)
+        for config in configs:
             agent = self._build_agent(config)
             self._agents[agent.name] = agent
+
+    def _detect_circular_refs(self, configs: list[dict]):
+        """Detect circular agent-as-tool references. Raises ValueError if cycle found."""
+        # Build adjacency list
+        graph: dict[str, list[str]] = {}
+        for config in configs:
+            name = config["metadata"]["name"]
+            agent_tools = [
+                t["agent"]
+                for t in config["spec"].get("tools", [])
+                if t.get("type") == "agent"
+            ]
+            graph[name] = agent_tools
+
+        # DFS cycle detection
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color = {name: WHITE for name in graph}
+
+        def dfs(node, path):
+            color[node] = GRAY
+            for neighbor in graph.get(node, []):
+                if neighbor not in color:
+                    continue  # references external agent, skip
+                if color[neighbor] == GRAY:
+                    cycle = path + [neighbor]
+                    raise ValueError(
+                        f"Circular agent reference detected: {' -> '.join(cycle)}"
+                    )
+                if color[neighbor] == WHITE:
+                    dfs(neighbor, path + [neighbor])
+            color[node] = BLACK
+
+        for node in graph:
+            if color[node] == WHITE:
+                dfs(node, [node])
 
     def _build_agent(self, config):
         spec = config["spec"]

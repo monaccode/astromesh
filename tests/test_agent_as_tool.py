@@ -230,3 +230,70 @@ class TestAgentToolTracing:
         )
         assert "trace" in result
         assert result["trace"]["trace_id"] == "child-abc"
+
+
+class TestCircularAgentDetection:
+    def _make_agent_config(self, name, agent_tools=None):
+        """Helper to build a minimal agent YAML config dict."""
+        tools = []
+        for at in agent_tools or []:
+            tools.append({"name": at, "type": "agent", "agent": at})
+        return {
+            "apiVersion": "astromesh/v1",
+            "kind": "Agent",
+            "metadata": {"name": name, "version": "0.1.0"},
+            "spec": {
+                "identity": {"description": f"Agent {name}"},
+                "model": {"routing": {"strategy": "cost_optimized"}},
+                "tools": tools,
+                "orchestration": {"pattern": "react"},
+            },
+        }
+
+    def test_direct_self_reference_detected(self):
+        """Agent referencing itself as a tool should raise at bootstrap."""
+        from astromesh.runtime.engine import AgentRuntime
+
+        runtime = AgentRuntime.__new__(AgentRuntime)
+        configs = [self._make_agent_config("agent-a", agent_tools=["agent-a"])]
+        with pytest.raises(ValueError, match="[Cc]ircular"):
+            runtime._detect_circular_refs(configs)
+
+    def test_indirect_cycle_detected(self):
+        """A -> B -> A cycle should raise at bootstrap."""
+        from astromesh.runtime.engine import AgentRuntime
+
+        runtime = AgentRuntime.__new__(AgentRuntime)
+        configs = [
+            self._make_agent_config("agent-a", agent_tools=["agent-b"]),
+            self._make_agent_config("agent-b", agent_tools=["agent-a"]),
+        ]
+        with pytest.raises(ValueError, match="[Cc]ircular"):
+            runtime._detect_circular_refs(configs)
+
+    def test_no_cycle_passes(self):
+        """A -> B -> C (no cycle) should not raise."""
+        from astromesh.runtime.engine import AgentRuntime
+
+        runtime = AgentRuntime.__new__(AgentRuntime)
+        configs = [
+            self._make_agent_config("agent-a", agent_tools=["agent-b"]),
+            self._make_agent_config("agent-b", agent_tools=["agent-c"]),
+            self._make_agent_config("agent-c"),
+        ]
+        # Should not raise
+        runtime._detect_circular_refs(configs)
+
+    def test_diamond_dependency_no_false_positive(self):
+        """A -> B, A -> C, B -> D, C -> D is not circular."""
+        from astromesh.runtime.engine import AgentRuntime
+
+        runtime = AgentRuntime.__new__(AgentRuntime)
+        configs = [
+            self._make_agent_config("a", agent_tools=["b", "c"]),
+            self._make_agent_config("b", agent_tools=["d"]),
+            self._make_agent_config("c", agent_tools=["d"]),
+            self._make_agent_config("d"),
+        ]
+        # Should not raise
+        runtime._detect_circular_refs(configs)
