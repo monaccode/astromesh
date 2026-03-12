@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-03-12
+
 ### Changed
 
 - **Release workflow** — disabled APT repo publish step while public endpoint is pending
@@ -469,7 +471,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.15.2...HEAD
+[0.15.2]: https://github.com/monaccode/astromesh/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/monaccode/astromesh/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/monaccode/astromesh/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/monaccode/astromesh/compare/v0.13.0...v0.14.0
