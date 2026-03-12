@@ -9,12 +9,20 @@ RUN pip install --no-cache-dir uv
 # Copy project files
 COPY pyproject.toml .
 COPY README.md .
+
+# Keep runtime image lean by default; override with --build-arg ASTROMESH_EXTRAS=all if needed.
+ARG ASTROMESH_EXTRAS="redis,postgres,sqlite,qdrant,observability,mcp,cli,daemon,mesh"
+
+# Install third-party dependencies in a cache-friendly layer.
+RUN uv pip install --system ".[${ASTROMESH_EXTRAS}]"
+
+# Copy source after dependencies so code changes do not invalidate dependency layer.
 COPY astromesh/ astromesh/
 COPY daemon/ daemon/
 COPY cli/ cli/
 
-# Install all dependencies
-RUN uv pip install --system ".[all]"
+# Install local project without re-resolving dependencies.
+RUN uv pip install --system --no-deps .
 
 # Stage 2: Runtime image
 FROM python:3.12-slim

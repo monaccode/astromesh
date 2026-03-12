@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.3] - 2026-03-12
+
+### Added
+
+- **`.dockerignore`** — excludes dev/build artifacts (`.git`, `.venv`, `node_modules`, `tests`, `docs`, etc.) from Docker build context for faster, leaner builds
+
+### Changed
+
+- **Dockerfile** — optimized multi-stage build with cache-friendly layer separation: dependencies install before source copy so code changes don't invalidate the dependency cache; extras are now configurable via `ASTROMESH_EXTRAS` build arg (defaults to all runtime extras minus `all`)
+
 ## [0.15.2] - 2026-03-12
 
 ### Changed
@@ -471,7 +481,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.15.2...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.15.3...HEAD
+[0.15.3]: https://github.com/monaccode/astromesh/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/monaccode/astromesh/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/monaccode/astromesh/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/monaccode/astromesh/compare/v0.14.0...v0.15.0
