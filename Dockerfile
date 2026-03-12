@@ -13,6 +13,11 @@ COPY README.md .
 # Keep runtime image lean by default; override with --build-arg ASTROMESH_EXTRAS=all if needed.
 ARG ASTROMESH_EXTRAS="redis,postgres,sqlite,qdrant,observability,mcp,cli,daemon,mesh"
 
+# Hatchling needs package directories to exist when resolving extras from local project.
+# Create a minimal skeleton so dependency layer remains cacheable before copying full source.
+RUN mkdir -p astromesh daemon cli && \
+    touch astromesh/__init__.py daemon/__init__.py cli/__init__.py
+
 # Install third-party dependencies in a cache-friendly layer.
 RUN uv pip install --system ".[${ASTROMESH_EXTRAS}]"
 

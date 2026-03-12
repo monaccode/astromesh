@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.4] - 2026-03-12
+
+### Fixed
+
+- **Dockerfile** — create minimal package skeleton (`astromesh/`, `daemon/`, `cli/` with `__init__.py`) before dependency install so hatchling can resolve extras without the full source tree, keeping the dependency layer cacheable
+
 ## [0.15.3] - 2026-03-12
 
 ### Added
@@ -481,7 +487,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.15.3...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.15.4...HEAD
+[0.15.4]: https://github.com/monaccode/astromesh/compare/v0.15.3...v0.15.4
 [0.15.3]: https://github.com/monaccode/astromesh/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/monaccode/astromesh/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/monaccode/astromesh/compare/v0.15.0...v0.15.1
