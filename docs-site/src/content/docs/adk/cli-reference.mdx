@@ -1,0 +1,54 @@
+---
+title: CLI Reference
+description: astromesh-adk command line interface
+---
+
+## Commands
+
+### `run` — Execute an agent
+
+```bash
+astromesh-adk run agents.py:my_agent "What is CRISPR?"
+astromesh-adk run agents.py:my_agent "query" --session lead-123
+```
+
+### `chat` — Interactive chat
+
+```bash
+astromesh-adk chat agents.py:my_agent
+astromesh-adk chat agents.py:my_agent --session s1
+```
+
+### `list` — List agents in a file
+
+```bash
+astromesh-adk list agents.py
+```
+
+Output:
+```
+┌──────────────┬──────────────┬─────────┬───────┐
+│ Name         │ Model        │ Pattern │ Tools │
+├──────────────┼──────────────┼─────────┼───────┤
+│ assistant    │ openai/gpt-4o│ react   │ 2     │
+└──────────────┴──────────────┴─────────┴───────┘
+```
+
+### `check` — Validate configuration
+
+```bash
+astromesh-adk check agents.py
+```
+
+Validates: provider env vars, tool schemas, MCP commands, memory backends.
+
+### `dev` — Development server
+
+```bash
+astromesh-adk dev agents.py --port 8000 --reload
+```
+
+Starts a FastAPI server with:
+- `GET /v1/health` — Health check
+- `GET /v1/agents` — List agents
+- `POST /v1/agents/{name}/run` — Execute agent

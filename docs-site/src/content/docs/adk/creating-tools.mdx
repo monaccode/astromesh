@@ -1,0 +1,68 @@
+---
+title: Creating Tools
+description: Define tools with @tool decorator or Tool base class
+---
+
+## Decorator-Based Tools
+
+```python
+from astromesh_adk import tool
+
+@tool(description="Search the web for information")
+async def web_search(query: str, max_results: int = 5) -> str:
+    # JSON schema auto-generated from type hints
+    return f"Results for {query}"
+```
+
+Supported types: `str`, `int`, `float`, `bool`, `list`, `dict`, `Optional`, `X | None`.
+
+## Class-Based Tools
+
+For tools with state or lifecycle management:
+
+```python
+from astromesh_adk import Tool
+
+class DatabaseTool(Tool):
+    name = "query_db"
+    description = "Query the database"
+
+    def __init__(self, connection_string: str):
+        self.conn = connection_string
+
+    def parameters(self):
+        return {"sql": {"type": "string", "description": "SQL query"}}
+
+    async def execute(self, args, ctx=None):
+        return f"Results for: {args['sql']}"
+
+    async def cleanup(self):
+        pass  # Close connections
+```
+
+## MCP Tools
+
+```python
+from astromesh_adk import mcp_tools
+
+github = mcp_tools(
+    transport="stdio",
+    command="npx",
+    args=["-y", "@modelcontextprotocol/server-github"],
+    env={"GITHUB_TOKEN": os.environ["GITHUB_TOKEN"]},
+)
+
+@agent(name="dev", model="openai/gpt-4o", tools=[web_search, *github])
+async def dev_agent(ctx):
+    """Developer agent."""
+    return None
+```
+
+## Tool Options
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `description` | `str` | Description for the LLM |
+| `rate_limit` | `dict` | `{"max_calls": N, "window_seconds": N}` |
+| `requires_approval` | `bool` | Require approval before execution |
+| `timeout` | `int` | Timeout in seconds |

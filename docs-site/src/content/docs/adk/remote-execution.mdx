@@ -1,0 +1,43 @@
+---
+title: Remote Execution
+description: Connect agents to a remote Astromesh cluster
+---
+
+## Connect Globally
+
+```python
+from astromesh_adk import connect, disconnect
+
+connect(url="https://my-cluster.astromesh.io", api_key="ask-xxx")
+result = await my_agent.run("query")  # Runs on remote
+disconnect()
+```
+
+## Context Manager
+
+```python
+from astromesh_adk import remote
+
+async with remote("https://cluster.io", api_key="..."):
+    result = await agent.run("Runs on Astromesh")
+
+result = await agent.run("Runs locally")
+```
+
+## Per-Agent Binding
+
+```python
+my_agent.bind(remote="https://cluster.io", api_key="...")
+result = await my_agent.run("Always remote")
+
+other_agent.run("Still local")
+```
+
+## Resolution Priority
+
+1. `agent.bind()` (per-agent)
+2. `remote()` context manager
+3. `connect()` global
+4. Local runtime
+
+The connection state uses `contextvars` for async-safe concurrent execution.

@@ -1,0 +1,69 @@
+---
+title: Multi-Agent Teams
+description: Compose agents into teams with orchestration patterns
+---
+
+## Agent as Tool
+
+Any agent can be used as a tool by another agent:
+
+```python
+@agent(
+    name="coordinator",
+    model="openai/gpt-4o",
+    tools=[researcher.as_tool(), writer.as_tool()],
+    pattern="plan_and_execute",
+)
+async def coordinator(ctx):
+    """Coordinate research and writing."""
+    return None
+```
+
+## AgentTeam
+
+Compose multiple agents with orchestration patterns:
+
+### Supervisor
+
+```python
+from astromesh_adk import AgentTeam
+
+team = AgentTeam(
+    name="content-team",
+    pattern="supervisor",
+    supervisor=coordinator,
+    workers=[researcher, writer],
+)
+result = await team.run("Write about AI in healthcare")
+```
+
+### Pipeline
+
+```python
+team = AgentTeam(
+    name="doc-pipeline",
+    pattern="pipeline",
+    agents=[extractor, summarizer, translator],
+)
+```
+
+### Swarm
+
+```python
+team = AgentTeam(
+    name="sales",
+    pattern="swarm",
+    agents=[qualifier, negotiator, closer],
+    entry_agent=qualifier,
+)
+```
+
+### Parallel Fan-Out
+
+```python
+team = AgentTeam(
+    name="research",
+    pattern="parallel",
+    agents=[market_analyst, tech_analyst, competitor_analyst],
+)
+```

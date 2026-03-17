@@ -1,0 +1,53 @@
+---
+title: Defining Agents
+description: Define agents with @agent decorator or Agent base class
+---
+
+## Decorator-Based Agents
+
+```python
+from astromesh_adk import agent
+
+@agent(name="assistant", model="openai/gpt-4o", description="General assistant")
+async def assistant(ctx):
+    """You are a helpful assistant."""
+    return None  # Use default orchestration
+```
+
+The docstring becomes the system prompt. Return `None` to use the default orchestration pipeline, or use `ctx.run_default()` for pre/post processing.
+
+## Class-Based Agents
+
+```python
+from astromesh_adk import Agent, RunContext
+
+class MyAgent(Agent):
+    name = "custom"
+    model = "ollama/llama3"
+    pattern = "plan_and_execute"
+
+    def system_prompt_fn(self, ctx: RunContext) -> str:
+        return f"You help {ctx.user_id}"
+
+    async def on_before_run(self, ctx: RunContext):
+        """Called before execution."""
+
+    async def on_after_run(self, ctx: RunContext, result):
+        """Called after execution."""
+
+    async def on_tool_call(self, ctx: RunContext, tool_name: str, args: dict):
+        """Called before each tool call."""
+```
+
+## Configuration Options
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `str` | Agent identifier |
+| `model` | `str` | Provider/model (e.g., `"openai/gpt-4o"`) |
+| `tools` | `list` | Tools available to the agent |
+| `pattern` | `str` | Orchestration: `react`, `plan_and_execute`, `parallel`, `pipeline`, `supervisor`, `swarm` |
+| `memory` | `str \| dict` | Memory config (e.g., `"sqlite"`) |
+| `guardrails` | `dict` | Input/output guardrails |
+| `fallback_model` | `str` | Fallback provider/model |
+| `routing` | `str` | Routing strategy |
