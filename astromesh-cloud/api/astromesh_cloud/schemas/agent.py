@@ -1,5 +1,6 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
 
 class WizardConfig(BaseModel):
     name: str = Field(max_length=63, pattern=r"^[a-z0-9][a-z0-9-]*$")
@@ -15,11 +16,14 @@ class WizardConfig(BaseModel):
     content_filter: bool = False
     orchestration: str = "react"
 
+
 class AgentCreate(BaseModel):
     config: WizardConfig
 
+
 class AgentUpdate(BaseModel):
     config: WizardConfig
+
 
 class AgentResponse(BaseModel):
     id: str
@@ -33,6 +37,12 @@ class AgentResponse(BaseModel):
     deployed_at: datetime | None = None
     model_config = {"from_attributes": True}
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_id(cls, v) -> str:
+        return str(v)
+
+
 class AgentListItem(BaseModel):
     id: str
     name: str
@@ -40,3 +50,8 @@ class AgentListItem(BaseModel):
     status: str
     created_at: datetime
     model_config = {"from_attributes": True}
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_id(cls, v) -> str:
+        return str(v)
