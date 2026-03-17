@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [adk-v0.1.1] - 2026-03-17
+
+### Changed (ADK)
+
+- **Core dependency floor** — bumped `astromesh>=0.16.1` to `astromesh>=0.17.0` to require runtime prerequisites (dynamic agent CRUD, BYOK, usage tracking)
+
+## [v0.17.1] - 2026-03-17
+
+### Fixed (Runtime)
+
+- **Release workflow permissions** — fixed PyPI and ADK publish workflows
+- **Test compatibility** — fixed CLI and daemon integration test imports
+
+### Changed (Docs-site)
+
+- **Header logo size** — increased from 1.6rem to 2.4rem for better visibility
+- **Per-product version badges** — header now shows Core, ADK, and Cloud versions with color-coded badges (cyan/purple/green)
+- **CI/CD status badges** — added StatusBadges component to homepage showing CI, PyPI publish, and package version status from GitHub
+
 ## [cloud-v0.1.0] - 2026-03-17
 
 ### Added (Cloud API)

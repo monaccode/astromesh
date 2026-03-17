@@ -103,8 +103,8 @@ jobs:
           CORE_VERSION="${GITHUB_REF_NAME#v}"
           python -m pip install --upgrade pip
           python -m pip install \
-            --index-url https://test.pypi.org/simple \
-            --extra-index-url https://pypi.org/simple \
+            --index-url https://pypi.org/simple \
+            --extra-index-url https://test.pypi.org/simple \
             "astromesh==${CORE_VERSION}"
 
       - name: Verify import and CLI

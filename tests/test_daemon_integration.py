@@ -3,6 +3,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from astromesh import __version__
 from astromesh.api.main import app
 from astromesh.api.routes import system
 from astromesh.runtime.engine import AgentRuntime
@@ -52,7 +53,7 @@ async def test_status_with_bootstrapped_runtime(bootstrapped_client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["agents_loaded"] == 1
-    assert data["version"] == "0.15.2"
+    assert data["version"] == __version__
 
 
 async def test_doctor_with_bootstrapped_runtime(bootstrapped_client):
