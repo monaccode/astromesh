@@ -48,7 +48,7 @@ The runtime is the same engine described in the core Astromesh docs. The Cloud l
 
 Tenant isolation is implemented via **naming conventions**:
 
-- Every agent in the runtime is prefixed: `{org_slug}__{agent_name}`
+- Every agent in the runtime is prefixed: `{'{org_slug}'}__{'{agent_name}'}`
 - API keys are scoped to a single org
 - Provider keys (BYOK) are encrypted and injected at execution time
 

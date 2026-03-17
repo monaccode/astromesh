@@ -25,19 +25,19 @@ Every agent in Astromesh Cloud exists in one of three states. Understanding the 
                   ▼                      │
             [paused] ────────────────────┘
 
-         DELETE /agents/{name} works from any state
+         DELETE /agents/{'{name}'} works from any state
 ```
 
 ## States
 
 ### draft
 
-The initial state when an agent is created with `POST /orgs/{slug}/agents`.
+The initial state when an agent is created with `POST /orgs/{'{slug}'}/agents`.
 
 - The `WizardConfig` is stored but not compiled to runtime YAML
 - The agent is not registered in the shared runtime
 - No requests are accepted
-- Config can be freely edited with `PUT /orgs/{slug}/agents/{name}`
+- Config can be freely edited with `PUT /orgs/{'{slug}'}/agents/{'{name}'}`
 - You can use `POST .../test` after deploying, but editing is only safe in draft state
 
 **Use draft when:** You are iterating on the system prompt, model selection, tools, or guardrails and don't need the agent to accept live traffic.
@@ -46,7 +46,7 @@ The initial state when an agent is created with `POST /orgs/{slug}/agents`.
 
 ### deployed
 
-The active state. The `WizardConfig` has been compiled to an Astromesh runtime YAML and the agent is registered in the shared runtime under the ID `{org_slug}__{agent_name}`.
+The active state. The `WizardConfig` has been compiled to an Astromesh runtime YAML and the agent is registered in the shared runtime under the ID `{'{org_slug}'}__{'{agent_name}'}`.
 
 - The agent accepts requests via `POST .../run` and WebSocket `.../stream`
 - Usage counts against the org's daily limit
@@ -71,7 +71,7 @@ The agent is deregistered from the runtime but the `WizardConfig` is fully prese
 
 - Re-deploying from paused is faster than a fresh deploy (config already validated)
 - Safe to edit the `WizardConfig` while paused
-- `GET /orgs/{slug}/agents/{name}` still returns the agent with full config
+- `GET /orgs/{'{slug}'}/agents/{'{name}'}` still returns the agent with full config
 
 **Use paused when:** You need to make config changes to a deployed agent, temporarily reduce runtime load, or take an agent offline for maintenance.
 
@@ -84,7 +84,7 @@ The agent is deregistered from the runtime but the `WizardConfig` is fully prese
 | `draft` | `deployed` | `POST .../deploy` | Compile YAML, register in runtime |
 | `deployed` | `paused` | `POST .../pause` | Deregister from runtime |
 | `paused` | `deployed` | `POST .../deploy` | Re-register in runtime |
-| any | deleted | `DELETE /agents/{name}` | Pause if needed, then remove config |
+| any | deleted | `DELETE /agents/{'{name}'}` | Pause if needed, then remove config |
 
 ## Editing a Deployed Agent
 

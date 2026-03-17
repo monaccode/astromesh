@@ -100,7 +100,7 @@ curl https://api.astromesh.io/api/v1/orgs/me \
 
 ---
 
-### PATCH /orgs/{slug}
+### PATCH /orgs/{'{slug}'}
 
 Update org display name.
 
@@ -108,13 +108,13 @@ Update org display name.
 
 ---
 
-### GET /orgs/{slug}/members
+### GET /orgs/{'{slug}'}/members
 
 List org members with roles.
 
 ---
 
-### POST /orgs/{slug}/members/invite
+### POST /orgs/{'{slug}'}/members/invite
 
 Invite a user by email. Errors if the org is at the 3-member limit.
 
@@ -124,7 +124,7 @@ Invite a user by email. Errors if the org is at the 3-member limit.
 
 ## Agents
 
-### GET /orgs/{slug}/agents
+### GET /orgs/{'{slug}'}/agents
 
 List all agents in the org.
 
@@ -150,7 +150,7 @@ curl https://api.astromesh.io/api/v1/orgs/my-org/agents \
 
 ---
 
-### POST /orgs/{slug}/agents
+### POST /orgs/{'{slug}'}/agents
 
 Create an agent in `draft` state using a `WizardConfig`.
 
@@ -197,19 +197,19 @@ curl -X POST https://api.astromesh.io/api/v1/orgs/my-org/agents \
 
 ---
 
-### GET /orgs/{slug}/agents/{name}
+### GET /orgs/{'{slug}'}/agents/{'{name}'}
 
 Get a single agent's full config and current status.
 
 ---
 
-### PUT /orgs/{slug}/agents/{name}
+### PUT /orgs/{'{slug}'}/agents/{'{name}'}
 
 Update wizard config. Only allowed in `draft` or `paused` state.
 
 ---
 
-### DELETE /orgs/{slug}/agents/{name}
+### DELETE /orgs/{'{slug}'}/agents/{'{name}'}
 
 Delete an agent. Pauses it first if deployed.
 
@@ -217,7 +217,7 @@ Delete an agent. Pauses it first if deployed.
 
 ---
 
-### POST /orgs/{slug}/agents/{name}/deploy
+### POST /orgs/{'{slug}'}/agents/{'{name}'}/deploy
 
 Compile the wizard config to Astromesh runtime YAML and register the agent.
 
@@ -239,7 +239,7 @@ curl -X POST https://api.astromesh.io/api/v1/orgs/my-org/agents/support-bot/depl
 
 ---
 
-### POST /orgs/{slug}/agents/{name}/pause
+### POST /orgs/{'{slug}'}/agents/{'{name}'}/pause
 
 Deregister the agent from the runtime. Transition: `deployed → paused`
 
@@ -247,7 +247,7 @@ Deregister the agent from the runtime. Transition: `deployed → paused`
 
 ---
 
-### POST /orgs/{slug}/agents/{name}/test
+### POST /orgs/{'{slug}'}/agents/{'{name}'}/test
 
 Run a test query without incrementing usage counters. Agent must be deployed.
 
@@ -257,7 +257,7 @@ Run a test query without incrementing usage counters. Agent must be deployed.
 
 ## Execution
 
-### POST /orgs/{slug}/agents/{name}/run
+### POST /orgs/{'{slug}'}/agents/{'{name}'}/run
 
 Execute the agent. Accepts both JWT and API key auth.
 
@@ -294,11 +294,11 @@ curl -X POST https://api.astromesh.io/api/v1/orgs/my-org/agents/support-bot/run 
 
 ---
 
-### WS /orgs/{slug}/agents/{name}/stream
+### WS /orgs/{'{slug}'}/agents/{'{name}'}/stream
 
 WebSocket endpoint for streaming responses token by token.
 
-**URL:** `wss://api.astromesh.io/api/v1/orgs/{slug}/agents/{name}/stream?token=<jwt>`
+**URL:** `wss://api.astromesh.io/api/v1/orgs/{'{slug}'}/agents/{'{name}'}/stream?token=<jwt>`
 
 **Send:**
 ```json
@@ -320,13 +320,13 @@ WebSocket endpoint for streaming responses token by token.
 
 ## API Keys
 
-### GET /orgs/{slug}/keys
+### GET /orgs/{'{slug}'}/keys
 
 List API keys (secrets masked).
 
 ---
 
-### POST /orgs/{slug}/keys
+### POST /orgs/{'{slug}'}/keys
 
 Create a new API key. The full secret is returned **once** — store it securely.
 
@@ -349,7 +349,7 @@ curl -X POST https://api.astromesh.io/api/v1/orgs/my-org/keys \
 
 ---
 
-### DELETE /orgs/{slug}/keys/{key_id}
+### DELETE /orgs/{'{slug}'}/keys/{'{key_id}'}
 
 Revoke an API key. Takes effect immediately.
 
@@ -359,13 +359,13 @@ Revoke an API key. Takes effect immediately.
 
 ## Provider Keys (BYOK)
 
-### GET /orgs/{slug}/providers
+### GET /orgs/{'{slug}'}/providers
 
 List configured provider keys (secrets masked).
 
 ---
 
-### POST /orgs/{slug}/providers
+### POST /orgs/{'{slug}'}/providers
 
 Add or update a provider API key.
 
@@ -380,7 +380,7 @@ curl -X POST https://api.astromesh.io/api/v1/orgs/my-org/providers \
 
 ---
 
-### DELETE /orgs/{slug}/providers/{provider}
+### DELETE /orgs/{'{slug}'}/providers/{'{provider}'}
 
 Remove a provider key.
 
@@ -390,7 +390,7 @@ Remove a provider key.
 
 ## Usage
 
-### GET /orgs/{slug}/usage
+### GET /orgs/{'{slug}'}/usage
 
 Get request and token usage statistics.
 
