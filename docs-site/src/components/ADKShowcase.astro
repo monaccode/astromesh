@@ -61,16 +61,9 @@ const features = [
         </div>
         <span class="adk-code-filename">my_agent.py</span>
       </div>
-      <pre class="adk-code"><code>{codeLines.map((line, i) => (
-        <span class={`adk-line ${line.cls}`} style={`--li: ${i}`}>
-          {line.text ? (
-            <Fragment>
-              <span class="adk-ln">{String(i + 1).padStart(2, ' ')}</span>
-              <span class="adk-lc">{line.text}</span>
-            </Fragment>
-          ) : '\n'}
-        </span>
-      ))}</code></pre>
+      <div class="adk-code">{codeLines.map((line, i) => (
+        <div class={`adk-line ${line.cls}`} style={`--li: ${i}`}><span class="adk-ln">{String(i + 1).padStart(2, ' ')}</span>{line.text ? <span class="adk-lc">{line.text}</span> : <span class="adk-lc">&nbsp;</span>}</div>
+      ))}</div>
       <div class="adk-code-glow"></div>
     </div>
 
@@ -322,25 +315,23 @@ const features = [
 
   .adk-code {
     margin: 0;
-    padding: 1rem 0;
+    padding: 0.75rem 0;
     overflow-x: auto;
     font-family: var(--sl-font-mono);
-    font-size: 0.75rem;
-    line-height: 1.7;
+    font-size: 0.78rem;
+    line-height: 1;
     background: transparent;
   }
 
-  .adk-code code {
-    background: none;
-  }
-
   .adk-line {
-    display: block;
-    padding: 0 1rem;
+    display: flex;
+    align-items: baseline;
+    padding: 0.22em 1rem;
     opacity: 0;
     animation: line-in 0.3s ease forwards;
     animation-delay: calc(0.6s + var(--li) * 0.06s);
-    min-height: 1.7em;
+    white-space: pre;
+    transition: background 0.15s ease;
   }
 
   @keyframes line-in {
@@ -349,9 +340,19 @@ const features = [
   }
 
   .adk-ln {
-    color: rgba(255, 255, 255, 0.15);
-    margin-right: 1.2em;
+    display: inline-block;
+    width: 2ch;
+    text-align: right;
+    color: rgba(255, 255, 255, 0.18);
+    margin-right: 1.5em;
     user-select: none;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+  }
+
+  .adk-lc {
+    flex: 1;
+    min-width: 0;
   }
 
   /* Syntax colors */
