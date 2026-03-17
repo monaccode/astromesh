@@ -86,6 +86,18 @@ export default defineConfig({
             { label: 'CLI Commands', slug: 'reference/cli-commands' },
           ],
         },
+        {
+          label: 'Agent Development Kit',
+          items: [
+            { label: 'Introduction', slug: 'adk/introduction' },
+            { label: 'Quick Start', slug: 'adk/quickstart' },
+            { label: 'Defining Agents', slug: 'adk/defining-agents' },
+            { label: 'Creating Tools', slug: 'adk/creating-tools' },
+            { label: 'Multi-Agent Teams', slug: 'adk/multi-agent' },
+            { label: 'Remote Execution', slug: 'adk/remote-execution' },
+            { label: 'CLI Reference', slug: 'adk/cli-reference' },
+          ],
+        },
       ],
       editLink: {
         baseUrl: 'https://github.com/monaccode/astromesh/edit/develop/docs-site/',

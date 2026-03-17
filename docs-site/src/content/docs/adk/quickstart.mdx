@@ -1,0 +1,52 @@
+---
+title: Quick Start
+description: Get started with the Astromesh ADK in 5 minutes
+---
+
+## Install
+
+```bash
+pip install astromesh-adk
+```
+
+## Create Your First Agent
+
+Create a file called `my_agent.py`:
+
+```python
+from astromesh_adk import agent
+
+@agent(name="assistant", model="ollama/llama3")
+async def assistant(ctx):
+    """You are a helpful assistant. Be concise."""
+    return None
+```
+
+## Run It
+
+```bash
+astromesh-adk run my_agent.py:assistant "Hello, what can you do?"
+```
+
+## Add Tools
+
+```python
+from astromesh_adk import agent, tool
+
+@tool(description="Add two numbers")
+async def add(a: int, b: int) -> int:
+    return a + b
+
+@agent(name="math-bot", model="ollama/llama3", tools=[add])
+async def math_bot(ctx):
+    """You are a math assistant. Use the add tool."""
+    return None
+```
+
+## Start the Dev Server
+
+```bash
+astromesh-adk dev my_agent.py --reload
+```
+
+This starts a local server with REST API at `http://localhost:8000`.

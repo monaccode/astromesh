@@ -1,0 +1,37 @@
+---
+title: Agent Development Kit
+description: Build AI agents in Python with the Astromesh ADK
+---
+
+The **Astromesh ADK** (Agent Development Kit) is a Python-first framework for building, running, and deploying AI agents. It wraps the Astromesh runtime engine with an intuitive decorator and class API.
+
+## Key Features
+
+- **Decorator-based agents** — Define agents with `@agent` and tools with `@tool`
+- **Auto-generated schemas** — Tool JSON schemas from Python type hints
+- **Multi-agent composition** — Teams with supervisor, swarm, pipeline, and parallel patterns
+- **Local + Remote** — Develop locally, deploy to Astromesh with one line
+- **Full observability** — Traces, costs, tokens, and callbacks built in
+
+## Quick Example
+
+```python
+from astromesh_adk import agent, tool
+
+@tool(description="Search the web")
+async def search(query: str) -> str:
+    ...
+
+@agent(name="assistant", model="openai/gpt-4o", tools=[search])
+async def assistant(ctx):
+    """You are a helpful research assistant."""
+    return None
+
+result = await assistant.run("What is quantum computing?")
+```
+
+## Install
+
+```bash
+pip install astromesh-adk
+```
