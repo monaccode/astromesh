@@ -161,6 +161,22 @@ class AgentRuntime:
             for a in self._agents.values()
         ]
 
+    async def register_agent(self, config: dict) -> None:
+        """Register an agent dynamically from a config dict (same schema as YAML).
+        If an agent with the same name exists, it is overwritten (upsert semantics
+        required by reconciliation loop and re-deploy flows)."""
+        name = config.get("metadata", {}).get("name") or config.get("spec", {}).get("identity", {}).get("name")
+        if not name:
+            raise ValueError("Agent config must include metadata.name or spec.identity.name")
+        agent = self._build_agent(config)
+        self._agents[agent.name] = agent
+
+    def unregister_agent(self, name: str) -> None:
+        """Remove a dynamically registered agent."""
+        if name not in self._agents:
+            raise ValueError(f"Agent '{name}' not found")
+        del self._agents[name]
+
 
 class Agent:
     def __init__(
