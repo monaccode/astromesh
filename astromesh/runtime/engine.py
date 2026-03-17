@@ -241,13 +241,23 @@ class Agent:
             tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
             max_iterations = self._orchestration_config.get("max_iterations", 10)
 
+            route_kwargs = {}
+            provider_override_config = (context or {}).get("_provider_override")
+            if provider_override_config:
+                from astromesh.providers.factory import create_provider
+
+                override_name = provider_override_config["name"]
+                override_key = provider_override_config["key"]
+                override_provider = create_provider(override_name, api_key=override_key)
+                route_kwargs["provider_override"] = (override_name, override_provider)
+
             async def model_fn(messages, tools):
                 llm_span = tracing.start_span(
                     "llm.complete", parent_span_id=root_span.span_id
                 )
                 full_messages = [{"role": "system", "content": rendered_prompt}] + messages
                 try:
-                    response = await self._router.route(full_messages, tools=tools)
+                    response = await self._router.route(full_messages, tools=tools, **route_kwargs)
                     if hasattr(response, "usage") and response.usage:
                         llm_span.set_attribute(
                             "input_tokens", response.usage.get("input_tokens", 0)

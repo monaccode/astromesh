@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -73,11 +73,18 @@ async def delete_agent(agent_name: str):
 
 
 @router.post("/agents/{agent_name}/run")
-async def run_agent(agent_name: str, request: AgentRunRequest):
+async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Request):
     if not _runtime:
         raise HTTPException(status_code=503, detail="Runtime not initialized")
     try:
-        result = await _runtime.run(agent_name, request.query, request.session_id, request.context)
+        context = dict(request.context) if request.context else {}
+
+        provider_key = http_request.headers.get("X-Astromesh-Provider-Key")
+        provider_name = http_request.headers.get("X-Astromesh-Provider-Name")
+        if provider_key and provider_name:
+            context["_provider_override"] = {"name": provider_name, "key": provider_key}
+
+        result = await _runtime.run(agent_name, request.query, request.session_id, context)
         return AgentRunResponse(answer=result.get("answer", ""), steps=result.get("steps", []))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

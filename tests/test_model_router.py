@@ -242,3 +242,28 @@ class TestModelRouterAllExhaustedRaises:
 
         with pytest.raises(RuntimeError, match="All providers exhausted"):
             await router.route([{"role": "user", "content": "hi"}])
+
+
+class TestModelRouterProviderOverride:
+    """provider_override kwarg bypasses registered providers."""
+
+    @pytest.mark.asyncio
+    async def test_route_with_provider_override(self):
+        """When a provider_override is passed, ModelRouter uses it instead of registered providers."""
+        router = ModelRouter({"strategy": "cost_optimized"})
+
+        default_provider = _make_mock_provider(cost=0.01)
+        router.register_provider("openai", default_provider)
+
+        override_provider = _make_mock_provider(cost=0.0)
+        override_provider.complete.return_value = MagicMock(
+            content="override response",
+            usage={"prompt_tokens": 10, "completion_tokens": 20},
+            latency_ms=50.0,
+        )
+
+        messages = [{"role": "user", "content": "test"}]
+        result = await router.route(messages, provider_override=("openai", override_provider))
+
+        override_provider.complete.assert_called_once()
+        default_provider.complete.assert_not_called()

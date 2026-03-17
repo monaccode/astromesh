@@ -64,6 +64,17 @@ class ModelRouter:
 
         Raises ``RuntimeError`` when every candidate has been exhausted.
         """
+        # Check for request-scoped provider override (BYOK)
+        provider_override = kwargs.pop("provider_override", None)
+        if provider_override:
+            override_name, override_provider = provider_override
+            try:
+                response = await override_provider.complete(messages, **kwargs)
+                response.latency_ms = 0.0
+                return response
+            except Exception as e:
+                raise RuntimeError(f"Override provider '{override_name}' failed: {e}") from e
+
         if requirements is None:
             requirements = {}
 
