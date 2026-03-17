@@ -31,7 +31,7 @@
 ```
 astromesh-adk/
 ├── astromesh_adk/
-│   ├── __init__.py               # Public API: Agent, tool, Tool, connect, AgentTeam, etc.
+│   ├── __init__.py               # Public API: Agent, tool, Tool, connect, disconnect, remote, AgentTeam, ADKRuntime, Callbacks, RunResult, RunContext
 │   ├── agent.py                  # @agent decorator + Agent base class
 │   ├── tools.py                  # @tool decorator + Tool base class
 │   ├── providers.py              # Provider resolution from "provider/model" strings
@@ -131,7 +131,7 @@ async def enriched_agent(ctx):
 | `model` | `str` | Provider/model string (e.g., `"openai/gpt-4o"`) |
 | `description` | `str` | Agent description |
 | `fallback_model` | `str` | Fallback provider/model |
-| `routing` | `str` | Routing strategy: `cost_optimized`, `latency_optimized`, `quality_first`, `round_robin` |
+| `routing` | `str` | Routing strategy: `cost_optimized`, `latency_optimized`, `quality_first`, `round_robin`, `capability_match` |
 | `model_config` | `dict` | Extended model config (endpoint, api_key_env, temperature, max_tokens) |
 | `tools` | `list` | List of `@tool` functions or `Tool` instances |
 | `pattern` | `str` | Orchestration pattern: `react`, `plan_and_execute`, `parallel`, `pipeline`, `supervisor`, `swarm` |
@@ -187,7 +187,7 @@ class RunContext:
     user_id: str | None           # Extracted from context dict
     timestamp: datetime           # Execution start time
     metadata: dict                # Arbitrary metadata (from context param + runtime)
-    memory: MemoryAccessor        # Read/write access to agent's memory
+    memory: MemoryAccessor        # .store(key, value), .retrieve(key), .search(query, top_k)
     tools: list[str]              # Available tool names
 
     async def run_default(self) -> RunResult:
@@ -241,6 +241,19 @@ async for event in agent.stream("query", stream_steps=True):
     elif event.type == "done":
         print(f"\nCost: ${event.result.cost}")
 ```
+
+**Stream types:**
+
+```python
+@dataclass
+class StreamEvent:
+    type: str          # "step" | "token" | "done"
+    step: AgentStep | None       # Present when type == "step"
+    content: str | None          # Present when type == "token"
+    result: RunResult | None     # Present when type == "done"
+```
+
+Token streaming yields Astromesh's existing `CompletionChunk` (content, model, provider, done, usage).
 
 **Implementation path:**
 - Token streaming reuses `ProviderProtocol.stream()` which all providers already implement
@@ -648,7 +661,7 @@ ADKError (base)
 ├── GuardrailError      — Input/output guardrail blocks
 │   ├── InputBlockedError
 │   └── OutputBlockedError
-└── ConnectionError     — Remote Astromesh connection failures
+└── RemoteError         — Remote Astromesh connection failures
     ├── RemoteUnavailableError
     └── SyncError (agent registration failed)
 ```
@@ -741,13 +754,13 @@ The ADK's remote mode requires new API endpoints on Astromesh:
 
 ## 14. Documentation Plan
 
-### 12.1 In-repo docs (`docs/`)
+### 14.1 In-repo docs (`docs/`)
 
 - `docs/ADK_QUICKSTART.md` — 5-minute getting started guide
 - `docs/ADK_REFERENCE.md` — Complete API reference
 - `docs/ADK_EXAMPLES.md` — Cookbook with common patterns
 
-### 12.2 Docs site (`docs-site/`, Astro Starlight)
+### 14.2 Docs site (`docs-site/`, Astro Starlight)
 
 New sidebar section in `astro.config.mjs`:
 
