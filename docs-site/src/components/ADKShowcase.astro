@@ -1,4 +1,18 @@
 ---
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Read ADK version from pyproject.toml at build time
+let adkVersion = '0.0.0';
+try {
+  const content = fs.readFileSync(
+    path.resolve(import.meta.dirname, '../../../astromesh-adk/pyproject.toml'),
+    'utf-8'
+  );
+  const match = content.match(/^version\s*=\s*"([^"]+)"/m);
+  if (match) adkVersion = match[1];
+} catch {}
+
 const codeLines = [
   { text: 'from astromesh_adk import agent, tool', cls: 'kw' },
   { text: '', cls: '' },
@@ -38,7 +52,7 @@ const features = [
   <div class="adk-header">
     <div class="adk-badge-row">
       <span class="adk-badge-new">NEW</span>
-      <span class="adk-badge-ver">v0.17.0</span>
+      <span class="adk-badge-ver">adk-v{adkVersion}</span>
     </div>
     <h2 class="adk-title">
       <span class="adk-title-thin">Astromesh</span>
