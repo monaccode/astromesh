@@ -8,11 +8,12 @@ version = "0.1.0"
 description = "Agent Development Kit for the Astromesh runtime"
 requires-python = ">=3.12"
 dependencies = [
+    "astromesh",
     "httpx>=0.27.0",
 ]
 
 [tool.uv.sources]
-astromesh = { path = ".." }
+astromesh = { path = "..", editable = true }
 
 [project.optional-dependencies]
 cli = ["typer>=0.12.0", "rich>=13.0.0"]
