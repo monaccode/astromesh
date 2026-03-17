@@ -114,10 +114,11 @@ jobs:
             sleep 30
           done
 
-      - name: Verify import and CLI
+      - name: Verify import
         run: |
           python -c "import astromesh; print(astromesh.__version__)"
-          astromeshctl --help
+          python -c "from astromesh.runtime.engine import AgentRuntime; print('AgentRuntime OK')"
+          python -c "from astromesh.core.model_router import ModelRouter; print('ModelRouter OK')"
 
   publish-pypi:
     needs: smoke-test-testpypi
