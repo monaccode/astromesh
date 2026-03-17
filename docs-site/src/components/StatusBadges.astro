@@ -1,0 +1,105 @@
+---
+const badges = [
+  {
+    group: 'CI / CD',
+    items: [
+      { label: 'CI', img: 'https://github.com/monaccode/astromesh/actions/workflows/ci.yml/badge.svg?branch=main', href: 'https://github.com/monaccode/astromesh/actions/workflows/ci.yml' },
+      { label: 'Release', img: 'https://github.com/monaccode/astromesh/actions/workflows/release.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release.yml' },
+      { label: 'Docs', img: 'https://github.com/monaccode/astromesh/actions/workflows/docs.yml/badge.svg?branch=develop', href: 'https://github.com/monaccode/astromesh/actions/workflows/docs.yml' },
+    ],
+  },
+  {
+    group: 'Packages',
+    items: [
+      { label: 'Astromesh PyPI', img: 'https://img.shields.io/pypi/v/astromesh?label=Astromesh%20PyPI&color=00d4ff', href: 'https://pypi.org/project/astromesh/' },
+      { label: 'ADK PyPI', img: 'https://img.shields.io/pypi/v/astromesh-adk?label=ADK%20PyPI&color=8b5cf6', href: 'https://pypi.org/project/astromesh-adk/' },
+      { label: 'PyPI Publish', img: 'https://github.com/monaccode/astromesh/actions/workflows/release-pypi.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release-pypi.yml' },
+      { label: 'ADK Publish', img: 'https://github.com/monaccode/astromesh/actions/workflows/release-adk.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release-adk.yml' },
+    ],
+  },
+  {
+    group: 'Info',
+    items: [
+      { label: 'Version', img: 'https://img.shields.io/github/v/release/monaccode/astromesh?include_prereleases&label=version&color=3fb950', href: 'https://github.com/monaccode/astromesh/releases/latest' },
+      { label: 'Python', img: 'https://img.shields.io/badge/python-3.12%2B-blue', href: 'https://www.python.org/' },
+      { label: 'License', img: 'https://img.shields.io/github/license/monaccode/astromesh', href: 'https://github.com/monaccode/astromesh/blob/develop/LICENSE' },
+    ],
+  },
+];
+---
+
+<div class="badges-root">
+  {badges.map((group) => (
+    <div class="badges-group">
+      <span class="badges-label">{group.group}</span>
+      <div class="badges-row">
+        {group.items.map((b) => (
+          <a href={b.href} target="_blank" rel="noopener" title={b.label} class="badge-link">
+            <img src={b.img} alt={b.label} loading="lazy" />
+          </a>
+        ))}
+      </div>
+    </div>
+  ))}
+</div>
+
+<style>
+  .badges-root {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    border-radius: var(--am-radius, 0.625rem);
+    background: var(--am-surface, rgba(255,255,255,0.03));
+    border: 1px solid var(--am-border, rgba(255,255,255,0.08));
+    margin-bottom: 2rem;
+  }
+
+  .badges-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .badges-label {
+    font-family: var(--sl-font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+    min-width: 5.5rem;
+    flex-shrink: 0;
+  }
+
+  .badges-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .badge-link {
+    display: inline-flex;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    text-decoration: none !important;
+  }
+
+  .badge-link:hover {
+    transform: translateY(-1px);
+    opacity: 0.85;
+  }
+
+  .badge-link img {
+    height: 20px;
+    border-radius: 3px;
+  }
+
+  @media (max-width: 640px) {
+    .badges-group {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.35rem;
+    }
+  }
+</style>
