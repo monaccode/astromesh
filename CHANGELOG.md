@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ADK Showcase component** (`docs-site/src/components/ADKShowcase.astro`) — animated hero section on the docs homepage featuring live code preview with line-by-line reveal, 6-card feature grid, terminal install preview, and gradient CTA buttons; ambient orb backgrounds with grid overlay
+- **ADK docs-site pages** — 5 content pages completing the ADK sidebar: Defining Agents, Creating Tools, Multi-Agent Teams, Remote Execution, CLI Reference
+
 ## [0.16.0] - 2026-03-17
 
 ### Added
