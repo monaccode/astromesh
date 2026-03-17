@@ -9,17 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [adk-v0.1.1] - 2026-03-17
+## [adk-v0.1.2] - 2026-03-17
 
 ### Changed (ADK)
 
-- **Core dependency floor** — bumped `astromesh>=0.16.1` to `astromesh>=0.17.0` to require runtime prerequisites (dynamic agent CRUD, BYOK, usage tracking)
+- **Core dependency floor** — bumped to `astromesh>=0.17.2` to require runtime prerequisites (dynamic agent CRUD, BYOK, usage tracking)
 
-## [v0.17.1] - 2026-03-17
+## [v0.17.2] - 2026-03-17
 
 ### Fixed (Runtime)
 
-- **Release workflow permissions** — fixed PyPI and ADK publish workflows
+- **Release workflow smoke tests** — added `--prefer-binary --only-binary=:all:` flags to pip install in TestPyPI smoke tests
 - **Test compatibility** — fixed CLI and daemon integration test imports
 
 ### Changed (Docs-site)

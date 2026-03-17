@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "astromesh-adk"
-version = "0.1.1"
+version = "0.1.2"
 description = "Agent Development Kit for the Astromesh runtime"
 requires-python = ">=3.12"
 dependencies = [
-    "astromesh>=0.17.0",
+    "astromesh>=0.17.2",
     "httpx>=0.27.0",
 ]
 
