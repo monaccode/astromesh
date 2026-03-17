@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from astromesh_cloud.routes import auth as auth_routes
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,6 +19,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_routes.router)
 
 
 @app.get("/api/v1/health")
