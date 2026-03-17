@@ -105,7 +105,11 @@ function StepContent({ step }: { step: number }) {
 // WizardShell
 // ---------------------------------------------------------------------------
 
-export function WizardShell() {
+interface WizardShellProps {
+  isEdit?: boolean;
+}
+
+export function WizardShell({ isEdit = false }: WizardShellProps) {
   const step = useWizardStore((s) => s.step);
   const setStep = useWizardStore((s) => s.setStep);
   const config = useWizardStore((s) => s.config);
@@ -144,10 +148,12 @@ export function WizardShell() {
       {/* Page header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-am-text tracking-tight">
-          New Agent
+          {isEdit ? `Edit Agent: ${config.agentName || "…"}` : "New Agent"}
         </h1>
         <p className="mt-1 text-sm text-am-text-dim">
-          Configure and deploy your AI agent in minutes.
+          {isEdit
+            ? "Update your agent configuration and re-deploy."
+            : "Configure and deploy your AI agent in minutes."}
         </p>
       </div>
 
@@ -234,7 +240,7 @@ export function WizardShell() {
             </div>
 
             <Button variant="primary" onClick={handleNext}>
-              {isLast ? "Deploy →" : "Next →"}
+              {isLast ? (isEdit ? "Update & Re-deploy →" : "Deploy →") : "Next →"}
             </Button>
           </div>
         </div>

@@ -97,6 +97,14 @@ class ApiClient {
     return this.request<unknown>("GET", `/api/v1/orgs/${slug}/agents/${name}`);
   }
 
+  updateAgent(slug: string, name: string, config: AgentConfig) {
+    return this.request<unknown>(
+      "PUT",
+      `/api/v1/orgs/${slug}/agents/${name}`,
+      { config }
+    );
+  }
+
   deployAgent(slug: string, name: string) {
     return this.request<unknown>(
       "POST",
@@ -151,6 +159,32 @@ class ApiClient {
       "POST",
       `/api/v1/orgs/${slug}/api-keys`,
       { name, scopes }
+    );
+  }
+
+  deleteApiKey(slug: string, keyId: string) {
+    return this.request<unknown>(
+      "DELETE",
+      `/api/v1/orgs/${slug}/api-keys/${keyId}`
+    );
+  }
+
+  updateOrg(slug: string, patch: { name?: string }) {
+    return this.request<unknown>("PATCH", `/api/v1/orgs/${slug}`, patch);
+  }
+
+  inviteMember(slug: string, email: string) {
+    return this.request<unknown>(
+      "POST",
+      `/api/v1/orgs/${slug}/invites`,
+      { email }
+    );
+  }
+
+  deleteProviderKey(slug: string, provider: string) {
+    return this.request<unknown>(
+      "DELETE",
+      `/api/v1/orgs/${slug}/providers/${provider}/key`
     );
   }
 
