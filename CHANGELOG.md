@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-03-17
+
 ### Added
 
 - **ADK Showcase component** (`docs-site/src/components/ADKShowcase.astro`) — animated hero section on the docs homepage featuring live code preview with line-by-line reveal, 6-card feature grid, terminal install preview, and gradient CTA buttons; ambient orb backgrounds with grid overlay
 - **ADK docs-site pages** — 5 content pages completing the ADK sidebar: Defining Agents, Creating Tools, Multi-Agent Teams, Remote Execution, CLI Reference
+
+### Fixed
+
+- **ADK code panel rendering** — replaced `<pre>/<code>` with div-based flex layout to eliminate empty line artifacts (`}` characters) and excessive vertical spacing; compact line height with proper whitespace handling
+- **Homepage section order** — moved Agent Execution Pipeline before ADK Showcase; the pipeline is the core of Astromesh and should be the first section after the hero
 
 ## [0.16.0] - 2026-03-17
 
@@ -526,7 +533,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.16.1...HEAD
+[0.16.1]: https://github.com/monaccode/astromesh/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/monaccode/astromesh/compare/v0.15.4...v0.16.0
 [0.15.4]: https://github.com/monaccode/astromesh/compare/v0.15.3...v0.15.4
 [0.15.3]: https://github.com/monaccode/astromesh/compare/v0.15.2...v0.15.3
