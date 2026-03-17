@@ -3,9 +3,10 @@ const features = [
   {
     title: "6 LLM Providers",
     summary: "Connect to any model, local or cloud",
-    details: "Ollama, OpenAI-compatible, vLLM, llama.cpp, HuggingFace TGI, ONNX Runtime. Automatic failover with circuit breaker (3 failures \u2192 60s cooldown).",
+    details: "Ollama, OpenAI-compatible, vLLM, llama.cpp, HuggingFace TGI, ONNX Runtime. Automatic failover with circuit breaker (3 failures → 60s cooldown).",
     svg: `<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>`,
     accent: "#00d4ff",
+    tag: "core",
   },
   {
     title: "6 Orchestration Patterns",
@@ -13,6 +14,7 @@ const features = [
     details: "ReAct (think-act-observe), Plan & Execute, Parallel Fan-Out, Pipeline, Supervisor (delegate to workers), Swarm (agents hand off conversations).",
     svg: `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
     accent: "#8b5cf6",
+    tag: "core",
   },
   {
     title: "3 Memory Types",
@@ -20,6 +22,7 @@ const features = [
     details: "Conversational (Redis/PG/SQLite), Semantic (pgvector/ChromaDB/Qdrant/FAISS), Episodic (PostgreSQL). Strategies: sliding window, summary, token budget.",
     svg: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>`,
     accent: "#0ea5e9",
+    tag: "data",
   },
   {
     title: "RAG Pipeline",
@@ -27,13 +30,15 @@ const features = [
     details: "4 chunking strategies (fixed, recursive, sentence, semantic), 3 embedding providers, 4 vector stores, 2 rerankers (cross-encoder, Cohere).",
     svg: `<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>`,
     accent: "#10b981",
+    tag: "data",
   },
   {
     title: "Mesh Discovery (Maia)",
     summary: "Nodes find each other automatically",
-    details: "Gossip-based discovery, failure detection (alive\u2192suspect\u2192dead), leader election, least-connections routing. No manual peer configuration.",
+    details: "Gossip-based discovery, failure detection (alive→suspect→dead), leader election, least-connections routing. No manual peer configuration.",
     svg: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
     accent: "#f59e0b",
+    tag: "infra",
   },
   {
     title: "Rust Extensions",
@@ -41,143 +46,328 @@ const features = [
     details: "Optional native Rust extensions via PyO3 for chunking, PII detection, tokenization, rate limiting. Pure Python fallback when not compiled.",
     svg: `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
     accent: "#ef4444",
+    tag: "perf",
   },
 ];
+
+const heroFeatures = features.slice(0, 2);
+const gridFeatures = features.slice(2);
 ---
 
-<div class="features">
-  {features.map((f, i) => (
-    <details class="fcard" style={`--accent: ${f.accent}; --i: ${i}`}>
-      <summary>
-        <div class="fcard-icon" >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <Fragment set:html={f.svg} />
-          </svg>
+<div class="ft-root">
+  <!-- Hero row: 2 large cards -->
+  <div class="ft-hero-row">
+    {heroFeatures.map((f, i) => (
+      <details class="ft-card ft-card--hero" style={`--accent: ${f.accent}; --i: ${i}`}>
+        <summary>
+          <div class="ft-card-top">
+            <div class="ft-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <Fragment set:html={f.svg} />
+              </svg>
+            </div>
+            <span class="ft-tag">{f.tag}</span>
+          </div>
+          <h3 class="ft-title">{f.title}</h3>
+          <p class="ft-summary">{f.summary}</p>
+          <span class="ft-expand">
+            <span class="ft-expand-text">Details</span>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="4 6 8 10 12 6"/>
+            </svg>
+          </span>
+        </summary>
+        <div class="ft-body">
+          <p>{f.details}</p>
         </div>
-        <div class="fcard-text">
-          <span class="fcard-title">{f.title}</span>
-          <span class="fcard-summary">{f.summary}</span>
+      </details>
+    ))}
+  </div>
+
+  <!-- Grid row: 4 compact cards -->
+  <div class="ft-grid-row">
+    {gridFeatures.map((f, i) => (
+      <details class="ft-card ft-card--compact" style={`--accent: ${f.accent}; --i: ${i + 2}`}>
+        <summary>
+          <div class="ft-compact-left">
+            <div class="ft-icon ft-icon--sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <Fragment set:html={f.svg} />
+              </svg>
+            </div>
+            <div class="ft-compact-text">
+              <span class="ft-title ft-title--sm">{f.title}</span>
+              <span class="ft-summary ft-summary--sm">{f.summary}</span>
+            </div>
+          </div>
+          <span class="ft-expand ft-expand--sm">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="4 6 8 10 12 6"/>
+            </svg>
+          </span>
+        </summary>
+        <div class="ft-body">
+          <p>{f.details}</p>
         </div>
-        <svg class="fcard-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <polyline points="6 4 10 8 6 12"/>
-        </svg>
-      </summary>
-      <div class="fcard-body">
-        <p>{f.details}</p>
-      </div>
-    </details>
-  ))}
+      </details>
+    ))}
+  </div>
 </div>
 
 <style>
-  .features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 0.75rem;
+  /* ── Root ───────────────────────────────── */
+  .ft-root {
     padding: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
   }
 
-  .fcard {
+  /* ── Hero row (2 large) ────────────────── */
+  .ft-hero-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+
+  /* ── Grid row (4 compact) ──────────────── */
+  .ft-grid-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.65rem;
+  }
+
+  /* ── Card base ─────────────────────────── */
+  .ft-card {
+    position: relative;
     border-radius: var(--am-radius, 0.625rem);
     background: var(--am-surface, rgba(255,255,255,0.03));
     border: 1px solid var(--am-border, rgba(255,255,255,0.08));
-    transition: border-color 0.25s ease, box-shadow 0.25s ease;
-
+    border-top: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    overflow: hidden;
     opacity: 0;
-    animation: card-in 0.5s ease forwards;
-    animation-delay: calc(var(--i) * 0.07s);
+    animation: ft-in 0.45s ease forwards;
+    animation-delay: calc(var(--i) * 0.08s);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   }
 
-  .fcard:hover {
-    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 15%, transparent);
+  .ft-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60%;
+    background: radial-gradient(
+      ellipse at 30% 0%,
+      color-mix(in srgb, var(--accent) 6%, transparent),
+      transparent 65%
+    );
+    pointer-events: none;
+    transition: opacity 0.3s ease;
   }
 
-  .fcard summary {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.9rem 1rem;
+  .ft-card:hover {
+    border-top-color: var(--accent);
+    box-shadow:
+      0 4px 24px color-mix(in srgb, var(--accent) 10%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .ft-card:hover::before {
+    opacity: 1.5;
+  }
+
+  .ft-card summary {
     cursor: pointer;
     list-style: none;
+    position: relative;
   }
 
-  .fcard summary::-webkit-details-marker { display: none; }
+  .ft-card summary::-webkit-details-marker { display: none; }
 
-  .fcard-icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    display: grid;
-    place-items: center;
-    border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--accent) 15%, transparent);
-    color: var(--accent);
-    flex-shrink: 0;
+  @keyframes ft-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  .fcard-text {
-    flex: 1;
-    min-width: 0;
+  /* ── Hero card layout ──────────────────── */
+  .ft-card--hero summary {
+    padding: 1.25rem 1.25rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
   }
 
-  .fcard-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--sl-color-text);
-    letter-spacing: 0.005em;
+  .ft-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
   }
 
-  .fcard-summary {
-    font-size: 0.78rem;
-    color: var(--sl-color-gray-2);
-    opacity: 0.75;
-  }
-
-  .fcard-chevron {
-    color: var(--sl-color-gray-3);
-    flex-shrink: 0;
-    transition: transform 0.25s ease, color 0.25s ease;
-    opacity: 0.6;
-  }
-
-  .fcard[open] .fcard-chevron {
-    transform: rotate(90deg);
+  .ft-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.65rem;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     color: var(--accent);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 12%, transparent);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  .ft-card:hover .ft-icon {
+    box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 22%, transparent);
+    transform: scale(1.05);
+  }
+
+  .ft-tag {
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.5;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+
+  .ft-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--sl-color-text);
+    margin: 0 0 0.25rem;
+    letter-spacing: -0.01em;
+  }
+
+  .ft-summary {
+    font-size: 0.82rem;
+    color: var(--sl-color-gray-2);
+    opacity: 0.7;
+    line-height: 1.5;
+    margin: 0 0 0.85rem;
+  }
+
+  .ft-expand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    opacity: 0.6;
+    transition: opacity 0.2s, gap 0.2s;
+  }
+
+  .ft-expand svg {
+    transition: transform 0.25s ease;
+  }
+
+  .ft-card:hover .ft-expand {
     opacity: 1;
   }
 
-  .fcard-body {
-    padding: 0 1rem 1rem;
-    border-top: 1px solid var(--am-border, rgba(255,255,255,0.06));
-    margin: 0 0.5rem;
-    padding-top: 0.65rem;
+  .ft-card[open] .ft-expand svg {
+    transform: rotate(180deg);
   }
 
-  .fcard-body p {
+  .ft-expand-text {
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Compact card layout ───────────────── */
+  .ft-card--compact summary {
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .ft-compact-left {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+  }
+
+  .ft-icon--sm {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 0.5rem;
+  }
+
+  .ft-title--sm {
+    font-size: 0.85rem;
     margin: 0;
-    font-size: 0.82rem;
-    line-height: 1.65;
-    color: var(--sl-color-text);
-    opacity: 0.75;
   }
 
-  @keyframes card-in {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
+  .ft-summary--sm {
+    font-size: 0.72rem;
+    margin: 0;
+  }
+
+  .ft-compact-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .ft-expand--sm {
+    flex-shrink: 0;
+    opacity: 0.4;
+  }
+
+  .ft-card--compact:hover .ft-expand--sm {
+    opacity: 1;
+  }
+
+  .ft-card--compact[open] .ft-expand--sm svg {
+    transform: rotate(180deg);
+  }
+
+  /* ── Expand body ───────────────────────── */
+  .ft-body {
+    padding: 0 1.25rem 1.15rem;
+    border-top: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
+    margin: 0 0.5rem;
+    padding-top: 0.75rem;
+    animation: ft-body-in 0.25s ease;
+  }
+
+  .ft-body p {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--sl-color-text);
+    opacity: 0.72;
+  }
+
+  @keyframes ft-body-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Responsive ────────────────────────── */
+  @media (max-width: 768px) {
+    .ft-hero-row {
+      grid-template-columns: 1fr;
     }
-    to {
-      opacity: 1;
-      transform: translateY(0);
+
+    .ft-grid-row {
+      grid-template-columns: 1fr 1fr;
     }
   }
 
   @media (max-width: 480px) {
-    .features {
+    .ft-grid-row {
       grid-template-columns: 1fr;
     }
   }

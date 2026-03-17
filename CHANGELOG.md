@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [cloud-v0.1.0] - 2026-03-17
+
+### Added (Cloud API)
+
+- **Astromesh Cloud API** (`astromesh-cloud/api/`) — multi-tenant FastAPI service for managed AI agent platform
+  - **Authentication** — Google/GitHub OAuth stubs + dev login; JWT access tokens (15 min) + refresh tokens (7 days); auto-creates organization on first login
+  - **Organizations** — CRUD with slug-based routing; member management with invite; org limits (5 agents, 1000 req/day, 3 members)
+  - **Agent lifecycle** — full state machine: `draft` → `deployed` → `paused`; wizard config stored as JSONB; runtime name namespaced as `{org_slug}--{agent_name}`
+  - **Config builder** — translates wizard JSON (tone, model, tools, memory, guardrails, orchestration) into valid Astromesh agent YAML config
+  - **Runtime proxy** — httpx client to Astromesh runtime with session ID prefixing (`{org_slug}:{session_id}`), BYOK header injection (`X-Astromesh-Provider-Key/Name`), and agent register/unregister
+  - **API key management** — generate `am_` prefixed keys with bcrypt hashing; scoped access (`agent:run`, `agent:manage`); full key shown once on creation
+  - **Provider key management** — Fernet-encrypted storage for BYOK keys (OpenAI, Anthropic, etc.); upsert semantics per provider
+  - **Usage logging** — per-request token/cost tracking via `UsageLog`; aggregated summary endpoint filterable by period
+  - **Rate limiting** — daily request count enforcement via DB query (Redis in v2)
+  - **Reconciliation** — on startup, re-registers all `deployed` agents on the runtime if missing
+  - **Docker Compose** — local dev setup with Cloud API + PostgreSQL
+- **69 tests** covering all endpoints, services, and edge cases
+
+### Added (Cloud Studio)
+
+- **Astromesh Cloud Studio** (`astromesh-cloud/web/`) — Next.js 14 web app for no-code agent design and management
+  - **Login page** — dev login flow with auto org creation; Google/GitHub OAuth placeholders
+  - **Dashboard layout** — fixed sidebar navigation, auth guard, user header with logout
+  - **Agent list** — responsive card grid with status badges (draft/deployed/paused with pulse dot); deploy/pause/delete actions; empty state with CTA
+  - **Agent wizard** — 5-step guided flow:
+    - Step 1 (Identity): name with auto-slug, system prompt, tone selector (Professional/Casual/Technical/Empathetic)
+    - Step 2 (Model): curated cards — Free tier (Llama 3, Mistral, Phi-3) + BYOK (GPT-4o, Claude Sonnet, Gemini); routing strategy selector
+    - Step 3 (Tools): 10 available tools with toggles + 12 "Coming Soon" tools with notify intent
+    - Step 4 (Settings): memory toggle, PII/content guardrails, orchestration pattern selector with plain language
+    - Step 5 (Deploy): YAML preview, inline test chat, deploy with API endpoint + code snippets (curl/Python/JS)
+  - **Edit wizard** — loads existing agent config, "Update & Re-deploy" flow
+  - **Settings pages** — org name/members management, API key creation with one-time display, provider key management (OpenAI/Anthropic/Google)
+  - **Usage dashboard** — summary cards (requests, tokens, cost) with 7d/30d/90d period selector
+  - **Astromesh brand palette** — cyan `#00d4ff` accent, dark surfaces, DM Sans + JetBrains Mono fonts
+  - **Dockerfile** — multi-stage build with standalone Next.js output
+
+## [v0.17.0] - 2026-03-17
+
+### Added (Runtime)
+
+- **Dynamic agent CRUD** — `register_agent(config)` and `unregister_agent(name)` methods on `AgentRuntime`; upsert semantics for idempotent reconciliation
+- **`POST /v1/agents`** — register a new agent dynamically from JSON config (same schema as YAML)
+- **`DELETE /v1/agents/{name}`** — remove a dynamically registered agent
+- **BYOK provider key override** — `X-Astromesh-Provider-Key` and `X-Astromesh-Provider-Name` headers on `POST /v1/agents/{name}/run`; request-scoped provider override passed to `ModelRouter`; key never persisted
+- **Provider factory** (`astromesh/providers/factory.py`) — `create_provider(name, api_key)` for dynamic provider instantiation (used by BYOK flow)
+- **Usage in response** — `AgentRunResponse` now includes optional `usage` field (`tokens_in`, `tokens_out`, `model`) extracted from trace spans
+- **Memory delete endpoint** — `DELETE /v1/memory/{agent}/history/{session}` now functional (was stub); wired via `set_runtime` pattern
+
+### Added (Docs-site)
+
+- **Header logo** — replaced text title with Astromesh logo image via Starlight `logo.replacesTitle`
+- **FeatureCards redesign** — bento-grid layout with 2 hero cards + 4 compact cards; accent top borders, radial gradient hover glow, tag badges
+- **DevToolkit redesign** — segmented tab control with equal-width columns; capability cards with accent left borders, numbered indices, terminal-style `$` prompt, slide-in animations
+- **ADK Showcase version** — updated badge to v0.16.1
+
 ## [0.16.1] - 2026-03-17
 
 ### Added

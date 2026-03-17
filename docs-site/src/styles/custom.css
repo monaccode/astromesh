@@ -40,6 +40,14 @@
   --sl-color-text-accent: var(--sl-color-accent-high);
 }
 
+/* ── Header logo ─────────────────────────────── */
+[data-sl-header] .site-title img,
+.site-title img {
+  height: 1.6rem;
+  width: auto;
+  filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.2));
+}
+
 /* Splash page hero refinements */
 .hero {
   padding-block: 2rem !important;

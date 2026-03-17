@@ -7,6 +7,11 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Astromesh',
+      logo: {
+        src: './public/astromesh-logo.png',
+        alt: 'Astromesh',
+        replacesTitle: true,
+      },
       description: 'AI Agent Runtime Platform',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromesh' },
