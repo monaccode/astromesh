@@ -31,6 +31,16 @@ async def test_run_agent_no_runtime(client):
     assert resp.status_code == 503
 
 
+async def test_create_agent_no_runtime_returns_503(client):
+    resp = await client.post("/v1/agents", json={"metadata": {"name": "test-agent"}})
+    assert resp.status_code == 503
+
+
+async def test_delete_agent_no_runtime_returns_503(client):
+    resp = await client.delete("/v1/agents/some-agent")
+    assert resp.status_code == 503
+
+
 async def test_list_tools(client):
     resp = await client.get("/v1/tools")
     assert resp.status_code == 200
