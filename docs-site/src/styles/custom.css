@@ -54,9 +54,9 @@
 }
 
 .hero img {
-  max-width: min(420px, 90vw);
+  max-width: min(560px, 90vw);
   height: auto;
-  filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.25));
+  filter: drop-shadow(0 0 40px rgba(0, 212, 255, 0.3));
   animation: hero-logo-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 

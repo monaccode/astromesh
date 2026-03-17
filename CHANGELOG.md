@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Docs-site)
+
+- **Hero logo size** — increased splash page logo from 420px to 560px max-width with stronger cyan glow
+
 ---
 
 ## [adk-v0.1.5] - 2026-03-17
