@@ -9,28 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [adk-v0.1.3] - 2026-03-17
+## [adk-v0.1.5] - 2026-03-17
 
 ### Fixed (ADK)
 
 - **CLI dependencies** — moved `typer` and `rich` from optional `[cli]` extras to base dependencies; the `astromesh-adk` entry point always requires them
+- **Build error** — removed stale `[cli]` reference from `[all]` optional-dependencies group that caused hatchling `ValueError`
+- **TestPyPI smoke test** — added retry loop (5 attempts, 30s between) to handle TestPyPI indexing delay
 
 ### Changed (ADK)
 
 - **Core dependency floor** — bumped to `astromesh>=0.17.2` to require runtime prerequisites (dynamic agent CRUD, BYOK, usage tracking)
 
-## [v0.17.2] - 2026-03-17
+## [v0.17.4] - 2026-03-17
 
 ### Fixed (Runtime)
 
 - **Release workflow smoke tests** — added `--prefer-binary --only-binary=:all:` flags to pip install in TestPyPI smoke tests
+- **TestPyPI smoke test** — added retry loop (5 attempts, 30s between) to handle TestPyPI indexing delay
+- **Core smoke test** — replaced `astromeshctl --help` check with module import verification (`AgentRuntime`, `ModelRouter`); CLI entry point depends on `cli/` module not packaged in pip install
 - **Test compatibility** — fixed CLI and daemon integration test imports
 
 ### Changed (Docs-site)
 
 - **Header logo size** — increased from 1.6rem to 2.4rem for better visibility
 - **Per-product version badges** — header now shows Core, ADK, and Cloud versions with color-coded badges (cyan/purple/green)
-- **CI/CD status badges** — added StatusBadges component to homepage showing CI, PyPI publish, and package version status from GitHub
+- **CI/CD status badges** — added StatusBadges component to homepage with CI, Release, Deploy Docs, Release PyPI, Release ADK workflows; Packages section with PyPI + TestPyPI versions; Info section with version, python, license
+- **Badge reorganization** — moved Release PyPI and Release ADK badges from Packages to CI/CD group; added TestPyPI version badges
 
 ## [cloud-v0.1.0] - 2026-03-17
 
