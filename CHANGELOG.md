@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-03-17
+
+### Added
+
+- **Astromesh ADK** (`astromesh-adk/`) — Python-first Agent Development Kit for building, running, and deploying AI agents with decorator and class APIs
+  - **`@agent` decorator** — define agents from async functions; docstring becomes system prompt, body is the run handler with `RunContext` access to `run_default()`, `complete()`, `call_tool()`
+  - **`Agent` base class** — class-based agents with lifecycle hooks (`on_before_run`, `on_after_run`, `on_tool_call`) and dynamic system prompts via `system_prompt_fn(ctx)`
+  - **`@tool` decorator** — define tools from async functions with auto-generated JSON schema from Python type hints (str, int, float, bool, list, dict, Optional, `X | None`)
+  - **`Tool` ABC** — stateful tools with explicit `parameters()` schema, `execute()`, and `cleanup()` lifecycle
+  - **`MCPToolSet`** — lazy MCP server integration via `mcp_tools()`; synchronous creation at import time, async discovery on first agent run; supports `*` unpacking in tools list
+  - **`AgentTeam`** — multi-agent composition with 4 orchestration patterns: `supervisor` (delegate to workers), `swarm` (agents hand off), `pipeline` (sequential chain), `parallel` (fan-out + aggregate)
+  - **Provider resolution** — `"provider/model"` string shorthand (e.g., `"openai/gpt-4o"`, `"ollama/llama3"`) auto-resolves to Astromesh provider instances with API keys from env vars
+  - **Memory config builder** — string shorthand (`memory="sqlite"`) or full dict config normalized to Astromesh `MemoryManager` format
+  - **Guardrails config builder** — string shorthand (`["pii_detection"]`) expanded with default actions per guardrail type
+  - **Remote connection** — `connect()`, `disconnect()`, `remote()` context manager with `contextvars.ContextVar` for async-safe concurrent execution; per-agent `bind()` for targeted remote dispatch
+  - **`RunResult`** — structured result with `answer`, `steps`, `trace`, `cost`, `tokens`, `latency_ms`, `model`; built from `TracingContext` span aggregation
+  - **`StreamEvent`** — typed events (`"step"`, `"token"`, `"done"`) for streaming agent execution
+  - **`RunContext`** — rich context object with `query`, `session_id`, `agent_name`, `user_id`, `memory` accessor, `tools` list, and methods for `run_default()`, `complete()`, `call_tool()`
+  - **`Callbacks`** — observational base class (`on_step`, `on_tool_result`, `on_model_call`, `on_error`) distinct from agent lifecycle hooks; errors in callbacks are logged, never propagated
+  - **Exception hierarchy** — `ADKError` base with typed subtrees: `AgentError`, `ProviderError`, `ToolError`, `GuardrailError`, `RemoteError` (each with specific subtypes)
+  - **`ADKRuntime`** — embedded runtime with `start()`/`shutdown()` lifecycle and context manager support; implicit runtime via `atexit` for scripts
+  - **CLI** (`astromesh-adk`) — 5 commands: `run` (one-shot execution), `chat` (interactive terminal), `list` (show agents in file), `check` (validate config, env vars, tools), `dev` (FastAPI dev server with hot reload)
+  - **Public API** — 16 exports from `astromesh_adk`: `Agent`, `agent`, `AgentTeam`, `ADKRuntime`, `Callbacks`, `RunContext`, `RunResult`, `StreamEvent`, `Tool`, `tool`, `ToolContext`, `connect`, `disconnect`, `remote`, `mcp_tools`, `AgentWrapper`
+- **ADK examples** — `quickstart.py`, `tools_example.py` (decorator + class tools), `multi_agent.py` (pipeline + supervisor teams)
+- **ADK documentation** — `docs/ADK_QUICKSTART.md` getting started guide, `docs/ADK_PENDING.md` implementation roadmap
+- **Docs-site ADK section** — 7 sidebar entries in Astro Starlight with `introduction.mdx` and `quickstart.mdx` pages
+- **ADK design spec** (`docs/superpowers/specs/2026-03-17-astromesh-adk-design.md`) — 16-section approved design covering all ADK subsystems
+- **ADK implementation plan** (`docs/superpowers/plans/2026-03-17-astromesh-adk.md`) — 18-task plan with TDD steps, reviewed and approved
+- 89 new tests for all ADK modules
+
+### Changed
+
+- **Docs-site sidebar** (`docs-site/astro.config.mjs`) — added "Agent Development Kit" section with 7 pages
+
 ## [0.15.4] - 2026-03-12
 
 ### Fixed
@@ -487,7 +521,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.15.4...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/monaccode/astromesh/compare/v0.15.4...v0.16.0
 [0.15.4]: https://github.com/monaccode/astromesh/compare/v0.15.3...v0.15.4
 [0.15.3]: https://github.com/monaccode/astromesh/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/monaccode/astromesh/compare/v0.15.1...v0.15.2
