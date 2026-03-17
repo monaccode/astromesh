@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from astromesh_cloud.routes import auth as auth_routes
+from astromesh_cloud.routes import organizations as org_routes
 
 
 @asynccontextmanager
@@ -21,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_routes.router)
+app.include_router(org_routes.router)
 
 
 @app.get("/api/v1/health")
