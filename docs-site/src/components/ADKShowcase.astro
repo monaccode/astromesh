@@ -1,0 +1,569 @@
+---
+const codeLines = [
+  { text: 'from astromesh_adk import agent, tool', cls: 'kw' },
+  { text: '', cls: '' },
+  { text: '@tool(description="Search the web")', cls: 'dec' },
+  { text: 'async def search(query: str) -> str:', cls: 'fn' },
+  { text: '    return await fetch_results(query)', cls: 'body' },
+  { text: '', cls: '' },
+  { text: '@agent(', cls: 'dec' },
+  { text: '    name="assistant",', cls: 'arg' },
+  { text: '    model="openai/gpt-4o",', cls: 'arg' },
+  { text: '    tools=[search],', cls: 'arg' },
+  { text: ')', cls: 'dec' },
+  { text: 'async def assistant(ctx):', cls: 'fn' },
+  { text: '    """You are a research assistant."""', cls: 'str' },
+  { text: '    return None', cls: 'body' },
+];
+
+const features = [
+  { icon: `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`, label: 'Decorators', desc: 'Python-first API' },
+  { icon: `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`, label: 'Auto Schema', desc: 'From type hints' },
+  { icon: `<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>`, label: '6 Providers', desc: 'One string config' },
+  { icon: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`, label: 'Multi-Agent', desc: '4 team patterns' },
+  { icon: `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: 'CLI', desc: '5 commands' },
+  { icon: `<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>`, label: 'Local + Remote', desc: 'One codebase' },
+];
+---
+
+<section class="adk-root">
+  <!-- Ambient background -->
+  <div class="adk-bg">
+    <div class="adk-orb adk-orb-1"></div>
+    <div class="adk-orb adk-orb-2"></div>
+    <div class="adk-grid-overlay"></div>
+  </div>
+
+  <!-- Header -->
+  <div class="adk-header">
+    <div class="adk-badge-row">
+      <span class="adk-badge-new">NEW</span>
+      <span class="adk-badge-ver">v0.16.0</span>
+    </div>
+    <h2 class="adk-title">
+      <span class="adk-title-thin">Astromesh</span>
+      <span class="adk-title-bold">ADK</span>
+    </h2>
+    <p class="adk-subtitle">Agent Development Kit</p>
+    <p class="adk-desc">
+      Build AI agents in pure Python. Decorators, auto-generated schemas, multi-agent teams
+      — powered by the same runtime engine under the hood.
+    </p>
+  </div>
+
+  <!-- Main split: code + features -->
+  <div class="adk-split">
+    <!-- Code panel -->
+    <div class="adk-code-panel">
+      <div class="adk-code-chrome">
+        <div class="adk-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="adk-code-filename">my_agent.py</span>
+      </div>
+      <pre class="adk-code"><code>{codeLines.map((line, i) => (
+        <span class={`adk-line ${line.cls}`} style={`--li: ${i}`}>
+          {line.text ? (
+            <Fragment>
+              <span class="adk-ln">{String(i + 1).padStart(2, ' ')}</span>
+              <span class="adk-lc">{line.text}</span>
+            </Fragment>
+          ) : '\n'}
+        </span>
+      ))}</code></pre>
+      <div class="adk-code-glow"></div>
+    </div>
+
+    <!-- Features grid -->
+    <div class="adk-features">
+      {features.map((f, i) => (
+        <div class="adk-feat" style={`--fi: ${i}`}>
+          <div class="adk-feat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <Fragment set:html={f.icon} />
+            </svg>
+          </div>
+          <div class="adk-feat-text">
+            <span class="adk-feat-label">{f.label}</span>
+            <span class="adk-feat-desc">{f.desc}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <!-- Terminal preview -->
+  <div class="adk-terminal">
+    <div class="adk-term-row">
+      <span class="adk-term-prompt">$</span>
+      <span class="adk-term-cmd">pip install astromesh-adk</span>
+    </div>
+    <div class="adk-term-row adk-term-run">
+      <span class="adk-term-prompt">$</span>
+      <span class="adk-term-cmd">astromesh-adk run my_agent.py:assistant "What is quantum computing?"</span>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="adk-cta-row">
+    <a class="adk-cta-primary" href="/astromesh/adk/quickstart/">
+      Get Started with ADK
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      </svg>
+    </a>
+    <a class="adk-cta-secondary" href="/astromesh/adk/introduction/">
+      Read the Docs
+    </a>
+  </div>
+</section>
+
+<style>
+  /* ── Root ─────────────────────────────── */
+  .adk-root {
+    position: relative;
+    padding: 3rem 0 2rem;
+    overflow: hidden;
+  }
+
+  /* ── Ambient BG ──────────────────────── */
+  .adk-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .adk-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0;
+    animation: orb-fade 1.2s ease 0.3s forwards;
+  }
+
+  .adk-orb-1 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(0, 212, 255, 0.12) 0%, transparent 70%);
+    top: -100px;
+    left: -50px;
+  }
+
+  .adk-orb-2 {
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 70%);
+    bottom: -80px;
+    right: -30px;
+    animation-delay: 0.5s;
+  }
+
+  @keyframes orb-fade {
+    to { opacity: 1; }
+  }
+
+  .adk-grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 100%);
+  }
+
+  /* ── Header ──────────────────────────── */
+  .adk-header {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .adk-badge-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    opacity: 0;
+    animation: slide-up 0.5s ease 0.1s forwards;
+  }
+
+  .adk-badge-new {
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #0a0a0a;
+    background: var(--am-gradient-start);
+    padding: 0.2em 0.55em;
+    border-radius: 4px;
+    animation: badge-glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes badge-glow {
+    from { box-shadow: 0 0 8px rgba(0, 212, 255, 0.3); }
+    to   { box-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.15); }
+  }
+
+  .adk-badge-ver {
+    font-family: var(--sl-font-mono);
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--sl-color-accent);
+    opacity: 0.7;
+  }
+
+  .adk-title {
+    font-size: 2.6rem;
+    line-height: 1.1;
+    margin: 0 0 0.3rem;
+    letter-spacing: -0.04em;
+    opacity: 0;
+    animation: slide-up 0.6s ease 0.2s forwards;
+  }
+
+  .adk-title-thin {
+    font-weight: 300;
+    color: var(--sl-color-gray-2);
+  }
+
+  .adk-title-bold {
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--am-gradient-start) 0%, var(--am-gradient-end) 50%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .adk-subtitle {
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sl-color-accent-high);
+    margin: 0 0 1rem;
+    opacity: 0;
+    animation: slide-up 0.6s ease 0.3s forwards;
+  }
+
+  .adk-desc {
+    max-width: 480px;
+    margin: 0 auto;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--sl-color-gray-2);
+    opacity: 0;
+    animation: slide-up 0.6s ease 0.4s forwards;
+  }
+
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Split layout ────────────────────── */
+  .adk-split {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: slide-up 0.7s ease 0.5s forwards;
+  }
+
+  /* ── Code panel ──────────────────────── */
+  .adk-code-panel {
+    position: relative;
+    border-radius: var(--am-radius);
+    border: 1px solid var(--am-border);
+    background: rgba(10, 12, 18, 0.8);
+    overflow: hidden;
+  }
+
+  .adk-code-chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--am-border);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .adk-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .adk-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .adk-dots span:first-child { background: #ff5f57; }
+  .adk-dots span:nth-child(2) { background: #ffbd2e; }
+  .adk-dots span:nth-child(3) { background: #28c840; }
+
+  .adk-code-filename {
+    font-family: var(--sl-font-mono);
+    font-size: 0.7rem;
+    color: var(--sl-color-gray-3);
+    opacity: 0.6;
+  }
+
+  .adk-code {
+    margin: 0;
+    padding: 1rem 0;
+    overflow-x: auto;
+    font-family: var(--sl-font-mono);
+    font-size: 0.75rem;
+    line-height: 1.7;
+    background: transparent;
+  }
+
+  .adk-code code {
+    background: none;
+  }
+
+  .adk-line {
+    display: block;
+    padding: 0 1rem;
+    opacity: 0;
+    animation: line-in 0.3s ease forwards;
+    animation-delay: calc(0.6s + var(--li) * 0.06s);
+    min-height: 1.7em;
+  }
+
+  @keyframes line-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .adk-ln {
+    color: rgba(255, 255, 255, 0.15);
+    margin-right: 1.2em;
+    user-select: none;
+  }
+
+  /* Syntax colors */
+  .adk-line.kw .adk-lc { color: #7dd3fc; }
+  .adk-line.dec .adk-lc { color: #c4b5fd; }
+  .adk-line.fn .adk-lc { color: #67e8f9; }
+  .adk-line.arg .adk-lc { color: #94a3b8; }
+  .adk-line.str .adk-lc { color: #86efac; }
+  .adk-line.body .adk-lc { color: #e2e8f0; }
+
+  .adk-line:hover {
+    background: rgba(0, 212, 255, 0.04);
+  }
+
+  .adk-code-glow {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--am-gradient-start), transparent);
+    opacity: 0.4;
+  }
+
+  /* ── Features grid ───────────────────── */
+  .adk-features {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .adk-feat {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: calc(var(--am-radius) - 2px);
+    border: 1px solid var(--am-border);
+    background: var(--am-surface);
+    opacity: 0;
+    animation: feat-in 0.4s ease forwards;
+    animation-delay: calc(0.8s + var(--fi) * 0.08s);
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .adk-feat:hover {
+    border-color: var(--am-border-hover);
+    transform: translateX(4px);
+    box-shadow: -4px 0 16px rgba(0, 212, 255, 0.06);
+  }
+
+  @keyframes feat-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .adk-feat-icon {
+    width: 2.2rem;
+    height: 2.2rem;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+    color: var(--sl-color-accent);
+    flex-shrink: 0;
+  }
+
+  .adk-feat-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .adk-feat-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--sl-color-text);
+    letter-spacing: -0.01em;
+  }
+
+  .adk-feat-desc {
+    font-size: 0.72rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  /* ── Terminal ────────────────────────── */
+  .adk-terminal {
+    position: relative;
+    z-index: 1;
+    border-radius: calc(var(--am-radius) - 2px);
+    border: 1px solid var(--am-border);
+    background: rgba(10, 12, 18, 0.6);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    opacity: 0;
+    animation: slide-up 0.6s ease 1.4s forwards;
+  }
+
+  .adk-term-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.73rem;
+  }
+
+  .adk-term-prompt {
+    color: var(--sl-color-accent);
+    font-weight: 600;
+    user-select: none;
+  }
+
+  .adk-term-cmd {
+    color: var(--sl-color-gray-2);
+  }
+
+  .adk-term-run .adk-term-cmd {
+    background: linear-gradient(90deg, var(--sl-color-gray-2) 0%, rgba(0, 212, 255, 0.6) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── CTAs ─────────────────────────────── */
+  .adk-cta-row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    opacity: 0;
+    animation: slide-up 0.6s ease 1.6s forwards;
+  }
+
+  .adk-cta-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #0a0a0a;
+    background: linear-gradient(135deg, var(--am-gradient-start), var(--am-gradient-end));
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+  }
+
+  .adk-cta-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.35), 0 4px 16px rgba(0, 0, 0, 0.3);
+    text-decoration: none !important;
+    gap: 0.7rem;
+  }
+
+  .adk-cta-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.65rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--sl-color-gray-2);
+    border: 1px solid var(--am-border);
+    background: var(--am-surface);
+    text-decoration: none;
+    transition: all 0.25s ease;
+  }
+
+  .adk-cta-secondary:hover {
+    border-color: var(--am-border-hover);
+    color: var(--sl-color-text);
+    text-decoration: none !important;
+  }
+
+  /* ── Responsive ──────────────────────── */
+  @media (max-width: 720px) {
+    .adk-split {
+      grid-template-columns: 1fr;
+    }
+
+    .adk-title {
+      font-size: 2rem;
+    }
+
+    .adk-features {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .adk-term-run .adk-term-cmd {
+      font-size: 0.65rem;
+      word-break: break-all;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .adk-features {
+      grid-template-columns: 1fr;
+    }
+
+    .adk-cta-row {
+      flex-direction: column;
+    }
+
+    .adk-terminal {
+      overflow-x: auto;
+    }
+  }
+</style>
