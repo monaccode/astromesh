@@ -18,9 +18,16 @@ class AgentRunRequest(BaseModel):
     context: dict | None = None
 
 
+class UsageInfo(BaseModel):
+    tokens_in: int = 0
+    tokens_out: int = 0
+    model: str = ""
+
+
 class AgentRunResponse(BaseModel):
     answer: str
     steps: list[dict] = []
+    usage: UsageInfo | None = None
 
 
 @router.get("/agents")
@@ -85,7 +92,23 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             context["_provider_override"] = {"name": provider_name, "key": provider_key}
 
         result = await _runtime.run(agent_name, request.query, request.session_id, context)
-        return AgentRunResponse(answer=result.get("answer", ""), steps=result.get("steps", []))
+        usage = None
+        trace = result.get("trace", {})
+        spans = trace.get("spans", []) if isinstance(trace, dict) else []
+        total_in = 0
+        total_out = 0
+        model_used = ""
+        for span in spans:
+            span_meta = span.get("metadata", {})
+            if "usage" in span_meta:
+                u = span_meta["usage"]
+                total_in += u.get("prompt_tokens", 0)
+                total_out += u.get("completion_tokens", 0)
+            if "model" in span_meta and not model_used:
+                model_used = span_meta["model"]
+        if total_in or total_out:
+            usage = UsageInfo(tokens_in=total_in, tokens_out=total_out, model=model_used)
+        return AgentRunResponse(answer=result.get("answer", ""), steps=result.get("steps", []), usage=usage)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

@@ -57,3 +57,21 @@ async def test_memory_history(client):
     resp = await client.get("/v1/memory/test-agent/history/session1")
     assert resp.status_code == 200
     assert resp.json()["history"] == []
+
+
+def test_run_response_usage_schema():
+    from astromesh.api.routes.agents import AgentRunResponse, UsageInfo
+
+    usage = UsageInfo(tokens_in=10, tokens_out=20, model="gpt-4o")
+    resp = AgentRunResponse(answer="hello", steps=[], usage=usage)
+    assert resp.usage.tokens_in == 10
+    assert resp.usage.tokens_out == 20
+    assert resp.usage.model == "gpt-4o"
+
+
+def test_run_response_usage_defaults_to_none():
+    from astromesh.api.routes.agents import AgentRunResponse
+
+    resp = AgentRunResponse(answer="hello")
+    assert resp.usage is None
+    assert resp.steps == []
