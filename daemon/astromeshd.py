@@ -186,6 +186,9 @@ async def run_daemon(args: argparse.Namespace) -> None:
     agents.set_runtime(runtime)
     system.set_runtime(runtime)
 
+    from astromesh.api.routes import memory as memory_routes
+    memory_routes.set_runtime(runtime)
+
     from astromesh.api.routes import mesh as mesh_routes
     mesh_routes.set_mesh(mesh_manager, elector)
 

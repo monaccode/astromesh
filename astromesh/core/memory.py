@@ -129,6 +129,10 @@ class MemoryManager:
 
         return context
 
+    async def clear_history(self, session_id):
+        if self._conversation:
+            await self._conversation.clear(session_id)
+
     async def persist_turn(self, session_id, turn):
         if self._conversation:
             await self._conversation.save_turn(session_id, turn)

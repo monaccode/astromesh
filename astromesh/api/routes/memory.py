@@ -1,7 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
+
+_runtime = None
+
+
+def set_runtime(runtime):
+    global _runtime
+    _runtime = runtime
 
 
 class MemoryQueryRequest(BaseModel):
@@ -17,7 +24,16 @@ async def get_history(agent_name: str, session_id: str, limit: int = 50):
 
 @router.delete("/memory/{agent_name}/history/{session_id}")
 async def clear_history(agent_name: str, session_id: str):
-    return {"status": "cleared", "agent": agent_name, "session_id": session_id}
+    if _runtime is None:
+        raise HTTPException(status_code=503, detail="Runtime not initialized")
+    agent = _runtime._agents.get(agent_name)
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
+    try:
+        await agent.memory_manager.clear_history(session_id)
+        return {"status": "cleared", "agent": agent_name, "session_id": session_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/memory/{agent_name}/semantic")

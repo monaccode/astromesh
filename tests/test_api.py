@@ -59,6 +59,11 @@ async def test_memory_history(client):
     assert resp.json()["history"] == []
 
 
+async def test_clear_memory_no_runtime_returns_503(client):
+    resp = await client.delete("/v1/memory/test-agent/history/test-session")
+    assert resp.status_code == 503
+
+
 def test_run_response_usage_schema():
     from astromesh.api.routes.agents import AgentRunResponse, UsageInfo
 
