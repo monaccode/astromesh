@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [adk-v0.1.2] - 2026-03-17
+## [adk-v0.1.3] - 2026-03-17
+
+### Fixed (ADK)
+
+- **CLI dependencies** — moved `typer` and `rich` from optional `[cli]` extras to base dependencies; the `astromesh-adk` entry point always requires them
 
 ### Changed (ADK)
 
