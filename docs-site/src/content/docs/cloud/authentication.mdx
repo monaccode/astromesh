@@ -1,0 +1,223 @@
+---
+title: Authentication
+description: OAuth and API key authentication
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+Astromesh Cloud supports two authentication methods depending on your use case.
+
+## JWT Tokens (Interactive Use)
+
+JWT tokens are short-lived (24h by default) and issued by the auth endpoints. They are the right choice for:
+
+- Direct API calls during development and testing
+- Studio session auth
+- Short-lived scripts or CI pipelines that log in fresh each run
+
+Include the token in the `Authorization` header:
+
+```bash
+curl https://api.astromesh.io/api/v1/orgs/me \
+  -H "Authorization: Bearer eyJhbGci..."
+```
+
+## API Keys (Production Use)
+
+API keys (`ask-` prefix) are long-lived, org-scoped credentials. They are the right choice for:
+
+- Server-to-server integrations
+- Production deployments
+- Any system where rotating short-lived tokens is impractical
+
+Include the key in the `X-API-Key` header:
+
+```bash
+curl -X POST "https://api.astromesh.io/api/v1/orgs/my-org/agents/my-bot/run" \
+  -H "X-API-Key: ask-prod-xxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Hello"}'
+```
+
+---
+
+## Getting a JWT
+
+### Dev Login
+
+<Badge text="Working" variant="success" />
+
+For development and testing. Creates a user account if one doesn't exist.
+
+```bash
+curl -X POST https://api.astromesh.io/api/v1/auth/dev/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "you@example.com", "name": "Your Name"}'
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGci...",
+  "token_type": "bearer",
+  "expires_in": 86400,
+  "org_slug": "you-example-com"
+}
+```
+
+<Aside type="caution">
+  Dev login is for development only. It does not verify email ownership. Do not use it for production user authentication.
+</Aside>
+
+---
+
+### Google OAuth
+
+<Badge text="Coming soon" variant="caution" />
+
+Full Google OIDC flow is planned for a future release. The endpoint exists but returns `501 Not Implemented`.
+
+**Planned flow:**
+1. Frontend redirects user to Google's authorization URL
+2. Google redirects back with an `id_token`
+3. POST the `id_token` to `/auth/google`
+4. Receive Astromesh JWT
+
+```bash
+# Future use — not yet functional
+curl -X POST https://api.astromesh.io/api/v1/auth/google \
+  -H "Content-Type: application/json" \
+  -d '{"id_token": "<google_id_token>"}'
+```
+
+---
+
+### GitHub OAuth
+
+<Badge text="Coming soon" variant="caution" />
+
+Full GitHub OAuth flow is planned. The endpoint exists but returns `501 Not Implemented`.
+
+**Planned flow:**
+1. Frontend redirects user to GitHub's OAuth authorization page
+2. GitHub redirects back with a `code` and `state`
+3. POST the code to `/auth/github`
+4. Receive Astromesh JWT
+
+---
+
+### Token Refresh
+
+When your token expires, use the refresh token to get a new access token without logging in again:
+
+```bash
+curl -X POST https://api.astromesh.io/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "..."}'
+```
+
+---
+
+## Managing API Keys
+
+### Create an API Key
+
+```bash
+curl -X POST "https://api.astromesh.io/api/v1/orgs/my-org/keys" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Production Server"}'
+```
+
+**Response:**
+```json
+{
+  "id": "key_abc123",
+  "name": "Production Server",
+  "secret": "ask-prod-xxxxxxxxxxxxxxxxxxxxxxxx",
+  "created_at": "2026-03-17T12:00:00Z"
+}
+```
+
+The `secret` field is returned **only once**. Store it in your secrets manager immediately.
+
+### List API Keys
+
+Secrets are masked in the list endpoint — only the prefix and metadata are shown:
+
+```bash
+curl "https://api.astromesh.io/api/v1/orgs/my-org/keys" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "keys": [
+    {
+      "id": "key_abc123",
+      "name": "Production Server",
+      "prefix": "ask-prod",
+      "created_at": "2026-03-17T12:00:00Z",
+      "last_used_at": "2026-03-17T14:22:00Z"
+    }
+  ]
+}
+```
+
+### Revoke an API Key
+
+```bash
+curl -X DELETE "https://api.astromesh.io/api/v1/orgs/my-org/keys/key_abc123" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Revocation is immediate — any in-flight requests using that key will fail on the next authorization check.
+
+---
+
+## Provider Keys (BYOK)
+
+Provider keys let you use your own LLM API keys instead of shared platform keys. They are:
+
+- Stored encrypted at rest
+- Injected into the Astromesh ModelRouter at execution time, not stored in plain text anywhere
+- Scoped to your org — no other tenant can access them
+
+### Supported Providers
+
+| Provider | Model examples |
+|---|---|
+| `openai` | `openai/gpt-4o`, `openai/gpt-4o-mini` |
+| `anthropic` | `anthropic/claude-3-5-sonnet`, `anthropic/claude-3-haiku` |
+| `groq` | `groq/llama3-8b-8192`, `groq/mixtral-8x7b` |
+| `mistral` | `mistral/mistral-large` |
+| `cohere` | `cohere/command-r` |
+| `ollama` | `ollama/llama3` (platform-hosted instance, no key required) |
+
+### Add a Provider Key
+
+```bash
+curl -X POST "https://api.astromesh.io/api/v1/orgs/my-org/providers" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "anthropic", "api_key": "sk-ant-your-key"}'
+```
+
+### Remove a Provider Key
+
+```bash
+curl -X DELETE "https://api.astromesh.io/api/v1/orgs/my-org/providers/anthropic" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+After removal, any deployed agents using that provider will fail at execution time. Pause those agents first.
+
+---
+
+## Security Best Practices
+
+- Store API keys in a secrets manager (AWS Secrets Manager, HashiCorp Vault, GitHub Actions secrets, etc.) — never in source code
+- Rotate API keys periodically by creating a new key, updating your integration, then revoking the old key
+- Use separate keys for development, staging, and production environments
+- Monitor `last_used_at` on keys — revoke any that haven't been used recently
+- Dev login tokens are suitable for local development; use API keys for any deployed service

@@ -1,0 +1,172 @@
+---
+title: Quick Start
+description: Deploy your first agent on Astromesh Cloud
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Get from zero to a running AI agent in under 10 minutes.
+
+**Prerequisites:** `curl`, `jq`, and a terminal.
+
+<Steps>
+
+1. ## Log In
+
+   Use the dev login endpoint. Google/GitHub OAuth is coming soon.
+
+   ```bash
+   TOKEN=$(curl -s -X POST https://api.astromesh.io/api/v1/auth/dev/login \
+     -H "Content-Type: application/json" \
+     -d '{"email": "you@example.com", "name": "Your Name"}' \
+     | jq -r '.access_token')
+
+   ORG=$(curl -s https://api.astromesh.io/api/v1/orgs/me \
+     -H "Authorization: Bearer $TOKEN" \
+     | jq -r '.slug')
+
+   echo "Org: $ORG"
+   ```
+
+2. ## Add Your Provider Key
+
+   Store your OpenAI key so the agent can call the model. Skip this step if you want to use `ollama/llama3` (included in the platform).
+
+   ```bash
+   curl -X POST "https://api.astromesh.io/api/v1/orgs/$ORG/providers" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"provider": "openai", "api_key": "sk-your-openai-key"}'
+   ```
+
+3. ## Create an Agent
+
+   Create an agent in draft state with a `WizardConfig`:
+
+   ```bash
+   curl -X POST "https://api.astromesh.io/api/v1/orgs/$ORG/agents" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "my-first-agent",
+       "display_name": "My First Agent",
+       "step1": {"model": "openai/gpt-4o-mini"},
+       "step2": {
+         "system_prompt": "You are a helpful assistant. Answer clearly and concisely.",
+         "persona": "Assistant"
+       },
+       "step3": {"tools": []},
+       "step4": {
+         "memory_type": "conversational",
+         "memory_strategy": "sliding_window",
+         "window_size": 10
+       },
+       "step5": {}
+     }'
+   ```
+
+   The response includes `"status": "draft"`.
+
+4. ## Deploy It
+
+   Compile the config and register the agent in the runtime:
+
+   ```bash
+   curl -X POST "https://api.astromesh.io/api/v1/orgs/$ORG/agents/my-first-agent/deploy" \
+     -H "Authorization: Bearer $TOKEN"
+   ```
+
+   ```json
+   {
+     "status": "deployed",
+     "agent_id": "my-org__my-first-agent",
+     "deployed_at": "2026-03-17T12:00:00Z"
+   }
+   ```
+
+5. ## Run It
+
+   ```bash
+   curl -X POST "https://api.astromesh.io/api/v1/orgs/$ORG/agents/my-first-agent/run" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"query": "Hello! What can you help me with?", "session_id": "sess-001"}'
+   ```
+
+   ```json
+   {
+     "answer": "I can help you with a wide range of questions...",
+     "session_id": "sess-001",
+     "tokens_used": 87,
+     "model": "openai/gpt-4o-mini",
+     "latency_ms": 950
+   }
+   ```
+
+6. ## Get an API Key for Production
+
+   JWT tokens expire. For production integrations, create a long-lived API key:
+
+   ```bash
+   SECRET=$(curl -s -X POST "https://api.astromesh.io/api/v1/orgs/$ORG/keys" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "Production"}' \
+     | jq -r '.secret')
+
+   echo "API Key: $SECRET"
+   # Store this securely — it will not be shown again
+   ```
+
+   Use the API key in production:
+
+   ```bash
+   curl -X POST "https://api.astromesh.io/api/v1/orgs/$ORG/agents/my-first-agent/run" \
+     -H "X-API-Key: $SECRET" \
+     -H "Content-Type: application/json" \
+     -d '{"query": "What can you do?", "session_id": "prod-001"}'
+   ```
+
+</Steps>
+
+## Using with ADK
+
+Connect your ADK agents to Astromesh Cloud for remote execution:
+
+```python
+from astromesh_adk import agent, connect
+
+@agent(name="my-first-agent", model="openai/gpt-4o-mini")
+async def my_agent(ctx):
+    """You are a helpful assistant."""
+    return None
+
+# Route execution to your deployed Cloud agent
+connect(
+    url="https://api.astromesh.io",
+    api_key="ask-your-key-here",
+    org="your-org-slug"
+)
+
+result = await my_agent.run("Hello from ADK!")
+print(result.answer)
+```
+
+Or use the context manager for scoped remote execution:
+
+```python
+from astromesh_adk import remote
+
+async with remote("https://api.astromesh.io", api_key="ask-...", org="my-org"):
+    result = await my_agent.run("Remote query")
+
+# Back to local execution after the context block
+result = await my_agent.run("Local query")
+```
+
+## What's Next
+
+- [Studio Guide](/astromesh/cloud/studio-guide) — Build agents visually with the 5-step wizard
+- [Agent Lifecycle](/astromesh/cloud/agent-lifecycle) — Understand draft, deployed, and paused states
+- [Authentication](/astromesh/cloud/authentication) — OAuth flow, JWT tokens, and API keys
+- [API Reference](/astromesh/cloud/api-reference) — Full endpoint documentation

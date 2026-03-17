@@ -1,0 +1,107 @@
+---
+title: Astromesh Cloud
+description: Managed AI Agent Platform
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Currently in v0.1.0">
+  Astromesh Cloud is in early development. Some features described here are stubs or in active development. Google/GitHub OAuth, containerized tenant isolation, and the full Studio UI are on the near-term roadmap.
+</Aside>
+
+Astromesh Cloud is a managed platform for deploying AI agents without managing infrastructure. It builds on the open-source Astromesh runtime and ADK, wrapping them in a multi-tenant SaaS layer with a visual Studio, a Cloud API, and shared execution infrastructure.
+
+**Target audience:** Small and medium teams that want production-ready AI agents in hours, not weeks — without setting up Kubernetes, configuring model routers, or running their own Ollama instances.
+
+## Architecture
+
+Three services compose the platform:
+
+```
+┌─────────────────────────┐
+│   Studio (Next.js)      │  Visual agent builder — 5-step wizard
+│   studio.astromesh.io   │  Connects to Cloud API via JWT
+└─────────────┬───────────┘
+              │ REST / WebSocket
+┌─────────────▼───────────┐
+│   Cloud API (FastAPI)   │  /api/v1 — Auth, orgs, agents, keys, usage
+│   api.astromesh.io      │
+└─────────────┬───────────┘
+              │ AgentRuntime.run()
+┌─────────────▼───────────┐
+│  Astromesh Runtime      │  Shared engine — same open-source core
+│  (shared, multi-tenant) │  Agents isolated by org naming convention
+└─────────────────────────┘
+```
+
+The runtime is the same engine described in the core Astromesh docs. The Cloud layer adds authentication, multi-tenancy, the visual Studio, and managed ops.
+
+## How It Works
+
+1. **Design** — Use Studio's 5-step wizard to configure your agent: name/model, system prompt, tools, memory, and guardrails
+2. **Draft** — Agent config is saved as a `WizardConfig` attached to your org
+3. **Deploy** — The Cloud API converts the wizard config to an Astromesh YAML and registers it in the shared runtime
+4. **Execute** — POST to `/run` — the Cloud API validates your token and routes the query to `runtime.run()`
+5. **Stream** — WebSocket endpoint for token-by-token streaming responses
+
+## Multi-tenancy
+
+Tenant isolation is implemented via **naming conventions**:
+
+- Every agent in the runtime is prefixed: `{org_slug}__{agent_name}`
+- API keys are scoped to a single org
+- Provider keys (BYOK) are encrypted and injected at execution time
+
+Full workload isolation between tenants is on the roadmap.
+
+## Key Concepts
+
+### Organizations
+
+An org is the top-level tenant. All resources — agents, API keys, provider keys, and members — belong to an org identified by a URL-safe `slug`.
+
+**Free tier limits:**
+- 5 agents per org
+- 1,000 requests per day
+- 3 members per org
+
+### Agent Lifecycle
+
+Agents move through three states:
+
+```
+draft ──────→ deployed ──────→ paused
+  ↑               │               │
+  └───────────────┴───────────────┘
+```
+
+- **draft** — Config saved, not running. Edit freely.
+- **deployed** — Registered in the shared runtime. Accepting requests.
+- **paused** — Deregistered from runtime. Config preserved. No requests accepted.
+
+### Authentication
+
+| Method | Use case |
+|---|---|
+| **JWT (Bearer token)** | Interactive use, Studio, direct API calls |
+| **API Key (`ask-` prefix)** | Production integrations, server-to-server |
+
+### Provider Keys (BYOK)
+
+Store your OpenAI, Anthropic, Groq, or other provider API keys in Astromesh Cloud. They are encrypted at rest and injected into the runtime's ModelRouter at execution time. You pay providers directly.
+
+## What's Implemented in v0.1.0
+
+| Feature | Status |
+|---|---|
+| Dev login (`/auth/dev/login`) | Working |
+| Agent CRUD + lifecycle | Working |
+| Agent execution (`/run`) | Working |
+| WebSocket streaming | Working |
+| API key management | Working |
+| Provider keys (BYOK) | Working |
+| Usage tracking | Working |
+| Google OAuth | Stub (501) |
+| GitHub OAuth | Stub (501) |
+| Studio visual builder | In development |
+| Containerized tenant isolation | Planned |

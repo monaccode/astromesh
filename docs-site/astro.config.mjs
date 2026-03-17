@@ -103,6 +103,17 @@ export default defineConfig({
             { label: 'CLI Reference', slug: 'adk/cli-reference' },
           ],
         },
+        {
+          label: 'Astromesh Cloud',
+          items: [
+            { label: 'Introduction', slug: 'cloud/introduction' },
+            { label: 'Quick Start', slug: 'cloud/quickstart' },
+            { label: 'Studio Guide', slug: 'cloud/studio-guide' },
+            { label: 'Agent Lifecycle', slug: 'cloud/agent-lifecycle' },
+            { label: 'Authentication', slug: 'cloud/authentication' },
+            { label: 'API Reference', slug: 'cloud/api-reference' },
+          ],
+        },
       ],
       editLink: {
         baseUrl: 'https://github.com/monaccode/astromesh/edit/develop/docs-site/',
