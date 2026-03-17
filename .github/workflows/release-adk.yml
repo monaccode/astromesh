@@ -103,6 +103,8 @@ jobs:
           ADK_VERSION="${GITHUB_REF_NAME#adk-v}"
           python -m pip install --upgrade pip
           python -m pip install \
+            --prefer-binary \
+            --only-binary=:all: \
             --index-url https://pypi.org/simple \
             --extra-index-url https://test.pypi.org/simple \
             "astromesh-adk==${ADK_VERSION}"
