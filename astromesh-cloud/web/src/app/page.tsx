@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/lib/store";
 
 export default function Home() {
   const router = useRouter();
+  const token = useAuthStore((s) => s.token);
   useEffect(() => {
-    // Will check auth once store is created
-    router.replace("/login");
-  }, [router]);
+    router.replace(token ? "/agents" : "/login");
+  }, [token, router]);
   return null;
 }
