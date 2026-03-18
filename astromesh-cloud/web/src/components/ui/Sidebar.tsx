@@ -35,12 +35,11 @@ export function Sidebar({ orgSlug, orgName }: SidebarProps) {
 
       <nav className="flex-1 px-3 space-y-0.5">
         {NAV_LINKS.map(({ label, href, icon }) => {
-          const fullHref = `/${orgSlug}${href}`;
-          const active = pathname.startsWith(fullHref);
+          const active = pathname.startsWith(href);
           return (
             <Link
               key={href}
-              href={fullHref}
+              href={href}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all",
                 active

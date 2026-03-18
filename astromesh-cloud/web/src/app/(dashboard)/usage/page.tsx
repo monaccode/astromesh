@@ -78,7 +78,8 @@ type Period = (typeof PERIODS)[number]["days"];
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatNumber(n: number): string {
+function formatNumber(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return "0";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString();
@@ -110,8 +111,14 @@ export default function UsagePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = (await api.getUsage(orgSlug, period)) as UsageData;
-      setUsage(data);
+      const raw = (await api.getUsage(orgSlug, period)) as Record<string, unknown>;
+      const normalized: UsageData = {
+        total_requests: Number(raw.total_requests ?? 0),
+        tokens_in: Number(raw.tokens_in ?? raw.total_tokens_in ?? 0),
+        tokens_out: Number(raw.tokens_out ?? raw.total_tokens_out ?? 0),
+        estimated_cost_usd: Number(raw.estimated_cost_usd ?? raw.total_cost_usd ?? 0),
+      };
+      setUsage(normalized);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load usage data.");
     } finally {

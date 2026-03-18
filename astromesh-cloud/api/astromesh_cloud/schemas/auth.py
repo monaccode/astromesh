@@ -4,6 +4,19 @@ class OAuthCallback(BaseModel):
     code: str
     redirect_uri: str
 
+
+class DevLoginRequest(BaseModel):
+    email: str
+    name: str
+
+
+class DevLoginResponse(BaseModel):
+    token: str
+    refresh_token: str
+    expires_in: int
+    user: dict
+    org_slug: str
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

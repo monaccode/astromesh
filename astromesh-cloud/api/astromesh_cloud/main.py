@@ -9,6 +9,7 @@ from astromesh_cloud.routes import agents as agent_routes
 from astromesh_cloud.routes import keys as keys_routes
 from astromesh_cloud.routes import execution as execution_routes
 from astromesh_cloud.routes import usage as usage_routes
+from astromesh_cloud.database import init_db
 
 
 @asynccontextmanager
@@ -17,6 +18,8 @@ async def lifespan(app: FastAPI):
     from astromesh_cloud.services.reconciliation import reconcile_agents
     from astromesh_cloud.database import async_session
     from astromesh_cloud.routes.execution import set_proxy
+
+    await init_db()
 
     proxy = RuntimeProxy()
     set_proxy(proxy)

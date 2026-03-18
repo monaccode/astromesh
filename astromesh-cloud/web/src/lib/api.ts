@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 interface RunAgentResponse {
   response: string;
@@ -14,6 +14,14 @@ interface ApiKeyOptions {
   name: string;
   scopes: string[];
 }
+
+type ApiKeyRecord = {
+  id: string;
+  prefix: string;
+  name: string;
+  scopes: string[];
+  created_at: string;
+};
 
 class ApiClient {
   private token: string | null = null;
@@ -151,13 +159,21 @@ class ApiClient {
   // ---------------------------------------------------------------------------
 
   listApiKeys(slug: string) {
-    return this.request<unknown[]>("GET", `/api/v1/orgs/${slug}/api-keys`);
+    return this.request<ApiKeyRecord[]>("GET", `/api/v1/orgs/${slug}/keys`).then((rows) =>
+      rows.map((k) => ({
+        id: k.id,
+        prefix: k.prefix,
+        name: k.name,
+        scopes: k.scopes ?? [],
+        createdAt: k.created_at,
+      }))
+    );
   }
 
   createApiKey(slug: string, name: string, scopes: string[]) {
     return this.request<ApiKeyOptions & { key: string }>(
       "POST",
-      `/api/v1/orgs/${slug}/api-keys`,
+      `/api/v1/orgs/${slug}/keys`,
       { name, scopes }
     );
   }
@@ -165,7 +181,7 @@ class ApiClient {
   deleteApiKey(slug: string, keyId: string) {
     return this.request<unknown>(
       "DELETE",
-      `/api/v1/orgs/${slug}/api-keys/${keyId}`
+      `/api/v1/orgs/${slug}/keys/${keyId}`
     );
   }
 
@@ -181,13 +197,6 @@ class ApiClient {
     );
   }
 
-  deleteProviderKey(slug: string, provider: string) {
-    return this.request<unknown>(
-      "DELETE",
-      `/api/v1/orgs/${slug}/providers/${provider}/key`
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // Providers
   // ---------------------------------------------------------------------------
@@ -199,8 +208,15 @@ class ApiClient {
   saveProviderKey(slug: string, provider: string, key: string) {
     return this.request<unknown>(
       "POST",
-      `/api/v1/orgs/${slug}/providers/${provider}/key`,
-      { key }
+      `/api/v1/orgs/${slug}/providers`,
+      { provider, key }
+    );
+  }
+
+  deleteProviderKey(slug: string, provider: string) {
+    return this.request<unknown>(
+      "DELETE",
+      `/api/v1/orgs/${slug}/providers/${provider}`
     );
   }
 }

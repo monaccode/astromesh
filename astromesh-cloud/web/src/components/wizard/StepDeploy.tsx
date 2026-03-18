@@ -157,10 +157,7 @@ export function StepDeploy() {
 
   // Code snippets
   const [activeTab, setActiveTab] = useState<SnippetTab>("curl");
-  const baseUrl =
-    typeof window !== "undefined"
-      ? window.location.origin.replace(/:3\d{3}$/, ":8000")
-      : "http://localhost:8000";
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
   const snippets = buildSnippets(orgSlug, config.agentName || "my-agent", baseUrl);
   const endpointUrl = `${baseUrl}/api/v1/orgs/${orgSlug}/agents/${
     config.agentName || "my-agent"

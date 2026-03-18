@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Cloud API)
+
+- **Auto-migrate on startup** — `init_db()` creates all tables via `Base.metadata.create_all` during lifespan, removing the need for manual migration steps
+- **Dockerfile** — production-ready container image for Cloud API (Python 3.12-slim, port 8001)
+
+### Changed (Cloud API)
+
+- **Dev login endpoint** — accepts JSON body (`DevLoginRequest`) in addition to query params; returns enriched `DevLoginResponse` with `token`, `user`, and `org_slug`; ensures existing users without an org get one created automatically
+- **Default API port** — changed from 8000 to 8001 to avoid conflicts with Astromesh core runtime
+
+### Changed (Cloud Studio)
+
+- **API client endpoints** — aligned API key routes (`/api-keys` → `/keys`) and provider key routes to match Cloud API; added typed `ApiKeyRecord`; normalized response field mapping
+- **Navigation routes** — simplified sidebar and agent card links by removing `orgSlug` prefix from paths
+- **Deploy snippets** — base URL now reads from `NEXT_PUBLIC_API_URL` env var instead of deriving from `window.location`
+
+### Fixed (Cloud Studio)
+
+- **Usage page** — `formatNumber` now handles `null`/`undefined`/`NaN` values; usage data is normalized to handle alternate field names from the API (`total_tokens_in` → `tokens_in`, etc.)
+
 ### Added (Docs-site)
 
 - **Astromesh Cloud documentation** — six new MDX pages under `docs-site/cloud/` (introduction, quickstart, studio guide, agent lifecycle, authentication, API reference) plus sidebar section; companion markdown docs in `docs/` (CLOUD_OVERVIEW, CLOUD_QUICKSTART, CLOUD_API_REFERENCE)

@@ -81,7 +81,7 @@ export function AgentCard({ agent, orgSlug, onStatusChange, onDelete }: AgentCar
   }
 
   function handleCardClick() {
-    router.push(`/${orgSlug}/agents/${agent.name}`);
+    router.push(`/studio/${agent.name}`);
   }
 
   return (
