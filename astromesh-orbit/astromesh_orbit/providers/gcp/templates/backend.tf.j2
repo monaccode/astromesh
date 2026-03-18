@@ -1,0 +1,6 @@
+terraform {
+  backend "gcs" {
+    bucket = "{{ provider.project }}-astromesh-orbit-state"
+    prefix = "{{ meta.name }}"
+  }
+}

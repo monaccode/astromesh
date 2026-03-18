@@ -1,0 +1,48 @@
+resource "google_sql_database_instance" "main" {
+  name             = "{{ meta.name }}-db"
+  database_version = "{{ database.version }}"
+  region           = var.region
+  project          = var.project_id
+
+  settings {
+    tier              = "{{ database.tier }}"
+    availability_type = "{{ 'REGIONAL' if database.high_availability else 'ZONAL' }}"
+    disk_size         = {{ database.storage_gb }}
+    disk_type         = "PD_SSD"
+
+    ip_configuration {
+      ipv4_enabled    = false
+      private_network = "projects/${var.project_id}/global/networks/default"
+    }
+
+    backup_configuration {
+      enabled = true
+    }
+  }
+
+  deletion_protection = false
+}
+
+resource "random_password" "db_password" {
+  length  = 24
+  special = false
+}
+
+resource "google_sql_user" "astromesh" {
+  name     = "astromesh"
+  instance = google_sql_database_instance.main.name
+  password = random_password.db_password.result
+  project  = var.project_id
+}
+
+resource "google_sql_database" "runtime" {
+  name     = "astromesh"
+  instance = google_sql_database_instance.main.name
+  project  = var.project_id
+}
+
+resource "google_sql_database" "cloud" {
+  name     = "astromesh_cloud"
+  instance = google_sql_database_instance.main.name
+  project  = var.project_id
+}

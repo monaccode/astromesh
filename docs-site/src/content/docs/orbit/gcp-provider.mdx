@@ -1,0 +1,160 @@
+---
+title: GCP Provider
+description: Google Cloud Platform resource mapping, required APIs, and setup
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The GCP provider is the first and currently only cloud provider for Astromesh Orbit. It maps your `orbit.yaml` configuration to Google Cloud managed services using Terraform.
+
+## Resource Mapping
+
+Every field in `orbit.yaml` maps to one or more GCP resources:
+
+| orbit.yaml field | GCP Resource | Terraform Template |
+|---|---|---|
+| `spec.compute.runtime` | Cloud Run v2 Service | `cloud_run.tf.j2` |
+| `spec.compute.cloud_api` | Cloud Run v2 Service | `cloud_run.tf.j2` |
+| `spec.compute.studio` | Cloud Run v2 Service | `cloud_run.tf.j2` |
+| `spec.database` | Cloud SQL for PostgreSQL | `cloud_sql.tf.j2` |
+| `spec.cache` | Memorystore for Redis | `memorystore.tf.j2` |
+| `spec.secrets` | Secret Manager | `secrets.tf.j2` |
+| *(automatic)* | Serverless VPC Connector | `networking.tf.j2` |
+| *(automatic)* | Service Account + IAM | `iam.tf.j2` |
+| *(automatic)* | GCS Bucket (Terraform state) | `backend.tf.j2` |
+
+## Automatic Resources
+
+Orbit provisions several resources automatically that are not user-configured. These are required for the stack to function securely:
+
+### VPC Connector
+
+Cloud Run services need a Serverless VPC Access connector to communicate with Cloud SQL and Memorystore over private networking. Orbit creates one VPC connector shared by all three Cloud Run services.
+
+### Service Account
+
+A dedicated service account `astromesh-orbit@{'{project}'}` is created with the minimum required IAM roles:
+
+| Role | Purpose |
+|---|---|
+| `roles/cloudsql.client` | Connect to Cloud SQL via Auth Proxy |
+| `roles/redis.editor` | Read/write to Memorystore |
+| `roles/secretmanager.secretAccessor` | Read secrets at runtime |
+| `roles/run.invoker` | Allow services to invoke each other |
+
+All Cloud Run services run as this dedicated service account.
+
+### Cloud SQL Auth Proxy
+
+Cloud Run connects to Cloud SQL using the built-in Cloud SQL Auth Proxy sidecar (`--add-cloudsql-instances` flag). This means:
+
+- No public IP on the database instance
+- Connections are encrypted and authenticated via IAM
+- No need to manage SSL certificates or IP allowlists
+
+### State Bucket
+
+Terraform state is stored in a GCS bucket named `{'{project}'}-astromesh-orbit-state` in the same region as the deployment. The bucket is created before Terraform initializes, with versioning enabled for state recovery.
+
+<Aside type="note">
+  If the bucket name is already taken by another GCP project, Orbit appends a 6-character hash suffix and retries.
+</Aside>
+
+## Required GCP APIs
+
+The following APIs must be enabled in your GCP project. Orbit checks for these during `orbit plan` and offers to enable them automatically.
+
+| API | Service | Enable Command |
+|---|---|---|
+| `run.googleapis.com` | Cloud Run | `gcloud services enable run.googleapis.com` |
+| `sqladmin.googleapis.com` | Cloud SQL Admin | `gcloud services enable sqladmin.googleapis.com` |
+| `redis.googleapis.com` | Memorystore for Redis | `gcloud services enable redis.googleapis.com` |
+| `secretmanager.googleapis.com` | Secret Manager | `gcloud services enable secretmanager.googleapis.com` |
+| `vpcaccess.googleapis.com` | Serverless VPC Access | `gcloud services enable vpcaccess.googleapis.com` |
+
+Enable all at once:
+
+```bash
+gcloud services enable \
+  run.googleapis.com \
+  sqladmin.googleapis.com \
+  redis.googleapis.com \
+  secretmanager.googleapis.com \
+  vpcaccess.googleapis.com \
+  --project my-project-123
+```
+
+## Required IAM Permissions
+
+The user running `orbit apply` needs one of:
+
+- `roles/owner` — Full access (simplest for getting started)
+- `roles/editor` + `roles/iam.serviceAccountAdmin` — Enough to create all resources and manage the service account
+
+For the state bucket, the user also needs `storage.buckets.create` on the project. If the bucket already exists (e.g., from a previous deployment), this permission is not required.
+
+<Aside type="tip">
+  For CI/CD pipelines, create a dedicated service account with `roles/editor` and `roles/iam.serviceAccountAdmin`, then authenticate via workload identity federation or a service account key.
+</Aside>
+
+## Pre-Deploy Validation
+
+Running `orbit plan` triggers the GCP provider's `validate()` method, which checks:
+
+1. **Authentication** — `gcloud` CLI is authenticated with valid credentials
+2. **Project** — The GCP project exists and the user has access
+3. **Permissions** — The user has `roles/owner` or `roles/editor`
+4. **APIs** — All 5 required APIs are enabled
+5. **Quotas** — Sufficient quota for Cloud SQL instances and Cloud Run services
+
+If validation fails, Orbit provides clear error messages with remediation commands:
+
+```
+✗ API 'sqladmin.googleapis.com' is not enabled
+
+  Remediation: Run the following command:
+  gcloud services enable sqladmin.googleapis.com --project my-project-123
+
+  Or allow Orbit to enable it automatically? [y/N]:
+```
+
+## Post-Provisioning
+
+After a successful `orbit apply`, Orbit reads Terraform outputs and generates `.orbit/orbit.env` with all connection details:
+
+```env
+ASTROMESH_DATABASE_URL=postgresql+asyncpg://astromesh:***@/astromesh?host=/cloudsql/{connection_name}
+ASTROMESH_REDIS_URL=redis://{memorystore_ip}:6379
+ASTROMESH_CLOUD_DATABASE_URL=postgresql+asyncpg://cloudapi:***@/astromesh_cloud?host=/cloudsql/{connection_name}
+ASTROMESH_CLOUD_RUNTIME_URL=https://{runtime_cloud_run_url}
+ASTROMESH_CLOUD_JWT_SECRET=projects/{project}/secrets/jwt-secret/versions/latest
+```
+
+These variables are injected into the Cloud Run services as environment variables. You can also source this file locally for development against the deployed infrastructure.
+
+## Region Selection
+
+Choose a region close to your users. Common choices:
+
+| Region | Location | Notes |
+|---|---|---|
+| `us-central1` | Iowa, USA | Lowest cost, most services available |
+| `us-east1` | South Carolina, USA | Good for East Coast US |
+| `europe-west1` | Belgium | GDPR-friendly, European users |
+| `europe-west4` | Netherlands | Alternative European region |
+| `asia-northeast1` | Tokyo, Japan | Asia-Pacific users |
+
+All resources (Cloud Run, Cloud SQL, Memorystore, VPC Connector) are deployed in the same region to minimize latency and avoid cross-region networking costs.
+
+## State Management
+
+Terraform state is stored remotely in GCS. Key details:
+
+- **Locking** — GCS natively supports Terraform state locking. Concurrent `orbit apply` calls are safely serialized.
+- **Versioning** — The bucket has versioning enabled, allowing recovery from accidental state corruption.
+- **Cleanup** — `orbit destroy` does **not** delete the state bucket. It contains the record of what was destroyed. Delete it manually after confirming everything is torn down: `gsutil rm -r gs://{'{project}'}-astromesh-orbit-state`.
+
+## What's Next
+
+- [CLI Reference](/astromesh/orbit/cli-reference/) — All commands with flags and examples
+- [Configuration](/astromesh/orbit/configuration/) — Full `orbit.yaml` schema reference

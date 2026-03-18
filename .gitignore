@@ -34,3 +34,6 @@ staging/
 docs-site/node_modules/
 docs-site/dist/
 docs-site/.astro/
+
+# Astromesh Orbit working directory
+.orbit/

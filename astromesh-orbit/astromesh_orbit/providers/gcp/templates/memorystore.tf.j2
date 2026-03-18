@@ -1,0 +1,11 @@
+resource "google_redis_instance" "main" {
+  name           = "{{ meta.name }}-cache"
+  tier           = "{{ cache.tier | upper }}"
+  memory_size_gb = {{ cache.memory_gb }}
+  region         = var.region
+  project        = var.project_id
+
+  authorized_network = "projects/${var.project_id}/global/networks/default"
+
+  redis_version = "REDIS_7_0"
+}

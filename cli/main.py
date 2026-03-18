@@ -1,5 +1,8 @@
 """astromeshctl — Astromesh OS CLI management tool."""
 
+import importlib.metadata
+import sys
+
 import typer
 
 from astromesh import __version__
@@ -54,6 +57,24 @@ app.command("ask")(ask.ask_command)
 def version():
     """Show astromesh version."""
     typer.echo(f"astromesh {__version__}")
+
+
+# Plugin discovery — after all static registrations
+def _load_plugins(app: typer.Typer) -> None:
+    """Discover and register CLI plugins via entry points."""
+    try:
+        eps = importlib.metadata.entry_points(group="astromeshctl.plugins")
+    except TypeError:
+        # Python < 3.12 compat
+        eps = importlib.metadata.entry_points().get("astromeshctl.plugins", [])
+    for ep in eps:
+        try:
+            register_fn = ep.load()
+            register_fn(app)
+        except Exception as exc:
+            typer.echo(f"Warning: failed to load plugin '{ep.name}': {exc}", err=True)
+
+_load_plugins(app)
 
 
 if __name__ == "__main__":

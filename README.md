@@ -73,6 +73,9 @@ Additional references in this repo:
 - **ADK implementation status and pending work**: [`docs/ADK_PENDING.md`](docs/ADK_PENDING.md)
 - **Installation (APT)**: [`docs/INSTALLATION.md`](docs/INSTALLATION.md)
 - **Developer tools**: [`docs/DEVELOPER_TOOLS.md`](docs/DEVELOPER_TOOLS.md)
+- **Orbit overview**: [`docs/ORBIT_OVERVIEW.md`](docs/ORBIT_OVERVIEW.md)
+- **Orbit quick start**: [`docs/ORBIT_QUICKSTART.md`](docs/ORBIT_QUICKSTART.md)
+- **Orbit configuration**: [`docs/ORBIT_CONFIGURATION.md`](docs/ORBIT_CONFIGURATION.md)
 
 ---
 
@@ -367,10 +370,32 @@ Includes:
 
 ---
 
+## Astromesh Orbit
+
+Orbit is a standalone deployment tool that provisions the full Astromesh stack on cloud infrastructure with a single command. It generates Terraform from Jinja2 templates using a provider plugin architecture.
+
+```bash
+pip install astromesh-orbit[gcp]
+
+astromeshctl orbit init --provider gcp --preset starter
+astromeshctl orbit plan
+astromeshctl orbit apply
+```
+
+One command deploys Cloud Run (runtime + Cloud API + Studio), Cloud SQL, Memorystore, Secret Manager, VPC networking, and IAM — all configured from a single `orbit.yaml` file.
+
+- **GCP first** — Cloud-native managed services. AWS and Azure providers on the roadmap.
+- **Escape hatch** — `orbit eject` produces standalone Terraform files with no Orbit dependency.
+- **Two presets** — Starter (~$30/mo) and Pro (~$150/mo), or configure every field manually.
+
+Docs: [`docs/ORBIT_OVERVIEW.md`](docs/ORBIT_OVERVIEW.md) | [`docs/ORBIT_QUICKSTART.md`](docs/ORBIT_QUICKSTART.md) | [`docs/ORBIT_CONFIGURATION.md`](docs/ORBIT_CONFIGURATION.md)
+
+---
+
 ## Project Structure
 
 ```
-astromesh/
+astromesh/                      # Core runtime
  ├── api
  ├── runtime
  ├── core
@@ -380,6 +405,16 @@ astromesh/
  ├── rag
  ├── channels
  └── observability
+
+astromesh-orbit/                # Cloud deployment tool (standalone package)
+ ├── astromesh_orbit/
+ │   ├── cli.py
+ │   ├── config.py
+ │   ├── core/
+ │   ├── terraform/
+ │   ├── wizard/
+ │   └── providers/gcp/
+ └── tests/
 ```
 
 Configuration:
@@ -390,6 +425,8 @@ config/
  ├── rag/
  ├── providers.yaml
  └── runtime.yaml
+
+orbit.yaml                      # Orbit deployment config (project root)
 ```
 
 ---

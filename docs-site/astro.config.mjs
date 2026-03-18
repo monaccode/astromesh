@@ -114,6 +114,16 @@ export default defineConfig({
             { label: 'API Reference', slug: 'cloud/api-reference' },
           ],
         },
+        {
+          label: 'Astromesh Orbit',
+          items: [
+            { label: 'Introduction', slug: 'orbit/introduction' },
+            { label: 'Quick Start', slug: 'orbit/quickstart' },
+            { label: 'Configuration', slug: 'orbit/configuration' },
+            { label: 'GCP Provider', slug: 'orbit/gcp-provider' },
+            { label: 'CLI Reference', slug: 'orbit/cli-reference' },
+          ],
+        },
       ],
       editLink: {
         baseUrl: 'https://github.com/monaccode/astromesh/edit/develop/docs-site/',

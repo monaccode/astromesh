@@ -1,0 +1,281 @@
+---
+title: Configuration
+description: orbit.yaml schema reference and presets
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+All Orbit configuration lives in a single `orbit.yaml` file at the root of your project. This file is the only Orbit artifact committed to version control — everything else (generated Terraform, state, env files) lives in `.orbit/` and is gitignored.
+
+## Full Schema
+
+```yaml
+apiVersion: astromesh/v1
+kind: OrbitDeployment
+metadata:
+  name: my-astromesh              # Deployment name (used in resource naming)
+  environment: production          # dev | staging | production
+
+spec:
+  provider:
+    name: gcp                      # Cloud provider: gcp (aws, azure in roadmap)
+    project: my-gcp-project-id     # GCP project ID
+    region: us-central1            # GCP region
+
+  compute:
+    runtime:                       # Astromesh core runtime (agent execution)
+      min_instances: 1             # Minimum running instances (0 = scale to zero)
+      max_instances: 5             # Maximum instances under load
+      cpu: "2"                     # vCPUs per instance
+      memory: "2Gi"                # Memory per instance
+    cloud_api:                     # Astromesh Cloud API (auth, orgs, agents)
+      min_instances: 1
+      max_instances: 3
+      cpu: "1"
+      memory: "1Gi"
+    studio:                        # Astromesh Cloud Studio (Next.js frontend)
+      min_instances: 0             # Scale to zero — no cost when idle
+      max_instances: 2
+
+  database:
+    tier: db-f1-micro              # Cloud SQL machine tier
+    version: POSTGRES_16           # PostgreSQL version
+    storage_gb: 10                 # Storage allocation in GB
+    high_availability: false       # Enable HA replica (doubles cost)
+
+  cache:
+    tier: basic                    # basic (no failover) | standard (HA)
+    memory_gb: 1                   # Redis memory allocation
+
+  secrets:
+    provider_keys: true            # Create empty Secret Manager entries for LLM API keys
+    jwt_secret: true               # Auto-generate JWT secret on first deploy
+
+  images:
+    runtime: fulfarodev/astromesh:latest
+    cloud_api: fulfarodev/astromesh-cloud-api:latest
+    studio: fulfarodev/astromesh-cloud-studio:latest
+```
+
+## Field Reference
+
+### `metadata`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Deployment name. Used as a prefix for all cloud resources. Must be lowercase alphanumeric with hyphens. |
+| `environment` | string | Yes | One of `dev`, `staging`, `production`. Affects naming and default behaviors. |
+
+### `spec.provider`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Cloud provider identifier. Currently only `gcp` is supported. |
+| `project` | string | Yes (GCP) | GCP project ID where resources will be created. |
+| `region` | string | Yes | Cloud region for all resources. Example: `us-central1`, `europe-west1`. |
+
+### `spec.compute`
+
+Each compute service (`runtime`, `cloud_api`, `studio`) accepts:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `min_instances` | int | 1 | Minimum running instances. Set to `0` to enable scale-to-zero. |
+| `max_instances` | int | 5 | Maximum instances Cloud Run will scale to under load. |
+| `cpu` | string | `"1"` | vCPUs per instance. Valid values: `"1"`, `"2"`, `"4"`. |
+| `memory` | string | `"1Gi"` | Memory per instance. Examples: `"512Mi"`, `"1Gi"`, `"2Gi"`, `"4Gi"`. |
+
+### `spec.database`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `tier` | string | `db-f1-micro` | Cloud SQL machine tier. See [GCP pricing](https://cloud.google.com/sql/pricing). |
+| `version` | string | `POSTGRES_16` | PostgreSQL version. Supported: `POSTGRES_15`, `POSTGRES_16`. |
+| `storage_gb` | int | 10 | Disk storage in GB. Auto-grows when needed. |
+| `high_availability` | bool | false | Enable regional HA with automatic failover. Roughly doubles the database cost. |
+
+### `spec.cache`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `tier` | string | `basic` | `basic` for single instance, `standard` for HA with failover. |
+| `memory_gb` | int | 1 | Redis memory in GB. Minimum 1, maximum 300. |
+
+### `spec.secrets`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `provider_keys` | bool | true | Creates empty Secret Manager entries for LLM provider API keys. You populate them via GCP Console or `gcloud`. |
+| `jwt_secret` | bool | true | Auto-generates a random JWT secret on first deploy. Subsequent deploys reuse the existing value. |
+
+### `spec.images`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `runtime` | string | `fulfarodev/astromesh:latest` | Container image for the Astromesh runtime. |
+| `cloud_api` | string | `fulfarodev/astromesh-cloud-api:latest` | Container image for the Cloud API. |
+| `studio` | string | `fulfarodev/astromesh-cloud-studio:latest` | Container image for the Studio frontend. |
+
+## Presets
+
+The `orbit init` wizard offers two presets that fill in all values automatically. You can also pass `--preset` to skip the interactive wizard entirely.
+
+### Starter (~$30/mo)
+
+Best for development, demos, and small teams.
+
+```yaml
+apiVersion: astromesh/v1
+kind: OrbitDeployment
+metadata:
+  name: my-astromesh
+  environment: dev
+
+spec:
+  provider:
+    name: gcp
+    project: my-project-123
+    region: us-central1
+
+  compute:
+    runtime:
+      min_instances: 1
+      max_instances: 1
+      cpu: "1"
+      memory: "1Gi"
+    cloud_api:
+      min_instances: 1
+      max_instances: 1
+      cpu: "1"
+      memory: "512Mi"
+    studio:
+      min_instances: 0
+      max_instances: 1
+
+  database:
+    tier: db-f1-micro
+    version: POSTGRES_16
+    storage_gb: 10
+    high_availability: false
+
+  cache:
+    tier: basic
+    memory_gb: 1
+
+  secrets:
+    provider_keys: true
+    jwt_secret: true
+
+  images:
+    runtime: fulfarodev/astromesh:latest
+    cloud_api: fulfarodev/astromesh-cloud-api:latest
+    studio: fulfarodev/astromesh-cloud-studio:latest
+```
+
+### Pro (~$150/mo)
+
+Best for production workloads with auto-scaling and high availability.
+
+```yaml
+apiVersion: astromesh/v1
+kind: OrbitDeployment
+metadata:
+  name: my-astromesh
+  environment: production
+
+spec:
+  provider:
+    name: gcp
+    project: my-project-123
+    region: us-central1
+
+  compute:
+    runtime:
+      min_instances: 1
+      max_instances: 5
+      cpu: "2"
+      memory: "2Gi"
+    cloud_api:
+      min_instances: 1
+      max_instances: 3
+      cpu: "1"
+      memory: "1Gi"
+    studio:
+      min_instances: 0
+      max_instances: 2
+
+  database:
+    tier: db-g1-small
+    version: POSTGRES_16
+    storage_gb: 20
+    high_availability: true
+
+  cache:
+    tier: standard
+    memory_gb: 4
+
+  secrets:
+    provider_keys: true
+    jwt_secret: true
+
+  images:
+    runtime: fulfarodev/astromesh:latest
+    cloud_api: fulfarodev/astromesh-cloud-api:latest
+    studio: fulfarodev/astromesh-cloud-studio:latest
+```
+
+## Environment Options
+
+The `metadata.environment` field affects resource naming and default behaviors:
+
+| Environment | Naming Pattern | Notes |
+|---|---|---|
+| `dev` | `{name}-dev-*` | Suitable for development and testing |
+| `staging` | `{name}-staging-*` | Pre-production validation |
+| `production` | `{name}-*` | Production workloads (no environment suffix) |
+
+<Aside type="tip">
+  You can maintain multiple `orbit.yaml` files for different environments (e.g., `orbit.dev.yaml`, `orbit.prod.yaml`) and pass them explicitly: `astromeshctl orbit apply --config orbit.prod.yaml`.
+</Aside>
+
+## Working Directory
+
+After running `orbit init`, your project will have:
+
+```
+your-project/
+├── orbit.yaml           # Committed to git
+└── .orbit/              # Gitignored
+    ├── generated/       # .tf files (regenerated on every plan/apply)
+    ├── orbit.env        # Connection variables (written after apply)
+    └── .terraform/      # Terraform cache and plugins
+```
+
+## Roadmap Fields
+
+The following `spec` sections are planned for future Orbit versions but are not yet implemented:
+
+```yaml
+  # v0.2.0 — Observability
+  # monitoring:
+  #   enabled: false
+
+  # v0.3.0 — Storage & RAG
+  # storage:
+  #   rag_bucket: true
+  # artifact_registry:
+  #   enabled: false
+
+  # v0.4.0 — GPU & Inference
+  # gpu:
+  #   vllm:
+  #     machine_type: g2-standard-4
+
+  # v0.5.0 — Enterprise
+  # custom_domain: agents.mycompany.com
+```
+
+## What's Next
+
+- [GCP Provider](/astromesh/orbit/gcp-provider/) — GCP-specific resource mapping and validation
+- [CLI Reference](/astromesh/orbit/cli-reference/) — All commands with flags and examples

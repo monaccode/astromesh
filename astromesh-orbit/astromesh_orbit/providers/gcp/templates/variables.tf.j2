@@ -1,0 +1,17 @@
+variable "project_id" {
+  description = "GCP project ID"
+  type        = string
+  default     = "{{ provider.project }}"
+}
+
+variable "region" {
+  description = "GCP region"
+  type        = string
+  default     = "{{ provider.region }}"
+}
+
+variable "deployment_name" {
+  description = "Deployment name prefix"
+  type        = string
+  default     = "{{ meta.name }}"
+}

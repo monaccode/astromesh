@@ -1,0 +1,102 @@
+---
+title: Astromesh Orbit
+description: Cloud-Native Deployment for the Astromesh Stack
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Currently in v0.1.0">
+  Astromesh Orbit is in early development. The GCP provider is the first supported cloud. AWS and Azure providers are on the v1.0 roadmap.
+</Aside>
+
+Astromesh Orbit is a standalone deployment tool that provisions a production-ready Astromesh stack on any major cloud provider with a single command. It generates Terraform HCL from Jinja2 templates, using each cloud's managed services instead of self-hosted equivalents.
+
+**One command. Production-ready.**
+
+```bash
+astromeshctl orbit apply
+```
+
+That's it. Orbit provisions Cloud Run services, a managed PostgreSQL database, a Redis cache, secret management, networking, and IAM — all wired together and ready to accept agent requests.
+
+## Why Orbit?
+
+Deploying Astromesh to production typically means writing Terraform, configuring IAM roles, setting up VPC connectors, wiring Cloud SQL Auth Proxy, and managing state buckets. Orbit handles all of that through a declarative `orbit.yaml` config and a provider plugin architecture.
+
+| Without Orbit | With Orbit |
+|---|---|
+| Write 500+ lines of Terraform | Write 30 lines of `orbit.yaml` |
+| Manually configure IAM, VPC, secrets | Automatic — secure defaults |
+| Debug Cloud SQL Auth Proxy setup | Built-in proxy sidecar |
+| Manage Terraform state backend | Auto-provisioned state bucket |
+| Cloud-specific knowledge required | Provider plugins abstract it |
+
+## Architecture
+
+Orbit sits between your configuration and Terraform, generating cloud-specific infrastructure code from templates:
+
+```
+orbit.yaml → OrbitProvider.validate()
+           → OrbitProvider.generate()  (.tf files from Jinja2 templates)
+           → terraform init → terraform plan → terraform apply
+           → Post-provisioning (orbit.env with connection strings)
+```
+
+The generated Terraform files live in `.orbit/generated/` (gitignored). Only `orbit.yaml` is committed to your repository.
+
+## Provider Plugin Architecture
+
+Each cloud provider implements the `OrbitProvider` Protocol — a runtime-checkable interface that follows the same pattern as `ProviderProtocol` in the core Astromesh runtime. Adding a new cloud is a matter of implementing the protocol and its Jinja2 templates.
+
+```python
+@runtime_checkable
+class OrbitProvider(Protocol):
+    name: str  # "gcp", "aws", "azure"
+
+    async def validate(self, config: OrbitConfig) -> ValidationResult
+    async def generate(self, config: OrbitConfig, output_dir: Path) -> list[Path]
+    async def provision(self, config: OrbitConfig, output_dir: Path) -> ProvisionResult
+    async def status(self, config: OrbitConfig) -> DeploymentStatus
+    async def destroy(self, config: OrbitConfig, output_dir: Path) -> None
+    async def eject(self, config: OrbitConfig, output_dir: Path) -> Path
+```
+
+**Available providers:**
+
+| Provider | Status | Services |
+|---|---|---|
+| **GCP** | v0.1.0 | Cloud Run, Cloud SQL, Memorystore, Secret Manager |
+| **AWS** | Roadmap (v1.0) | ECS/Fargate, RDS, ElastiCache |
+| **Azure** | Roadmap (v1.0) | Container Apps, Azure DB, Azure Cache |
+
+## Cloud-Native by Default
+
+Orbit uses each cloud's managed services rather than self-hosted equivalents:
+
+- **Compute** — Cloud Run (auto-scaling, scale-to-zero)
+- **Database** — Cloud SQL for PostgreSQL (managed backups, HA option)
+- **Cache** — Memorystore for Redis (managed, private VPC)
+- **Secrets** — Secret Manager (encrypted at rest, IAM-controlled access)
+- **Networking** — Serverless VPC Connector (private communication between services)
+- **State** — GCS bucket with versioning (Terraform state with native locking)
+
+## Escape Hatch
+
+Not sure about vendor lock-in? Orbit includes a full escape hatch. Run `orbit eject` to produce clean, standalone Terraform files with no Orbit dependency:
+
+```bash
+astromeshctl orbit eject --output-dir ./my-terraform
+```
+
+The ejected files point to your existing state bucket — no migration needed. You can take over Terraform management directly, and Orbit will not interfere.
+
+## Marketplace Path
+
+Orbit's architecture is designed to support cloud marketplace listings. The GCP provider targets Cloud Run integration for the GCP Marketplace, with GKE Marketplace as a future enterprise option.
+
+## What's Next
+
+- [Quick Start](/astromesh/orbit/quickstart/) — Deploy your first stack in under 10 minutes
+- [Configuration](/astromesh/orbit/configuration/) — Full `orbit.yaml` schema reference
+- [GCP Provider](/astromesh/orbit/gcp-provider/) — GCP-specific resource mapping and setup
+- [CLI Reference](/astromesh/orbit/cli-reference/) — All 6 commands with flags and examples
