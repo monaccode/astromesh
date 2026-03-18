@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [v0.18.0] + [orbit-v0.1.0] - 2026-03-18
+
 ### Added (Orbit)
 
 - **Astromesh Orbit v0.1.0** (`astromesh-orbit/`) — cloud-native deployment subproject for provisioning the full Astromesh stack on GCP using managed services
