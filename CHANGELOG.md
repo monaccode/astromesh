@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Orbit)
+
+- **Astromesh Orbit v0.1.0** (`astromesh-orbit/`) — cloud-native deployment subproject for provisioning the full Astromesh stack on GCP using managed services
+  - **Provider plugin architecture** — `OrbitProvider` Protocol (`@runtime_checkable`) with GCP as first implementation; generates Terraform HCL from Jinja2 templates
+  - **GCP provider** — Cloud Run (runtime, cloud-api, studio) + Cloud SQL for PostgreSQL + Memorystore for Redis + Secret Manager + VPC Connector + IAM
+  - **CLI plugin** — `astromeshctl orbit` with 6 commands: `init` (interactive wizard), `plan`, `apply`, `status`, `destroy`, `eject` (standalone Terraform export)
+  - **Wizard presets** — Starter (~$30/mo) and Pro (~$150/mo) with explicit resource values
+  - **orbit.yaml** — declarative config (`apiVersion: astromesh/v1, kind: OrbitDeployment`) with Pydantic v2 validation
+  - **TerraformRunner** — async subprocess wrapper for terraform CLI
+  - **State management** — remote GCS bucket with versioning and collision handling
+  - **61 tests** covering config, core types, templates, provider, runner, and wizard
+
+### Changed (CLI)
+
+- **Plugin discovery** — `astromeshctl` now scans `importlib.metadata.entry_points(group="astromeshctl.plugins")` to discover and register external CLI plugins
+
+### Added (Docs-site)
+
+- **Orbit documentation** — 5 MDX pages (introduction, quickstart, configuration, GCP provider, CLI reference) with sidebar section
+- **OrbitShowcase** — promotional component on docs-site homepage with feature cards and resource provisioning overview
+
+### Added (Docs)
+
+- **ORBIT_OVERVIEW.md** — architecture, provider plugins, multi-cloud vision, service roadmap
+- **ORBIT_QUICKSTART.md** — install, GCP auth, init → plan → apply walkthrough, eject
+- **ORBIT_CONFIGURATION.md** — complete orbit.yaml reference with all fields, presets, and validation rules
+
 ### Added (Cloud API)
 
 - **Auto-migrate on startup** — `init_db()` creates all tables via `Base.metadata.create_all` during lifespan, removing the need for manual migration steps
