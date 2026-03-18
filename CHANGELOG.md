@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Docs-site)
+
+- **Astromesh Cloud documentation** — six new MDX pages under `docs-site/cloud/` (introduction, quickstart, studio guide, agent lifecycle, authentication, API reference) plus sidebar section; companion markdown docs in `docs/` (CLOUD_OVERVIEW, CLOUD_QUICKSTART, CLOUD_API_REFERENCE)
+
 ### Changed (Docs-site)
 
 - **Hero logo size** — increased splash page logo from 420px to 560px max-width with stronger cyan glow
+- **Header logo size** — bumped from 2.4rem to 3.2rem with stronger glow effect
+
+### Fixed (Docs-site)
+
+- **ADK version display** — ADKShowcase now reads version dynamically from `pyproject.toml` instead of a hardcoded string
+- **Cloud MDX build** — escaped JSX variables in Cloud MDX files to fix Astro build errors
 
 ---
 
