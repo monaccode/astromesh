@@ -71,6 +71,9 @@ Additional references in this repo:
 - **Developer quick start**: [`docs/DEV_QUICKSTART.md`](docs/DEV_QUICKSTART.md)
 - **ADK quick start**: [`docs/ADK_QUICKSTART.md`](docs/ADK_QUICKSTART.md)
 - **ADK implementation status and pending work**: [`docs/ADK_PENDING.md`](docs/ADK_PENDING.md)
+- **Cloud overview**: [`docs/CLOUD_OVERVIEW.md`](docs/CLOUD_OVERVIEW.md)
+- **Cloud quick start**: [`docs/CLOUD_QUICKSTART.md`](docs/CLOUD_QUICKSTART.md)
+- **Cloud API reference**: [`docs/CLOUD_API_REFERENCE.md`](docs/CLOUD_API_REFERENCE.md)
 - **Installation (APT)**: [`docs/INSTALLATION.md`](docs/INSTALLATION.md)
 - **Developer tools**: [`docs/DEVELOPER_TOOLS.md`](docs/DEVELOPER_TOOLS.md)
 - **Orbit overview**: [`docs/ORBIT_OVERVIEW.md`](docs/ORBIT_OVERVIEW.md)
@@ -370,6 +373,58 @@ Includes:
 
 ---
 
+## Astromesh ADK
+
+The **Agent Development Kit** is a Python SDK for building, testing, and deploying agents on Astromesh. It provides a high-level API that wraps the runtime, so you can define agents in Python code instead of YAML.
+
+```bash
+pip install astromesh-adk
+```
+
+```python
+from astromesh_adk import Agent, Tool
+
+agent = Agent(
+    name="my-agent",
+    model="ollama/llama3.1:8b",
+    system_prompt="You are a helpful assistant.",
+    tools=[Tool.web_search(), Tool.http_request()],
+)
+
+response = agent.run("What's the weather in Buenos Aires?")
+```
+
+- **Python-first** — Define agents, tools, memory, and guardrails in code
+- **CLI included** — `astromesh-adk init`, `astromesh-adk run`, `astromesh-adk test`
+- **Hot reload** — Edit your agent code and see changes immediately
+- **Compatible** — Generates standard Astromesh agent YAML under the hood
+
+Docs: [`docs/ADK_QUICKSTART.md`](docs/ADK_QUICKSTART.md) | [`docs/ADK_PENDING.md`](docs/ADK_PENDING.md)
+
+---
+
+## Astromesh Cloud
+
+A managed multi-tenant platform for deploying and operating Astromesh agents as a service. Includes a REST API, a web-based Studio for no-code agent design, and usage tracking.
+
+```bash
+# Cloud API (FastAPI + PostgreSQL)
+cd astromesh-cloud/api && uvicorn astromesh_cloud.main:app --port 8001
+
+# Cloud Studio (Next.js)
+cd astromesh-cloud/web && npm run dev
+```
+
+- **Multi-tenant** — Organizations, members, API keys, rate limiting
+- **Agent lifecycle** — draft → deployed → paused with quota enforcement
+- **BYOK** — Bring your own provider keys (OpenAI, Anthropic, etc.) with Fernet encryption
+- **Studio** — 5-step agent wizard, deploy preview, test chat, usage dashboard
+- **Runtime proxy** — Proxies execution to Astromesh core with namespace isolation
+
+Docs: [`docs/CLOUD_OVERVIEW.md`](docs/CLOUD_OVERVIEW.md) | [`docs/CLOUD_QUICKSTART.md`](docs/CLOUD_QUICKSTART.md) | [`docs/CLOUD_API_REFERENCE.md`](docs/CLOUD_API_REFERENCE.md)
+
+---
+
 ## Astromesh Orbit
 
 Orbit is a standalone deployment tool that provisions the full Astromesh stack on cloud infrastructure with a single command. It generates Terraform from Jinja2 templates using a provider plugin architecture.
@@ -396,24 +451,29 @@ Docs: [`docs/ORBIT_OVERVIEW.md`](docs/ORBIT_OVERVIEW.md) | [`docs/ORBIT_QUICKSTA
 
 ```
 astromesh/                      # Core runtime
- ├── api
- ├── runtime
- ├── core
- ├── providers
- ├── orchestration
- ├── memory
- ├── rag
- ├── channels
- └── observability
+ ├── api/                       #   REST + WebSocket API
+ ├── runtime/                   #   Agent lifecycle engine
+ ├── core/                      #   Model router, memory, tools, guardrails
+ ├── providers/                 #   LLM provider adapters
+ ├── orchestration/             #   ReAct, Plan&Execute, Pipeline, etc.
+ ├── rag/                       #   RAG pipeline
+ ├── channels/                  #   WhatsApp, Slack, etc.
+ └── mesh/                      #   Distributed agent networking
 
-astromesh-orbit/                # Cloud deployment tool (standalone package)
+astromesh-adk/                  # Agent Development Kit (pip install astromesh-adk)
+ ├── astromesh_adk/
+ └── tests/
+
+astromesh-cloud/                # Managed platform (SaaS)
+ ├── api/                       #   Cloud API (FastAPI + PostgreSQL)
+ └── web/                       #   Cloud Studio (Next.js)
+
+astromesh-orbit/                # Cloud deployment tool (pip install astromesh-orbit)
  ├── astromesh_orbit/
- │   ├── cli.py
- │   ├── config.py
- │   ├── core/
- │   ├── terraform/
- │   ├── wizard/
- │   └── providers/gcp/
+ │   ├── core/                  #   Provider Protocol + data types
+ │   ├── terraform/             #   Terraform runner + state backend
+ │   ├── wizard/                #   Interactive setup + presets
+ │   └── providers/gcp/         #   GCP templates
  └── tests/
 ```
 
@@ -456,6 +516,9 @@ See [`docs/NATIVE_ESTENSIONS_RUST.md`](docs/NATIVE_ESTENSIONS_RUST.md) for detai
 - [x] Multi-agent composition (agent-as-tool)
 - [x] Workflow YAML engine
 - [x] VS Code extension
+- [x] Agent Development Kit (ADK) — Python SDK
+- [x] Astromesh Cloud — managed multi-tenant platform
+- [x] Astromesh Orbit — cloud-native deployment (GCP)
 - [ ] Distributed agent execution
 - [ ] GPU-aware model scheduling
 - [ ] Event-driven agents
