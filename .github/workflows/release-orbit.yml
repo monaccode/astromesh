@@ -1,0 +1,142 @@
+name: Release Orbit
+
+on:
+  push:
+    tags:
+      - "orbit-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build-orbit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Orbit tag and package versions
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#orbit-v}"
+          PYPROJECT_VERSION="$(python3 - <<'PY'
+          import pathlib
+          import tomllib
+
+          data = tomllib.loads(pathlib.Path("astromesh-orbit/pyproject.toml").read_text(encoding="utf-8"))
+          print(data["project"]["version"])
+          PY
+          )"
+          INIT_VERSION="$(python3 - <<'PY'
+          import pathlib
+          import re
+
+          text = pathlib.Path("astromesh-orbit/astromesh_orbit/__init__.py").read_text(encoding="utf-8")
+          match = re.search(r'__version__\s*=\s*"([^"]+)"', text)
+          if not match:
+              raise SystemExit("Missing __version__ in astromesh_orbit/__init__.py")
+          print(match.group(1))
+          PY
+          )"
+
+          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
+            echo "::error::Tag version orbit-v$TAG_VERSION does not match astromesh-orbit/pyproject.toml ($PYPROJECT_VERSION)"
+            exit 1
+          fi
+
+          if [ "$PYPROJECT_VERSION" != "$INIT_VERSION" ]; then
+            echo "::error::Version mismatch between pyproject ($PYPROJECT_VERSION) and __init__.py ($INIT_VERSION)"
+            exit 1
+          fi
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+          python -m build astromesh-orbit --sdist --wheel --outdir dist-orbit
+
+      - name: Upload Orbit distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbit-dist
+          path: dist-orbit/*
+
+  publish-testpypi:
+    needs: build-orbit
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: testpypi
+
+    steps:
+      - name: Download Orbit distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: orbit-dist
+          path: dist-orbit
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist-orbit
+
+  smoke-test-testpypi:
+    needs: publish-testpypi
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Orbit from TestPyPI (with retry for indexing delay)
+        run: |
+          ORBIT_VERSION="${GITHUB_REF_NAME#orbit-v}"
+          python -m pip install --upgrade pip
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i: installing astromesh-orbit[gcp]==${ORBIT_VERSION}"
+            python -m pip install \
+              --prefer-binary \
+              --only-binary=:all: \
+              --index-url https://pypi.org/simple \
+              --extra-index-url https://test.pypi.org/simple \
+              "astromesh-orbit[gcp]==${ORBIT_VERSION}" && break
+            echo "Not yet available, waiting 30s..."
+            sleep 30
+          done
+
+      - name: Verify import
+        run: |
+          python -c "from astromesh_orbit import __version__; print(__version__)"
+          python -c "from astromesh_orbit.config import OrbitConfig; print('OrbitConfig OK')"
+          python -c "from astromesh_orbit.core.provider import OrbitProvider; print('OrbitProvider OK')"
+
+  publish-pypi:
+    needs: smoke-test-testpypi
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: pypi
+
+    steps:
+      - name: Download Orbit distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: orbit-dist
+          path: dist-orbit
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist-orbit
