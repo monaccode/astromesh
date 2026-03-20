@@ -1,6 +1,5 @@
 """Tests for output formatting utilities."""
 
-from io import StringIO
 
 from astromesh_cli.output import (
     console,
