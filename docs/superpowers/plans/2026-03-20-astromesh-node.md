@@ -964,7 +964,7 @@ Create `astromesh-node/tests/test_platform_windows.py`:
 """Tests for WindowsServiceManager (Windows Service adapter)."""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from astromesh_node.platform.base import ServiceManagerProtocol
 from astromesh_node.platform.windows import WindowsServiceManager
@@ -991,13 +991,18 @@ async def test_notify_stopping_is_noop_without_win32(manager):
 
 
 async def test_service_status_returns_dict(manager):
-    with patch("astromesh_node.platform.windows.subprocess") as mock_sub:
-        mock_sub.run.return_value = MagicMock(
-            returncode=0,
-            stdout="STATE              : 4  RUNNING\nPID                : 5678\n",
+    with patch("astromesh_node.platform.windows.asyncio") as mock_asyncio:
+        proc = AsyncMock()
+        proc.communicate.return_value = (
+            b"STATE              : 4  RUNNING\nPID                : 5678\n", b""
         )
+        proc.returncode = 0
+        mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
+        mock_asyncio.subprocess = MagicMock()
+        mock_asyncio.subprocess.PIPE = -1
         status = await manager.service_status()
         assert status["mode"] == "windows_service"
+        assert status["running"] is True
 
 
 def test_register_reload_handler_stores_callback(manager):
