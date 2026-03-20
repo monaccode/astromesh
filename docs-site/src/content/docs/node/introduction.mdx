@@ -1,0 +1,102 @@
+---
+title: "Astromesh Node"
+description: "Native system service deployment for Astromesh on Linux, macOS, and Windows"
+---
+
+**Astromesh Node** is the native system-level deployment of Astromesh. It installs the `astromeshd` daemon and `astromeshctl` CLI as a first-class service on your operating system — integrating with systemd on Linux, launchd on macOS, and Windows Service Manager on Windows.
+
+## What is Astromesh Node?
+
+Astromesh Node packages the Astromesh runtime into platform-native installation artifacts:
+
+- **Linux (Debian/Ubuntu)** — `.deb` package with APT integration and systemd unit
+- **Linux (RHEL/Fedora/CentOS)** — `.rpm` package with systemd unit
+- **macOS** — `.tar.gz` with install script and launchd plist
+- **Windows** — `.zip` with PowerShell installer and Windows Service registration
+
+Each platform installs the same two binaries — `astromeshd` (the daemon) and `astromeshctl` (the CLI) — along with a platform-appropriate service manager integration.
+
+## Key Features
+
+### System Service Integration
+
+Astromesh Node runs as a supervised OS-level service:
+
+- **Linux**: systemd `Type=notify`, `Restart=on-failure`, watchdog health checks, journald logging
+- **macOS**: launchd `KeepAlive=true`, stdout/stderr to `/var/log/astromesh/`
+- **Windows**: Windows Service with automatic restart, Event Log integration
+
+### CLI Management
+
+`astromeshctl` provides a unified CLI across all platforms:
+
+```bash
+astromeshctl status          # Colored status table
+astromeshctl start           # Start the service
+astromeshctl stop            # Stop the service
+astromeshctl restart         # Restart the service
+astromeshctl init            # Interactive configuration wizard
+astromeshctl doctor          # Full health diagnostics
+astromeshctl agents list     # List loaded agents
+astromeshctl providers list  # List configured providers
+astromeshctl config validate # Validate config files
+astromeshctl logs            # Tail service logs
+```
+
+### 7 Runtime Profiles
+
+The `astromeshctl init` wizard offers 7 pre-built profiles that control which services activate on the node:
+
+| Profile | Services | Use Case |
+|---------|----------|----------|
+| `full` | All services | Single-node, everything on one machine |
+| `gateway` | api, channels, observability | Public entry point, routes to workers |
+| `worker` | api, agents, tools, memory, rag, observability | Agent execution node |
+| `inference` | api, inference, observability | Dedicated LLM inference |
+| `minimal` | api, agents | Lightweight single-agent deployment |
+| `rag` | api, agents, rag, memory | Document retrieval focused |
+| `edge` | api, agents, inference | Offline/air-gapped deployments |
+
+### Cross-Platform
+
+The same `runtime.yaml` configuration works identically on all platforms. Filesystem paths are normalized per OS (see [Configuration](/astromesh/node/configuration/)).
+
+## Comparison with Other Deployment Methods
+
+| Method | Best For | OS Integration | Orchestration |
+|--------|----------|----------------|---------------|
+| **Astromesh Node** | Single-server production, edge, on-prem | Native service | Platform service manager |
+| [From Source](/astromesh/deployment/standalone/) | Development, contributing | None | Manual |
+| [Docker Single Node](/astromesh/deployment/docker-single/) | Containerized, CI/CD | Docker daemon | Docker Compose |
+| [Helm / Kubernetes](/astromesh/deployment/helm-kubernetes/) | Multi-node, cloud-native | None | Kubernetes |
+| [Astromesh Orbit](/astromesh/orbit/introduction/) | Managed cloud | None | GCP Cloud Run |
+
+**Choose Astromesh Node when:**
+
+- You want a production-ready deployment without containers or Kubernetes
+- You need the daemon to start automatically on boot and restart on failure
+- You are deploying to a bare-metal server, VM, or edge device
+- You prefer CLI-based management over container tooling
+
+## Architecture
+
+Astromesh Node installs the following components:
+
+```
+astromeshd          — Agent runtime daemon (HTTP API, agent execution, model routing)
+astromeshctl        — CLI for service management and configuration
+runtime.yaml        — Platform-aware config (services, api, providers, memory)
+*.agent.yaml        — Agent definitions (YAML, same schema as Docker/K8s deployments)
+```
+
+The daemon exposes the same REST API (`/v1/agents/{name}/run`, `/v1/ws/agent/{name}`, etc.) regardless of platform. Existing integrations and SDKs work without modification.
+
+## Next Steps
+
+- [Quick Start](/astromesh/node/quick-start/) — Install and run in under 5 minutes
+- [Linux (Debian/Ubuntu)](/astromesh/node/installation/linux-debian/) — Full Debian/Ubuntu install guide
+- [Linux (RHEL/Fedora)](/astromesh/node/installation/linux-redhat/) — RPM-based Linux guide
+- [macOS](/astromesh/node/installation/macos/) — macOS install guide
+- [Windows](/astromesh/node/installation/windows/) — Windows install guide
+- [Configuration](/astromesh/node/configuration/) — runtime.yaml reference and profiles
+- [CLI Reference](/astromesh/node/cli-reference/) — Full `astromeshctl` command reference

@@ -1,0 +1,194 @@
+---
+title: "Quick Start"
+description: "Install Astromesh Node and run your first agent in under 5 minutes"
+---
+
+This guide gets Astromesh Node installed and running on your system. Pick your platform and follow the steps.
+
+## Step 1: Install
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs>
+<TabItem label="Debian / Ubuntu">
+
+```bash
+# Download the latest release
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_amd64.deb
+
+# Install
+sudo apt install ./astromesh_latest_amd64.deb
+```
+
+</TabItem>
+<TabItem label="RHEL / Fedora">
+
+```bash
+# Download the latest release
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_x86_64.rpm
+
+# Install
+sudo rpm -i astromesh_latest_x86_64.rpm
+# or on Fedora/RHEL 8+:
+sudo dnf install ./astromesh_latest_x86_64.rpm
+```
+
+</TabItem>
+<TabItem label="macOS">
+
+```bash
+# Download and extract
+curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_darwin.tar.gz
+tar -xzf astromesh_latest_darwin.tar.gz
+
+# Run the installer
+cd astromesh_latest_darwin
+sudo ./install.sh
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+```powershell
+# Download and extract
+Invoke-WebRequest -Uri https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_windows.zip -OutFile astromesh.zip
+Expand-Archive -Path astromesh.zip -DestinationPath astromesh
+
+# Run the installer (as Administrator)
+cd astromesh
+.\install.ps1
+```
+
+</TabItem>
+</Tabs>
+
+Verify the installation:
+
+```bash
+astromeshctl version
+```
+
+Expected output:
+
+```
+Astromesh Node v0.18.0
+Daemon:  /opt/astromesh/bin/astromeshd
+CLI:     /opt/astromesh/bin/astromeshctl
+Python:  3.12.x
+Platform: linux/amd64
+```
+
+## Step 2: Initialize
+
+Run the interactive configuration wizard. This generates your `runtime.yaml`, `providers.yaml`, and a default agent:
+
+```bash
+sudo astromeshctl init --profile full
+```
+
+The wizard prompts for your LLM provider (Ollama, OpenAI, Anthropic, etc.) and memory backend. For a quick start with a local model:
+
+```
+? Select deployment profile: full
+? Select provider: Ollama (local)
+? Ollama endpoint: http://localhost:11434
+? Select model: llama3.1:8b
+? Enable memory? Yes
+? Memory backend: SQLite (local)
+? Enable observability? No
+
+Configuration written to /etc/astromesh/
+```
+
+To use a specific profile without the interactive wizard, pass `--profile` and provider flags:
+
+```bash
+sudo astromeshctl init --profile full --provider ollama --model llama3.1:8b --non-interactive
+```
+
+## Step 3: Start the Service
+
+<Tabs>
+<TabItem label="Linux (systemd)">
+
+```bash
+sudo systemctl enable astromeshd
+sudo systemctl start astromeshd
+```
+
+</TabItem>
+<TabItem label="macOS (launchd)">
+
+```bash
+sudo launchctl load /Library/LaunchDaemons/com.astromesh.astromeshd.plist
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+```powershell
+Start-Service AstromeshDaemon
+Set-Service AstromeshDaemon -StartupType Automatic
+```
+
+</TabItem>
+</Tabs>
+
+## Step 4: Verify
+
+Check that the daemon is running and agents are loaded:
+
+```bash
+astromeshctl status
+```
+
+Expected output:
+
+```
+┌──────────────────────────────────────┐
+│         Astromesh Status             │
+├──────────────┬───────────────────────┤
+│ Status       │ ● Running             │
+│ Version      │ 0.18.0                │
+│ Uptime       │ 0h 0m 12s             │
+│ Profile      │ full                  │
+│ PID          │ 4521                  │
+│ Agents       │ 1 loaded              │
+│ Providers    │ 1 healthy, 0 degraded │
+│ Memory       │ 128.0 MB              │
+└──────────────┴───────────────────────┘
+```
+
+Run a full diagnostics check:
+
+```bash
+astromeshctl doctor
+```
+
+## Step 5: Run Your First Agent
+
+With the service running, call the API:
+
+```bash
+curl -s http://localhost:8000/v1/agents/default/run \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Hello! What can you do?"}' | jq .
+```
+
+Expected response:
+
+```json
+{
+  "agent": "default",
+  "response": "Hello! I'm your Astromesh assistant. I can answer questions, help with research...",
+  "session_id": "sess_abc123",
+  "tokens_used": 42
+}
+```
+
+## Next Steps
+
+- [Configuration](/astromesh/node/configuration/) — Customize `runtime.yaml`, profiles, and environment variables
+- [CLI Reference](/astromesh/node/cli-reference/) — Full `astromeshctl` command reference
+- [Troubleshooting](/astromesh/node/troubleshooting/) — Common issues and `astromeshctl doctor`
+- [Your First Agent](/astromesh/getting-started/first-agent/) — Define a custom agent in YAML

@@ -3,7 +3,7 @@ title: Installation
 description: Install Astromesh using your preferred method
 ---
 
-Astromesh can be installed from source for development, pulled as a Docker image for containerized deployments, or installed via APT on Debian/Ubuntu systems for production use with systemd.
+Astromesh can be installed from source for development, pulled as a Docker image for containerized deployments, or installed as a native system service via [Astromesh Node](/astromesh/node/introduction/) on Linux (Debian/Ubuntu, RHEL/Fedora), macOS, and Windows.
 
 ## Prerequisites
 
@@ -192,7 +192,7 @@ The package installs:
 | Logs | `/var/log/astromesh/` |
 | systemd unit | `/etc/systemd/system/astromeshd.service` |
 
-For detailed production configuration with systemd, see the [Astromesh OS](/astromesh/deployment/astromesh-os/) guide.
+For detailed production configuration including systemd (Linux), launchd (macOS), and Windows Service, see the [Astromesh Node](/astromesh/node/introduction/) documentation.
 
 > Note: A public APT repository URL is not available yet. Until then, install from GitHub Releases.
 

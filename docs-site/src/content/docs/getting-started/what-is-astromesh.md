@@ -139,7 +139,7 @@ Astromesh supports multiple deployment models depending on your scale and operat
 | Deployment | Best For | Guide |
 |-----------|----------|-------|
 | **Standalone (from source)** | Development, CI, experimentation | [View guide →](/astromesh/deployment/standalone/) |
-| **Astromesh OS** | Single-server production with systemd | [View guide →](/astromesh/deployment/astromesh-os/) |
+| **Astromesh Node** | Native system service (Linux, macOS, Windows) | [View guide →](/astromesh/node/introduction/) |
 | **Docker Single Node** | Containerized single-server deployment | [View guide →](/astromesh/deployment/docker-single/) |
 | **Docker Maia** | Multi-node mesh with gossip protocol | [View guide →](/astromesh/deployment/docker-maia/) |
 | **Docker Maia + GPU** | Multi-node mesh with GPU model serving | [View guide →](/astromesh/deployment/docker-maia-gpu/) |

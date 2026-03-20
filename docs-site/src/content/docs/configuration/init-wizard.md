@@ -20,7 +20,7 @@ sudo astromeshctl init
 | Mode | Config directory | Use case |
 |------|-----------------|----------|
 | `--dev` | `./config/` | Local development, testing, CI |
-| System (default) | `/etc/astromesh/` | Production servers, Astromesh OS |
+| System (default) | `/etc/astromesh/` | Production servers, Astromesh Node |
 
 In development mode, all generated files land in a `config/` directory relative to your project root. In system mode, files are written to `/etc/astromesh/`, which is where `astromeshd` (the daemon) looks by default.
 

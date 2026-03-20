@@ -474,7 +474,7 @@ Clear all in-memory metrics.
 
 ---
 
-## System API (Astromesh OS)
+## System API (Astromesh Node)
 
 ### `GET /v1/system/status`
 

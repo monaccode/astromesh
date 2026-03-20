@@ -56,7 +56,7 @@ export default defineConfig({
           label: 'Deployment',
           items: [
             { label: 'Standalone (from source)', slug: 'deployment/standalone' },
-            { label: 'Astromesh OS', slug: 'deployment/astromesh-os' },
+            { label: 'Astromesh Node', slug: 'deployment/astromesh-os' },
             { label: 'Docker Single Node', slug: 'deployment/docker-single' },
             { label: 'Docker Maia', slug: 'deployment/docker-maia' },
             { label: 'Docker Maia + GPU', slug: 'deployment/docker-maia-gpu' },
@@ -122,6 +122,25 @@ export default defineConfig({
             { label: 'Configuration', slug: 'orbit/configuration' },
             { label: 'GCP Provider', slug: 'orbit/gcp-provider' },
             { label: 'CLI Reference', slug: 'orbit/cli-reference' },
+          ],
+        },
+        {
+          label: 'Astromesh Node',
+          items: [
+            { label: 'Introduction', slug: 'node/introduction' },
+            { label: 'Quick Start', slug: 'node/quick-start' },
+            {
+              label: 'Installation',
+              items: [
+                { label: 'Debian / Ubuntu', slug: 'node/installation/linux-debian' },
+                { label: 'RHEL / Fedora', slug: 'node/installation/linux-redhat' },
+                { label: 'macOS', slug: 'node/installation/macos' },
+                { label: 'Windows', slug: 'node/installation/windows' },
+              ],
+            },
+            { label: 'Configuration', slug: 'node/configuration' },
+            { label: 'CLI Reference', slug: 'node/cli-reference' },
+            { label: 'Troubleshooting', slug: 'node/troubleshooting' },
           ],
         },
       ],
