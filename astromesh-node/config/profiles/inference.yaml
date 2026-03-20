@@ -1,0 +1,18 @@
+apiVersion: astromesh/v1
+kind: RuntimeConfig
+metadata:
+  name: inference
+spec:
+  api:
+    host: "0.0.0.0"
+    port: 8000
+  services:
+    api: true
+    agents: false
+    inference: true
+    memory: false
+    tools: false
+    channels: false
+    rag: false
+    observability: true
+  peers: []
