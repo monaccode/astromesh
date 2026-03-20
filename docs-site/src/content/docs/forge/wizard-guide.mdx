@@ -1,0 +1,124 @@
+---
+title: "Wizard Guide"
+description: "Detailed walkthrough of the 7-step agent creation wizard in Forge."
+---
+
+The Forge wizard guides you through creating an agent in seven steps. Each step maps to a section of the agent YAML specification. You can navigate freely between steps — progress is saved automatically.
+
+## Step 1: Identity
+
+Define who your agent is.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Unique slug identifier (e.g., `sales-qualifier`). Used in API calls. |
+| `display_name` | No | Human-readable name shown in dashboards. |
+| `description` | No | What the agent does. Shown in the agent list and templates. |
+| `avatar` | No | URL or emoji for visual identification. |
+| `tags` | No | Searchable labels for organizing agents. |
+
+## Step 2: Model
+
+Configure the LLM provider and parameters.
+
+**Primary model:**
+- Select a provider (OpenAI, Anthropic, Ollama, etc.) and model.
+- Set parameters: `temperature`, `top_p`, `max_tokens`.
+
+**Fallback model (optional):**
+- A secondary provider/model used when the primary is unavailable or hits its circuit breaker.
+
+**Routing strategy:**
+- `cost_optimized` — Prefer the cheapest available provider.
+- `latency_optimized` — Prefer the fastest provider.
+- `quality_first` — Always use the primary unless it fails.
+- `round_robin` — Distribute requests evenly.
+
+## Step 3: Tools
+
+Select and configure the tools your agent can use.
+
+- Drag tools from the **available tools** panel on the left into the agent's tool list.
+- Tool types: `internal` (Python functions), `mcp` (Model Context Protocol servers), `webhook` (external HTTP endpoints), `rag` (retrieval-augmented generation).
+- For each tool, configure permissions and rate limits as needed.
+- Reorder tools by dragging them within the list.
+
+The available tools are fetched from the connected Astromesh node via `GET /v1/tools`.
+
+## Step 4: Orchestration
+
+Choose how your agent processes requests.
+
+**Pattern:**
+
+| Pattern | Description |
+|---------|-------------|
+| `react` | Reason + Act loop. The model decides when to call tools and when to respond. |
+| `plan_and_execute` | Create a plan first, then execute each step. Good for complex multi-step tasks. |
+| `parallel_fan_out` | Run multiple sub-tasks in parallel, then aggregate results. |
+| `pipeline` | Sequential chain of processing steps. |
+| `supervisor` | A supervisor agent delegates to specialized sub-agents. |
+| `swarm` | Peer-to-peer agent collaboration. |
+
+**Parameters:**
+- `max_iterations` — Maximum number of reasoning/action cycles (default varies by pattern).
+- `timeout_seconds` — Hard timeout for the entire orchestration run.
+
+## Step 5: Settings
+
+Configure memory, guardrails, and permissions.
+
+### Memory
+
+Select which memory types to enable:
+
+- **Conversational** — Chat history. Configure `max_turns` and strategy (`sliding_window`, `summary`, `token_budget`).
+- **Semantic** — Vector embeddings for long-term recall. Requires a configured vector backend.
+- **Episodic** — Event logs for tracking agent actions over time.
+
+### Guardrails
+
+Add input and/or output guardrails:
+
+- **Input guardrails** — Applied before the prompt is sent to the model (e.g., PII filter, max input length, topic restriction).
+- **Output guardrails** — Applied after the model responds (e.g., content filter, cost limit, format validation).
+
+Each guardrail has an action: `block` (reject the message) or `redact` (modify the content).
+
+### Permissions
+
+Define what the agent is allowed to do:
+
+- Allowed tools and tool categories.
+- Maximum cost per request.
+- Rate limits.
+
+## Step 6: Prompts
+
+Write the system prompt that defines your agent's behavior.
+
+- The editor supports **Jinja2 template syntax** for dynamic prompts.
+- Available template variables include agent identity fields, memory context, and custom variables.
+- Use the preview pane to see how the rendered prompt will look with sample data.
+
+```jinja2
+You are {{ agent.display_name }}, an AI assistant for {{ company_name }}.
+
+Your role: {{ agent.description }}
+
+{% if memory.summary %}
+Previous conversation summary:
+{{ memory.summary }}
+{% endif %}
+```
+
+## Step 7: Review and Deploy
+
+The final step shows a complete summary of your agent configuration.
+
+- **YAML preview** — The full generated agent YAML, ready for review.
+- **Validation** — Any configuration issues are highlighted with suggestions.
+- **Target selection** — Choose where to deploy: Local, Remote Node, or Nexus.
+- Click **Deploy** to create and activate the agent on the selected target.
+
+After deployment, the agent appears in the Forge dashboard with status `deployed` and is immediately available via the API.

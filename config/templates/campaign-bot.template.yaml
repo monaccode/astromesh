@@ -1,0 +1,81 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: campaign-bot
+  version: "1.0.0"
+  category: marketing
+  tags: [campaigns, promotions, leads, engagement]
+
+template:
+  display_name: "Campaign Bot"
+  description: >
+    Sends promotional campaigns, segments responses by interest,
+    and captures leads from engagement.
+  recommended_channels:
+    - channel: telegram
+      reason: "Rich media support for promotional content"
+    - channel: whatsapp
+      reason: "High engagement rates for promotions"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      required: true
+    - key: campaign_description
+      label: "What is this campaign about?"
+      placeholder: "Summer sale, new product launch, seasonal offer"
+      required: true
+    - key: offer_details
+      label: "Offer details"
+      placeholder: "20% off all products until March 31"
+      required: true
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-campaign"
+      version: "1.0.0"
+      namespace: marketing
+      labels:
+        template: campaign-bot
+    spec:
+      identity:
+        display_name: "{{company_name}} Campaign"
+        description: "Promotional campaign: {{campaign_description}}"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.7
+            max_tokens: 1024
+        routing:
+          strategy: cost_optimized
+      prompts:
+        system: |
+          You are a marketing assistant for {{company_name}}.
+          Current campaign: {{campaign_description}}.
+          Offer: {{offer_details}}.
+
+          Your job:
+          1. Engage customers with the current promotion
+          2. Answer questions about the offer
+          3. Capture interest and contact details for follow-up
+          4. Segment responses: "interested", "maybe later", "not interested"
+
+          Be enthusiastic but not pushy. Respect when someone says no.
+      orchestration:
+        pattern: react
+        max_iterations: 5
+        timeout_seconds: 30
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 15
+          ttl: 3600
+      guardrails:
+        output:
+          - type: cost_limit
+            max_tokens_per_turn: 500

@@ -1,0 +1,91 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: returns-claims
+  version: "1.0.0"
+  category: customer_service
+  tags: [returns, warranty, claims, orders]
+
+template:
+  display_name: "Returns & Claims"
+  description: >
+    Manages product returns and warranty claims. Collects order info,
+    validates against return policy, and generates return instructions.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Customers prefer messaging for return requests"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      required: true
+    - key: return_policy_days
+      label: "Return window (days)"
+      placeholder: "30"
+      default: "30"
+    - key: return_instructions
+      label: "How should customers return products?"
+      placeholder: "Ship to our warehouse at 123 Main St"
+      required: true
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-returns"
+      version: "1.0.0"
+      namespace: support
+      labels:
+        template: returns-claims
+    spec:
+      identity:
+        display_name: "{{company_name}} Returns"
+        description: "Handles returns and warranty claims"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.1
+            max_tokens: 1500
+        routing:
+          strategy: quality_first
+      prompts:
+        system: |
+          You are a returns and claims assistant for {{company_name}}.
+          Return policy: {{return_policy_days}} days from purchase.
+
+          Process:
+          1. Ask for order number or purchase details
+          2. Verify the order exists and is within return window
+          3. Ask for reason of return
+          4. If eligible, provide return instructions: {{return_instructions}}
+          5. If not eligible, explain why and offer alternatives
+
+          Be empathetic but follow policy strictly. Never approve returns outside policy
+          without escalating to a supervisor.
+      orchestration:
+        pattern: react
+        max_iterations: 6
+        timeout_seconds: 45
+      tools:
+        - name: lookup_order
+          type: internal
+          description: "Look up order by order number"
+          parameters:
+            order_number:
+              type: string
+              description: "Order number to look up"
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 20
+          ttl: 3600
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact
+        output:
+          - type: pii_detection
+            action: redact

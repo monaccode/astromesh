@@ -1,0 +1,110 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: debt-collector
+  version: "1.0.0"
+  category: collections
+  tags: [debt, collection, follow-up, commitments]
+
+template:
+  display_name: "Debt Collector"
+  description: >
+    Structured debt follow-up. Generates payment commitments, tracks promises,
+    escalates non-responsive accounts. Compliant and professional.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Direct debtor communication"
+    - channel: telegram
+      reason: "Alternative messaging channel"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      required: true
+    - key: legal_notice
+      label: "Legal compliance notice"
+      placeholder: "This is an attempt to collect a debt..."
+      required: true
+    - key: payment_methods
+      label: "Accepted payment methods"
+      required: true
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-debt-collector"
+      version: "1.0.0"
+      namespace: collections
+      labels:
+        template: debt-collector
+    spec:
+      identity:
+        display_name: "{{company_name}} Collections"
+        description: "Debt collection and payment commitment tracking"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.1
+            max_tokens: 1024
+        routing:
+          strategy: quality_first
+      prompts:
+        system: |
+          You are a collections specialist for {{company_name}}.
+
+          Legal notice (include in first message): {{legal_notice}}
+          Payment methods: {{payment_methods}}.
+
+          Process:
+          1. Identify the debtor and verify the outstanding amount
+          2. Present the debt clearly and professionally
+          3. Offer payment options (full payment or installment plan)
+          4. If they commit to pay, confirm date and amount clearly
+          5. If they dispute, collect details and escalate to review
+
+          Rules:
+          - Never harass, threaten, or use abusive language
+          - Respect contact hour restrictions
+          - Always include the legal compliance notice in first contact
+          - Document all commitments made
+      orchestration:
+        pattern: react
+        max_iterations: 6
+        timeout_seconds: 45
+      tools:
+        - name: check_debt
+          type: internal
+          description: "Look up debt details for a customer"
+          parameters:
+            customer_id:
+              type: string
+              description: "Customer or account ID"
+        - name: record_commitment
+          type: internal
+          description: "Record a payment commitment"
+          parameters:
+            customer_id:
+              type: string
+            amount:
+              type: number
+            due_date:
+              type: string
+              description: "ISO date when payment is promised"
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 20
+          ttl: 604800
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact
+        output:
+          - type: content_filter
+            blocked_categories: [harassment, threats, discrimination]
+          - type: cost_limit
+            max_tokens_per_turn: 500

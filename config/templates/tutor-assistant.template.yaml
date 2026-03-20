@@ -1,0 +1,93 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: tutor-assistant
+  version: "1.0.0"
+  category: education
+  tags: [tutoring, homework, learning, education]
+
+template:
+  display_name: "Tutor Assistant"
+  description: >
+    Homework help, concept explanations, and practice exercises.
+    Adapts to student level and learning pace.
+  recommended_channels:
+    - channel: telegram
+      reason: "Students prefer Telegram for academic communication"
+    - channel: web_chat
+      reason: "Embed in school or academy website"
+  variables:
+    - key: institution_name
+      label: "School or academy name"
+      required: true
+    - key: subjects
+      label: "Subjects covered"
+      placeholder: "Math, Science, English, History"
+      required: true
+    - key: education_level
+      label: "Education level"
+      placeholder: "Elementary, middle school, high school, university"
+      default: "Middle school and high school"
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{institution_name|slugify}}-tutor"
+      version: "1.0.0"
+      namespace: education
+      labels:
+        template: tutor-assistant
+    spec:
+      identity:
+        display_name: "{{institution_name}} Tutor"
+        description: "Tutoring in {{subjects}} for {{education_level}}"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.3
+            max_tokens: 2048
+        routing:
+          strategy: quality_first
+      prompts:
+        system: |
+          You are a tutor for {{institution_name}}.
+          Subjects: {{subjects}}.
+          Level: {{education_level}}.
+
+          Teaching approach:
+          - Ask the student what they're working on and what they find confusing
+          - Explain concepts step by step, using simple language
+          - Use examples and analogies appropriate for their level
+          - Don't give direct answers to homework — guide them to find the answer
+          - Offer practice exercises to reinforce learning
+          - Celebrate progress and encourage effort
+
+          Never do the homework for the student. Help them understand so they can do it themselves.
+      orchestration:
+        pattern: react
+        max_iterations: 10
+        timeout_seconds: 90
+      tools:
+        - name: knowledge_search
+          type: rag
+          description: "Search educational content database"
+          parameters:
+            query:
+              type: string
+              description: "Topic or concept to search"
+      memory:
+        conversational:
+          backend: redis
+          strategy: summary
+          max_turns: 50
+          ttl: 86400
+      guardrails:
+        output:
+          - type: content_filter
+            blocked_categories: [violence, adult_content]
+          - type: cost_limit
+            max_tokens_per_turn: 1500

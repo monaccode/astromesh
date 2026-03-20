@@ -1,0 +1,98 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: support-agent
+  version: "1.0.0"
+  category: customer_service
+  tags: [support, faq, knowledge-base, escalation]
+
+template:
+  display_name: "Support Agent"
+  description: >
+    Resolves FAQs using RAG-powered knowledge base. Escalates to human agent
+    when confidence is low. Empathetic and professional tone.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Most popular channel for customer support"
+    - channel: telegram
+      reason: "Real-time support conversations"
+    - channel: web_chat
+      reason: "Embed in website help center"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      required: true
+    - key: support_scope
+      label: "What topics does your support cover?"
+      placeholder: "Billing, technical issues, returns, general inquiries"
+      required: true
+    - key: escalation_contact
+      label: "How to escalate to a human?"
+      placeholder: "Email support@company.com or call +1-555-0100"
+      default: "contact our support team directly"
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-support"
+      version: "1.0.0"
+      namespace: support
+      labels:
+        template: support-agent
+    spec:
+      identity:
+        display_name: "{{company_name}} Support"
+        description: "Customer support for {{support_scope}}"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.2
+            max_tokens: 2048
+        routing:
+          strategy: quality_first
+      prompts:
+        system: |
+          You are a customer support agent for {{company_name}}.
+          You handle: {{support_scope}}.
+
+          Guidelines:
+          - Always be polite, professional, and empathetic
+          - Use the knowledge base to answer questions accurately
+          - If you don't know the answer, say so honestly
+          - For issues you cannot resolve, escalate: {{escalation_contact}}
+          - Never make up information about policies or procedures
+      orchestration:
+        pattern: plan_and_execute
+        max_iterations: 8
+        timeout_seconds: 60
+      tools:
+        - name: knowledge_search
+          type: rag
+          description: "Search company knowledge base for answers"
+          parameters:
+            query:
+              type: string
+              description: "Support question to search for"
+      memory:
+        conversational:
+          backend: redis
+          strategy: summary
+          max_turns: 50
+          ttl: 86400
+        semantic:
+          backend: chromadb
+          similarity_threshold: 0.7
+          max_results: 5
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact
+        output:
+          - type: pii_detection
+            action: redact
+          - type: cost_limit
+            max_tokens_per_turn: 500

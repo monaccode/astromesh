@@ -1,0 +1,122 @@
+---
+title: "Agent Templates"
+description: "Pre-built agent configurations for common business use cases."
+---
+
+## What Are Templates?
+
+Templates are pre-built agent configurations designed for common business use cases. Each template includes a complete agent definition (model, tools, orchestration, guardrails, prompts) with customizable variables so you can adapt it to your specific needs.
+
+## How to Use Templates
+
+1. On the Forge home screen or dashboard, click **Start from Template**.
+2. Browse the gallery by category or search by keyword.
+3. Select a template to see its description, recommended channels, and preview.
+4. Click **Use Template** to open the wizard pre-filled with the template configuration.
+5. Fill in the template variables (e.g., company name, brand voice, product details).
+6. Optionally edit tools, model, guardrails, or prompts.
+7. Review and deploy.
+
+Template variables (like `{{company_name}}`) are resolved client-side in Forge before the agent configuration is sent to the node API.
+
+## Template Catalog
+
+### Sales
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **Sales Qualifier** | WhatsApp, Web Chat | Qualifies leads using BANT methodology. Scores 1-10, recommends next action. CRM integration for company lookup. |
+| **Product Advisor** | WhatsApp, Telegram | Recommends products based on customer needs. Asks discovery questions, matches to catalog, generates comparisons. |
+
+### Customer Service
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **Support Agent** | WhatsApp, Telegram, Web Chat | Resolves FAQs using RAG-powered knowledge base. Escalates to human when confidence is low. Empathetic tone. |
+| **Returns & Claims** | WhatsApp | Manages product returns and warranty claims. Collects order info, validates policy, generates return labels. |
+
+### Collections
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **Payment Reminder** | WhatsApp | Sends payment reminders with configurable escalation. Friendly first notice, firmer follow-ups. Negotiates payment plans. |
+| **Debt Collector** | WhatsApp, Telegram | Structured debt follow-up. Generates payment commitments, tracks promises, escalates non-responsive accounts. |
+
+### Marketing
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **Campaign Bot** | Telegram, WhatsApp | Sends promotional campaigns, segments responses by interest, captures leads from engagement. |
+
+### Food & Beverage
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **Brand Chef** | WhatsApp, Instagram | Recommends recipes using the brand's products. Cooking tips, meal planning, ingredient substitutions. Personalized to user preferences. |
+| **Nutritionist** | Web Chat | Nutritional information about products. Dietary recommendations, allergen alerts, healthy combinations. |
+
+### Automotive
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **Service Scheduler** | WhatsApp, Web Chat | Schedules workshop appointments. Reminds preventive maintenance based on mileage. Receives problem photos for pre-diagnosis. |
+| **Parts Advisor** | WhatsApp | Checks parts availability, generates quotes, schedules installation appointments. Compatible parts lookup by vehicle model. |
+
+### Real Estate
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **Property Agent** | WhatsApp | Qualifies interested buyers/renters. Matches preferences to listings. Schedules property viewings. |
+
+### Education
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **Tutor Assistant** | Telegram, Web Chat | Homework help, concept explanations, practice exercises. Adapts to student level. |
+
+### Internal Operations
+
+| Template | Recommended Channels | Description |
+|----------|---------------------|-------------|
+| **HR Assistant** | Slack, Web Chat | Answers HR questions (policies, vacation balance, benefits). Routes complex requests to HR team. |
+| **Onboarding Buddy** | Slack | Guides new employees through first weeks. Checklist tracking, team introductions, tool setup help. |
+
+## Creating Custom Templates
+
+You can create your own templates by adding `.template.yaml` files to `config/templates/`.
+
+A template file follows this structure:
+
+```yaml
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: my-custom-template
+  version: "1.0.0"
+  category: custom
+  tags: [custom, example]
+
+template:
+  display_name: "My Custom Template"
+  description: >
+    Description of what this agent does and which
+    business use case it addresses.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Why this channel is a good fit"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      placeholder: "Acme Corp"
+      required: true
+    - key: brand_voice
+      label: "Tone of communication"
+      placeholder: "Professional and friendly"
+      default: "Professional and friendly"
+
+  agent_config:
+    # Full agent YAML specification
+    # (model, tools, orchestration, guardrails, prompts)
+```
+
+Custom templates appear alongside built-in templates in the Forge gallery. The node serves them via `GET /v1/templates`.

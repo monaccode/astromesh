@@ -1,0 +1,71 @@
+---
+title: "Canvas Guide"
+description: "Using the visual drag-and-drop canvas editor in Forge."
+---
+
+The Forge canvas is a visual editor for designing agent orchestrations and inspecting agent internals. It is built on React Flow and provides two zoom levels for different perspectives.
+
+## Overview
+
+The canvas complements the wizard. Both operate on the same underlying data model, so you can switch between them at any time without losing work. The wizard is best for step-by-step configuration of a single agent; the canvas is best for visualizing multi-agent relationships and inspecting execution pipelines.
+
+## Macro View: Agent Orchestration
+
+The default canvas view shows agents as nodes on a graph. Connections between nodes define how agents relate to each other.
+
+- Each **agent node** displays the agent's name, status, and primary model.
+- **Connections** (edges) represent orchestration relationships — for example, a supervisor agent connected to its sub-agents, or a pipeline where one agent's output feeds into another.
+- Drag agents from the **Toolbox** (left sidebar) onto the canvas to add them.
+- Connect agents by dragging from one node's output handle to another node's input handle.
+
+This view is particularly useful for designing `supervisor`, `swarm`, and `pipeline` orchestration patterns involving multiple agents.
+
+## Micro View: Pipeline Drill-Down
+
+Double-click any agent node to enter micro view, which reveals the agent's internal execution pipeline:
+
+```
+[Input Guardrails] -> [Memory] -> [Prompt Engine] -> [Model Router] -> [Tool Calls] -> [Output Guardrails]
+```
+
+- Each pipeline block is an editable node. Click a node to open its properties in the right sidebar.
+- Drag and drop to add or reorder guardrails, tools, and memory backends within the pipeline.
+- Changes made in micro view are reflected in the wizard and in the generated YAML.
+
+Click the **Back** button or zoom out to return to macro view.
+
+## Toolbox (Left Sidebar)
+
+The toolbox provides draggable items organized by category:
+
+- **Agents** — Existing agents deployed on the connected node.
+- **Tools** — Registered tools (internal, MCP, webhook, RAG).
+- **Models** — Available providers and models.
+- **Guardrails** — Input and output guardrail types.
+- **Memory** — Configured memory backends.
+
+Drag any item from the toolbox onto the canvas (macro view) or into a pipeline (micro view) to add it.
+
+## Properties Panel (Right Sidebar)
+
+Selecting any node on the canvas opens a contextual properties panel on the right. The panel contents depend on the node type:
+
+| Node Type | Properties |
+|-----------|------------|
+| **Agent** | Name, model, orchestration pattern, status |
+| **Tool** | Name, type (internal/mcp/webhook/rag), parameters, permissions |
+| **Model** | Provider, model name, endpoint, parameters (temperature, top_p, max_tokens) |
+| **Guardrail** | Type, action (block/redact), specific configuration |
+| **Memory** | Backend, strategy, max_turns, TTL |
+
+Edit properties directly in the panel. Changes are applied immediately to the agent configuration.
+
+## Wizard and Canvas Interop
+
+The wizard and canvas share the same data model. This means:
+
+- An agent created in the wizard can be opened and edited on the canvas.
+- Changes made on the canvas are visible when you switch back to the wizard.
+- The generated YAML is always consistent regardless of which editor you use.
+
+You can switch between the wizard and canvas at any point during agent creation or editing using the toggle in the top toolbar.

@@ -1,0 +1,90 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: product-advisor
+  version: "1.0.0"
+  category: sales
+  tags: [products, recommendations, catalog, ecommerce]
+
+template:
+  display_name: "Product Advisor"
+  description: >
+    Recommends products based on customer needs. Asks discovery questions,
+    matches to catalog, and generates side-by-side comparisons.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Quick product consultations via messaging"
+    - channel: telegram
+      reason: "Rich media support for product images"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      required: true
+    - key: product_category
+      label: "What type of products do you sell?"
+      placeholder: "Electronics, furniture, software, etc."
+      required: true
+    - key: brand_voice
+      label: "Tone of communication"
+      default: "Friendly and knowledgeable"
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-product-advisor"
+      version: "1.0.0"
+      namespace: sales
+      labels:
+        template: product-advisor
+    spec:
+      identity:
+        display_name: "{{company_name}} Product Advisor"
+        description: "Recommends {{product_category}} based on customer needs"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.5
+            max_tokens: 2048
+        routing:
+          strategy: cost_optimized
+      prompts:
+        system: |
+          You are a product advisor for {{company_name}}, specializing in {{product_category}}.
+          Your style is: {{brand_voice}}.
+
+          Your job:
+          1. Ask discovery questions to understand the customer's needs, budget, and preferences
+          2. Recommend 2-3 products that match their criteria
+          3. Explain pros/cons of each option
+          4. Help them make a decision
+
+          Never pressure the customer. Focus on finding the right fit.
+      orchestration:
+        pattern: react
+        max_iterations: 8
+        timeout_seconds: 60
+      tools:
+        - name: search_catalog
+          type: rag
+          description: "Search product catalog"
+          parameters:
+            query:
+              type: string
+              description: "Product search query"
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 30
+          ttl: 7200
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact
+        output:
+          - type: cost_limit
+            max_tokens_per_turn: 1500

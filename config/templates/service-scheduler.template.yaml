@@ -1,0 +1,120 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: service-scheduler
+  version: "1.0.0"
+  category: automotive
+  tags: [workshop, appointments, maintenance, repairs, vehicles]
+
+template:
+  display_name: "Service Scheduler"
+  description: >
+    Schedules workshop appointments. Reminds preventive maintenance based on mileage.
+    Receives problem photos for pre-diagnosis. Manages service calendar.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Customers can send photos of car issues directly"
+    - channel: web_chat
+      reason: "Embed in dealership or workshop website"
+  variables:
+    - key: workshop_name
+      label: "Workshop or dealership name"
+      required: true
+    - key: services_offered
+      label: "Services offered"
+      placeholder: "Oil change, brake repair, tire rotation, engine diagnostics, body work"
+      required: true
+    - key: business_hours
+      label: "Business hours"
+      placeholder: "Mon-Fri 8am-6pm, Sat 9am-2pm"
+      required: true
+    - key: location
+      label: "Workshop address"
+      required: true
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{workshop_name|slugify}}-scheduler"
+      version: "1.0.0"
+      namespace: automotive
+      labels:
+        template: service-scheduler
+    spec:
+      identity:
+        display_name: "{{workshop_name}} Service Scheduler"
+        description: "Workshop appointment scheduling and maintenance reminders"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.2
+            max_tokens: 1500
+        routing:
+          strategy: quality_first
+      prompts:
+        system: |
+          You are the service scheduler for {{workshop_name}}.
+          Location: {{location}}.
+          Business hours: {{business_hours}}.
+          Services: {{services_offered}}.
+
+          Your responsibilities:
+          1. Schedule service appointments based on available slots
+          2. Collect vehicle info: make, model, year, mileage
+          3. Ask about the issue (description + photos if available)
+          4. Recommend preventive maintenance based on mileage:
+             - 5,000 km: Oil change
+             - 10,000 km: Oil + filters
+             - 20,000 km: Major service (brakes, fluids, belts)
+             - 40,000 km: Full inspection
+          5. Confirm appointment details: date, time, service type, estimated duration
+          6. Send reminders for upcoming appointments
+
+          If a customer sends a photo of an issue, describe what you see and recommend
+          whether it needs immediate attention or can wait for a scheduled visit.
+      orchestration:
+        pattern: react
+        max_iterations: 8
+        timeout_seconds: 60
+      tools:
+        - name: check_availability
+          type: internal
+          description: "Check available appointment slots"
+          parameters:
+            date:
+              type: string
+              description: "Date to check (ISO format)"
+            service_type:
+              type: string
+              description: "Type of service requested"
+        - name: book_appointment
+          type: internal
+          description: "Book a service appointment"
+          parameters:
+            customer_name:
+              type: string
+            vehicle_info:
+              type: string
+            service_type:
+              type: string
+            date:
+              type: string
+            time:
+              type: string
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 20
+          ttl: 86400
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact
+        output:
+          - type: cost_limit
+            max_tokens_per_turn: 800

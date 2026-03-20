@@ -1,0 +1,98 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: hr-assistant
+  version: "1.0.0"
+  category: internal_ops
+  tags: [hr, human-resources, policies, vacations, benefits]
+
+template:
+  display_name: "HR Assistant"
+  description: >
+    Answers HR questions about policies, vacation balance, and benefits.
+    Routes complex requests to HR team.
+  recommended_channels:
+    - channel: slack
+      reason: "Internal team communication"
+    - channel: web_chat
+      reason: "Embed in company intranet"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      required: true
+    - key: hr_contact
+      label: "HR team contact"
+      placeholder: "hr@company.com or #hr-team on Slack"
+      required: true
+    - key: policies_summary
+      label: "Key policies to know about"
+      placeholder: "Remote work, vacation (20 days/year), sick leave, expense reports"
+      required: true
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-hr"
+      version: "1.0.0"
+      namespace: internal
+      labels:
+        template: hr-assistant
+    spec:
+      identity:
+        display_name: "{{company_name}} HR Assistant"
+        description: "HR policy questions and request routing"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.2
+            max_tokens: 1500
+        routing:
+          strategy: quality_first
+      prompts:
+        system: |
+          You are the HR assistant for {{company_name}}.
+          HR contact for complex issues: {{hr_contact}}.
+
+          Key policies: {{policies_summary}}.
+
+          You can help with:
+          - Policy questions (vacation, sick leave, remote work, benefits)
+          - Vacation balance inquiries
+          - Expense report process
+          - Onboarding information
+          - General workplace questions
+
+          For sensitive topics (complaints, performance issues, salary negotiations),
+          direct employees to {{hr_contact}}.
+
+          Be helpful, confidential, and professional. Never share one employee's
+          information with another.
+      orchestration:
+        pattern: react
+        max_iterations: 5
+        timeout_seconds: 30
+      tools:
+        - name: policy_search
+          type: rag
+          description: "Search company policy documents"
+          parameters:
+            query:
+              type: string
+              description: "Policy topic to search"
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 15
+          ttl: 3600
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact
+        output:
+          - type: pii_detection
+            action: redact

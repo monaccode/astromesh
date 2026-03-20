@@ -1,0 +1,97 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: sales-qualifier
+  version: "1.0.0"
+  category: sales
+  tags: [leads, bant, qualification, crm]
+
+template:
+  display_name: "Sales Lead Qualifier"
+  description: >
+    Qualifies incoming sales leads using BANT methodology (Budget, Authority, Need, Timeline).
+    Scores leads 1-10 and recommends next actions. Integrates with CRM for company lookup.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Direct lead engagement via business messaging"
+    - channel: web_chat
+      reason: "Embed in landing pages for inbound qualification"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      placeholder: "Acme Corp"
+      required: true
+    - key: product_name
+      label: "Product or service you sell"
+      placeholder: "Cloud hosting solutions"
+      required: true
+    - key: brand_voice
+      label: "Tone of communication"
+      default: "Professional and consultative"
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-sales-qualifier"
+      version: "1.0.0"
+      namespace: sales
+      labels:
+        template: sales-qualifier
+        team: revenue
+    spec:
+      identity:
+        display_name: "{{company_name}} Sales Qualifier"
+        description: "Qualifies leads for {{product_name}} using BANT"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.3
+            top_p: 0.9
+            max_tokens: 2048
+        routing:
+          strategy: cost_optimized
+          health_check_interval: 30
+      prompts:
+        system: |
+          You are a sales lead qualification assistant for {{company_name}}, selling {{product_name}}.
+          Your communication style is: {{brand_voice}}.
+
+          For each lead, assess using BANT methodology:
+          - **Budget**: Can they afford {{product_name}}?
+          - **Authority**: Are they the decision maker?
+          - **Need**: Do they have a genuine need for {{product_name}}?
+          - **Timeline**: When do they plan to purchase?
+
+          Provide a qualification score (1-10) and recommended next action.
+          Be conversational but focused on qualification.
+      orchestration:
+        pattern: react
+        max_iterations: 5
+        timeout_seconds: 60
+      tools:
+        - name: lookup_company
+          type: internal
+          description: "Look up company information from CRM"
+          parameters:
+            company_name:
+              type: string
+              description: "Company name to look up"
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 20
+          ttl: 3600
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact
+          - type: max_length
+            max_chars: 5000
+        output:
+          - type: cost_limit
+            max_tokens_per_turn: 1000

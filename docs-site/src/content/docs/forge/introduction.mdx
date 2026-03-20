@@ -1,0 +1,74 @@
+---
+title: "Introduction to Forge"
+description: "Visual agent builder for creating, editing, and deploying Astromesh agents."
+---
+
+## What is Forge?
+
+Astromesh Forge is a visual agent builder — a lightweight single-page application (SPA) built with Vite + React that connects directly to an Astromesh node's API. It provides a graphical interface for creating, editing, and deploying agents without writing YAML by hand.
+
+Forge replaces the previous Astromesh Cloud Studio with a more powerful and flexible toolset.
+
+## Target Audience
+
+- **Non-technical users** who need to build and deploy AI agents without editing configuration files or managing infrastructure.
+- **Semi-technical users** who prefer a visual approach to designing complex multi-agent orchestrations.
+- **Technical users** who want a faster way to prototype agents before fine-tuning in YAML.
+
+## Key Features
+
+### 7-Step Creation Wizard
+
+A guided step-by-step wizard walks you through every aspect of agent configuration: identity, model selection, tools, orchestration pattern, settings (memory, guardrails, permissions), prompts, and review/deploy.
+
+### Drag-and-Drop Canvas
+
+A visual editor with two zoom levels:
+
+- **Macro view** — Agent orchestration. Each agent is a node on the canvas; connections define relationships between agents.
+- **Micro view** — Pipeline drill-down. Double-click an agent to see its internal execution pipeline (guardrails, memory, prompt engine, model router, tools).
+
+### Templates Gallery
+
+A curated collection of 15 pre-built agent templates organized by business use case (sales, customer service, collections, marketing, and more). Select a template, customize a few variables, and deploy.
+
+### Multi-Target Deployment
+
+Deploy agents to three targets:
+
+- **Local** — The Astromesh node you are connected to.
+- **Remote Node** — Any reachable Astromesh node on the network.
+- **Nexus** — Managed cloud deployment (coming soon).
+
+## Architecture
+
+Forge is a pure client application. It has no backend and no database of its own. All state lives in the Astromesh node, and Forge reads and writes via the existing `/v1/*` API endpoints.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     Astromesh Forge                      │
+│                                                         │
+│  ┌──────────────────────┐       ┌──────────────────────┐│
+│  │   Forge SPA          │─HTTP─>│   Astromesh Node     ││
+│  │   (Vite + React)     │       │   API (/v1/*)        ││
+│  │                      │<JSON──│                      ││
+│  └──────────────────────┘       └──────────────────────┘│
+│                                                         │
+│  No backend. No database. Pure client.                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+## What Forge is NOT
+
+- **Not a monitoring tool.** Metrics, logs, and traces are handled by Cortex (a separate product).
+- **Not a backend service.** Forge has no server component — it communicates directly with the Astromesh node API.
+- **Not an auth system.** Authentication and tenancy are handled by the node itself or by Nexus.
+
+## Distribution
+
+Forge can run in two modes:
+
+- **Embedded** — Built static files are served by the Astromesh node at `/forge`. No separate setup required.
+- **Standalone** — Run independently via `npx astromesh-forge --node <URL>` or build and host the static files on any HTTP server.
+
+See the [Deployment](/astromesh/forge/deployment/) page for full details on both modes.

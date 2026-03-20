@@ -79,6 +79,42 @@ async def delete_agent(agent_name: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.put("/agents/{agent_name}")
+async def update_agent(agent_name: str, config: dict):
+    """Update an existing agent's configuration."""
+    if _runtime is None:
+        raise HTTPException(status_code=503, detail="Runtime not initialized")
+    try:
+        await _runtime.update_agent(agent_name, config)
+        return {"agent": agent_name, "status": "updated"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/agents/{agent_name}/deploy")
+async def deploy_agent(agent_name: str):
+    """Deploy a draft/paused agent to the runtime."""
+    if _runtime is None:
+        raise HTTPException(status_code=503, detail="Runtime not initialized")
+    try:
+        await _runtime.deploy_agent(agent_name)
+        return {"agent": agent_name, "status": "deployed"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/agents/{agent_name}/pause")
+async def pause_agent(agent_name: str):
+    """Pause a deployed agent."""
+    if _runtime is None:
+        raise HTTPException(status_code=503, detail="Runtime not initialized")
+    try:
+        _runtime.pause_agent(agent_name)
+        return {"agent": agent_name, "status": "paused"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 @router.post("/agents/{agent_name}/run")
 async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Request):
     if not _runtime:
