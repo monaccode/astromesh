@@ -2,9 +2,19 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "docs-site/**"
+      - "*.md"
+      - ".superpowers/**"
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
+      - "docs-site/**"
+      - "*.md"
+      - ".superpowers/**"
 
 jobs:
   test:
@@ -20,7 +30,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
         run: uv sync --extra all

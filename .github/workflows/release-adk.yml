@@ -3,7 +3,7 @@ name: Release ADK
 on:
   push:
     tags:
-      - "adk-v*"
+      - "adk-v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   contents: read

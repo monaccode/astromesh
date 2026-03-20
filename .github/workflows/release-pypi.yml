@@ -3,7 +3,7 @@ name: Release PyPI
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   contents: read
@@ -87,6 +87,7 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist-core
+          skip-existing: true
 
   smoke-test-testpypi:
     needs: publish-testpypi
@@ -140,3 +141,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist-core
+          skip-existing: true

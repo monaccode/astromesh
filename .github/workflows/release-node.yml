@@ -2,7 +2,7 @@ name: Release Astromesh Node
 
 on:
   push:
-    tags: ["node-v*"]
+    tags: ["node-v[0-9]+.[0-9]+.[0-9]+"]
 
 permissions:
   contents: write
