@@ -19,6 +19,8 @@
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release-orbit.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-orbit.yml/badge.svg" alt="Orbit Publish"></a>
   <a href="https://pypi.org/project/astromesh-orbit/"><img src="https://img.shields.io/pypi/v/astromesh-orbit?label=Orbit%20PyPI" alt="Orbit PyPI"></a>
   <a href="https://test.pypi.org/project/astromesh-orbit/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-orbit%2Fjson&query=%24.info.version&label=Orbit%20TestPyPI" alt="Orbit TestPyPI"></a>
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-node.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-node.yml/badge.svg" alt="Node Release"></a>
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-cli.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-cli.yml/badge.svg" alt="CLI Release"></a>
   <a href="https://github.com/monaccode/astromesh/blob/develop/LICENSE"><img src="https://img.shields.io/github/license/monaccode/astromesh" alt="License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+"></a>
 </p>
