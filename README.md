@@ -384,6 +384,7 @@ Astromesh is an ecosystem of five components covering the full agent lifecycle:
 |-----------|-------------|---------|--------|
 | **Core Runtime** | Multi-model agent engine with 6 orchestration patterns | `astromesh` | v0.18.0 |
 | **ADK** | Python-first agent SDK with decorators and CLI | `astromesh-adk` | v0.1.5 |
+| **CLI** | CLI tool for managing nodes and clusters | `astromesh-cli` | v0.1.0 |
 | **Node** | Cross-platform system installer and daemon | `astromesh-node` | v0.1.0 |
 | **Orbit** | Cloud-native IaC deployment with Terraform | `astromesh-orbit` | v0.1.0 |
 | **Cloud** | Managed multi-tenant platform with Studio UI | `astromesh-cloud` | v0.1.0 |
@@ -511,6 +512,10 @@ astromesh-orbit/                # Cloud deployment tool (pip install astromesh-o
  │   ├── terraform/             #   Terraform runner + state backend
  │   ├── wizard/                #   Interactive setup + presets
  │   └── providers/gcp/         #   GCP templates
+ └── tests/
+
+astromesh-cli/                  # Astromesh CLI — standalone CLI tool for managing nodes and clusters
+ ├── astromesh_cli/
  └── tests/
 
 astromesh-node/                 # Astromesh Node — daemon, CLI, and packaging (pip install astromesh-node)

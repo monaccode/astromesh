@@ -48,3 +48,21 @@ jobs:
         run: |
           uv sync --extra test
           uv run pytest -v
+
+  test-cli:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+      - name: Run tests
+        working-directory: astromesh-cli
+        run: |
+          uv sync --extra test
+          uv run pytest -v

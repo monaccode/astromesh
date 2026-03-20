@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (CLI)
+- **Astromesh CLI v0.1.0** (`astromesh-cli/`) — extracted from astromesh-node as standalone CLI tool for managing nodes and clusters
+  - 14 daemon-client commands (status, doctor, agents, providers, mesh, peers, services, run, ask, traces, metrics, cost, tools, dev)
+  - Scaffolding tool (`new`) for agents, workflows, and tools
+  - Plugin discovery system (`astromeshctl.plugins` entry points)
+  - HTTP client configurable via `ASTROMESH_DAEMON_URL` env var
+
+### Changed (Node)
+- **BREAKING**: `astromeshctl` binary removed from astromesh-node — install via `astromesh-cli` package
+- Node now registers `init`, `validate`, `config` as a plugin into `astromeshctl`
+- Added `astromesh-cli>=0.1.0` as dependency for transition
+
 ---
 
 ## [node-v0.1.0] - 2026-03-20
