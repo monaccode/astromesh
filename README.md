@@ -380,16 +380,16 @@ Includes:
 
 ## Ecosystem
 
-Astromesh is an ecosystem of five components covering the full agent lifecycle:
+Astromesh is an ecosystem of six components covering the full agent lifecycle:
 
 | Component | Description | Package | Status |
 |-----------|-------------|---------|--------|
-| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns | `astromesh` | v0.18.0 |
+| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns | `astromesh` | v0.19.0 |
 | **ADK** | Python-first agent SDK with decorators and CLI | `astromesh-adk` | v0.1.5 |
 | **CLI** | CLI tool for managing nodes and clusters | `astromesh-cli` | v0.1.0 |
 | **Node** | Cross-platform system installer and daemon | `astromesh-node` | v0.1.0 |
+| **Forge** | Visual agent builder with wizard, canvas, and templates | `astromesh-forge` | v0.1.0 |
 | **Orbit** | Cloud-native IaC deployment with Terraform | `astromesh-orbit` | v0.1.0 |
-| **Cloud** | Managed multi-tenant platform with Studio UI | `astromesh-cloud` | v0.1.0 |
 
 ---
 

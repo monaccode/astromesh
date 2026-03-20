@@ -33,11 +33,25 @@ const versions = [
     accent: '#8b5cf6',
   },
   {
-    label: 'Cloud',
-    version: readVersion('../../../astromesh-cloud/api/pyproject.toml'),
-    prefix: 'cloud-v',
-    href: (v: string) => `https://github.com/monaccode/astromesh/releases/tag/cloud-v${v}`,
-    accent: '#3fb950',
+    label: 'CLI',
+    version: readVersion('../../../astromesh-cli/pyproject.toml'),
+    prefix: 'cli-v',
+    href: (v: string) => `https://github.com/monaccode/astromesh/releases/tag/cli-v${v}`,
+    accent: '#f59e0b',
+  },
+  {
+    label: 'Node',
+    version: readVersion('../../../astromesh-node/pyproject.toml'),
+    prefix: 'node-v',
+    href: (v: string) => `https://github.com/monaccode/astromesh/releases/tag/node-v${v}`,
+    accent: '#10b981',
+  },
+  {
+    label: 'Orbit',
+    version: readVersion('../../../astromesh-orbit/pyproject.toml'),
+    prefix: 'orbit-v',
+    href: (v: string) => `https://github.com/monaccode/astromesh/releases/tag/orbit-v${v}`,
+    accent: '#ef4444',
   },
 ];
 
