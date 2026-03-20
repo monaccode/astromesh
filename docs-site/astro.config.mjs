@@ -25,6 +25,7 @@ export default defineConfig({
           label: 'Getting Started',
           items: [
             { label: 'What is Astromesh?', slug: 'getting-started/what-is-astromesh' },
+            { label: 'The Ecosystem', slug: 'getting-started/ecosystem' },
             { label: 'Installation', slug: 'getting-started/installation' },
             { label: 'Quick Start', slug: 'getting-started/quickstart' },
             { label: 'Your First Agent', slug: 'getting-started/first-agent' },

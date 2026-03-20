@@ -146,6 +146,10 @@ Astromesh supports multiple deployment models depending on your scale and operat
 | **Helm / Kubernetes** | Cloud-native orchestrated deployment | [View guide →](/astromesh/deployment/helm-kubernetes/) |
 | **ArgoCD / GitOps** | GitOps-driven continuous deployment | [View guide →](/astromesh/deployment/argocd-gitops/) |
 
+## The Broader Ecosystem
+
+The core runtime is one part of a larger ecosystem. Astromesh includes a Python SDK (**ADK**), a cross-platform system installer (**Node**), cloud infrastructure provisioning (**Orbit**), and a managed multi-tenant platform (**Cloud**). See [The Ecosystem](/astromesh/getting-started/ecosystem/) for how they all fit together.
+
 ## Next Steps
 
 Ready to get started? Head to the [Installation](/astromesh/getting-started/installation/) guide to set up Astromesh on your machine.

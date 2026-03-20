@@ -376,6 +376,20 @@ Includes:
 
 ---
 
+## Ecosystem
+
+Astromesh is an ecosystem of five components covering the full agent lifecycle:
+
+| Component | Description | Package | Status |
+|-----------|-------------|---------|--------|
+| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns | `astromesh` | v0.18.0 |
+| **ADK** | Python-first agent SDK with decorators and CLI | `astromesh-adk` | v0.1.5 |
+| **Node** | Cross-platform system installer and daemon | `astromesh-node` | v0.1.0 |
+| **Orbit** | Cloud-native IaC deployment with Terraform | `astromesh-orbit` | v0.1.0 |
+| **Cloud** | Managed multi-tenant platform with Studio UI | `astromesh-cloud` | v0.1.0 |
+
+---
+
 ## Astromesh ADK
 
 The **Agent Development Kit** is a Python SDK for building, testing, and deploying agents on Astromesh. It provides a high-level API that wraps the runtime, so you can define agents in Python code instead of YAML.
@@ -403,6 +417,26 @@ response = agent.run("What's the weather in Buenos Aires?")
 - **Compatible** — Generates standard Astromesh agent YAML under the hood
 
 Docs: [`docs/ADK_QUICKSTART.md`](docs/ADK_QUICKSTART.md) | [`docs/ADK_PENDING.md`](docs/ADK_PENDING.md)
+
+---
+
+## Astromesh Node
+
+Cross-platform system installer and daemon — deploy Astromesh as a **native system service** on Linux, macOS, and Windows.
+
+```bash
+# Debian/Ubuntu
+sudo dpkg -i astromesh-node-0.1.0-amd64.deb
+sudo astromeshctl init --profile full
+sudo systemctl start astromeshd
+```
+
+- **Cross-platform** — `.deb` (Debian/Ubuntu), `.rpm` (RHEL/Fedora), `.tar.gz` (macOS), `.zip` (Windows)
+- **System service** — systemd, launchd, or Windows Service with auto-restart
+- **CLI management** — `astromeshctl` with 17 commands (status, doctor, agents, mesh, etc.)
+- **7 profiles** — full, gateway, worker, inference, mesh-gateway, mesh-worker, mesh-inference
+
+Docs: [Node Introduction](https://monaccode.github.io/astromesh/node/introduction/) | [Installation Guides](https://monaccode.github.io/astromesh/node/quick-start/)
 
 ---
 
