@@ -16,7 +16,7 @@ Rename "Astromesh OS" to "Astromesh Node" and extract it as a standalone subproj
 | Architecture | Platform Adapters (ServiceManagerProtocol) | Clean abstraction, consistent UX, follows ProviderProtocol pattern |
 | Distribution | GitHub Releases artifacts (no APT/YUM/Homebrew repos) | Direct download from Git releases |
 | Binary names | Keep `astromeshd` and `astromeshctl` | Already established identity, "node" is the project name not the command |
-| Profiles | Same 4 profiles on all platforms (full, gateway, worker, inference) | No platform restrictions |
+| Profiles | All 7 profiles on all platforms (full, gateway, worker, inference, mesh-gateway, mesh-worker, mesh-inference) | No platform restrictions |
 | Docs | New top-level section in docs-site | Consistent with ADK/Cloud/Orbit sections |
 | Implementation | All 4 platforms at once | User preference, design supports it cleanly |
 
@@ -36,7 +36,7 @@ astromesh-node/
 │       ├── cli/
 │       │   ├── __init__.py
 │       │   ├── main.py                 # Typer app (astromeshctl)
-│       │   └── commands/               # 19 existing command modules
+│       │   └── commands/               # 17 existing command modules
 │       ├── platform/
 │       │   ├── __init__.py
 │       │   ├── base.py                 # ServiceManagerProtocol
@@ -64,7 +64,7 @@ astromesh-node/
 │   │   └── astromeshd-service.py       # win32serviceutil wrapper
 │   └── scripts/                        # pre/post install scripts
 ├── config/
-│   └── profiles/                       # full, gateway, worker, inference
+│   └── profiles/                       # full, gateway, worker, inference, mesh-gateway, mesh-worker, mesh-inference
 └── tests/
 ```
 
@@ -89,7 +89,7 @@ class ServiceManagerProtocol(Protocol):
 | Method | systemd (Linux) | launchd (macOS) | Windows Service |
 |--------|----------------|-----------------|-----------------|
 | `notify_ready` | `sd_notify("READY=1")` | Implicit (launchd assumes ready) | `ReportServiceStatus(RUNNING)` |
-| `notify_reload` | `sd_notify("RELOADING=1")` | No-op | No-op |
+| `notify_reload` | `sd_notify("RELOADING=1")` | No-op (SIGHUP handled via `register_reload_handler`) | No-op |
 | `notify_stopping` | `sd_notify("STOPPING=1")` | No-op | `ReportServiceStatus(STOP_PENDING)` |
 | `install_service` | Copy .service + `systemctl enable` | Copy .plist + `launchctl load` | `win32serviceutil.InstallService` |
 | `uninstall_service` | `systemctl disable` + remove .service | `launchctl unload` + remove .plist | `win32serviceutil.RemoveService` |
@@ -99,14 +99,20 @@ class ServiceManagerProtocol(Protocol):
 ### Auto-detection (`detect.py`)
 
 ```python
-def get_service_manager() -> ServiceManagerProtocol:
+def get_service_manager(foreground: bool = False) -> ServiceManagerProtocol:
+    if foreground:
+        return ForegroundManager()  # No-op adapter for dev/Docker/foreground mode
     if sys.platform == "linux":
         return SystemdManager()
     elif sys.platform == "darwin":
         return LaunchdManager()
     elif sys.platform == "win32":
         return WindowsServiceManager()
+    else:
+        raise UnsupportedPlatformError(f"Platform {sys.platform} is not supported")
 ```
+
+A `ForegroundManager` no-op adapter is included for dev mode, Docker containers, and `astromeshd --foreground` usage.
 
 ## 3. InstallerProtocol
 
@@ -121,7 +127,7 @@ class InstallerProtocol(Protocol):
     def bin_dir(self) -> Path: ...
     async def install(self, profile: str) -> None: ...
     async def uninstall(self, keep_data: bool = True) -> None: ...
-    async def verify(self) -> list[str]: ...
+    async def verify(self) -> list[str]: ...  # Returns list of problems; empty = all OK
 ```
 
 ### Filesystem layout per platform
@@ -159,7 +165,7 @@ Internally detects platform, runs the corresponding installer, copies configs, c
 | `astromesh-node-{ver}-amd64.rpm` | RHEL/Fedora/CentOS x64 | .rpm (nfpm) |
 | `astromesh-node-{ver}-arm64.deb` | Debian/Ubuntu ARM64 | .deb (nfpm) |
 | `astromesh-node-{ver}-arm64.rpm` | RHEL/Fedora ARM64 | .rpm (nfpm) |
-| `astromesh-node-{ver}-macos.tar.gz` | macOS (universal) | Tarball + install.sh |
+| `astromesh-node-{ver}-macos.tar.gz` | macOS (Python-only, works on Intel + Apple Silicon) | Tarball + install.sh |
 | `astromesh-node-{ver}-windows.zip` | Windows x64 | Zip + install.ps1 |
 
 All artifacts published to GitHub Releases, downloaded directly.
@@ -321,9 +327,64 @@ docs-site/src/content/docs/node/
 
 All occurrences of "astromesh-os" / "Astromesh OS" in the codebase renamed to "astromesh-node" / "Astromesh Node". Historical design docs in `docs/plans/2026-03-09-astromesh-os-*` kept as-is for reference.
 
+## 8. Upgrade Path for Existing Installations
+
+Existing Linux installations (Astromesh OS .deb) need a migration path:
+
+1. The new `astromesh-node` .deb package declares `Replaces: astromesh-os` and `Conflicts: astromesh-os` in nfpm config
+2. `dpkg -i astromesh-node-{ver}.deb` automatically handles the transition
+3. Config files in `/etc/astromesh/` are preserved (same paths)
+4. systemd service name stays `astromeshd.service` (no change)
+5. `astromeshctl doctor` gains a migration check that warns about stale Astromesh OS artifacts
+
+This means existing users can upgrade in-place with no manual migration steps.
+
+## 9. Subproject pyproject.toml
+
+```toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "astromesh-node"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "astromesh>=0.18.0",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+systemd = ["sdnotify>=0.3.0"]
+windows = ["pywin32>=306"]
+
+[project.scripts]
+astromeshd = "astromesh_node.daemon.core:main"
+astromeshctl = "astromesh_node.cli.main:app"
+```
+
+Platform-specific dependencies (`sdnotify`, `pywin32`) are optional extras. The packaging scripts include the appropriate extra for each platform.
+
+## 10. Windows Entry Points
+
+On Windows, `astromeshd` and `astromeshctl` are installed as console_scripts via pip/uv, which automatically generates `.exe` wrappers in the venv's `Scripts/` directory. The `install.ps1` script adds this directory to the system PATH. When running as a Windows Service, the `astromeshd-service.py` wrapper in `packaging/windows/` is registered via `win32serviceutil` and invokes `daemon.core:main` internally.
+
+## Non-Goals
+
+The following are explicitly out of scope for this spec:
+
+- APT/YUM/Homebrew/winget package repositories (distribution is GitHub Releases only)
+- ARM64 builds for macOS or Windows
+- Rust native extensions in the macOS/Windows packages (Python fallback is used; Rust extensions remain Linux-only for now)
+- GUI installer for any platform
+- Auto-update mechanism
+
 ## Testing Strategy
 
 - **Unit tests**: Each platform adapter mocked (no real systemd/launchd/win32 in CI)
-- **Integration tests**: `astromeshctl install --profile full --dry-run` validates the full flow without side effects
+- **Integration tests**: `astromeshctl install --profile full --dry-run` validates the full flow without side effects. The `--dry-run` flag is a CLI option that routes to `InstallerProtocol.install()` with a dry-run mode that logs actions without executing them.
 - **CI matrix**: Test on ubuntu-latest, macos-latest, windows-latest
 - **Package tests**: Build artifacts in CI, verify they contain expected files
+- **Log management**: Linux uses journald (systemd native); macOS uses unified logging (`os_log`); Windows uses Windows Event Log. No custom log rotation needed — each platform's native logging handles it.
