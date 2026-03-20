@@ -31,6 +31,8 @@ class AgentRuntime:
     def __init__(self, config_dir="./config", service_manager=None, peer_client=None):
         self._config_dir = Path(config_dir)
         self._agents: dict[str, "Agent"] = {}
+        self._agent_status: dict[str, str] = {}
+        self._agent_configs: dict[str, dict] = {}
         self._prompt_engine = PromptEngine()
         self.service_manager = service_manager
         self.peer_client = peer_client
@@ -48,7 +50,10 @@ class AgentRuntime:
         self._detect_circular_refs(configs)
         for config in configs:
             agent = self._build_agent(config)
+            name = config["metadata"]["name"]
             self._agents[agent.name] = agent
+            self._agent_configs[name] = config
+            self._agent_status[name] = "deployed"
 
     def _detect_circular_refs(self, configs: list[dict]):
         """Detect circular agent-as-tool references. Raises ValueError if cycle found."""
@@ -156,26 +161,75 @@ class AgentRuntime:
         return await agent.run(query, session_id, context, parent_trace_id=parent_trace_id)
 
     def list_agents(self):
-        return [
-            {"name": a.name, "version": a.version, "namespace": a.namespace}
-            for a in self._agents.values()
-        ]
+        result = []
+        seen = set()
+        # Include deployed agents from _agents
+        for a in self._agents.values():
+            result.append({
+                "name": a.name,
+                "version": a.version,
+                "namespace": a.namespace,
+                "status": self._agent_status.get(a.name, "deployed"),
+            })
+            seen.add(a.name)
+        # Include non-deployed agents from _agent_configs
+        for name, config in self._agent_configs.items():
+            if name not in seen:
+                metadata = config.get("metadata", {})
+                result.append({
+                    "name": name,
+                    "version": metadata.get("version", "0.1.0"),
+                    "namespace": metadata.get("namespace", "default"),
+                    "status": self._agent_status.get(name, "draft"),
+                })
+        return result
 
     async def register_agent(self, config: dict) -> None:
         """Register an agent dynamically from a config dict (same schema as YAML).
-        If an agent with the same name exists, it is overwritten (upsert semantics
-        required by reconciliation loop and re-deploy flows)."""
-        name = config.get("metadata", {}).get("name") or config.get("spec", {}).get("identity", {}).get("name")
+        Stores the config and sets status to 'draft' without building the agent.
+        The agent must be explicitly deployed via deploy_agent()."""
+        name = (
+            config.get("metadata", {}).get("name")
+            or config.get("spec", {}).get("identity", {}).get("name")
+        )
         if not name:
             raise ValueError("Agent config must include metadata.name or spec.identity.name")
+        self._agent_configs[name] = config
+        self._agent_status[name] = "draft"
+
+    async def deploy_agent(self, name: str) -> None:
+        """Build and deploy a registered agent, making it available for execution."""
+        if name not in self._agent_configs:
+            raise ValueError(f"Agent '{name}' not found")
+        config = self._agent_configs[name]
         agent = self._build_agent(config)
         self._agents[agent.name] = agent
+        self._agent_status[name] = "deployed"
+
+    def pause_agent(self, name: str) -> None:
+        """Pause a deployed agent, removing it from active execution."""
+        if self._agent_status.get(name) != "deployed":
+            raise ValueError(f"Agent '{name}' is not deployed")
+        if name in self._agents:
+            del self._agents[name]
+        self._agent_status[name] = "paused"
+
+    async def update_agent(self, name: str, config: dict) -> None:
+        """Update an agent's config. Pauses if deployed, resets status to draft."""
+        if name not in self._agent_configs:
+            raise ValueError(f"Agent '{name}' not found")
+        if self._agent_status.get(name) == "deployed":
+            self.pause_agent(name)
+        self._agent_configs[name] = config
+        self._agent_status[name] = "draft"
 
     def unregister_agent(self, name: str) -> None:
         """Remove a dynamically registered agent."""
-        if name not in self._agents:
+        if name not in self._agents and name not in self._agent_configs:
             raise ValueError(f"Agent '{name}' not found")
-        del self._agents[name]
+        self._agents.pop(name, None)
+        self._agent_configs.pop(name, None)
+        self._agent_status.pop(name, None)
 
 
 class Agent:
