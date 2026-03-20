@@ -1,0 +1,97 @@
+name: Release Astromesh Node
+
+on:
+  push:
+    tags: ["node-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract and validate version
+        id: version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/node-v}"
+          PYPROJECT_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('astromesh-node/pyproject.toml','rb'))['project']['version'])")
+          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) != pyproject.toml ($PYPROJECT_VERSION)"
+            exit 1
+          fi
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+  build-linux:
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64]
+        format: [deb, rpm]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install nfpm
+        run: |
+          echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+          sudo apt update && sudo apt install -y nfpm
+      - name: Build package
+        working-directory: astromesh-node
+        run: bash packaging/build-${{ matrix.format }}.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: astromesh-node-${{ matrix.arch }}.${{ matrix.format }}
+          path: astromesh-node/dist/*.${{ matrix.format }}
+
+  build-macos:
+    needs: validate-tag
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build tarball
+        working-directory: astromesh-node
+        run: bash packaging/build-macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: astromesh-node-macos
+          path: astromesh-node/dist/*.tar.gz
+
+  build-windows:
+    needs: validate-tag
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build zip
+        working-directory: astromesh-node
+        run: powershell packaging/build-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: astromesh-node-windows
+          path: astromesh-node/dist/*.zip
+
+  release:
+    needs: [validate-tag, build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: node-v${{ needs.validate-tag.outputs.version }}
+          name: Astromesh Node v${{ needs.validate-tag.outputs.version }}
+          files: artifacts/**/*
+          generate_release_notes: true

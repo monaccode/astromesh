@@ -31,26 +31,20 @@ jobs:
       - name: Tests
         run: uv run pytest -v
 
-  build-deb-test:
-    runs-on: ubuntu-latest
-
+  test-node:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Install nfpm
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+      - name: Run tests
+        working-directory: astromesh-node
         run: |
-          echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
-          sudo apt-get update
-          sudo apt-get install -y nfpm
-
-      - name: Build .deb package
-        run: bash packaging/build-deb.sh
-
-      - name: Verify .deb package
-        run: dpkg-deb --info dist/astromesh_*.deb
+          uv sync --extra test
+          uv run pytest -v
