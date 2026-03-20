@@ -478,6 +478,12 @@ astromesh-orbit/                # Cloud deployment tool (pip install astromesh-o
  │   ├── wizard/                #   Interactive setup + presets
  │   └── providers/gcp/         #   GCP templates
  └── tests/
+
+astromesh-node/                 # Astromesh Node — daemon, CLI, and packaging (pip install astromesh-node)
+ ├── daemon/                    #   astromeshd process (systemd / launchd / Windows Service)
+ ├── cli/                       #   astromeshctl command-line tool
+ ├── packaging/                 #   APT/RPM/Homebrew packaging configs
+ └── tests/
 ```
 
 Configuration:

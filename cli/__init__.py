@@ -1,1 +1,0 @@
-"""Astromesh OS CLI — astromeshctl."""

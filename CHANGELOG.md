@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING**: Renamed "Astromesh OS" to "Astromesh Node" — daemon, CLI, and packaging extracted to `astromesh-node/` subproject
+- Daemon (`astromeshd`) now supports Linux (systemd), macOS (launchd), and Windows (Windows Service)
+- CLI (`astromeshctl`) imports updated — install via `astromesh-node` package
+
 ---
 
 ## [v0.18.0] + [orbit-v0.1.0] - 2026-03-18

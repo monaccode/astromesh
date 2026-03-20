@@ -30,11 +30,9 @@ observability = [
     "prometheus-client>=0.21.0",
 ]
 mcp = ["mcp>=1.0.0"]
-cli = ["typer>=0.12.0", "rich>=13.0.0"]
-daemon = ["sdnotify>=0.3.0"]
 mesh = ["psutil>=5.9.0"]
 all = [
-    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,cli,daemon,mesh]",
+    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh]",
 ]
 [dependency-groups]
 dev = [
@@ -49,10 +47,6 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[project.scripts]
-astromeshd = "daemon.astromeshd:main"
-astromeshctl = "cli.main:app"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
