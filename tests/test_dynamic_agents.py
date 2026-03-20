@@ -44,15 +44,13 @@ def runtime(tmp_path):
     return AgentRuntime(config_dir=str(tmp_path))
 
 
-async def test_register_agent_adds_to_agents(runtime):
+async def test_register_agent_adds_to_configs(runtime):
     config = _make_config("dynamic-agent")
     await runtime.register_agent(config)
 
-    assert "dynamic-agent" in runtime._agents
-
-    listed = runtime.list_agents()
-    names = [a["name"] for a in listed]
-    assert "dynamic-agent" in names
+    # register_agent stores in _agent_configs with status 'draft' (not in _agents)
+    assert "dynamic-agent" in runtime._agent_configs
+    assert runtime._agent_status["dynamic-agent"] == "draft"
 
 
 async def test_register_agent_upsert_overwrites(runtime):
@@ -60,27 +58,21 @@ async def test_register_agent_upsert_overwrites(runtime):
     config_v2 = _make_config("my-agent", version="0.2.0")
 
     await runtime.register_agent(config_v1)
-    assert runtime._agents["my-agent"].version == "0.1.0"
+    assert runtime._agent_configs["my-agent"]["metadata"]["version"] == "0.1.0"
 
     # Second register must not raise — upsert semantics
     await runtime.register_agent(config_v2)
-    assert runtime._agents["my-agent"].version == "0.2.0"
-
-    # Still only one entry with that name
-    listed_names = [a["name"] for a in runtime.list_agents()]
-    assert listed_names.count("my-agent") == 1
+    assert runtime._agent_configs["my-agent"]["metadata"]["version"] == "0.2.0"
 
 
 async def test_unregister_agent_removes(runtime):
     config = _make_config("to-remove")
     await runtime.register_agent(config)
-    assert "to-remove" in runtime._agents
+    assert "to-remove" in runtime._agent_configs
 
     runtime.unregister_agent("to-remove")
-    assert "to-remove" not in runtime._agents
-
-    listed_names = [a["name"] for a in runtime.list_agents()]
-    assert "to-remove" not in listed_names
+    assert "to-remove" not in runtime._agent_configs
+    assert "to-remove" not in runtime._agent_status
 
 
 async def test_unregister_agent_not_found_raises(runtime):

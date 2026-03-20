@@ -1,6 +1,5 @@
 """Tests for WindowsInstaller."""
 
-from pathlib import PurePosixPath, PureWindowsPath
 from unittest.mock import patch
 
 from astromesh_node.installer.base import InstallerProtocol
@@ -16,8 +15,10 @@ def test_config_dir():
         mock_os.environ = {"ProgramData": "C:\\ProgramData"}
         installer = WindowsInstaller()
         result = installer.config_dir()
-        # Compare parts to be platform-agnostic (PosixPath on Linux, WindowsPath on Windows)
-        assert result.parts[-3:] == ("ProgramData", "Astromesh", "config")
+        # On Linux, backslashes in "C:\ProgramData" are NOT path separators,
+        # so Path treats it as a single component. Compare last 2 parts only.
+        assert result.parts[-2:] == ("Astromesh", "config")
+        assert "ProgramData" in str(result)
 
 
 def test_bin_dir():
@@ -25,4 +26,5 @@ def test_bin_dir():
         mock_os.environ = {"ProgramFiles": "C:\\Program Files"}
         installer = WindowsInstaller()
         result = installer.bin_dir()
-        assert result.parts[-3:] == ("Program Files", "Astromesh", "venv")
+        assert result.parts[-2:] == ("Astromesh", "venv")
+        assert "Program Files" in str(result)
