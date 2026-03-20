@@ -1,0 +1,99 @@
+---
+title: "Deployment"
+description: "How to deploy and serve Astromesh Forge in embedded and standalone modes."
+---
+
+## Deploy Targets
+
+When you deploy an agent from Forge, you choose one of three targets:
+
+| Target | Description | Status |
+|--------|-------------|--------|
+| **Local** | The Astromesh node Forge is currently connected to. | Available |
+| **Remote Node** | Any reachable Astromesh node on the network. Specify the node URL. | Available |
+| **Nexus** | Managed cloud deployment with multi-tenancy and billing. | Coming soon |
+
+## Serving Forge
+
+Forge itself is a static SPA (single-page application). It can be served in two modes.
+
+### Embedded Mode
+
+In embedded mode, the Astromesh node serves Forge's static files directly.
+
+**Setup:**
+
+1. Build the Forge SPA:
+   ```bash
+   cd astromesh-forge
+   npm run build
+   ```
+
+2. Copy the build output to the node's static directory:
+   ```bash
+   cp -r dist/* ../astromesh/static/forge/
+   ```
+
+3. Start the Astromesh node:
+   ```bash
+   uv run uvicorn astromesh.api.main:app --reload
+   ```
+
+4. Access Forge at `http://localhost:8000/forge`.
+
+No URL configuration is needed in embedded mode — Forge uses relative paths (`/v1/agents`, `/v1/tools`, etc.) to communicate with the node API.
+
+Embedded mode can be enabled or disabled in the node configuration:
+
+```yaml
+# config/runtime.yaml
+services:
+  forge: true  # or false to disable
+```
+
+### Standalone Mode
+
+In standalone mode, Forge runs as its own development or preview server, separate from the Astromesh node.
+
+**Option 1: npx**
+
+```bash
+npx astromesh-forge --node http://localhost:8000
+```
+
+**Option 2: Environment variable**
+
+```bash
+VITE_ASTROMESH_URL=http://localhost:8000 npx astromesh-forge
+```
+
+**Option 3: Build and host**
+
+Build the static files and serve them from any HTTP server (Nginx, Caddy, S3, etc.):
+
+```bash
+cd astromesh-forge
+VITE_ASTROMESH_URL=http://your-node:8000 npm run build
+# Serve the dist/ directory with your preferred HTTP server
+```
+
+### CORS Configuration
+
+When running Forge in standalone mode, the Astromesh node must allow CORS requests from Forge's origin. Add the origin to `config/runtime.yaml`:
+
+```yaml
+cors_origins:
+  - "http://localhost:5173"   # Vite dev server default
+  - "https://forge.example.com"  # Production Forge host
+```
+
+## Connection Settings
+
+In standalone mode, Forge provides an in-app connection settings dialog where you can update the node URL without restarting. This is accessible from the settings icon in the top toolbar.
+
+The connection URL can be set via (in order of precedence):
+
+1. In-app settings dialog (stored in browser localStorage).
+2. `--node` CLI flag at startup.
+3. `VITE_ASTROMESH_URL` environment variable at build time.
+4. Default: `http://localhost:8000`.

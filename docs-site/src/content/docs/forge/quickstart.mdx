@@ -1,0 +1,81 @@
+---
+title: "Quick Start"
+description: "Get up and running with Astromesh Forge in minutes."
+---
+
+## Prerequisites
+
+- An Astromesh node running locally or on a reachable host.
+- Python 3.12+ with `uv` installed (for the node).
+
+## 1. Start the Astromesh Node
+
+If you don't already have a node running, start one:
+
+```bash
+uv run uvicorn astromesh.api.main:app --reload
+```
+
+The API will be available at `http://localhost:8000`.
+
+## 2. Access Forge
+
+### Embedded Mode
+
+If your node has Forge enabled (the default when static files are present), open your browser and navigate to:
+
+```
+http://localhost:8000/forge
+```
+
+### Standalone Mode
+
+Alternatively, run Forge as a standalone application:
+
+```bash
+npx astromesh-forge --node http://localhost:8000
+```
+
+This starts a local Vite preview server. Forge will connect to the specified node.
+
+## 3. Create Your First Agent
+
+### Option A: Create from Scratch
+
+1. On the Forge home screen, click **Create from Scratch**.
+2. The 7-step wizard opens. Fill in each step:
+   - **Identity** — Give your agent a name and description.
+   - **Model** — Select a primary provider and model.
+   - **Tools** — Drag tools from the available list.
+   - **Orchestration** — Pick a pattern (e.g., `react`).
+   - **Settings** — Configure memory and guardrails.
+   - **Prompts** — Write your system prompt.
+   - **Review & Deploy** — Preview the generated YAML and deploy.
+3. Click **Deploy** to send the agent to the node.
+
+### Option B: Start from a Template
+
+1. On the Forge home screen, click **Start from Template**.
+2. Browse the gallery and select a template that matches your use case (e.g., *Sales Qualifier*, *Support Agent*).
+3. Fill in the template variables (company name, brand voice, etc.).
+4. Optionally customize tools, model, or guardrails in the wizard.
+5. Click **Deploy**.
+
+## 4. Test Your Agent
+
+Once deployed, you can test your agent directly from the Astromesh API:
+
+```bash
+curl -X POST http://localhost:8000/v1/agents/my-agent/run \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Hello, what can you do?"}'
+```
+
+Or use the Forge dashboard to view agent status and manage deployed agents.
+
+## Next Steps
+
+- [Wizard Guide](/astromesh/forge/wizard-guide/) — Detailed walkthrough of each wizard step.
+- [Canvas Guide](/astromesh/forge/canvas-guide/) — Learn to use the visual canvas editor.
+- [Agent Templates](/astromesh/forge/templates/) — Browse all available templates.
+- [Deployment](/astromesh/forge/deployment/) — Configure embedded and standalone modes.

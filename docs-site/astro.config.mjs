@@ -105,14 +105,14 @@ export default defineConfig({
           ],
         },
         {
-          label: 'Astromesh Cloud',
+          label: 'Forge',
           items: [
-            { label: 'Introduction', slug: 'cloud/introduction' },
-            { label: 'Quick Start', slug: 'cloud/quickstart' },
-            { label: 'Studio Guide', slug: 'cloud/studio-guide' },
-            { label: 'Agent Lifecycle', slug: 'cloud/agent-lifecycle' },
-            { label: 'Authentication', slug: 'cloud/authentication' },
-            { label: 'API Reference', slug: 'cloud/api-reference' },
+            { label: 'Introduction', slug: 'forge/introduction' },
+            { label: 'Quick Start', slug: 'forge/quickstart' },
+            { label: 'Wizard Guide', slug: 'forge/wizard-guide' },
+            { label: 'Canvas Guide', slug: 'forge/canvas-guide' },
+            { label: 'Agent Templates', slug: 'forge/templates' },
+            { label: 'Deployment', slug: 'forge/deployment' },
           ],
         },
         {
