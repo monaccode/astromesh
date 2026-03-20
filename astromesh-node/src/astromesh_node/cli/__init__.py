@@ -1,1 +1,1 @@
-"""Astromesh Node CLI — astromeshctl."""
+"""Astromesh Node CLI — local node configuration commands."""

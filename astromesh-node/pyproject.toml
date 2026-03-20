@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
     "astromesh>=0.18.0",
+    "astromesh-cli>=0.1.0",
     "typer>=0.12.0",
     "rich>=13.0.0",
     "pyyaml>=6.0",
@@ -27,9 +28,9 @@ all = ["astromesh-node[systemd,dev,test]"]
 
 [project.scripts]
 astromeshd = "astromesh_node.daemon.core:main"
-astromeshctl = "astromesh_node.cli.main:app"
 
 [project.entry-points."astromeshctl.plugins"]
+node = "astromesh_node.cli.plugin:register"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
