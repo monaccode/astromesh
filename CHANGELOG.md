@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.19.2] - 2026-03-20
+
+### Fixed
+
+- Windows installer tests now use platform-agnostic path comparison (pass on Linux CI)
+- CI workflow ignores doc-only changes (`paths-ignore` for docs/, docs-site/, *.md)
+- PyPI publish no longer fails on re-publish (`skip-existing: true` for TestPyPI and PyPI)
+- All release workflows use strict semver tag patterns (`v[0-9]+.[0-9]+.[0-9]+`)
+
+---
+
 ## [v0.19.1] - 2026-03-20
 
 ### Changed (Docs-site)
