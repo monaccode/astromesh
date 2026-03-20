@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.19.1] - 2026-03-20
+
+### Changed (Docs-site)
+
+- Replaced Cloud with Forge in ecosystem page (table, diagram, decision matrix, next steps)
+- Updated SocialIcons version badges: removed Cloud, added CLI, Node, and Orbit
+- Updated README ecosystem table: Cloud → Forge, Core version → v0.19.0
+- Increased header logo size from 3.2rem to 4.2rem
+
+---
+
 ## [v0.19.0] + [cli-v0.1.0] + [node-v0.1.0] - 2026-03-20
 
 ### Added (Astromesh CLI)
