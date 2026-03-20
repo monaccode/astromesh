@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.19.3] - 2026-03-20
+
+### Fixed
+
+- Removed stale `test_init.py` from root tests (imported deleted `cli` module)
+- Fixed `test_dynamic_agents.py` to match agent lifecycle: `register_agent` stores as draft in `_agent_configs`, not `_agents`
+- Fixed `test_installer_windows.py` path comparisons for cross-platform CI
+
+---
+
 ## [v0.19.2] - 2026-03-20
 
 ### Fixed
