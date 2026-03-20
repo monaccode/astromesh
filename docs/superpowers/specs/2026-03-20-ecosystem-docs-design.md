@@ -13,11 +13,19 @@ Create a central "Ecosystem" page in the docs-site that explains how the 5 Astro
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Audience | Both new users and technical users | Page starts high-level, then goes deep |
-| Location | `getting-started/ecosystem.mdx` | Natural onboarding flow after "What is Astromesh?" |
+| Location | `getting-started/ecosystem.md` | Natural onboarding flow after "What is Astromesh?", `.md` consistent with section |
 | Approach | Narrative page with diagrams and tables | No new Astro components needed, matches existing style |
 | README | Add ecosystem table + Node section | Fill the gap, follow existing pattern |
 
-## 1. New Page: `getting-started/ecosystem.mdx`
+## 1. New Page: `docs-site/src/content/docs/getting-started/ecosystem.md`
+
+**Frontmatter:**
+```yaml
+---
+title: "The Astromesh Ecosystem"
+description: "How the core runtime, ADK, Node, Cloud, and Orbit work together"
+---
+```
 
 **Sidebar position:** After "What is Astromesh?", before "Installation".
 
@@ -106,7 +114,7 @@ In `docs-site/astro.config.mjs`, add the ecosystem page to the Getting Started s
 
 ### 3a. Ecosystem summary table
 
-Add before the existing ADK/Cloud/Orbit sections:
+Add immediately before the `## Astromesh ADK` heading in `README.md`:
 
 ```markdown
 ## Ecosystem
@@ -122,7 +130,7 @@ Add before the existing ADK/Cloud/Orbit sections:
 
 ### 3b. Astromesh Node section
 
-Add a dedicated section following the pattern of the existing ADK/Cloud/Orbit sections:
+Add a dedicated section immediately after the `## Astromesh ADK` section (before `## Astromesh Cloud`), following the same pattern:
 
 ```markdown
 ## Astromesh Node
@@ -143,7 +151,7 @@ sudo systemctl start astromeshd
 
 ## 4. "What is Astromesh?" Page Update
 
-Add a paragraph at the end of `getting-started/what-is-astromesh.md` linking to the ecosystem page:
+Add a paragraph at the end of `docs-site/src/content/docs/getting-started/what-is-astromesh.md` linking to the ecosystem page:
 
 ```markdown
 ## The Broader Ecosystem
@@ -156,3 +164,8 @@ The core runtime is one part of a larger ecosystem. Astromesh includes a Python 
 - No new Astro components (use markdown/mdx tables and code blocks)
 - No changes to the existing ADK/Cloud/Orbit/Node documentation pages
 - No interactive features (just static documentation)
+
+## Notes
+
+- Version numbers in the ecosystem table will go stale. Update them on each release or consider a build-time injection in the future.
+- ASCII diagrams use emoji for decoration. Plain-text alternatives are acceptable if rendering is an issue in some environments.
