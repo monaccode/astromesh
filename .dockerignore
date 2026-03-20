@@ -29,3 +29,9 @@ docs-site/.vite
 node_modules
 tests
 docs
+astromesh-node/tests
+astromesh-cli/tests
+astromesh-node/packaging
+astromesh-adk
+astromesh-orbit
+astromesh-forge

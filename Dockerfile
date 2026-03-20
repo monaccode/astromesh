@@ -6,33 +6,34 @@ WORKDIR /build
 # Install build tools
 RUN pip install --no-cache-dir uv
 
-# Copy project files
-COPY pyproject.toml .
-COPY README.md .
-
-# Keep runtime image lean by default; override with --build-arg ASTROMESH_EXTRAS=all if needed.
-ARG ASTROMESH_EXTRAS="redis,postgres,sqlite,qdrant,observability,mcp,cli,daemon,mesh"
+# Copy project files for dependency resolution
+COPY pyproject.toml README.md ./
+COPY astromesh-node/pyproject.toml astromesh-node/pyproject.toml
+COPY astromesh-cli/pyproject.toml astromesh-cli/pyproject.toml
 
 # Hatchling needs package directories to exist when resolving extras from local project.
-# Create a minimal skeleton so dependency layer remains cacheable before copying full source.
-RUN mkdir -p astromesh daemon cli && \
-    touch astromesh/__init__.py daemon/__init__.py cli/__init__.py
+RUN mkdir -p astromesh && touch astromesh/__init__.py
+RUN mkdir -p astromesh-node/src/astromesh_node && touch astromesh-node/src/astromesh_node/__init__.py
+RUN mkdir -p astromesh-cli/astromesh_cli && touch astromesh-cli/astromesh_cli/__init__.py
 
 # Install third-party dependencies in a cache-friendly layer.
+ARG ASTROMESH_EXTRAS="redis,postgres,sqlite,qdrant,observability,mcp,mesh"
 RUN uv pip install --system ".[${ASTROMESH_EXTRAS}]"
+RUN uv pip install --system ./astromesh-node ./astromesh-cli || true
 
 # Copy source after dependencies so code changes do not invalidate dependency layer.
 COPY astromesh/ astromesh/
-COPY daemon/ daemon/
-COPY cli/ cli/
+COPY astromesh-node/src/astromesh_node/ astromesh-node/src/astromesh_node/
+COPY astromesh-cli/astromesh_cli/ astromesh-cli/astromesh_cli/
 
-# Install local project without re-resolving dependencies.
+# Install local projects without re-resolving dependencies.
 RUN uv pip install --system --no-deps .
+RUN uv pip install --system --no-deps ./astromesh-node ./astromesh-cli
 
 # Stage 2: Runtime image
 FROM python:3.12-slim
 
-LABEL org.opencontainers.image.title="Astromesh OS" \
+LABEL org.opencontainers.image.title="Astromesh" \
       org.opencontainers.image.description="Astromesh Agent Runtime Platform" \
       org.opencontainers.image.source="https://github.com/monaccode/astromesh"
 
@@ -44,8 +45,8 @@ COPY --from=builder /usr/local/bin/astromeshd /usr/local/bin/astromeshctl /usr/l
 
 # Copy application code
 COPY astromesh/ astromesh/
-COPY daemon/ daemon/
-COPY cli/ cli/
+COPY astromesh-node/src/astromesh_node/ astromesh_node/
+COPY astromesh-cli/astromesh_cli/ astromesh_cli/
 
 # Default config (overridden via volume mount)
 COPY config/ /etc/astromesh/
