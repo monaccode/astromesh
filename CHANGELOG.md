@@ -7,17 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added (CLI)
+---
+
+## [v0.19.0] + [cli-v0.1.0] + [node-v0.1.0] - 2026-03-20
+
+### Added (Astromesh CLI)
+
 - **Astromesh CLI v0.1.0** (`astromesh-cli/`) — extracted from astromesh-node as standalone CLI tool for managing nodes and clusters
   - 14 daemon-client commands (status, doctor, agents, providers, mesh, peers, services, run, ask, traces, metrics, cost, tools, dev)
-  - Scaffolding tool (`new`) for agents, workflows, and tools
-  - Plugin discovery system (`astromeshctl.plugins` entry points)
+  - Scaffolding tool (`new`) for agents, workflows, and tools with Jinja2 templates
+  - Plugin discovery system (`astromeshctl.plugins` entry points) — Node and Orbit register as plugins
   - HTTP client configurable via `ASTROMESH_DAEMON_URL` env var
+  - 23 unit tests
+
+### Added (Astromesh Forge)
+
+- **Astromesh Forge** (`astromesh-forge/`) — visual agent builder SPA (Vite + React + TypeScript)
+  - **Dashboard** — agent list with status indicators, quick actions, and search
+  - **7-step Wizard** — identity, model, prompts, orchestration, tools, memory, guardrails
+  - **Canvas** — macro (agent graph) and micro (pipeline) views with drag-and-drop nodes
+  - **Templates gallery** — 15 pre-built agent templates with search, preview, and variable customization
+  - **Deploy modal** — local, remote, and Nexus target selection
+  - **Zustand stores** — connection, agent editor, and agent list state management
+  - **Template engine** — YAML converter and canvas converters
+  - **API client** — TypeScript types and HTTP client for Astromesh API
+  - **Docs-site section** — 6 pages (introduction, quickstart, wizard guide, canvas guide, templates, deployment)
+
+### Added (Core Runtime)
+
+- **Agent status lifecycle** — draft → deployed → paused state machine with transitions
+- **API endpoints** — PUT agent update, POST deploy, POST pause endpoints
+- **Templates endpoint** — GET `/v1/templates/` serving 15 pre-built agent templates
+- **CORS middleware** — configurable CORS for Forge SPA integration
+- **Forge static mount** — serves Forge SPA from `/forge/` path
+
+### Added (Templates)
+
+- **15 pre-built agent templates** for business use cases in `config/templates/`
 
 ### Changed (Node)
+
 - **BREAKING**: `astromeshctl` binary removed from astromesh-node — install via `astromesh-cli` package
 - Node now registers `init`, `validate`, `config` as a plugin into `astromeshctl`
-- Added `astromesh-cli>=0.1.0` as dependency for transition
+- Added `astromesh-cli>=0.1.0` as dependency for transition period
+
+### Changed (Docs-site)
+
+- **Ecosystem page** — new `getting-started/ecosystem.md` with component table, relationship diagram, decision matrix, and deployment layers
+- **README** — ecosystem summary table with all 6 components, dedicated Node section, project structure updated
 
 ---
 
