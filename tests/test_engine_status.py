@@ -72,3 +72,10 @@ async def test_update_agent_config(runtime):
     agents = runtime.list_agents()
     agent = next(a for a in agents if a["name"] == "test-status")
     assert agent["status"] == "draft"  # update resets to draft
+
+
+async def test_unregister_cleans_all_dicts(runtime):
+    await runtime.register_agent(SAMPLE_CONFIG)
+    runtime.unregister_agent("test-status")
+    agents = runtime.list_agents()
+    assert not any(a["name"] == "test-status" for a in agents)
