@@ -1,0 +1,29 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: {{ name }}
+spec:
+  identity:
+    display_name: "{{ display_name }}"
+    description: "{{ description }}"
+  model:
+    primary:
+      provider: {{ provider }}
+      model: {{ model }}
+      temperature: {{ temperature }}
+      max_tokens: {{ max_tokens }}
+    routing:
+      strategy: quality_first
+  prompts:
+    system: |
+      You are {{ display_name }}, a helpful AI assistant.
+  orchestration:
+    pattern: {{ orchestration_pattern }}
+    max_iterations: 10
+    timeout: 30
+{% if tools %}
+  tools:
+{% for tool in tools %}
+    - name: {{ tool }}
+{% endfor %}
+{% endif %}
