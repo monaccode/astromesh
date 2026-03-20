@@ -43,9 +43,9 @@
 /* ── Header logo ─────────────────────────────── */
 [data-sl-header] .site-title img,
 .site-title img {
-  height: 3.2rem;
+  height: 4.2rem;
   width: auto;
-  filter: drop-shadow(0 0 12px rgba(0, 212, 255, 0.25));
+  filter: drop-shadow(0 0 14px rgba(0, 212, 255, 0.3));
   object-fit: contain;
 }
 
