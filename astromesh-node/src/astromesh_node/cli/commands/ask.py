@@ -29,9 +29,7 @@ def _validate_context_path(path: Path) -> bool:
         relative = resolved.relative_to(cwd)
         parts = relative.parts
         if not parts or parts[0] not in ALLOWED_CONTEXT_PREFIXES:
-            print_error(
-                f"Context file must be under config/ or docs/. Got: {relative}"
-            )
+            print_error(f"Context file must be under config/ or docs/. Got: {relative}")
             return False
     except (ValueError, OSError):
         print_error(f"Context file path is not within the project directory: {path}")
@@ -54,9 +52,13 @@ def _validate_context_path(path: Path) -> bool:
 
 def ask_command(
     query: str = typer.Argument(..., help="Question or request for the copilot"),
-    context: Optional[str] = typer.Option(None, "--context", help="Path to a context file (must be under config/ or docs/)"),
+    context: Optional[str] = typer.Option(
+        None, "--context", help="Path to a context file (must be under config/ or docs/)"
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Run in dry-run mode (no side effects)"),
-    session: Optional[str] = typer.Option(None, "--session", help="Session ID for multi-turn conversation"),
+    session: Optional[str] = typer.Option(
+        None, "--session", help="Session ID for multi-turn conversation"
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
 ) -> None:
     """Ask the Astromesh Copilot a question."""

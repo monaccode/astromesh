@@ -240,7 +240,7 @@ spec:
       services: [inference]
 ```
 
-See the [Deployment: Astromesh Node](/astromesh/deployment/astromesh-os/) reference for a full 3-node example.
+See the [Deployment: Astromesh Node](/astromesh/node/introduction/) reference for a full 3-node example.
 
 ## Reload Configuration
 

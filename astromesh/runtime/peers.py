@@ -1,4 +1,4 @@
-"""Peer client for inter-node communication in Astromesh OS."""
+"""Peer client for inter-node communication in Astromesh Node."""
 
 import logging
 

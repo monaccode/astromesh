@@ -56,7 +56,7 @@ def _detect_config_dir(dev: bool) -> tuple[Path, str]:
 def _show_welcome(mode: str) -> None:
     """Step 1: Welcome banner with version and detected mode."""
     banner = (
-        f"[bold cyan]Astromesh OS[/bold cyan] v{__version__}\n"
+        f"[bold cyan]Astromesh Node[/bold cyan] v{__version__}\n"
         f"Interactive Setup Wizard\n\n"
         f"Mode: [bold]{'System (/etc/astromesh/)' if mode == 'system' else 'Dev (./config/)'}[/bold]"
     )
@@ -67,9 +67,7 @@ def _check_existing_config(config_dir: Path) -> bool:
     """Check for existing runtime.yaml; return True if wizard should proceed."""
     runtime_file = config_dir / "runtime.yaml"
     if runtime_file.exists():
-        console.print(
-            f"\n[yellow]Existing configuration found:[/yellow] {runtime_file}"
-        )
+        console.print(f"\n[yellow]Existing configuration found:[/yellow] {runtime_file}")
         if not Confirm.ask("Reconfigure? This will overwrite existing files", default=False):
             console.print("[dim]Aborted.[/dim]")
             return False
@@ -106,9 +104,7 @@ def _select_role(role: str | None, non_interactive: bool) -> str:
     return chosen
 
 
-def _configure_provider(
-    config_dir: Path, non_interactive: bool
-) -> dict | None:
+def _configure_provider(config_dir: Path, non_interactive: bool) -> dict | None:
     """Step 3: Configure primary provider. Returns provider config dict or None."""
     console.print("\n[bold]Step 2:[/bold] Configure Primary Provider\n")
 
@@ -194,9 +190,7 @@ def _build_provider_config(
     }
 
 
-def _configure_mesh(
-    role: str, non_interactive: bool
-) -> dict | None:
+def _configure_mesh(role: str, non_interactive: bool) -> dict | None:
     """Step 4: Mesh configuration. Returns mesh config dict or None."""
     if role == "full":
         return None
@@ -275,7 +269,9 @@ def _write_configs(
 
         # --- .env for API keys ---
         if provider_result.get("api_key") and provider_result.get("env_var"):
-            env_file = config_dir.parent / ".env" if config_dir.name == "config" else config_dir / ".env"
+            env_file = (
+                config_dir.parent / ".env" if config_dir.name == "config" else config_dir / ".env"
+            )
             env_lines: list[str] = []
             if env_file.exists():
                 env_lines = env_file.read_text().splitlines()

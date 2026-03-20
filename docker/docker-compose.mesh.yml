@@ -1,4 +1,4 @@
-# Astromesh OS — Multi-node mesh for local development
+# Astromesh Node — Multi-node mesh for local development
 # Usage: docker compose -f docker/docker-compose.mesh.yml up
 
 services:

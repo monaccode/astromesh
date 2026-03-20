@@ -26,11 +26,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--host", type=str, default=None, help="Bind host")
     parser.add_argument("--port", type=int, default=None, help="Bind port")
     parser.add_argument(
-        "--log-level", type=str, default="info",
+        "--log-level",
+        type=str,
+        default="info",
         choices=["debug", "info", "warning", "error"],
     )
     parser.add_argument(
-        "--foreground", action="store_true",
+        "--foreground",
+        action="store_true",
         help="Run in foreground mode (no init system integration)",
     )
     parser.add_argument("--pid-file", type=str, default=None, help="PID file path")
@@ -145,17 +148,18 @@ async def run_daemon(args: argparse.Namespace) -> None:
         mesh_manager.update_agents([a["name"] for a in runtime.list_agents()])
         await mesh_manager.join()
         elector.elect()
-        logger.info(
-            "Mesh joined, cluster size: %d", len(mesh_manager.cluster_state().nodes)
-        )
+        logger.info("Mesh joined, cluster size: %d", len(mesh_manager.cluster_state().nodes))
 
     runtime.mesh_manager = mesh_manager
 
     await service_mgr.notify_ready()
 
     config = uvicorn.Config(
-        app=app, host=host, port=port,
-        log_level=args.log_level, access_log=True,
+        app=app,
+        host=host,
+        port=port,
+        log_level=args.log_level,
+        access_log=True,
     )
     server = uvicorn.Server(config)
 
@@ -166,12 +170,8 @@ async def run_daemon(args: argparse.Namespace) -> None:
         server.should_exit = True
 
     if sys.platform != "win32":
-        loop.add_signal_handler(
-            signal.SIGTERM, lambda: handle_shutdown(signal.SIGTERM, None)
-        )
-        loop.add_signal_handler(
-            signal.SIGINT, lambda: handle_shutdown(signal.SIGINT, None)
-        )
+        loop.add_signal_handler(signal.SIGTERM, lambda: handle_shutdown(signal.SIGTERM, None))
+        loop.add_signal_handler(signal.SIGINT, lambda: handle_shutdown(signal.SIGINT, None))
     else:
         signal.signal(signal.SIGTERM, handle_shutdown)
         signal.signal(signal.SIGINT, handle_shutdown)

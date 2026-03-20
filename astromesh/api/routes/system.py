@@ -1,4 +1,4 @@
-"""System management endpoints for Astromesh OS."""
+"""System management endpoints for Astromesh Node."""
 
 import os
 import time

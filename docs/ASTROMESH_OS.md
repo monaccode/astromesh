@@ -1,4 +1,4 @@
-# Astromesh OS — The Daemon & CLI
+# Astromesh Node — The Daemon & CLI
 
 **What it does:** Turns Astromesh from a Python library into a system service that starts on boot, stays running, and can be managed from the terminal.
 
@@ -8,7 +8,7 @@
 
 ## The Big Picture
 
-Without Astromesh OS, you run agents like this:
+Without Astromesh Node, you run agents like this:
 
 ```bash
 uv run uvicorn astromesh.api.main:app --reload
@@ -22,7 +22,7 @@ That works for development. But in production you want a proper service that:
 - Reports readiness to systemd
 - Has a CLI tool for quick status checks and diagnostics
 
-Astromesh OS adds two things: the **daemon** (`astromeshd`) and the **CLI** (`astromeshctl`).
+Astromesh Node adds two things: the **daemon** (`astromeshd`) and the **CLI** (`astromeshctl`).
 
 ---
 
@@ -125,7 +125,7 @@ In **dev mode** (`./config/`), everything lives in your project directory.
 
 ## systemd Integration
 
-For production Linux servers, Astromesh OS ships a systemd unit file:
+For production Linux servers, Astromesh Node ships a systemd unit file:
 
 ```ini
 # /etc/systemd/system/astromeshd.service
@@ -165,7 +165,7 @@ The install script creates a dedicated `astromesh` user, sets up the filesystem 
 
 ## API Endpoints
 
-Astromesh OS adds two system endpoints to the API:
+Astromesh Node adds two system endpoints to the API:
 
 | Endpoint | What it returns |
 |----------|----------------|
@@ -195,4 +195,4 @@ curl http://localhost:8000/v1/system/doctor
 
 ## What's Next
 
-Astromesh OS gives you a single node running all services. To split services across multiple nodes, see [Astromesh Nodes](ASTROMESH_NODES.md). To let nodes discover each other automatically, see [Astromesh Maia](ASTROMESH_MAIA.md).
+Astromesh Node gives you a single node running all services. To split services across multiple nodes, see [Astromesh Nodes](ASTROMESH_NODES.md). To let nodes discover each other automatically, see [Astromesh Maia](ASTROMESH_MAIA.md).

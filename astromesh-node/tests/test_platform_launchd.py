@@ -30,7 +30,7 @@ async def test_install_service_calls_launchctl(manager):
         proc.communicate.return_value = (b"", b"")
         proc.returncode = 0
         mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
-        with patch("astromesh_node.platform.launchd.shutil") as mock_shutil:
+        with patch("astromesh_node.platform.launchd.shutil"):
             with patch("astromesh_node.platform.launchd.Path") as mock_path:
                 mock_path.return_value.exists.return_value = True
                 await manager.install_service("full")

@@ -60,6 +60,8 @@ def tools_test_command(
     result = data.get("result", {})
 
     console.print(f"\n[bold]Tool:[/bold] {name}")
-    console.print(f"[bold]Status:[/bold] [{'green' if status == 'ok' else 'red'}]{status}[/{'green' if status == 'ok' else 'red'}]")
+    console.print(
+        f"[bold]Status:[/bold] [{'green' if status == 'ok' else 'red'}]{status}[/{'green' if status == 'ok' else 'red'}]"
+    )
     console.print("[bold]Result:[/bold]")
     console.print_json(json_mod.dumps(result))

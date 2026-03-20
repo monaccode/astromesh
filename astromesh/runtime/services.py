@@ -1,4 +1,4 @@
-"""Service manager for Astromesh OS node roles."""
+"""Service manager for Astromesh Node node roles."""
 
 DEFAULT_SERVICES = (
     "api",

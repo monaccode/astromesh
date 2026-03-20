@@ -1,4 +1,4 @@
-# Astromesh OS — Gossip mesh for local development
+# Astromesh Node — Gossip mesh for local development
 # Usage: docker compose -f docker/docker-compose.gossip.yml up
 
 services:

@@ -9,7 +9,9 @@ from rich.panel import Panel
 
 from astromesh_node.cli.output import console, print_error
 
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent.parent / "cli" / "templates"
+TEMPLATES_DIR = (
+    Path(__file__).resolve().parent.parent.parent.parent.parent.parent / "cli" / "templates"
+)
 
 app = typer.Typer(help="Scaffold new agents, workflows, and tools.")
 

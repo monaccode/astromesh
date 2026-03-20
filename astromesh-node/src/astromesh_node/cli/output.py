@@ -48,7 +48,9 @@ def print_trace_list(traces: list[dict]) -> None:
         duration = f"{t.get('duration_ms', 0)}ms"
         status = t.get("status", "")
         status_style = "green" if status == "ok" else "red"
-        table.add_row(trace_id, agent, started, duration, f"[{status_style}]{status}[/{status_style}]")
+        table.add_row(
+            trace_id, agent, started, duration, f"[{status_style}]{status}[/{status_style}]"
+        )
 
     console.print(table)
 

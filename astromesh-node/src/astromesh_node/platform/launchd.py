@@ -13,7 +13,9 @@ logger = logging.getLogger("astromesh_node.platform.launchd")
 
 PLIST_LABEL = "com.astromesh.daemon"
 PLIST_DST = Path("/Library/LaunchDaemons") / f"{PLIST_LABEL}.plist"
-PLIST_SRC = Path(__file__).parent.parent.parent.parent / "packaging" / "launchd" / f"{PLIST_LABEL}.plist"
+PLIST_SRC = (
+    Path(__file__).parent.parent.parent.parent / "packaging" / "launchd" / f"{PLIST_LABEL}.plist"
+)
 
 
 class LaunchdManager:
@@ -35,7 +37,10 @@ class LaunchdManager:
         if PLIST_SRC.exists():
             shutil.copy2(PLIST_SRC, PLIST_DST)
         proc = await asyncio.create_subprocess_exec(
-            "launchctl", "load", "-w", str(PLIST_DST),
+            "launchctl",
+            "load",
+            "-w",
+            str(PLIST_DST),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -44,7 +49,9 @@ class LaunchdManager:
 
     async def uninstall_service(self) -> None:
         proc = await asyncio.create_subprocess_exec(
-            "launchctl", "unload", str(PLIST_DST),
+            "launchctl",
+            "unload",
+            str(PLIST_DST),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -55,7 +62,9 @@ class LaunchdManager:
 
     async def service_status(self) -> dict[str, Any]:
         proc = await asyncio.create_subprocess_exec(
-            "launchctl", "list", PLIST_LABEL,
+            "launchctl",
+            "list",
+            PLIST_LABEL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

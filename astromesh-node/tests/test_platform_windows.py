@@ -31,7 +31,8 @@ async def test_service_status_returns_dict(manager):
     with patch("astromesh_node.platform.windows.asyncio") as mock_asyncio:
         proc = AsyncMock()
         proc.communicate.return_value = (
-            b"STATE              : 4  RUNNING\nPID                : 5678\n", b""
+            b"STATE              : 4  RUNNING\nPID                : 5678\n",
+            b"",
         )
         proc.returncode = 0
         mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)

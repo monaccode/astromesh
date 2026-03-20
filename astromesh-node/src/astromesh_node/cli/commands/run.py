@@ -15,7 +15,9 @@ from astromesh_node.cli.output import console, print_error, print_json
 def run_command(
     name: str = typer.Argument(..., help="Agent or workflow name to run"),
     query: str = typer.Argument("", help="Query to send to the agent"),
-    session: Optional[str] = typer.Option(None, "--session", help="Session ID (auto-generated if not set)"),
+    session: Optional[str] = typer.Option(
+        None, "--session", help="Session ID (auto-generated if not set)"
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output raw JSON response"),
     timeout: float = typer.Option(60.0, "--timeout", help="Request timeout in seconds"),
     workflow: bool = typer.Option(False, "--workflow", help="Run as workflow instead of agent"),

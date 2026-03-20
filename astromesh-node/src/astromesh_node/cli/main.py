@@ -1,7 +1,6 @@
 """astromeshctl — Astromesh Node CLI management tool."""
 
 import importlib.metadata
-import sys
 
 import typer
 
@@ -73,6 +72,7 @@ def _load_plugins(app: typer.Typer) -> None:
             register_fn(app)
         except Exception as exc:
             typer.echo(f"Warning: failed to load plugin '{ep.name}': {exc}", err=True)
+
 
 _load_plugins(app)
 

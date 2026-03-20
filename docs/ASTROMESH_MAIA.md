@@ -277,7 +277,7 @@ You can upgrade from Nodes to Maia incrementally: add `spec.mesh` to one node at
 ## How the Pieces Fit Together
 
 ```
-Astromesh OS          →  "How to run the daemon and use the CLI"
+Astromesh Node        →  "How to run the daemon and use the CLI"
     ↓
 Astromesh Nodes       →  "How to split services across multiple daemons"
     ↓

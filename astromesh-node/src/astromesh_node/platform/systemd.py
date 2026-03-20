@@ -45,13 +45,16 @@ class SystemdManager:
 
     async def install_service(self, profile: str) -> None:
         proc = await asyncio.create_subprocess_exec(
-            "systemctl", "daemon-reload",
+            "systemctl",
+            "daemon-reload",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         await proc.communicate()
         proc = await asyncio.create_subprocess_exec(
-            "systemctl", "enable", SERVICE_NAME,
+            "systemctl",
+            "enable",
+            SERVICE_NAME,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -60,7 +63,9 @@ class SystemdManager:
 
     async def uninstall_service(self) -> None:
         proc = await asyncio.create_subprocess_exec(
-            "systemctl", "disable", SERVICE_NAME,
+            "systemctl",
+            "disable",
+            SERVICE_NAME,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -69,7 +74,9 @@ class SystemdManager:
 
     async def service_status(self) -> dict[str, Any]:
         proc = await asyncio.create_subprocess_exec(
-            "systemctl", "show", SERVICE_NAME,
+            "systemctl",
+            "show",
+            SERVICE_NAME,
             "--property=ActiveState,SubState,MainPID,ActiveEnterTimestamp,UnitFileState",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

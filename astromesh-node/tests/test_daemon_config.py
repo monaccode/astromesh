@@ -1,6 +1,5 @@
 """Tests for daemon config loading and path detection."""
 
-from pathlib import Path
 from unittest.mock import patch
 
 from astromesh_node.daemon.config import DaemonConfig, detect_config_dir

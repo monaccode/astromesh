@@ -73,9 +73,7 @@ def validate_yaml_files(config_path: Path) -> list[dict]:
             else:
                 expected = _expected_kind(filepath.name)
                 if expected and data["kind"] != expected:
-                    errors.append(
-                        f"Expected kind '{expected}', got '{data['kind']}'"
-                    )
+                    errors.append(f"Expected kind '{expected}', got '{data['kind']}'")
 
             # Check metadata.name
             metadata = data.get("metadata", {})
@@ -91,9 +89,7 @@ def validate_yaml_files(config_path: Path) -> list[dict]:
                     }
                 )
             else:
-                results.append(
-                    {"file": str(filepath), "status": "valid", "message": "OK"}
-                )
+                results.append({"file": str(filepath), "status": "valid", "message": "OK"})
 
         except yaml.YAMLError as e:
             results.append(
@@ -133,6 +129,8 @@ def validate_command(
     console.print(table)
 
     if error_count > 0:
-        console.print(f"\n[red]Validation failed:[/red] {error_count} error(s), {valid_count} valid")
+        console.print(
+            f"\n[red]Validation failed:[/red] {error_count} error(s), {valid_count} valid"
+        )
     else:
         console.print(f"\n[green]All files valid:[/green] {valid_count} file(s) checked")

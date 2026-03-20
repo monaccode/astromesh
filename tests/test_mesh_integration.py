@@ -1,4 +1,4 @@
-"""Integration tests for Astromesh OS Phase 2 — services and peers."""
+"""Integration tests for Astromesh Node Phase 2 — services and peers."""
 
 import pytest
 from httpx import ASGITransport, AsyncClient

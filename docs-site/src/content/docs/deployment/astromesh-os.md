@@ -1,5 +1,5 @@
 ---
-title: Astromesh Node (formerly Astromesh OS)
+title: Astromesh Node
 description: Redirected to the Astromesh Node section
 ---
 

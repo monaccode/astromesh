@@ -1,10 +1,15 @@
 """astromeshctl traces/trace — Observability trace commands."""
 
-
 import typer
 
 from astromesh_node.cli.client import api_get, api_get_params
-from astromesh_node.cli.output import console, print_error, print_json, print_trace_list, print_trace_tree
+from astromesh_node.cli.output import (
+    console,
+    print_error,
+    print_json,
+    print_trace_list,
+    print_trace_tree,
+)
 
 app = typer.Typer(help="View execution traces.")
 

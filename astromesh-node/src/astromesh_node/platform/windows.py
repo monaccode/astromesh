@@ -42,7 +42,9 @@ class WindowsServiceManager:
             logger.info("Installed Windows Service: %s", SERVICE_NAME)
         except ImportError:
             proc = await asyncio.create_subprocess_exec(
-                "sc", "create", SERVICE_NAME,
+                "sc",
+                "create",
+                SERVICE_NAME,
                 f"binPath={_get_service_binpath()}",
                 "start=auto",
                 f"DisplayName={SERVICE_DISPLAY}",
@@ -63,7 +65,9 @@ class WindowsServiceManager:
             logger.info("Removed Windows Service: %s", SERVICE_NAME)
         except ImportError:
             proc = await asyncio.create_subprocess_exec(
-                "sc", "delete", SERVICE_NAME,
+                "sc",
+                "delete",
+                SERVICE_NAME,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -71,7 +75,9 @@ class WindowsServiceManager:
 
     async def service_status(self) -> dict[str, Any]:
         proc = await asyncio.create_subprocess_exec(
-            "sc", "query", SERVICE_NAME,
+            "sc",
+            "query",
+            SERVICE_NAME,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
