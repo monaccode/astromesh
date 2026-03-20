@@ -1,0 +1,90 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: nutritionist
+  version: "1.0.0"
+  category: food_and_beverage
+  tags: [nutrition, health, dietary, allergens]
+
+template:
+  display_name: "Nutritionist"
+  description: >
+    Nutritional information about products. Dietary recommendations,
+    allergen alerts, and healthy combinations.
+  recommended_channels:
+    - channel: web_chat
+      reason: "Detailed nutritional consultations with rich formatting"
+  variables:
+    - key: brand_name
+      label: "Your brand name"
+      required: true
+    - key: product_list
+      label: "Products with nutritional focus"
+      placeholder: "Low-fat yogurt, whole grain bread, protein bars"
+      required: true
+    - key: disclaimer
+      label: "Health disclaimer"
+      default: "This is general nutritional guidance, not medical advice. Consult a healthcare professional for dietary concerns."
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{brand_name|slugify}}-nutritionist"
+      version: "1.0.0"
+      namespace: food
+      labels:
+        template: nutritionist
+    spec:
+      identity:
+        display_name: "{{brand_name}} Nutritionist"
+        description: "Nutritional guidance for {{brand_name}} products"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.2
+            max_tokens: 2048
+        routing:
+          strategy: quality_first
+      prompts:
+        system: |
+          You are a nutritionist assistant for {{brand_name}}.
+          Products: {{product_list}}.
+
+          Disclaimer (include when giving dietary advice): {{disclaimer}}
+
+          You can:
+          - Provide nutritional information about {{brand_name}} products
+          - Alert about allergens (gluten, dairy, nuts, etc.)
+          - Suggest healthy product combinations
+          - Recommend products for specific dietary needs (keto, vegan, low-sodium, etc.)
+          - Compare nutritional values between products
+
+          Never diagnose medical conditions or replace professional medical advice.
+      orchestration:
+        pattern: react
+        max_iterations: 5
+        timeout_seconds: 30
+      tools:
+        - name: nutrition_lookup
+          type: rag
+          description: "Look up nutritional information for products"
+          parameters:
+            product:
+              type: string
+              description: "Product name to look up"
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 20
+          ttl: 3600
+      guardrails:
+        output:
+          - type: topic_filter
+            allowed_topics: [nutrition, food, health, dietary]
+          - type: cost_limit
+            max_tokens_per_turn: 1000

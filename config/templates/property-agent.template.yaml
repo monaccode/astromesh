@@ -1,0 +1,99 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: property-agent
+  version: "1.0.0"
+  category: real_estate
+  tags: [properties, listings, viewings, real-estate]
+
+template:
+  display_name: "Property Agent"
+  description: >
+    Qualifies interested buyers/renters. Matches preferences to listings.
+    Schedules property viewings.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Quick property inquiries and viewing scheduling"
+  variables:
+    - key: agency_name
+      label: "Real estate agency name"
+      required: true
+    - key: service_area
+      label: "Areas you cover"
+      placeholder: "Downtown, suburbs, beachfront properties"
+      required: true
+    - key: property_types
+      label: "Property types"
+      placeholder: "Apartments, houses, commercial, land"
+      default: "Apartments, houses, commercial spaces"
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{agency_name|slugify}}-property"
+      version: "1.0.0"
+      namespace: real_estate
+      labels:
+        template: property-agent
+    spec:
+      identity:
+        display_name: "{{agency_name}} Property Finder"
+        description: "Property search and viewing scheduling in {{service_area}}"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.4
+            max_tokens: 2048
+        routing:
+          strategy: cost_optimized
+      prompts:
+        system: |
+          You are a property agent for {{agency_name}}.
+          Areas: {{service_area}}.
+          Property types: {{property_types}}.
+
+          Process:
+          1. Qualify the lead: buying or renting? Budget? Timeline?
+          2. Understand preferences: location, size, bedrooms, amenities
+          3. Search and recommend matching properties (2-3 options)
+          4. For interested leads, schedule viewings
+          5. Follow up after viewings for feedback
+
+          Be professional but warm. Never pressure clients.
+          If no matching properties, be honest and offer to notify when new listings match.
+      orchestration:
+        pattern: react
+        max_iterations: 8
+        timeout_seconds: 60
+      tools:
+        - name: search_listings
+          type: rag
+          description: "Search property listings"
+          parameters:
+            query:
+              type: string
+              description: "Property search criteria"
+        - name: schedule_viewing
+          type: internal
+          description: "Schedule a property viewing"
+          parameters:
+            property_id:
+              type: string
+            customer_name:
+              type: string
+            preferred_date:
+              type: string
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 25
+          ttl: 604800
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact

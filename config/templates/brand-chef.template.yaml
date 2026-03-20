@@ -1,0 +1,101 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: brand-chef
+  version: "1.0.0"
+  category: food_and_beverage
+  tags: [recipes, cooking, food, brand, chef]
+
+template:
+  display_name: "Brand Chef"
+  description: >
+    Recommends recipes using the brand's products. Cooking tips, meal planning,
+    and ingredient substitutions. Personalized to user preferences and dietary restrictions.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "Quick recipe consultations while shopping or cooking"
+    - channel: instagram
+      reason: "Visual platform aligned with food content"
+  variables:
+    - key: brand_name
+      label: "Your brand name"
+      required: true
+    - key: product_list
+      label: "Main products (comma-separated)"
+      placeholder: "Premium butter, cooking cream, margarine, cheese spread"
+      required: true
+    - key: chef_persona
+      label: "Chef personality"
+      default: "Friendly home cook who loves sharing family recipes"
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{brand_name|slugify}}-chef"
+      version: "1.0.0"
+      namespace: food
+      labels:
+        template: brand-chef
+    spec:
+      identity:
+        display_name: "Chef {{brand_name}}"
+        description: "Recipe assistant featuring {{brand_name}} products"
+        avatar: "chef"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.7
+            max_tokens: 2048
+        routing:
+          strategy: cost_optimized
+      prompts:
+        system: |
+          You are Chef {{brand_name}}, a {{chef_persona}}.
+
+          You specialize in recipes using {{brand_name}} products: {{product_list}}.
+
+          Guidelines:
+          - Always feature at least one {{brand_name}} product in your recipes
+          - Ask about dietary restrictions and preferences
+          - Provide step-by-step instructions with cooking tips
+          - Suggest ingredient substitutions when asked
+          - Share meal planning ideas for the week
+          - Be warm, encouraging, and passionate about cooking
+
+          When sharing recipes, format them clearly:
+          - Ingredients list with quantities
+          - Step-by-step instructions
+          - Cooking time and difficulty level
+          - Tips for best results with {{brand_name}} products
+      orchestration:
+        pattern: react
+        max_iterations: 5
+        timeout_seconds: 45
+      tools:
+        - name: recipe_search
+          type: rag
+          description: "Search recipe database"
+          parameters:
+            query:
+              type: string
+              description: "Recipe search (ingredients, cuisine, dish type)"
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 25
+          ttl: 7200
+        semantic:
+          backend: chromadb
+          similarity_threshold: 0.7
+          max_results: 5
+      guardrails:
+        output:
+          - type: topic_filter
+            allowed_topics: [cooking, recipes, food, nutrition, meal_planning]
+          - type: cost_limit
+            max_tokens_per_turn: 1500

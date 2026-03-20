@@ -1,0 +1,93 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: payment-reminder
+  version: "1.0.0"
+  category: collections
+  tags: [payments, reminders, billing, plans]
+
+template:
+  display_name: "Payment Reminder"
+  description: >
+    Sends payment reminders with configurable escalation. Friendly first notice,
+    firmer follow-ups. Can negotiate payment plans for overdue accounts.
+  recommended_channels:
+    - channel: whatsapp
+      reason: "High open rates for payment notifications"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      required: true
+    - key: payment_methods
+      label: "Accepted payment methods"
+      placeholder: "Bank transfer, credit card, PayPal"
+      required: true
+    - key: support_contact
+      label: "Contact for payment issues"
+      placeholder: "billing@company.com or +1-555-0100"
+      required: true
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-payment-reminder"
+      version: "1.0.0"
+      namespace: collections
+      labels:
+        template: payment-reminder
+    spec:
+      identity:
+        display_name: "{{company_name}} Payment Reminder"
+        description: "Payment reminders and plan negotiation"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.2
+            max_tokens: 1024
+        routing:
+          strategy: cost_optimized
+      prompts:
+        system: |
+          You are a payment reminder assistant for {{company_name}}.
+
+          Accepted payment methods: {{payment_methods}}.
+          For issues, contact: {{support_contact}}.
+
+          Escalation levels:
+          1. First reminder: Friendly, informative. "Hi! Just a reminder that your payment is due."
+          2. Second reminder: Polite but firm. "We noticed your payment is overdue."
+          3. Third reminder: Urgent. "Action required: your account has an outstanding balance."
+
+          If the customer asks for a payment plan, you may offer installment options
+          (2-4 monthly payments). Always confirm the arrangement clearly.
+
+          Never be aggressive or threatening. Maintain professionalism at all times.
+      orchestration:
+        pattern: react
+        max_iterations: 5
+        timeout_seconds: 30
+      tools:
+        - name: check_balance
+          type: internal
+          description: "Check outstanding balance for a customer"
+          parameters:
+            customer_id:
+              type: string
+              description: "Customer ID or account number"
+      memory:
+        conversational:
+          backend: redis
+          strategy: sliding_window
+          max_turns: 15
+          ttl: 86400
+      guardrails:
+        input:
+          - type: pii_detection
+            action: redact
+        output:
+          - type: content_filter
+            blocked_categories: [harassment, threats]

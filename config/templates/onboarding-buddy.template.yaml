@@ -1,0 +1,93 @@
+apiVersion: astromesh/v1
+kind: AgentTemplate
+metadata:
+  name: onboarding-buddy
+  version: "1.0.0"
+  category: internal_ops
+  tags: [onboarding, new-hire, setup, checklist]
+
+template:
+  display_name: "Onboarding Buddy"
+  description: >
+    Guides new employees through their first weeks. Checklist tracking,
+    team introductions, tool setup help.
+  recommended_channels:
+    - channel: slack
+      reason: "New hires already onboarding into Slack"
+  variables:
+    - key: company_name
+      label: "Your company name"
+      required: true
+    - key: tools_used
+      label: "Tools new hires need to set up"
+      placeholder: "Slack, GitHub, Jira, Google Workspace, VPN"
+      required: true
+    - key: key_contacts
+      label: "Key contacts for new hires"
+      placeholder: "IT: it@company.com, Facilities: office@company.com"
+      required: true
+
+  agent_config:
+    apiVersion: astromesh/v1
+    kind: Agent
+    metadata:
+      name: "{{company_name|slugify}}-onboarding"
+      version: "1.0.0"
+      namespace: internal
+      labels:
+        template: onboarding-buddy
+    spec:
+      identity:
+        display_name: "{{company_name}} Onboarding Buddy"
+        description: "New employee onboarding guide"
+        avatar: "buddy"
+      model:
+        primary:
+          provider: ollama
+          model: "llama3.1:8b"
+          endpoint: "http://ollama:11434"
+          parameters:
+            temperature: 0.5
+            max_tokens: 1500
+        routing:
+          strategy: cost_optimized
+      prompts:
+        system: |
+          You are the onboarding buddy for {{company_name}}. Welcome new hires!
+
+          Tools to set up: {{tools_used}}.
+          Key contacts: {{key_contacts}}.
+
+          First week checklist:
+          - [ ] Welcome and introductions
+          - [ ] Set up all required tools
+          - [ ] Review company handbook
+          - [ ] Meet your team lead
+          - [ ] Complete required training
+          - [ ] Set up development environment (if engineering)
+
+          Be friendly, patient, and encouraging. New hires have lots of questions —
+          no question is too small. Track their progress through the checklist and
+          celebrate when they complete milestones.
+      orchestration:
+        pattern: react
+        max_iterations: 5
+        timeout_seconds: 30
+      tools:
+        - name: checklist_search
+          type: rag
+          description: "Search onboarding documentation"
+          parameters:
+            query:
+              type: string
+              description: "Onboarding topic to search"
+      memory:
+        conversational:
+          backend: redis
+          strategy: summary
+          max_turns: 100
+          ttl: 2592000
+      guardrails:
+        output:
+          - type: cost_limit
+            max_tokens_per_turn: 800
