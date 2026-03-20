@@ -17,9 +17,9 @@ mkdir -p staging
 
 # Create venv with project installed
 echo "==> Creating virtual environment..."
-python3.12 -m venv staging/venv
+python3 -m venv staging/venv
 staging/venv/bin/pip install --upgrade pip --quiet
-staging/venv/bin/pip install ../ ".[cli,daemon]" --quiet
+staging/venv/bin/pip install ../ ".[systemd]" --quiet
 
 # Strip unnecessary files to reduce package size
 echo "==> Stripping __pycache__ and .dist-info test dirs..."

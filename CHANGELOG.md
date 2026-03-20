@@ -7,10 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [node-v0.1.0] - 2026-03-20
+
+### Added (Astromesh Node)
+
+- **Astromesh Node v0.1.0** (`astromesh-node/`) — cross-platform system installer and daemon, extracted from "Astromesh OS" as a standalone subproject
+  - **ServiceManagerProtocol** — runtime-checkable Protocol abstracting init systems across platforms, following the same pattern as `ProviderProtocol`
+  - **SystemdManager** (Linux) — `sd_notify` readiness signaling, `systemctl` service management, `SIGHUP` config reload
+  - **LaunchdManager** (macOS) — `launchctl` plist management, `SIGHUP` config reload, `/Library/LaunchDaemons` integration
+  - **WindowsServiceManager** — `win32serviceutil` / `sc.exe` fallback, Windows Service lifecycle management
+  - **ForegroundManager** — no-op adapter for dev mode, Docker containers, and `--foreground` usage
+  - **InstallerProtocol** — platform-specific filesystem paths and installation (Linux FHS, macOS `/Library/`, Windows `%ProgramData%`)
+  - **Platform-agnostic daemon** (`astromeshd`) — refactored from monorepo `daemon/astromeshd.py` with `--foreground` flag, platform-aware config detection, and no hardcoded paths
+  - **CLI migration** — `astromeshctl` (17 commands) moved to subproject with updated imports
+  - **Packaging** — `.deb` (Debian/Ubuntu), `.rpm` (RHEL/Fedora), `.tar.gz` (macOS), `.zip` (Windows) build scripts; all artifacts published to GitHub Releases
+  - **launchd plist** — `com.astromesh.daemon.plist` for macOS daemon registration
+  - **Windows Service wrapper** — `astromeshd-service.py` using `win32serviceutil.ServiceFramework`
+  - **`install.ps1`** — Windows installer script (directory creation, PATH setup)
+  - **7 profiles** on all platforms — full, gateway, worker, inference, mesh-gateway, mesh-worker, mesh-inference
+  - **Doctor migration check** — `astromeshctl doctor` warns about stale `astromesh` deb package on Linux
+  - **55 unit tests** covering all platform adapters, installers, daemon config, and argument parsing
+
+### Added (CI/CD)
+
+- **`release-node.yml`** — GitHub Actions workflow triggered by `node-v*` tags; parallel build jobs for Linux (deb/rpm), macOS (tar.gz), Windows (zip); artifacts uploaded to GitHub Release
+- **`test-node` CI job** — cross-platform test matrix (ubuntu, macos, windows) in `ci.yml`
+
+### Added (Docs-site)
+
+- **Astromesh Node documentation** — 9 new pages: introduction, quick start, 4 per-platform installation guides (Debian, RHEL, macOS, Windows), configuration, CLI reference, troubleshooting
+- **NodeShowcase** — home page component showcasing 4 supported platforms with feature grid
+- **Sidebar section** — "Astromesh Node" top-level section in docs navigation
+
 ### Changed
-- **BREAKING**: Renamed "Astromesh OS" to "Astromesh Node" — daemon, CLI, and packaging extracted to `astromesh-node/` subproject
-- Daemon (`astromeshd`) now supports Linux (systemd), macOS (launchd), and Windows (Windows Service)
-- CLI (`astromeshctl`) imports updated — install via `astromesh-node` package
+
+- **BREAKING**: Renamed "Astromesh OS" to "Astromesh Node" globally across codebase, docs, and CI
+- **BREAKING**: `astromeshd` and `astromeshctl` entry points removed from root `pyproject.toml` — install via `astromesh-node` package
+- `deployment/astromesh-os.md` replaced with redirect to `node/introduction`
+- Root `pyproject.toml` no longer includes `cli` and `daemon` optional dependencies
+
+### Removed
+
+- `daemon/` directory from monorepo root (moved to `astromesh-node/src/astromesh_node/daemon/`)
+- `cli/` directory from monorepo root (moved to `astromesh-node/src/astromesh_node/cli/`)
+- `packaging/` directory and `nfpm.yaml` from monorepo root (moved to `astromesh-node/packaging/`)
+- `build-deb` job from `release.yml` (replaced by `release-node.yml`)
+- `build-deb-test` job from `ci.yml` (replaced by `test-node`)
 
 ---
 

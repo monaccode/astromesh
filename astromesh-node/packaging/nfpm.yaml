@@ -34,16 +34,16 @@ contents:
     dst: /lib/systemd/system/astromeshd.service
 
   # Config files (conffiles — apt preserves user edits)
-  - src: config/runtime.yaml
+  - src: ../config/runtime.yaml
     dst: /etc/astromesh/runtime.yaml
     type: config
-  - src: config/providers.yaml
+  - src: ../config/providers.yaml
     dst: /etc/astromesh/providers.yaml
     type: config
-  - src: config/channels.yaml
+  - src: ../config/channels.yaml
     dst: /etc/astromesh/channels.yaml
     type: config
-  - src: config/agents/*
+  - src: ../config/agents/*
     dst: /etc/astromesh/agents/
     type: config
   - src: config/profiles/*
