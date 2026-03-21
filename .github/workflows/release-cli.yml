@@ -19,13 +19,23 @@ jobs:
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/cli-v}"
           PYPROJECT_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('astromesh-cli/pyproject.toml','rb'))['project']['version'])")
+          INIT_VERSION=$(python3 -c "
+          import re, pathlib
+          text = pathlib.Path('astromesh-cli/astromesh_cli/__init__.py').read_text()
+          m = re.search(r'__version__\s*=\s*\"([^\"]+)\"', text)
+          print(m.group(1) if m else 'MISSING')
+          ")
           if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
-            echo "Tag version ($TAG_VERSION) != pyproject.toml ($PYPROJECT_VERSION)"
+            echo "::error::Tag version ($TAG_VERSION) != pyproject.toml ($PYPROJECT_VERSION)"
+            exit 1
+          fi
+          if [ "$PYPROJECT_VERSION" != "$INIT_VERSION" ]; then
+            echo "::error::Version mismatch between pyproject ($PYPROJECT_VERSION) and __init__.py ($INIT_VERSION)"
             exit 1
           fi
           echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
 
-  release:
+  build:
     needs: validate-tag
     runs-on: ubuntu-latest
     steps:
@@ -34,14 +44,96 @@ jobs:
         with:
           python-version: "3.12"
       - name: Build package
-        working-directory: astromesh-cli
         run: |
           pip install build
-          python -m build
+          python -m build astromesh-cli --sdist --wheel --outdir dist-cli
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-dist
+          path: dist-cli/*
+
+  publish-testpypi:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: testpypi
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-dist
+          path: dist-cli
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist-cli
+          skip-existing: true
+
+  smoke-test:
+    needs: [validate-tag, publish-testpypi]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install from TestPyPI (with retry)
+        run: |
+          CLI_VERSION="${{ needs.validate-tag.outputs.version }}"
+          pip install --upgrade pip
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i: installing astromesh-cli==${CLI_VERSION}"
+            pip install \
+              --prefer-binary \
+              --only-binary=:all: \
+              --index-url https://pypi.org/simple \
+              --extra-index-url https://test.pypi.org/simple \
+              "astromesh-cli==${CLI_VERSION}" && break
+            echo "Not yet available, waiting 30s..."
+            sleep 30
+          done
+      - name: Verify import
+        run: |
+          python -c "from astromesh_cli import __version__; print(__version__)"
+
+  publish-pypi:
+    needs: smoke-test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: pypi
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-dist
+          path: dist-cli
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist-cli
+          skip-existing: true
+
+  github-release:
+    needs: [validate-tag, publish-pypi]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-dist
+          path: dist-cli
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: cli-v${{ needs.validate-tag.outputs.version }}
           name: Astromesh CLI v${{ needs.validate-tag.outputs.version }}
-          files: astromesh-cli/dist/*
+          files: dist-cli/*
           generate_release_notes: true
