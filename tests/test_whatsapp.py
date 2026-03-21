@@ -3,10 +3,8 @@ import hmac
 import json
 
 import pytest
-from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, patch
 
-from astromesh.api.main import app
 from astromesh.channels.whatsapp import WhatsAppClient
 from astromesh.channels.base import ChannelMessage, MediaAttachment
 
@@ -15,11 +13,9 @@ from astromesh.channels.base import ChannelMessage, MediaAttachment
 # Fixtures
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-async def client():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
-        yield c
+@pytest.fixture(autouse=True)
+def _skip_runtime_lifespan(monkeypatch):
+    monkeypatch.setenv("ASTROMESH_SKIP_RUNTIME", "1")
 
 
 def _make_webhook_payload(phone="5511999999999", text="Hola", msg_id="wamid.abc123"):

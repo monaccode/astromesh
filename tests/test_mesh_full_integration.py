@@ -156,11 +156,14 @@ def test_system_status_includes_mesh_info():
     runtime.mesh_manager = mesh
     runtime._agents = {}
 
-    system.set_runtime(runtime)
-    client = TestClient(app)
-    resp = client.get("/v1/system/status")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data.get("mesh") is not None
-    assert data["mesh"]["enabled"] is True
-    assert data["mesh"]["cluster_size"] == 1
+    with TestClient(app) as client:
+        system.set_runtime(runtime)
+        try:
+            resp = client.get("/v1/system/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data.get("mesh") is not None
+            assert data["mesh"]["enabled"] is True
+            assert data["mesh"]["cluster_size"] == 1
+        finally:
+            system.set_runtime(None)

@@ -1,8 +1,10 @@
 import pytest
+import yaml
+from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
+
 from astromesh.api.main import app
 from astromesh.api.routes import templates as templates_route
-import yaml
 
 
 @pytest.fixture
@@ -40,9 +42,9 @@ def templates_dir(tmp_path):
 
 
 async def test_list_templates(templates_dir):
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.get("/v1/templates")
+    async with LifespanManager(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/v1/templates")
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 1
@@ -52,9 +54,9 @@ async def test_list_templates(templates_dir):
 
 
 async def test_get_template_detail(templates_dir):
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.get("/v1/templates/sales-qualifier")
+    async with LifespanManager(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/v1/templates/sales-qualifier")
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "sales-qualifier"
@@ -63,7 +65,7 @@ async def test_get_template_detail(templates_dir):
 
 
 async def test_get_template_not_found(templates_dir):
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.get("/v1/templates/nonexistent")
+    async with LifespanManager(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/v1/templates/nonexistent")
     assert resp.status_code == 404

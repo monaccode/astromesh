@@ -1,10 +1,8 @@
 import pytest
-from httpx import ASGITransport, AsyncClient
 
 from astromesh.tools import ToolLoader
 from astromesh.tools.base import BuiltinTool
 from astromesh.tools.builtin import ALL_TOOLS
-from astromesh.api.main import app
 
 
 class TestAllToolsRegistry:
@@ -31,22 +29,15 @@ class TestAllToolsRegistry:
 
 
 class TestBuiltinToolsEndpoint:
-    @pytest.fixture
-    def client(self):
-        transport = ASGITransport(app=app)
-        return AsyncClient(transport=transport, base_url="http://test")
-
     async def test_list_builtin_tools(self, client):
-        async with client:
-            resp = await client.get("/v1/tools/builtin")
+        resp = await client.get("/v1/tools/builtin")
         assert resp.status_code == 200
         body = resp.json()
         assert body["count"] == 17
         assert len(body["tools"]) == 17
 
     async def test_builtin_tools_have_metadata(self, client):
-        async with client:
-            resp = await client.get("/v1/tools/builtin")
+        resp = await client.get("/v1/tools/builtin")
         tools = resp.json()["tools"]
         for tool in tools:
             assert "name" in tool

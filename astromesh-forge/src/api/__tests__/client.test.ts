@@ -15,11 +15,24 @@ describe("ForgeClient", () => {
   it("lists agents", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve([{ name: "test", status: "deployed" }]),
+      json: () =>
+        Promise.resolve({
+          agents: [{ name: "test", status: "deployed" }],
+        }),
     });
     const agents = await client.listAgents();
     expect(agents).toHaveLength(1);
     expect(mockFetch).toHaveBeenCalledWith("http://localhost:8000/v1/agents", expect.any(Object));
+  });
+
+  it("listAgents accepts legacy array body", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([{ name: "legacy", status: "draft" }]),
+    });
+    const agents = await client.listAgents();
+    expect(agents).toHaveLength(1);
+    expect(agents[0].name).toBe("legacy");
   });
 
   it("creates agent", async () => {
@@ -54,6 +67,33 @@ describe("ForgeClient", () => {
     });
     const templates = await client.listTemplates();
     expect(templates).toHaveLength(1);
+  });
+
+  it("lists builtin tools from API wrapper", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          tools: [{ name: "echo", description: "Echo" }],
+          count: 1,
+        }),
+    });
+    const tools = await client.listTools();
+    expect(tools).toHaveLength(1);
+    expect(tools[0].name).toBe("echo");
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:8000/v1/tools/builtin",
+      expect.any(Object)
+    );
+  });
+
+  it("listTools accepts legacy array body", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([{ name: "x", description: "y" }]),
+    });
+    const tools = await client.listTools();
+    expect(tools).toHaveLength(1);
   });
 
   it("checks health", async () => {

@@ -1,6 +1,7 @@
 """Integration tests for Astromesh Node Phase 2 — services and peers."""
 
 import pytest
+from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 
 from astromesh.api.main import app
@@ -8,6 +9,11 @@ from astromesh.api.routes import system
 from astromesh.runtime.engine import AgentRuntime
 from astromesh.runtime.peers import PeerClient
 from astromesh.runtime.services import ServiceManager
+
+
+@pytest.fixture(autouse=True)
+def _skip_runtime_lifespan(monkeypatch):
+    monkeypatch.setenv("ASTROMESH_SKIP_RUNTIME", "1")
 
 AGENT_YAML = """
 apiVersion: astromesh/v1
@@ -50,9 +56,9 @@ async def worker_node(tmp_path):
     await runtime.bootstrap()
     system.set_runtime(runtime)
 
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client, runtime
+    async with LifespanManager(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            yield client, runtime
 
     system.set_runtime(None)
     await pc.close()
@@ -102,9 +108,9 @@ async def gateway_node(tmp_path):
     await runtime.bootstrap()
     system.set_runtime(runtime)
 
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client, runtime
+    async with LifespanManager(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            yield client, runtime
 
     system.set_runtime(None)
     await pc.close()

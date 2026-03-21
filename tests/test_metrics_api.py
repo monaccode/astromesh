@@ -1,7 +1,5 @@
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from astromesh.api.main import app
 from astromesh.api.routes.metrics import (
     _counters,
     _histograms,
@@ -19,13 +17,6 @@ def _clear_metrics():
     yield
     _counters.clear()
     _histograms.clear()
-
-
-@pytest.fixture
-async def client():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
-        yield c
 
 
 # --- unit tests for helper functions ---
