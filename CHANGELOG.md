@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed (Orbit / Docs)
+
+- **Cloud documentation** — removed all 6 cloud docs pages (`docs-site/src/content/docs/cloud/`)
+- **Cloud API and Studio deployment** — removed `cloud_api` and `studio` compute services, container images, and database from Orbit config, GCP provider, Terraform templates, wizard presets, and tests
+- **Nexus deploy target** — removed from Forge deployment docs (was "coming soon")
+- Updated Orbit deployment costs: Starter ~$30 → **~$15/mo**, Pro ~$150 → **~$80/mo**
+
 ## [v0.20.0] - 2026-03-21
 
 ### Added (Astromesh Forge)
