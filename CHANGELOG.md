@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.20.0] - 2026-03-21
+
 ### Added (Astromesh Forge)
 
 - **Developer Console** (`/console`) — full-page playground for live agent testing and debugging
@@ -41,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Modal component** — X icon replacing Unicode `✕` close button
 - **Button component** — optional `icon`/`iconRight` props for rendering Lucide icons
 - **Badge component** — optional `icon` prop for rendering Lucide icons
+- **Agent list Canvas button** — direct link to `/canvas/{name}` pipeline editor from the dashboard agent table
 
 ### Added (Backend)
 
@@ -48,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Template auto-discovery — `templates.py` resolves `config/templates/` via `ASTROMESH_TEMPLATES_DIR` env var, cwd, or package anchor without requiring explicit `set_templates_dir()` calls
 - `AgentRunResponse.trace` field — run endpoint now returns full distributed trace data (previously computed but discarded)
 - LLM provider auto-registration — `AgentRuntime._register_model_providers()` wires Ollama and OpenAI-compatible providers from agent YAML model spec
+- Structured error types — `ModelProviderError` with typed payloads and 502 HTTP mapping in agent run endpoint
+- Structured logging — `logging_config` module and debug logging in agent run endpoint (start/done with metrics)
+- Model router improvements — better provider selection and error handling
 
 ### Fixed
 

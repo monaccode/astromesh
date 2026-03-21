@@ -12,6 +12,8 @@ uv run uvicorn astromesh.api.main:app --reload  # Run API server (port 8000)
 
 The API app runs an ASGI **lifespan** that bootstraps `AgentRuntime` and wires route modules (same idea as `astromeshd`). Use `ASTROMESH_CONFIG_DIR` to point at a config tree; set `ASTROMESH_SKIP_RUNTIME=1` to skip bootstrap (tests).
 
+**Logging:** `astromesh.logging_config.setup_logging()` runs on API import. Default `ASTROMESH_LOG_LEVEL=DEBUG` (detailed). Quieter: `INFO` or `WARNING`. Third-party noise capped with `ASTROMESH_LOG_THIRDPARTY_LEVEL` (default `WARNING`). Disable setup: `ASTROMESH_LOG_CONFIGURE=0`. Uvicorn access/error log level is still controlled by `uvicorn --log-level`.
+
 Python 3.12+ required. Package manager is `uv`, build system is `hatchling`.
 
 ### Rust Native Extensions (optional)
