@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "astromesh-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "CLI tool for managing Astromesh nodes and clusters"
 requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
