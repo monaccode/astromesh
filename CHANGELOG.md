@@ -7,25 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [orbit-v0.1.1] - 2026-03-21
-
-### Removed
-
-- **Cloud API and Studio deployment** — removed `cloud_api` and `studio` compute services, container images, and database from Orbit config, GCP provider, Terraform templates, wizard presets, and tests
-- **Cloud documentation** — removed all 6 cloud docs pages (`docs-site/src/content/docs/cloud/`)
-- **Nexus deploy target** — removed from Forge deployment docs (was "coming soon")
-
-### Changed
-
-- Deployment costs reduced: Starter ~$30 → **~$15/mo**, Pro ~$150 → **~$80/mo** (no longer provisioning Cloud API and Studio instances)
-
-## [adk-v0.1.6] - 2026-03-21
-
-### Changed
-
-- Re-release with latest platform changes (no ADK-specific changes)
-
 ## [v0.20.0] - 2026-03-21
+
+**Subpackage releases:** core v0.20.0 | forge v0.20.0 | orbit v0.1.1 | adk v0.1.6 | cli v0.1.0 | node v0.1.0
 
 ### Added (Astromesh Forge)
 
@@ -86,6 +70,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **`astromesh-cloud/`** — removed legacy cloud multi-tenant layer (API + Studio frontend). Auth, org management, BYOK, usage tracking, and execution proxy functionality will be absorbed by a future project
+- **Cloud API and Studio from Orbit** — removed `cloud_api` and `studio` compute services, container images, and database from Orbit config, GCP provider, Terraform templates, wizard presets, and tests
+- **Cloud documentation** — removed all 6 cloud docs pages
+- **Nexus deploy target** — removed from Forge deployment docs
+
+### Changed (Orbit)
+
+- Deployment costs reduced: Starter ~$30 → **~$15/mo**, Pro ~$150 → **~$80/mo** (only runtime deployed)
 
 ### Changed (Tests)
 
