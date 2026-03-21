@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  User,
+  Cpu,
+  Wrench,
+  GitBranch,
+  Settings,
+  MessageSquare,
+  ClipboardCheck,
+  Check,
+} from "lucide-react";
 import { useAgentEditorStore } from "../../stores/agent";
 import { useConnectionStore } from "../../stores/connection";
 import { Button } from "../ui/Button";
@@ -12,13 +22,13 @@ import { StepPrompts } from "./StepPrompts";
 import { StepReview } from "./StepReview";
 
 const STEPS = [
-  { label: "Identity", component: StepIdentity },
-  { label: "Model", component: StepModel },
-  { label: "Tools", component: StepTools },
-  { label: "Orchestration", component: StepOrchestration },
-  { label: "Settings", component: StepSettings },
-  { label: "Prompts", component: StepPrompts },
-  { label: "Review", component: StepReview },
+  { label: "Identity", component: StepIdentity, icon: User },
+  { label: "Model", component: StepModel, icon: Cpu },
+  { label: "Tools", component: StepTools, icon: Wrench },
+  { label: "Orchestration", component: StepOrchestration, icon: GitBranch },
+  { label: "Settings", component: StepSettings, icon: Settings },
+  { label: "Prompts", component: StepPrompts, icon: MessageSquare },
+  { label: "Review", component: StepReview, icon: ClipboardCheck },
 ];
 
 export function WizardShell() {
@@ -91,7 +101,11 @@ export function WizardShell() {
                       : "bg-gray-700 text-gray-500"
                 }`}
               >
-                {isCompleted ? "\u2713" : stepNum}
+                {isCompleted ? (
+                  <Check size={14} />
+                ) : (
+                  <step.icon size={14} />
+                )}
               </span>
               {step.label}
             </button>

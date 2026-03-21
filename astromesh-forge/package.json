@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@xyflow/react": "^12.10.1",
     "js-yaml": "^4.1.1",
+    "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1",

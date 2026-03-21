@@ -1,6 +1,32 @@
 import { useState } from "react";
+import {
+  Bot,
+  Brain,
+  Wrench,
+  Shield,
+  Database,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import type { SpanTreeNode } from "../../utils/trace-tree";
 import { getSpanColor, getSpanDotColor } from "../../utils/trace-tree";
+
+const SPAN_ICONS: Array<[string, typeof Bot]> = [
+  ["agent", Bot],
+  ["llm", Brain],
+  ["model", Brain],
+  ["tool", Wrench],
+  ["guardrail", Shield],
+  ["memory", Database],
+];
+
+function getSpanIcon(name: string) {
+  const lower = name.toLowerCase();
+  for (const [prefix, icon] of SPAN_ICONS) {
+    if (lower.startsWith(prefix)) return icon;
+  }
+  return null;
+}
 
 interface SpanNodeProps {
   node: SpanTreeNode;
@@ -18,6 +44,7 @@ export function SpanNode({ node, rootDuration, depth = 0 }: SpanNodeProps) {
   const duration = node.duration_ms ?? 0;
   const barWidth = rootDuration > 0 ? (duration / rootDuration) * 100 : 0;
   const isError = node.status === "error";
+  const SpanIcon = getSpanIcon(node.name);
 
   return (
     <div style={{ marginLeft: depth > 0 ? 14 : 0 }}>
@@ -30,11 +57,16 @@ export function SpanNode({ node, rootDuration, depth = 0 }: SpanNodeProps) {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-1.5 min-w-0">
             {isExpandable && (
-              <span
-                className={`text-[8px] ${getSpanDotColor(node.name)}`}
-              >
-                {expanded ? "▾" : "▸"}
+              <span className={getSpanDotColor(node.name)}>
+                {expanded ? (
+                  <ChevronDown size={10} />
+                ) : (
+                  <ChevronRight size={10} />
+                )}
               </span>
+            )}
+            {SpanIcon && (
+              <SpanIcon size={10} className={getSpanDotColor(node.name)} />
             )}
             <span
               className={`text-[10px] truncate ${
@@ -115,14 +147,14 @@ function renderAttributes(node: SpanTreeNode) {
       {(usage || model || provider) && (
         <div className="flex gap-3 text-gray-400">
           {usage?.prompt_tokens != null && (
-            <span>
-              <span className="text-cyan-400">&#x2B06;</span>{" "}
+            <span className="inline-flex items-center gap-0.5">
+              <span className="text-cyan-400">&uarr;</span>{" "}
               {usage.prompt_tokens} tokens
             </span>
           )}
           {usage?.completion_tokens != null && (
-            <span>
-              <span className="text-amber-400">&#x2B07;</span>{" "}
+            <span className="inline-flex items-center gap-0.5">
+              <span className="text-amber-400">&darr;</span>{" "}
               {usage.completion_tokens} tokens
             </span>
           )}

@@ -214,7 +214,11 @@ export function StepTools() {
               Available Tools
             </h3>
             {loading ? (
-              <p className="text-sm text-gray-400">Loading tools...</p>
+              <div className="space-y-2">
+                <div className="h-14 bg-gray-700 animate-pulse rounded-xl" />
+                <div className="h-14 bg-gray-700 animate-pulse rounded-xl" />
+                <div className="h-14 bg-gray-700 animate-pulse rounded-xl" />
+              </div>
             ) : !connected ? (
               <p className="text-sm text-gray-500">
                 Connect to a node to see available tools.

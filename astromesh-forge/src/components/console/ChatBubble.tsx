@@ -1,3 +1,4 @@
+import { ArrowUp, ArrowDown } from "lucide-react";
 import type { ChatMessage, RunRecord } from "../../types/console";
 import { ToolUsageIndicator } from "./ToolUsageIndicator";
 
@@ -14,6 +15,9 @@ export function ChatBubble({ message, run }: ChatBubbleProps) {
     second: "2-digit",
   });
 
+  const totalTokens =
+    run?.usage ? (run.usage.tokens_in ?? 0) + (run.usage.tokens_out ?? 0) : 0;
+
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[80%] ${isUser ? "items-end" : "items-start"}`}>
@@ -28,13 +32,23 @@ export function ChatBubble({ message, run }: ChatBubbleProps) {
           <span className="whitespace-pre-wrap">{message.content}</span>
         </div>
         <div
-          className={`text-[10px] text-gray-600 mt-0.5 ${isUser ? "text-right" : ""}`}
+          className={`text-[10px] text-gray-600 mt-0.5 flex items-center gap-2 ${isUser ? "justify-end" : ""}`}
         >
           {time}
           {!isUser && run && (
-            <span className="ml-2">
-              {(run.durationMs / 1000).toFixed(1)}s
-            </span>
+            <>
+              <span>{(run.durationMs / 1000).toFixed(1)}s</span>
+              {totalTokens > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-0.5 text-cyan-400/60">
+                    <ArrowUp size={8} /> {run.usage!.tokens_in}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 text-amber-400/60">
+                    <ArrowDown size={8} /> {run.usage!.tokens_out}
+                  </span>
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>

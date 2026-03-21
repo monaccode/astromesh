@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Wrench,
+  Link2,
+  Database,
+  Shield,
+  Cpu,
+  Bot,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
 import { useConnectionStore } from "../../../stores/connection";
 import type { AgentMeta } from "../../../types/agent";
 import {
@@ -25,19 +37,21 @@ interface ToolboxProps {
   micro?: MicroToolboxProps;
 }
 
-const SECTION_LABEL: Record<PresetSection, string> = {
-  builtin: "From your node",
-  integrations: "Connections",
-  memory: "Memory & data",
-  safety: "Safety",
+const SECTION_LABEL: Record<PresetSection, { label: string; icon: typeof Wrench }> = {
+  builtin: { label: "From your node", icon: Wrench },
+  integrations: { label: "Connections", icon: Link2 },
+  memory: { label: "Memory & data", icon: Database },
+  safety: { label: "Safety", icon: Shield },
 };
 
 function SectionHeader({
   title,
+  icon: Icon,
   open,
   onToggle,
 }: {
   title: string;
+  icon?: typeof Wrench;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -47,8 +61,15 @@ function SectionHeader({
       className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors"
       onClick={onToggle}
     >
-      <span>{title}</span>
-      <span className="text-gray-500 text-xs">{open ? "\u25B2" : "\u25BC"}</span>
+      <span className="flex items-center gap-1.5">
+        {Icon && <Icon size={14} className="text-gray-500" />}
+        {title}
+      </span>
+      {open ? (
+        <ChevronUp size={14} className="text-gray-500" />
+      ) : (
+        <ChevronDown size={14} className="text-gray-500" />
+      )}
     </button>
   );
 }
@@ -117,14 +138,17 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
         <>
           <div className="border-b border-gray-800">
             <SectionHeader
-              title={SECTION_LABEL.builtin}
+              title={SECTION_LABEL.builtin.label}
+              icon={SECTION_LABEL.builtin.icon}
               open={!!openSections.builtin}
               onToggle={() => toggle("builtin")}
             />
             {openSections.builtin && (
               <div className="px-2 pb-2 space-y-1">
                 {loadingBuiltins && (
-                  <div className="text-xs text-gray-500 px-2 py-1">Loading tools…</div>
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 px-2 py-1">
+                    <Loader2 size={12} className="animate-spin" /> Loading tools…
+                  </div>
                 )}
                 {!loadingBuiltins && !connected && (
                   <div className="text-xs text-gray-500 px-2 py-1">Connect to load tools.</div>
@@ -149,7 +173,8 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
           {(["integrations", "memory", "safety"] as const).map((section) => (
             <div key={section} className="border-b border-gray-800">
               <SectionHeader
-                title={SECTION_LABEL[section]}
+                title={SECTION_LABEL[section].label}
+                icon={SECTION_LABEL[section].icon}
                 open={!!openSections[section]}
                 onToggle={() => toggle(section)}
               />
@@ -177,6 +202,7 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
             <div className="border-b border-gray-800">
               <SectionHeader
                 title="Model"
+                icon={Cpu}
                 open={!!openSections.model}
                 onToggle={() => toggle("model")}
               />
@@ -199,6 +225,7 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
         <div className="border-b border-gray-800">
           <SectionHeader
             title="Agents"
+            icon={Bot}
             open={!!openSections.agents}
             onToggle={() => toggle("agents")}
           />
@@ -206,7 +233,9 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
           {openSections.agents && (
             <div className="px-2 pb-2 space-y-1">
               {loadingAgents && (
-                <div className="text-xs text-gray-500 px-2 py-1">Loading...</div>
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 px-2 py-1">
+                  <Loader2 size={12} className="animate-spin" /> Loading…
+                </div>
               )}
               {!loadingAgents && !connected && (
                 <div className="text-xs text-gray-500 px-2 py-1">Not connected</div>
@@ -243,10 +272,11 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
 
               <Button
                 variant="secondary"
+                icon={Plus}
                 className="w-full mt-1 text-sm py-1.5"
                 onClick={() => navigate("/wizard")}
               >
-                + Create New Agent
+                Create New Agent
               </Button>
             </div>
           )}

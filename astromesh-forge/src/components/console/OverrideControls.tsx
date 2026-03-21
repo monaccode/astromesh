@@ -1,3 +1,4 @@
+import { SlidersHorizontal } from "lucide-react";
 import { useConsoleStore } from "../../stores/console";
 import { Toggle } from "../ui/Toggle";
 
@@ -8,7 +9,8 @@ export function OverrideControls() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-[9px] uppercase tracking-[1.5px] text-gray-500 font-semibold">
+      <div className="flex items-center gap-1 text-[9px] uppercase tracking-[1.5px] text-gray-500 font-semibold">
+        <SlidersHorizontal size={12} />
         Parameter Overrides
       </div>
 

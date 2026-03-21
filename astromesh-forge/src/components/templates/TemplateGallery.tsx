@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
+import { Search, BookTemplate } from "lucide-react";
 import type { TemplateSummary } from "../../types/template";
 import { useConnectionStore } from "../../stores/connection";
-import { Input } from "../ui/Input";
+import { Skeleton } from "../ui/Skeleton";
+import { EmptyState } from "../ui/EmptyState";
 import { TemplateCard } from "./TemplateCard";
 import { TemplatePreview } from "./TemplatePreview";
 
@@ -66,8 +68,11 @@ export function TemplateGallery() {
       <h1 className="text-2xl font-bold text-gray-100 mb-6">Templates</h1>
 
       {/* Search */}
-      <div className="mb-4 max-w-md">
-        <Input
+      <div className="mb-4 max-w-md relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <input
+          type="text"
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-cyan-500"
           placeholder="Search templates..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -102,11 +107,21 @@ export function TemplateGallery() {
       </div>
 
       {/* Content */}
-      {loading && <p className="text-gray-400">Loading templates...</p>}
+      {loading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
+        </div>
+      )}
       {error && <p className="text-red-400">Error: {error}</p>}
 
       {!loading && !error && filtered.length === 0 && (
-        <p className="text-gray-500">No templates found.</p>
+        <EmptyState
+          icon={BookTemplate}
+          title="No templates found"
+          description="Try adjusting your search or category filter"
+        />
       )}
 
       {!loading && !error && filtered.length > 0 && (

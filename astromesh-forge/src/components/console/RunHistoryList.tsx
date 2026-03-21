@@ -1,3 +1,4 @@
+import { History, GitCompareArrows } from "lucide-react";
 import { useConsoleStore } from "../../stores/console";
 
 export function RunHistoryList() {
@@ -28,13 +29,19 @@ export function RunHistoryList() {
   return (
     <div className="border-b border-gray-800 px-3 py-2.5">
       <div className="flex justify-between items-center mb-2">
-        <div className="text-[9px] uppercase tracking-[1.5px] text-gray-500 font-semibold">
+        <div className="flex items-center gap-1 text-[9px] uppercase tracking-[1.5px] text-gray-500 font-semibold">
+          <History size={12} />
           Run History
         </div>
         <button
-          className={`text-[10px] ${isComparing ? "text-red-400" : "text-cyan-400"} hover:underline`}
-          onClick={() => setCompare(isComparing ? null : null)}
+          className={`flex items-center gap-1 text-[10px] ${isComparing ? "text-red-400" : "text-cyan-400"} hover:underline`}
+          onClick={() =>
+            setCompare(
+              isComparing ? null : [runs[0].id, runs[0].id]
+            )
+          }
         >
+          <GitCompareArrows size={10} />
           {isComparing ? "Exit Compare" : "Compare"}
         </button>
       </div>

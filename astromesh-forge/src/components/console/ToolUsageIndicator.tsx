@@ -1,3 +1,5 @@
+import { XCircle, Zap } from "lucide-react";
+
 interface ToolUsageIndicatorProps {
   steps: Array<Record<string, unknown>>;
 }
@@ -26,7 +28,7 @@ export function ToolUsageIndicator({ steps }: ToolUsageIndicatorProps) {
                 : "bg-green-500/20 text-green-400"
             }`}
           >
-            <span className="text-[8px]">{hasError ? "✕" : "⚡"}</span>
+            {hasError ? <XCircle size={10} /> : <Zap size={10} />}
             {name}
             {duration != null && (
               <span className="opacity-70">{duration}ms</span>

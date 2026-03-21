@@ -1,3 +1,4 @@
+import { Eraser, RotateCcw } from "lucide-react";
 import { useConsoleStore } from "../../stores/console";
 import { Button } from "../ui/Button";
 import { AgentSelector } from "./AgentSelector";
@@ -12,10 +13,10 @@ export function ConsoleLeftPanel() {
       {selectedAgent && <OverrideControls />}
       <div className="flex-1" />
       <div className="flex flex-col gap-1.5">
-        <Button variant="secondary" className="text-xs w-full" onClick={clearChat}>
+        <Button variant="secondary" icon={Eraser} className="text-xs w-full" onClick={clearChat}>
           Clear Chat
         </Button>
-        <Button variant="danger" className="text-xs w-full" onClick={resetSession}>
+        <Button variant="danger" icon={RotateCcw} className="text-xs w-full" onClick={resetSession}>
           Reset Session
         </Button>
       </div>

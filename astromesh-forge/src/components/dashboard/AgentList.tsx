@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Bot,
+  Pencil,
+  Rocket,
+  Pause,
+  Trash2,
+  FileEdit,
+  CheckCircle2,
+  PauseCircle,
+  WifiOff,
+} from "lucide-react";
 import { useAgentsListStore } from "../../stores/agents-list";
 import { useConnectionStore } from "../../stores/connection";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
+import { Skeleton } from "../ui/Skeleton";
+import { EmptyState } from "../ui/EmptyState";
 
 const statusVariant = {
   draft: "default" as const,
@@ -12,11 +25,18 @@ const statusVariant = {
   paused: "warning" as const,
 };
 
+const statusIcon = {
+  draft: FileEdit,
+  deployed: CheckCircle2,
+  paused: PauseCircle,
+};
+
 export function AgentList() {
   const { agents, loading, error, setAgents, setLoading, setError } =
     useAgentsListStore();
   const client = useConnectionStore((s) => s.client);
   const connected = useConnectionStore((s) => s.connected);
+  const navigate = useNavigate();
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -67,7 +87,7 @@ export function AgentList() {
   }
 
   if (loading) {
-    return <p className="text-gray-400">Loading agents...</p>;
+    return <Skeleton lines={4} />;
   }
 
   if (error) {
@@ -83,14 +103,23 @@ export function AgentList() {
 
   if (!connected) {
     return (
-      <p className="text-gray-500">
-        Connect to an Astromesh node to view agents.
-      </p>
+      <EmptyState
+        icon={WifiOff}
+        title="Not connected"
+        description="Connect to an Astromesh node to view agents"
+      />
     );
   }
 
   if (agents.length === 0) {
-    return <p className="text-gray-500">No agents yet. Create one above!</p>;
+    return (
+      <EmptyState
+        icon={Bot}
+        title="No agents yet"
+        description="Create your first agent to get started"
+        action={{ label: "Create Agent", onClick: () => navigate("/wizard") }}
+      />
+    );
   }
 
   return (
@@ -111,30 +140,37 @@ export function AgentList() {
                 className="border-b border-gray-700/50 hover:bg-gray-800/50"
               >
                 <td className="py-3 pr-4">
-                  <div>
-                    <span className="text-gray-100 font-medium">
-                      {agent.description || agent.name}
-                    </span>
-                    <span className="block text-xs text-gray-500">
-                      {agent.name}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <Bot size={16} className="text-gray-500 flex-shrink-0" />
+                    <div>
+                      <span className="text-gray-100 font-medium">
+                        {agent.description || agent.name}
+                      </span>
+                      <span className="block text-xs text-gray-500">
+                        {agent.name}
+                      </span>
+                    </div>
                   </div>
                 </td>
                 <td className="py-3 pr-4">
-                  <Badge variant={statusVariant[agent.status]}>
+                  <Badge
+                    variant={statusVariant[agent.status]}
+                    icon={statusIcon[agent.status]}
+                  >
                     {agent.status}
                   </Badge>
                 </td>
                 <td className="py-3">
                   <div className="flex gap-2">
                     <Link to={`/wizard/${agent.name}`}>
-                      <Button variant="ghost" className="text-sm px-2 py-1">
+                      <Button variant="ghost" icon={Pencil} className="text-sm px-2 py-1">
                         Edit
                       </Button>
                     </Link>
                     {agent.status !== "deployed" && (
                       <Button
                         variant="ghost"
+                        icon={Rocket}
                         className="text-sm px-2 py-1 text-green-400"
                         onClick={() => handleDeploy(agent.name)}
                       >
@@ -144,6 +180,7 @@ export function AgentList() {
                     {agent.status === "deployed" && (
                       <Button
                         variant="ghost"
+                        icon={Pause}
                         className="text-sm px-2 py-1 text-yellow-400"
                         onClick={() => handlePause(agent.name)}
                       >
@@ -152,6 +189,7 @@ export function AgentList() {
                     )}
                     <Button
                       variant="ghost"
+                      icon={Trash2}
                       className="text-sm px-2 py-1 text-red-400"
                       onClick={() => setDeleteTarget(agent.name)}
                     >
@@ -181,6 +219,7 @@ export function AgentList() {
           </Button>
           <Button
             variant="danger"
+            icon={Trash2}
             onClick={() => deleteTarget && handleDelete(deleteTarget)}
           >
             Delete

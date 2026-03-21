@@ -1,7 +1,23 @@
 import copy
+from dataclasses import asdict, is_dataclass
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+
+
+def _steps_to_dicts(steps: list | None) -> list[dict]:
+    """Orchestration returns AgentStep dataclasses; OpenAPI expects JSON objects."""
+    if not steps:
+        return []
+    out: list[dict] = []
+    for item in steps:
+        if isinstance(item, dict):
+            out.append(item)
+        elif is_dataclass(item):
+            out.append(asdict(item))
+        else:
+            out.append({"result": str(item)})
+    return out
 
 router = APIRouter()
 
@@ -160,16 +176,26 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
         total_out = 0
         model_used = ""
         for span in spans:
-            span_meta = span.get("metadata", {})
-            if "usage" in span_meta:
+            attrs = span.get("attributes", {}) if isinstance(span, dict) else {}
+            # Runtime stores tokens as input_tokens / output_tokens in attributes
+            total_in += attrs.get("input_tokens", 0)
+            total_out += attrs.get("output_tokens", 0)
+            # Also check nested metadata.usage (legacy / external providers)
+            span_meta = attrs.get("metadata", {}) if isinstance(attrs, dict) else {}
+            if isinstance(span_meta, dict) and "usage" in span_meta:
                 u = span_meta["usage"]
                 total_in += u.get("prompt_tokens", 0)
                 total_out += u.get("completion_tokens", 0)
-            if "model" in span_meta and not model_used:
+            if isinstance(span_meta, dict) and "model" in span_meta and not model_used:
                 model_used = span_meta["model"]
         if total_in or total_out:
             usage = UsageInfo(tokens_in=total_in, tokens_out=total_out, model=model_used)
-        return AgentRunResponse(answer=result.get("answer", ""), steps=result.get("steps", []), usage=usage, trace=trace if trace else None)
+        return AgentRunResponse(
+            answer=result.get("answer", ""),
+            steps=_steps_to_dicts(result.get("steps")),
+            usage=usage,
+            trace=trace if trace else None,
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

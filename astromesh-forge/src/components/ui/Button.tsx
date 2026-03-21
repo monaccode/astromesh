@@ -1,9 +1,12 @@
 import { type ButtonHTMLAttributes } from "react";
+import type { LucideIcon } from "lucide-react";
 
 type Variant = "primary" | "secondary" | "danger" | "ghost";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
+  icon?: LucideIcon;
+  iconRight?: LucideIcon;
 }
 
 const variants: Record<Variant, string> = {
@@ -16,12 +19,24 @@ const variants: Record<Variant, string> = {
 export function Button({
   variant = "primary",
   className = "",
+  icon: Icon,
+  iconRight: IconRight,
+  children,
   ...props
 }: ButtonProps) {
+  const hasIcon = Icon || IconRight;
+  const iconOnly = hasIcon && !children;
+  const padding = iconOnly ? "p-2" : "px-4 py-2";
+  const flex = hasIcon ? "inline-flex items-center gap-2" : "";
+
   return (
     <button
-      className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`${padding} rounded-lg font-medium transition-colors disabled:opacity-50 ${flex} ${variants[variant]} ${className}`}
       {...props}
-    />
+    >
+      {Icon && <Icon size={16} />}
+      {children}
+      {IconRight && <IconRight size={16} />}
+    </button>
   );
 }

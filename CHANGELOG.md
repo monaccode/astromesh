@@ -22,6 +22,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `nodesToAgent` utility for canvas → AgentConfig roundtrip conversion
   - Pipeline graph utilities: append, remove, reconnect, and reposition nodes
   - Pipeline presets for common agent patterns
+- **Lucide React icon library** — added `lucide-react` for consistent iconography across the UI
+- **Toast notification system** — non-blocking toast notifications (success/error/info/warning) replacing browser `alert()` calls
+- **Reusable UI primitives** — `Skeleton` (loading states), `EmptyState` (empty data views), `Tooltip` (hover hints)
+
+### Changed (Astromesh Forge)
+
+- **Header navigation** — icons on all nav links (Dashboard, Templates, Console), active route highlighting, Hexagon logo icon, Wifi/WifiOff/Loader2 connection status replacing colored dot
+- **Dashboard** — QuickActions cards use proper icons (PlusCircle, LayoutTemplate, FileUp) replacing Unicode characters; AgentList shows Bot icons, status badge icons (FileEdit/CheckCircle2/PauseCircle), action button icons (Pencil/Rocket/Pause/Trash2), loading skeleton, and EmptyState for no agents/disconnected
+- **Wizard step indicator** — step-specific icons (User, Cpu, Wrench, GitBranch, Settings, MessageSquare, ClipboardCheck) replacing step numbers; Check icon for completed steps
+- **Console panels** — section header icons throughout (Bot, SlidersHorizontal, Terminal, Activity, History), Send icon button, Eraser/RotateCcw button icons, span type icons (Bot/Brain/Wrench/Shield/Database), ChevronDown/ChevronRight for expand/collapse
+- **Compare mode redesign** — full-width layout replacing cramped 340px side panel; summary stat cards (duration/tokens/spans with delta percentages); span-by-span matched comparison with dual duration bars; inline run picker dropdowns to switch runs without exiting compare
+- **Run summary bar** — now shows cumulative totals across all runs in the session instead of only the active run
+- **Chat bubbles** — token usage (in/out) displayed on each assistant message
+- **Canvas toolbox** — section icons (Wrench/Link2/Database/Shield/Cpu/Bot), ChevronUp/ChevronDown replacing Unicode arrows, Loader2 spinner for loading states
+- **Templates gallery** — Search icon in search input, Skeleton card grid for loading, EmptyState for no results
+- **Deploy modal** — ChevronRight icon replacing Unicode play triangle, Rocket icon on deploy button
+- **Modal component** — X icon replacing Unicode `✕` close button
+- **Button component** — optional `icon`/`iconRight` props for rendering Lucide icons
+- **Badge component** — optional `icon` prop for rendering Lucide icons
 
 ### Added (Backend)
 
@@ -37,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `astromesh-copilot.agent.yaml` references updated to match available builtin tools (`json_transform`, `text_summarize` replacing removed `validate_yaml`, `list_builtin_tools`)
 - Astromesh Node daemon gracefully handles missing dependencies
 - Agent configs (sales-qualifier, support-agent, whatsapp-assistant) updated from Docker service name `ollama:11434` to `localhost:11434` for local development
+- **Token usage extraction** — backend now correctly reads `input_tokens`/`output_tokens` from `span.attributes` (runtime format) in addition to legacy `span.attributes.metadata.usage` path
+- **Compare mode button** — fixed `setCompare` always passing `null` in both branches of the ternary (never entering compare mode)
 
 ### Removed
 

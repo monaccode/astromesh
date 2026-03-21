@@ -77,7 +77,13 @@ export function TemplatePreview({ templateName, open, onClose }: TemplatePreview
 
   return (
     <Modal open={open} onClose={onClose} title={template?.display_name || "Template Preview"}>
-      {loading && <p className="text-gray-400">Loading template...</p>}
+      {loading && (
+        <div className="space-y-4">
+          <div className="h-4 w-32 bg-gray-700 animate-pulse rounded" />
+          <div className="h-3 w-full bg-gray-700 animate-pulse rounded" />
+          <div className="h-3 w-4/5 bg-gray-700 animate-pulse rounded" />
+        </div>
+      )}
       {error && <p className="text-red-400">Error: {error}</p>}
 
       {template && (

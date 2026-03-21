@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { X } from "lucide-react";
 
 interface ModalProps {
   open: boolean;
@@ -20,7 +21,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
             onClick={onClose}
             className="text-gray-500 hover:text-gray-300 transition-colors"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
         {children}

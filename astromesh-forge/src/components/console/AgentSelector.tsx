@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Bot } from "lucide-react";
 import { useConnectionStore } from "../../stores/connection";
 import { useConsoleStore } from "../../stores/console";
 import type { AgentMeta } from "../../types/agent";
@@ -17,7 +18,8 @@ export function AgentSelector() {
 
   return (
     <div>
-      <div className="text-[9px] uppercase tracking-[1.5px] text-gray-500 font-semibold mb-1.5">
+      <div className="flex items-center gap-1 text-[9px] uppercase tracking-[1.5px] text-gray-500 font-semibold mb-1.5">
+        <Bot size={12} />
         Agent
       </div>
       <select

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ChevronRight, Rocket } from "lucide-react";
 import type { AgentConfig } from "../../types/agent";
 import { ForgeClient } from "../../api/client";
 import { useConnectionStore } from "../../stores/connection";
@@ -79,9 +80,10 @@ export function DeployModal({ open, onClose, config }: DeployModalProps) {
             className="text-sm text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1"
             onClick={() => setYamlExpanded(!yamlExpanded)}
           >
-            <span className={`transition-transform ${yamlExpanded ? "rotate-90" : ""}`}>
-              &#9654;
-            </span>
+            <ChevronRight
+              size={14}
+              className={`transition-transform ${yamlExpanded ? "rotate-90" : ""}`}
+            />
             YAML Preview
           </button>
           {yamlExpanded && (
@@ -112,7 +114,7 @@ export function DeployModal({ open, onClose, config }: DeployModalProps) {
           <Button variant="ghost" onClick={onClose} disabled={deploying}>
             Cancel
           </Button>
-          <Button onClick={handleDeploy} disabled={deploying}>
+          <Button icon={Rocket} onClick={handleDeploy} disabled={deploying}>
             {deploying ? "Deploying..." : "Deploy"}
           </Button>
         </div>

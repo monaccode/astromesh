@@ -1,5 +1,7 @@
 import { useState, useCallback, type KeyboardEvent } from "react";
+import { Send } from "lucide-react";
 import { useConsoleStore } from "../../stores/console";
+import { Tooltip } from "../ui/Tooltip";
 
 export function ChatInput() {
   const { selectedAgent, running, sendMessage } = useConsoleStore();
@@ -36,13 +38,15 @@ export function ChatInput() {
         onKeyDown={handleKeyDown}
         disabled={disabled}
       />
-      <button
-        className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-lg transition-colors text-sm"
-        onClick={handleSend}
-        disabled={disabled || !text.trim()}
-      >
-        Send
-      </button>
+      <Tooltip text="Send message">
+        <button
+          className="bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-lg transition-colors"
+          onClick={handleSend}
+          disabled={disabled || !text.trim()}
+        >
+          <Send size={18} />
+        </button>
+      </Tooltip>
     </div>
   );
 }
