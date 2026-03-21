@@ -1,4 +1,6 @@
+import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -22,7 +24,64 @@ from astromesh.api.routes import (
 )
 from astromesh.api import ws
 
-app = FastAPI(title="Astromesh Agent Runtime API", version=__version__)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Bootstrap AgentRuntime for `uvicorn astromesh.api.main:app` (astromeshd sets runtime before serve)."""
+    skip = os.environ.get("ASTROMESH_SKIP_RUNTIME", "").lower() in ("1", "true", "yes")
+    if skip:
+        yield
+        return
+
+    from astromesh.api.routes import agents as agents_route
+    from astromesh.api.routes import memory as memory_route
+    from astromesh.api.routes import system as system_route
+    from astromesh.api.routes import templates as templates_route
+    from astromesh.api.routes import whatsapp as whatsapp_route
+    from astromesh.runtime.engine import AgentRuntime
+
+    if agents_route._runtime is not None:
+        yield
+        return
+
+    config_dir = os.environ.get("ASTROMESH_CONFIG_DIR", "config")
+    runtime = AgentRuntime(config_dir=config_dir)
+    try:
+        await runtime.bootstrap()
+    except Exception:
+        logger.exception("AgentRuntime bootstrap failed (config_dir=%s)", config_dir)
+        raise
+
+    agents_route.set_runtime(runtime)
+    system_route.set_runtime(runtime)
+    memory_route.set_runtime(runtime)
+    whatsapp_route.set_runtime(runtime)
+
+    lifespan_set_templates = False
+    if templates_route._templates_dir is None:
+        templates_path = Path(config_dir) / "templates"
+        if templates_path.is_dir():
+            templates_route.set_templates_dir(str(templates_path))
+            lifespan_set_templates = True
+
+    try:
+        yield
+    finally:
+        agents_route.set_runtime(None)
+        system_route.set_runtime(None)
+        memory_route.set_runtime(None)
+        whatsapp_route.set_runtime(None)
+        if lifespan_set_templates:
+            templates_route.set_templates_dir(None)
+
+
+app = FastAPI(
+    title="Astromesh Agent Runtime API",
+    version=__version__,
+    lifespan=lifespan,
+)
 
 # CORS for standalone Forge
 cors_origins = os.getenv("ASTROMESH_CORS_ORIGINS", "http://localhost:5173").split(",")

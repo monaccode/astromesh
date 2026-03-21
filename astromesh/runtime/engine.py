@@ -1,5 +1,8 @@
+import logging
 from pathlib import Path
+
 import yaml
+
 from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
@@ -12,6 +15,8 @@ from astromesh.orchestration.patterns import (
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
+
+logger = logging.getLogger(__name__)
 
 
 def _make_builtin_handler(tool_instance, agent_name):
@@ -49,8 +54,12 @@ class AgentRuntime:
             configs.append(yaml.safe_load(f.read_text()))
         self._detect_circular_refs(configs)
         for config in configs:
-            agent = self._build_agent(config)
-            name = config["metadata"]["name"]
+            name = config.get("metadata", {}).get("name", "<unknown>")
+            try:
+                agent = self._build_agent(config)
+            except Exception:
+                logger.exception("Skipping agent %s: failed to build from config", name)
+                continue
             self._agents[agent.name] = agent
             self._agent_configs[name] = config
             self._agent_status[name] = "deployed"
