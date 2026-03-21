@@ -10,6 +10,8 @@ uv sync --extra all                  # Install all optional backends
 uv run uvicorn astromesh.api.main:app --reload  # Run API server (port 8000)
 ```
 
+The API app runs an ASGI **lifespan** that bootstraps `AgentRuntime` and wires route modules (same idea as `astromeshd`). Use `ASTROMESH_CONFIG_DIR` to point at a config tree; set `ASTROMESH_SKIP_RUNTIME=1` to skip bootstrap (tests).
+
 Python 3.12+ required. Package manager is `uv`, build system is `hatchling`.
 
 ### Rust Native Extensions (optional)
@@ -32,7 +34,7 @@ uv run pytest tests/test_api.py -k "test_health"  # Single test
 uv run pytest --cov=astromesh             # With coverage
 ```
 
-Pytest runs with `asyncio_mode = "auto"` — async test functions work without decorators. Use `respx` for mocking HTTP calls.
+Pytest runs with `asyncio_mode = "auto"` — async test functions work without decorators. Use `respx` for mocking HTTP calls. `httpx.ASGITransport` does not run lifespan by default; shared `client` in `tests/conftest.py` wraps the app with `asgi-lifespan` so the runtime is initialized like production.
 
 ## Linting
 
