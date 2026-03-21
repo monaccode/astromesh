@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Astromesh Node daemon gracefully handles missing dependencies
 - Agent configs (sales-qualifier, support-agent, whatsapp-assistant) updated from Docker service name `ollama:11434` to `localhost:11434` for local development
 
+### Removed
+
+- **`astromesh-cloud/`** — removed legacy cloud multi-tenant layer (API + Studio frontend). Auth, org management, BYOK, usage tracking, and execution proxy functionality will be absorbed by a future project
+
 ### Changed (Tests)
 
 - Test suite uses `asgi-lifespan` `LifespanManager` for proper runtime initialization
