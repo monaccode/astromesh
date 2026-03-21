@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Astromesh Forge)
+
+- **Developer Console** (`/console`) — full-page playground for live agent testing and debugging
+  - Three-column layout: agent config overrides (left), interactive chat (center), trace timeline (right)
+  - Parameter overrides: change model, temperature, max_tokens, and toggle tools on/off without editing agent config
+  - Trace timeline: hierarchical span tree (agent.run → memory_build → prompt_render → llm.complete → tool.call → memory_persist) with expandable details showing prompts, LLM responses, tool arguments/results, and token usage
+  - Run history: clickable list of past runs in the current session
+  - Compare mode: select two runs for side-by-side trace comparison with diff highlighting
+  - Inline tool usage badges on assistant messages showing tool name and latency
+  - Token/cost summary bar per run (tokens in/out, model, duration)
+- **Canvas pipeline editing** — drag-and-drop pipeline blocks in micro-view
+  - PipelinePropertiesPanel for editing block config within the canvas
+  - `nodesToAgent` utility for canvas → AgentConfig roundtrip conversion
+  - Pipeline graph utilities: append, remove, reconnect, and reposition nodes
+  - Pipeline presets for common agent patterns
+
+### Added (Backend)
+
+- ASGI lifespan context manager (`astromesh/api/main.py`) — bootstraps AgentRuntime and wires all route modules automatically when running via `uvicorn`
+- Template auto-discovery — `templates.py` resolves `config/templates/` via `ASTROMESH_TEMPLATES_DIR` env var, cwd, or package anchor without requiring explicit `set_templates_dir()` calls
+- `AgentRunResponse.trace` field — run endpoint now returns full distributed trace data (previously computed but discarded)
+
+### Fixed
+
+- AgentRuntime skips agents that fail to build instead of crashing the entire bootstrap
+- Forge wizard `StepIdentity` no longer crashes when identity fields are partially defined (e.g. from templates)
+- `astromesh-copilot.agent.yaml` references updated to match available builtin tools (`json_transform`, `text_summarize` replacing removed `validate_yaml`, `list_builtin_tools`)
+- Astromesh Node daemon gracefully handles missing dependencies
+
+### Changed (Tests)
+
+- Test suite uses `asgi-lifespan` `LifespanManager` for proper runtime initialization
+- Tests updated for draft lifecycle (`register_agent` → draft status in `_agent_configs`)
+- Template tests use auto-discovery instead of hardcoded directory paths
+- Forge client tests cover `runAgent`, `getTraces`, `getTrace` methods
+- Added `nodes-to-agent` roundtrip tests for canvas pipeline editing
+
 ---
 
 ## [v0.19.3] - 2026-03-20
