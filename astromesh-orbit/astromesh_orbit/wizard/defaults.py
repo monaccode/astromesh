@@ -6,11 +6,9 @@ from typing import Any
 
 PRESETS: dict[str, dict[str, Any]] = {
     "starter": {
-        "estimated_cost": 30,
+        "estimated_cost": 15,
         "compute": {
             "runtime": {"min_instances": 1, "max_instances": 3, "cpu": "2", "memory": "2Gi"},
-            "cloud_api": {"min_instances": 1, "max_instances": 2, "cpu": "1", "memory": "1Gi"},
-            "studio": {"min_instances": 0, "max_instances": 1, "cpu": "1", "memory": "512Mi"},
         },
         "database": {
             "tier": "db-f1-micro",
@@ -22,16 +20,12 @@ PRESETS: dict[str, dict[str, Any]] = {
         "secrets": {"provider_keys": True, "jwt_secret": True},
         "images": {
             "runtime": "fulfarodev/astromesh:latest",
-            "cloud_api": "fulfarodev/astromesh-cloud-api:latest",
-            "studio": "fulfarodev/astromesh-cloud-studio:latest",
         },
     },
     "pro": {
-        "estimated_cost": 150,
+        "estimated_cost": 80,
         "compute": {
             "runtime": {"min_instances": 1, "max_instances": 5, "cpu": "4", "memory": "4Gi"},
-            "cloud_api": {"min_instances": 1, "max_instances": 3, "cpu": "2", "memory": "2Gi"},
-            "studio": {"min_instances": 1, "max_instances": 3, "cpu": "1", "memory": "1Gi"},
         },
         "database": {
             "tier": "db-g1-small",
@@ -43,8 +37,6 @@ PRESETS: dict[str, dict[str, Any]] = {
         "secrets": {"provider_keys": True, "jwt_secret": True},
         "images": {
             "runtime": "fulfarodev/astromesh:latest",
-            "cloud_api": "fulfarodev/astromesh-cloud-api:latest",
-            "studio": "fulfarodev/astromesh-cloud-studio:latest",
         },
     },
 }

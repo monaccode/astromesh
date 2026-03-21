@@ -66,18 +66,6 @@ class GCPProvider:
                     "spec": config.spec.compute.runtime,
                     "image": config.spec.images.runtime,
                 },
-                {
-                    "key": "cloud_api",
-                    "name": "astromesh-cloud-api",
-                    "spec": config.spec.compute.cloud_api,
-                    "image": config.spec.images.cloud_api,
-                },
-                {
-                    "key": "studio",
-                    "name": "astromesh-studio",
-                    "spec": config.spec.compute.studio,
-                    "image": config.spec.images.studio,
-                },
             ],
         }
 
@@ -134,8 +122,6 @@ class GCPProvider:
 
         endpoints = {
             "runtime": result.outputs.get("runtime_url", ""),
-            "cloud_api": result.outputs.get("cloud_api_url", ""),
-            "studio": result.outputs.get("studio_url", ""),
         }
 
         return ProvisionResult(apply=result, env_file=env_path, endpoints=endpoints)
@@ -143,7 +129,7 @@ class GCPProvider:
     async def status(self, config: OrbitConfig) -> DeploymentStatus:
         outputs = await self._tf.output(Path(".orbit/generated"))
         resources = []
-        for key in ["runtime", "cloud_api", "studio"]:
+        for key in ["runtime"]:
             url_key = f"{key}_url"
             url = outputs.get(url_key)
             resources.append(

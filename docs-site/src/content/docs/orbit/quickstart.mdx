@@ -63,8 +63,8 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    ? GCP Project ID: my-project-123
    ? Region: us-central1
    ? Deployment preset:
-     ❯ Starter (~$30/mo) — 1 instance, db-f1-micro, 1GB cache
-       Pro (~$150/mo) — auto-scaling, db-g1-small with HA, 4GB cache
+     ❯ Starter (~$15/mo) — 1 instance, db-f1-micro, 1GB cache
+       Pro (~$80/mo) — auto-scaling, db-g1-small with HA, 4GB cache
        Custom — configure everything manually
    ? Environment: production
 
@@ -98,19 +98,16 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    ──────────────────────────────────────────────
 
    + google_cloud_run_v2_service.runtime
-   + google_cloud_run_v2_service.cloud_api
-   + google_cloud_run_v2_service.studio
    + google_sql_database_instance.main
    + google_sql_database.astromesh
-   + google_sql_database.astromesh_cloud
    + google_redis_instance.cache
    + google_secret_manager_secret.jwt_secret
    + google_vpc_access_connector.main
    + google_service_account.orbit
    + google_project_iam_member.orbit (4 bindings)
 
-   Plan: 14 to add, 0 to change, 0 to destroy.
-   Estimated monthly cost: ~$30 (Starter preset)
+   Plan: 10 to add, 0 to change, 0 to destroy.
+   Estimated monthly cost: ~$15 (Starter preset)
    ```
 
    <Aside type="tip">
@@ -137,14 +134,10 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    ✓ google_redis_instance.cache                   (5m 30s)
    ✓ google_secret_manager_secret.jwt_secret       (2s)
    ✓ google_cloud_run_v2_service.runtime           (12s)
-   ✓ google_cloud_run_v2_service.cloud_api         (10s)
-   ✓ google_cloud_run_v2_service.studio            (8s)
 
    ╭─ Deployment Complete ─────────────────────────────╮
    │                                                    │
    │  Runtime:  https://astromesh-runtime-abc123.run.app│
-   │  Cloud API: https://astromesh-api-abc123.run.app   │
-   │  Studio:   https://astromesh-studio-abc123.run.app │
    │                                                    │
    │  Connection details saved to .orbit/orbit.env      │
    │                                                    │
@@ -167,8 +160,6 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
 
    RESOURCE                  TYPE                    STATUS    URL
    astromesh-runtime         cloud_run_v2_service    running   https://astromesh-runtime-abc123.run.app
-   astromesh-cloud-api       cloud_run_v2_service    running   https://astromesh-api-abc123.run.app
-   astromesh-studio          cloud_run_v2_service    running   https://astromesh-studio-abc123.run.app
    main                      sql_database_instance   running   —
    cache                     redis_instance          running   —
    ```

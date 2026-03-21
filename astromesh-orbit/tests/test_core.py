@@ -115,7 +115,5 @@ def test_cache_spec():
 def test_images_spec():
     i = ImagesSpec(
         runtime="fulfarodev/astromesh:latest",
-        cloud_api="fulfarodev/astromesh-cloud-api:latest",
-        studio="fulfarodev/astromesh-cloud-studio:latest",
     )
     assert "astromesh" in i.runtime

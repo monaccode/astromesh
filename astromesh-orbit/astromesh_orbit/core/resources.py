@@ -34,5 +34,3 @@ class SecretsSpec:
 @dataclass(frozen=True)
 class ImagesSpec:
     runtime: str = "fulfarodev/astromesh:latest"
-    cloud_api: str = "fulfarodev/astromesh-cloud-api:latest"
-    studio: str = "fulfarodev/astromesh-cloud-studio:latest"

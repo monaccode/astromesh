@@ -117,19 +117,16 @@ Terraform Plan:
 ──────────────────────────────────────────────
 
 + google_cloud_run_v2_service.runtime
-+ google_cloud_run_v2_service.cloud_api
-+ google_cloud_run_v2_service.studio
 + google_sql_database_instance.main
 + google_sql_database.astromesh
-+ google_sql_database.astromesh_cloud
 + google_redis_instance.cache
 + google_secret_manager_secret.jwt_secret
 + google_vpc_access_connector.main
 + google_service_account.orbit
 + google_project_iam_member.orbit (4 bindings)
 
-Plan: 14 to add, 0 to change, 0 to destroy.
-Estimated monthly cost: ~$30 (Starter preset)
+Plan: 10 to add, 0 to change, 0 to destroy.
+Estimated monthly cost: ~$15 (Starter preset)
 ```
 
 **Failure example — missing API:**
@@ -178,7 +175,7 @@ astromeshctl orbit apply
 ```
 Validating and planning...
 ✓ Validation passed (5 checks)
-✓ Plan: 14 to add, 0 to change, 0 to destroy
+✓ Plan: 10 to add, 0 to change, 0 to destroy
 
 Do you want to apply this plan? [y/N]: y
 
@@ -189,16 +186,12 @@ Applying...
 ✓ google_redis_instance.cache                   (5m 30s)
 ✓ google_secret_manager_secret.jwt_secret       (2s)
 ✓ google_cloud_run_v2_service.runtime           (12s)
-✓ google_cloud_run_v2_service.cloud_api         (10s)
-✓ google_cloud_run_v2_service.studio            (8s)
 
-Apply complete! Resources: 14 added, 0 changed, 0 destroyed.
+Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
 
 ╭─ Deployment Complete ─────────────────────────────╮
 │                                                    │
 │  Runtime:   https://astromesh-runtime-abc123.run.app
-│  Cloud API: https://astromesh-api-abc123.run.app
-│  Studio:    https://astromesh-studio-abc123.run.app
 │                                                    │
 │  Connection details saved to .orbit/orbit.env      │
 │                                                    │
@@ -247,8 +240,6 @@ Last applied: 2026-03-18T14:32:00Z
 
 RESOURCE                  TYPE                    STATUS    URL
 astromesh-runtime         cloud_run_v2_service    running   https://astromesh-runtime-abc123.run.app
-astromesh-cloud-api       cloud_run_v2_service    running   https://astromesh-api-abc123.run.app
-astromesh-studio          cloud_run_v2_service    running   https://astromesh-studio-abc123.run.app
 main                      sql_database_instance   running   —
 cache                     redis_instance          running   —
 orbit                     service_account         active    —
@@ -288,8 +279,6 @@ Reading current state...
 
 Resources to destroy:
   - google_cloud_run_v2_service.runtime
-  - google_cloud_run_v2_service.cloud_api
-  - google_cloud_run_v2_service.studio
   - google_sql_database_instance.main
   - google_redis_instance.cache
   - google_secret_manager_secret.jwt_secret
@@ -297,22 +286,20 @@ Resources to destroy:
   - google_service_account.orbit
   - google_project_iam_member.orbit (4 bindings)
 
-⚠ This will permanently destroy 14 resources.
+⚠ This will permanently destroy 10 resources.
   The state bucket will NOT be deleted.
 
 Do you want to proceed? [y/N]: y
 
 Destroying...
 ✓ google_cloud_run_v2_service.runtime           (5s)
-✓ google_cloud_run_v2_service.cloud_api         (4s)
-✓ google_cloud_run_v2_service.studio            (3s)
 ✓ google_redis_instance.cache                   (2m 15s)
 ✓ google_sql_database_instance.main             (3m 45s)
 ✓ google_secret_manager_secret.jwt_secret       (2s)
 ✓ google_vpc_access_connector.main              (30s)
 ✓ google_service_account.orbit                  (3s)
 
-Destroy complete! Resources: 14 destroyed.
+Destroy complete! Resources: 10 destroyed.
 ```
 
 <Aside type="caution">
@@ -353,7 +340,7 @@ Generating standalone Terraform files...
 Written to ./my-terraform/:
   backend.tf        — Remote state configuration (points to existing bucket)
   main.tf           — Provider configuration and locals
-  cloud_run.tf      — Cloud Run services (runtime, cloud_api, studio)
+  cloud_run.tf      — Cloud Run service (runtime)
   cloud_sql.tf      — Cloud SQL for PostgreSQL
   memorystore.tf    — Memorystore for Redis
   secrets.tf        — Secret Manager entries

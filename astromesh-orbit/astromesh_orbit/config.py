@@ -24,8 +24,6 @@ class ComputeServiceSpec(BaseModel):
 
 class ComputeSpec(BaseModel):
     runtime: ComputeServiceSpec = ComputeServiceSpec(cpu="2", memory="2Gi", max_instances=5)
-    cloud_api: ComputeServiceSpec = ComputeServiceSpec()
-    studio: ComputeServiceSpec = ComputeServiceSpec(min_instances=0, max_instances=2)
 
 
 class DatabaseSpec(BaseModel):
@@ -47,8 +45,6 @@ class SecretsSpec(BaseModel):
 
 class ImagesSpec(BaseModel):
     runtime: str = "fulfarodev/astromesh:latest"
-    cloud_api: str = "fulfarodev/astromesh-cloud-api:latest"
-    studio: str = "fulfarodev/astromesh-cloud-studio:latest"
 
 
 class OrbitSpec(BaseModel):

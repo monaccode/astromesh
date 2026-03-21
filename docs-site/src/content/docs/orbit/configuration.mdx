@@ -28,14 +28,6 @@ spec:
       max_instances: 5             # Maximum instances under load
       cpu: "2"                     # vCPUs per instance
       memory: "2Gi"                # Memory per instance
-    cloud_api:                     # Astromesh Cloud API (auth, orgs, agents)
-      min_instances: 1
-      max_instances: 3
-      cpu: "1"
-      memory: "1Gi"
-    studio:                        # Astromesh Cloud Studio (Next.js frontend)
-      min_instances: 0             # Scale to zero — no cost when idle
-      max_instances: 2
 
   database:
     tier: db-f1-micro              # Cloud SQL machine tier
@@ -53,8 +45,6 @@ spec:
 
   images:
     runtime: fulfarodev/astromesh:latest
-    cloud_api: fulfarodev/astromesh-cloud-api:latest
-    studio: fulfarodev/astromesh-cloud-studio:latest
 ```
 
 ## Field Reference
@@ -76,7 +66,7 @@ spec:
 
 ### `spec.compute`
 
-Each compute service (`runtime`, `cloud_api`, `studio`) accepts:
+The `runtime` compute service accepts:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -113,14 +103,12 @@ Each compute service (`runtime`, `cloud_api`, `studio`) accepts:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `runtime` | string | `fulfarodev/astromesh:latest` | Container image for the Astromesh runtime. |
-| `cloud_api` | string | `fulfarodev/astromesh-cloud-api:latest` | Container image for the Cloud API. |
-| `studio` | string | `fulfarodev/astromesh-cloud-studio:latest` | Container image for the Studio frontend. |
 
 ## Presets
 
 The `orbit init` wizard offers two presets that fill in all values automatically. You can also pass `--preset` to skip the interactive wizard entirely.
 
-### Starter (~$30/mo)
+### Starter (~$15/mo)
 
 Best for development, demos, and small teams.
 
@@ -143,14 +131,6 @@ spec:
       max_instances: 1
       cpu: "1"
       memory: "1Gi"
-    cloud_api:
-      min_instances: 1
-      max_instances: 1
-      cpu: "1"
-      memory: "512Mi"
-    studio:
-      min_instances: 0
-      max_instances: 1
 
   database:
     tier: db-f1-micro
@@ -168,11 +148,9 @@ spec:
 
   images:
     runtime: fulfarodev/astromesh:latest
-    cloud_api: fulfarodev/astromesh-cloud-api:latest
-    studio: fulfarodev/astromesh-cloud-studio:latest
 ```
 
-### Pro (~$150/mo)
+### Pro (~$80/mo)
 
 Best for production workloads with auto-scaling and high availability.
 
@@ -195,14 +173,6 @@ spec:
       max_instances: 5
       cpu: "2"
       memory: "2Gi"
-    cloud_api:
-      min_instances: 1
-      max_instances: 3
-      cpu: "1"
-      memory: "1Gi"
-    studio:
-      min_instances: 0
-      max_instances: 2
 
   database:
     tier: db-g1-small
@@ -220,8 +190,6 @@ spec:
 
   images:
     runtime: fulfarodev/astromesh:latest
-    cloud_api: fulfarodev/astromesh-cloud-api:latest
-    studio: fulfarodev/astromesh-cloud-studio:latest
 ```
 
 ## Environment Options

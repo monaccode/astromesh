@@ -49,18 +49,6 @@ def ctx(config: OrbitConfig) -> dict:
                 "spec": config.spec.compute.runtime,
                 "image": config.spec.images.runtime,
             },
-            {
-                "key": "cloud_api",
-                "name": "astromesh-cloud-api",
-                "spec": config.spec.compute.cloud_api,
-                "image": config.spec.images.cloud_api,
-            },
-            {
-                "key": "studio",
-                "name": "astromesh-studio",
-                "spec": config.spec.compute.studio,
-                "image": config.spec.images.studio,
-            },
         ],
     }
 
@@ -78,8 +66,6 @@ def test_cloud_run_tf_renders(jinja_env, ctx):
     output = tmpl.render(ctx)
     assert "google_cloud_run_v2_service" in output
     assert "astromesh-runtime" in output
-    assert "astromesh-cloud-api" in output
-    assert "astromesh-studio" in output
 
 
 def test_cloud_sql_tf_renders(jinja_env, ctx):
@@ -129,7 +115,6 @@ def test_outputs_tf_renders(jinja_env, ctx):
     tmpl = jinja_env.get_template("outputs.tf.j2")
     output = tmpl.render(ctx)
     assert "runtime_url" in output
-    assert "cloud_api_url" in output
     assert "db_connection_name" in output
 
 
@@ -140,11 +125,10 @@ def test_backend_tf_renders(jinja_env, ctx):
     assert "astromesh-orbit-state" in output
 
 
-def test_cloud_run_ha_disabled_uses_min_instances(jinja_env, ctx):
-    """Starter preset: studio min_instances=0 should produce scale-to-zero."""
+def test_cloud_run_renders_min_instances(jinja_env, ctx):
+    """Runtime should render min_instance_count."""
     tmpl = jinja_env.get_template("cloud_run.tf.j2")
     output = tmpl.render(ctx)
-    # Studio should have min_instance_count = 0
     assert "min_instance_count" in output
 
 

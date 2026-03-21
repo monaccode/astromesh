@@ -14,8 +14,6 @@ Every field in `orbit.yaml` maps to one or more GCP resources:
 | orbit.yaml field | GCP Resource | Terraform Template |
 |---|---|---|
 | `spec.compute.runtime` | Cloud Run v2 Service | `cloud_run.tf.j2` |
-| `spec.compute.cloud_api` | Cloud Run v2 Service | `cloud_run.tf.j2` |
-| `spec.compute.studio` | Cloud Run v2 Service | `cloud_run.tf.j2` |
 | `spec.database` | Cloud SQL for PostgreSQL | `cloud_sql.tf.j2` |
 | `spec.cache` | Memorystore for Redis | `memorystore.tf.j2` |
 | `spec.secrets` | Secret Manager | `secrets.tf.j2` |
@@ -29,7 +27,7 @@ Orbit provisions several resources automatically that are not user-configured. T
 
 ### VPC Connector
 
-Cloud Run services need a Serverless VPC Access connector to communicate with Cloud SQL and Memorystore over private networking. Orbit creates one VPC connector shared by all three Cloud Run services.
+Cloud Run services need a Serverless VPC Access connector to communicate with Cloud SQL and Memorystore over private networking. Orbit creates one VPC connector for the runtime Cloud Run service.
 
 ### Service Account
 
@@ -42,7 +40,7 @@ A dedicated service account `astromesh-orbit@{'{project}'}` is created with the 
 | `roles/secretmanager.secretAccessor` | Read secrets at runtime |
 | `roles/run.invoker` | Allow services to invoke each other |
 
-All Cloud Run services run as this dedicated service account.
+The runtime Cloud Run service runs as this dedicated service account.
 
 ### Cloud SQL Auth Proxy
 
@@ -125,9 +123,7 @@ After a successful `orbit apply`, Orbit reads Terraform outputs and generates `.
 ```env
 ASTROMESH_DATABASE_URL=postgresql+asyncpg://astromesh:***@/astromesh?host=/cloudsql/{connection_name}
 ASTROMESH_REDIS_URL=redis://{memorystore_ip}:6379
-ASTROMESH_CLOUD_DATABASE_URL=postgresql+asyncpg://cloudapi:***@/astromesh_cloud?host=/cloudsql/{connection_name}
-ASTROMESH_CLOUD_RUNTIME_URL=https://{runtime_cloud_run_url}
-ASTROMESH_CLOUD_JWT_SECRET=projects/{project}/secrets/jwt-secret/versions/latest
+ASTROMESH_RUNTIME_URL=https://{runtime_cloud_run_url}
 ```
 
 These variables are injected into the Cloud Run services as environment variables. You can also source this file locally for development against the deployed infrastructure.

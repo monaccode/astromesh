@@ -41,8 +41,3 @@ resource "google_sql_database" "runtime" {
   project  = var.project_id
 }
 
-resource "google_sql_database" "cloud" {
-  name     = "astromesh_cloud"
-  instance = google_sql_database_instance.main.name
-  project  = var.project_id
-}

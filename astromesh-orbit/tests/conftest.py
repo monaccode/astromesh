@@ -13,8 +13,6 @@ SAMPLE_ORBIT_YAML = {
         "provider": {"name": "gcp", "project": "test-project-123", "region": "us-central1"},
         "compute": {
             "runtime": {"min_instances": 1, "max_instances": 3, "cpu": "2", "memory": "2Gi"},
-            "cloud_api": {"min_instances": 1, "max_instances": 2, "cpu": "1", "memory": "1Gi"},
-            "studio": {"min_instances": 0, "max_instances": 1},
         },
         "database": {
             "tier": "db-f1-micro",
@@ -26,8 +24,6 @@ SAMPLE_ORBIT_YAML = {
         "secrets": {"provider_keys": True, "jwt_secret": True},
         "images": {
             "runtime": "fulfarodev/astromesh:latest",
-            "cloud_api": "fulfarodev/astromesh-cloud-api:latest",
-            "studio": "fulfarodev/astromesh-cloud-studio:latest",
         },
     },
 }

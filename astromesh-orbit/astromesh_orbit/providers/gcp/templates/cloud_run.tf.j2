@@ -26,7 +26,6 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
           memory = "{{ svc.spec.memory }}"
         }
       }
-{% if svc.key == "runtime" %}
 
       env {
         name  = "ASTROMESH_DATABASE_URL"
@@ -41,30 +40,7 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
         name       = "cloudsql"
         mount_path = "/cloudsql"
       }
-{% elif svc.key == "cloud_api" %}
-
-      env {
-        name  = "ASTROMESH_CLOUD_DATABASE_URL"
-        value = "postgresql+asyncpg://astromesh:${random_password.db_password.result}@/astromesh_cloud?host=/cloudsql/${google_sql_database_instance.main.connection_name}"
-      }
-      env {
-        name  = "ASTROMESH_CLOUD_RUNTIME_URL"
-        value = google_cloud_run_v2_service.runtime.uri
-      }
-{% if secrets.jwt_secret %}
-      env {
-        name  = "ASTROMESH_CLOUD_JWT_SECRET"
-        value = random_password.jwt_secret.result
-      }
-{% endif %}
-
-      volume_mounts {
-        name       = "cloudsql"
-        mount_path = "/cloudsql"
-      }
-{% endif %}
     }
-{% if svc.key in ["runtime", "cloud_api"] %}
 
     volumes {
       name = "cloudsql"
@@ -72,7 +48,6 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
         instances = [google_sql_database_instance.main.connection_name]
       }
     }
-{% endif %}
   }
 }
 

@@ -152,8 +152,6 @@ async def test_provision_orchestrates_full_flow(
             success=True,
             outputs={
                 "runtime_url": "https://rt.run.app",
-                "cloud_api_url": "https://api.run.app",
-                "studio_url": "https://studio.run.app",
             },
             raw_output="Apply complete!",
         )
