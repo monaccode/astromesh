@@ -7,12 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Removed (Orbit / Docs)
+## [orbit-v0.1.1] - 2026-03-21
 
-- **Cloud documentation** — removed all 6 cloud docs pages (`docs-site/src/content/docs/cloud/`)
+### Removed
+
 - **Cloud API and Studio deployment** — removed `cloud_api` and `studio` compute services, container images, and database from Orbit config, GCP provider, Terraform templates, wizard presets, and tests
+- **Cloud documentation** — removed all 6 cloud docs pages (`docs-site/src/content/docs/cloud/`)
 - **Nexus deploy target** — removed from Forge deployment docs (was "coming soon")
-- Updated Orbit deployment costs: Starter ~$30 → **~$15/mo**, Pro ~$150 → **~$80/mo**
+
+### Changed
+
+- Deployment costs reduced: Starter ~$30 → **~$15/mo**, Pro ~$150 → **~$80/mo** (no longer provisioning Cloud API and Studio instances)
+
+## [adk-v0.1.6] - 2026-03-21
+
+### Changed
+
+- Re-release with latest platform changes (no ADK-specific changes)
 
 ## [v0.20.0] - 2026-03-21
 
