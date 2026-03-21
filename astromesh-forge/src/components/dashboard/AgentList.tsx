@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   PauseCircle,
   WifiOff,
+  LayoutPanelLeft,
 } from "lucide-react";
 import { useAgentsListStore } from "../../stores/agents-list";
 import { useConnectionStore } from "../../stores/connection";
@@ -165,6 +166,11 @@ export function AgentList() {
                     <Link to={`/wizard/${agent.name}`}>
                       <Button variant="ghost" icon={Pencil} className="text-sm px-2 py-1">
                         Edit
+                      </Button>
+                    </Link>
+                    <Link to={`/canvas/${agent.name}`}>
+                      <Button variant="ghost" icon={LayoutPanelLeft} className="text-sm px-2 py-1">
+                        Canvas
                       </Button>
                     </Link>
                     {agent.status !== "deployed" && (
