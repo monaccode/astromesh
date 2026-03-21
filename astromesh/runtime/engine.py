@@ -99,10 +99,62 @@ class AgentRuntime:
             if color[node] == WHITE:
                 dfs(node, [node])
 
+    def _register_model_providers(self, router: ModelRouter, model_spec: dict) -> None:
+        """Wire primary/fallback blocks from agent YAML into the router."""
+        from astromesh.providers.ollama_provider import OllamaProvider
+        from astromesh.providers.openai_compat import OpenAICompatProvider
+
+        registered = 0
+        for slot in ("primary", "fallback"):
+            block = model_spec.get(slot)
+            if not isinstance(block, dict):
+                continue
+            ptype = (block.get("provider") or "").strip().lower()
+            if not ptype:
+                continue
+            try:
+                if ptype == "ollama":
+                    base = (block.get("endpoint") or "http://localhost:11434").rstrip("/")
+                    prov = OllamaProvider(
+                        config={
+                            "base_url": base,
+                            "model": block.get("model", "llama3"),
+                            "timeout": float(block.get("timeout", 120)),
+                        }
+                    )
+                    router.register_provider(slot, prov)
+                    registered += 1
+                elif ptype in ("openai_compat", "openai", "azure_openai"):
+                    base = (block.get("endpoint") or "https://api.openai.com/v1").rstrip("/")
+                    prov = OpenAICompatProvider(
+                        config={
+                            "base_url": base,
+                            "model": block.get("model", "gpt-4o-mini"),
+                            "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
+                            "api_key": block.get("api_key"),
+                        }
+                    )
+                    router.register_provider(slot, prov)
+                    registered += 1
+                else:
+                    logger.warning(
+                        "Unknown model provider %r in %s; add wiring in engine._register_model_providers",
+                        ptype,
+                        slot,
+                    )
+            except Exception:
+                logger.exception("Failed to register %s provider %r", slot, ptype)
+        if registered == 0:
+            logger.warning(
+                "No LLM providers registered from model spec (check primary/fallback provider types)"
+            )
+
     def _build_agent(self, config):
         spec = config["spec"]
         metadata = config["metadata"]
-        router = ModelRouter(spec.get("model", {}).get("routing", {"strategy": "cost_optimized"}))
+        model_spec = spec.get("model", {})
+        router = ModelRouter(model_spec.get("routing", {"strategy": "cost_optimized"}))
+        self._register_model_providers(router, model_spec)
         memory = MemoryManager(agent_id=metadata["name"], config=spec.get("memory", {}))
         tools = ToolRegistry()
         from astromesh.tools import ToolLoader

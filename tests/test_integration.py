@@ -52,6 +52,8 @@ spec:
     mock_provider.supports_tools = MagicMock(return_value=True)
     mock_provider.supports_vision = MagicMock(return_value=False)
 
+    agent._router._providers.clear()
+    agent._router._health.clear()
     agent._router.register_provider("test", mock_provider)
 
     result = await runtime.run("echo", "hello world", "test-session-1")
@@ -119,6 +121,8 @@ spec:
     mock_provider.supports_tools = MagicMock(return_value=True)
     mock_provider.supports_vision = MagicMock(return_value=False)
 
+    agent._router._providers.clear()
+    agent._router._health.clear()
     agent._router.register_provider("test", mock_provider)
 
     result = await runtime.run("tool-agent", "What is 3 + 4?", "test-session-2")

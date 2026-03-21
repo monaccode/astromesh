@@ -44,6 +44,7 @@ async def test_runtime_agent_properties(config_dir):
     assert agent.name == "test-agent"
     assert agent.version == "0.1.0"
     assert agent.namespace == "test"
+    assert "primary" in agent._router._providers
 
 
 async def test_runtime_missing_agent(config_dir):
