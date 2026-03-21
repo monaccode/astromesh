@@ -29,7 +29,7 @@ spec:
       - Suggest built-in tools for specific use cases
       - Troubleshoot provider connectivity and routing
 
-      You have access to tools for reading project config files, validating YAML, listing available tools, and analyzing traces.
+      You have access to tools for reading project config files, transforming JSON, summarizing text, and analyzing traces.
       Always be precise and reference specific file paths and configuration keys.
       When suggesting changes, show the exact YAML diff.
 
@@ -40,11 +40,11 @@ spec:
 
   tools:
     - type: builtin
-      name: validate_yaml
-    - type: builtin
-      name: list_builtin_tools
-    - type: builtin
       name: read_file
+    - type: builtin
+      name: json_transform
+    - type: builtin
+      name: text_summarize
 
   memory:
     conversational:
