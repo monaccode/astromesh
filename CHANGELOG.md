@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ASGI lifespan context manager (`astromesh/api/main.py`) — bootstraps AgentRuntime and wires all route modules automatically when running via `uvicorn`
 - Template auto-discovery — `templates.py` resolves `config/templates/` via `ASTROMESH_TEMPLATES_DIR` env var, cwd, or package anchor without requiring explicit `set_templates_dir()` calls
 - `AgentRunResponse.trace` field — run endpoint now returns full distributed trace data (previously computed but discarded)
+- LLM provider auto-registration — `AgentRuntime._register_model_providers()` wires Ollama and OpenAI-compatible providers from agent YAML model spec
 
 ### Fixed
 
@@ -35,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Forge wizard `StepIdentity` no longer crashes when identity fields are partially defined (e.g. from templates)
 - `astromesh-copilot.agent.yaml` references updated to match available builtin tools (`json_transform`, `text_summarize` replacing removed `validate_yaml`, `list_builtin_tools`)
 - Astromesh Node daemon gracefully handles missing dependencies
+- Agent configs (sales-qualifier, support-agent, whatsapp-assistant) updated from Docker service name `ollama:11434` to `localhost:11434` for local development
 
 ### Changed (Tests)
 

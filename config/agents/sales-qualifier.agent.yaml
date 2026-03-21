@@ -18,7 +18,7 @@ spec:
     primary:
       provider: ollama
       model: "llama3.1:8b"
-      endpoint: "http://ollama:11434"
+      endpoint: "http://localhost:11434"
       parameters:
         temperature: 0.3
         top_p: 0.9
