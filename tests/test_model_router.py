@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from astromesh.core.model_router import ModelRouter
+from astromesh.errors import ModelProviderError
 from astromesh.providers.base import (
     CompletionChunk,
     CompletionResponse,
@@ -229,8 +230,18 @@ class TestModelRouterCircuitBreaker:
         assert router._health["flaky"].consecutive_failures >= 3
 
 
+class TestModelRouterNoProviders:
+    """Declarative error when the router has no registered providers."""
+
+    @pytest.mark.asyncio
+    async def test_empty_router_raises(self):
+        router = ModelRouter({"strategy": "cost_optimized"})
+        with pytest.raises(ModelProviderError, match="No LLM providers are configured"):
+            await router.route([{"role": "user", "content": "hi"}])
+
+
 class TestModelRouterAllExhaustedRaises:
-    """RuntimeError when every provider fails."""
+    """ModelProviderError when every provider fails."""
 
     @pytest.mark.asyncio
     async def test_router_all_exhausted_raises(self):
@@ -240,7 +251,7 @@ class TestModelRouterAllExhaustedRaises:
         bad.complete.side_effect = RuntimeError("nope")
         router.register_provider("bad", bad)
 
-        with pytest.raises(RuntimeError, match="All providers exhausted"):
+        with pytest.raises(ModelProviderError, match="All model providers failed"):
             await router.route([{"role": "user", "content": "hi"}])
 
 
@@ -263,7 +274,7 @@ class TestModelRouterProviderOverride:
         )
 
         messages = [{"role": "user", "content": "test"}]
-        result = await router.route(messages, provider_override=("openai", override_provider))
+        await router.route(messages, provider_override=("openai", override_provider))
 
         override_provider.complete.assert_called_once()
         default_provider.complete.assert_not_called()

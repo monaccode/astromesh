@@ -1,8 +1,11 @@
 import copy
+import logging
 from dataclasses import asdict, is_dataclass
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+
+from astromesh.errors import ModelProviderError, model_provider_error_payload
 
 
 def _steps_to_dicts(steps: list | None) -> list[dict]:
@@ -20,6 +23,7 @@ def _steps_to_dicts(steps: list | None) -> list[dict]:
     return out
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # In-memory storage (will be replaced by runtime in production)
 _runtime = None
@@ -168,7 +172,20 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
         if provider_key and provider_name:
             context["_provider_override"] = {"name": provider_name, "key": provider_key}
 
+        logger.debug(
+            "run_agent start agent=%s session=%s query_chars=%d",
+            agent_name,
+            request.session_id,
+            len(request.query),
+        )
         result = await _runtime.run(agent_name, request.query, request.session_id, context)
+        logger.debug(
+            "run_agent done agent=%s session=%s answer_chars=%d steps=%d",
+            agent_name,
+            request.session_id,
+            len(result.get("answer", "") or ""),
+            len(result.get("steps") or []),
+        )
         usage = None
         trace = result.get("trace", {})
         spans = trace.get("spans", []) if isinstance(trace, dict) else []
@@ -198,5 +215,7 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ModelProviderError as e:
+        raise HTTPException(status_code=502, detail=model_provider_error_payload(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

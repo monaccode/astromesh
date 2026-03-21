@@ -5,6 +5,11 @@ from __future__ import annotations
 import os
 import time
 
+from astromesh.errors import (
+    ModelProviderError,
+    explain_model_provider_failure,
+    explain_no_eligible_providers,
+)
 from astromesh.providers.base import (
     CompletionResponse,
     ProviderHealth,
@@ -62,7 +67,8 @@ class ModelRouter:
         failures a provider's circuit is opened for *CIRCUIT_BREAKER_COOLDOWN_S*
         seconds.
 
-        Raises ``RuntimeError`` when every candidate has been exhausted.
+        Raises ``ModelProviderError`` when every candidate has been exhausted
+        or no providers are configured.
         """
         # Check for request-scoped provider override (BYOK)
         provider_override = kwargs.pop("provider_override", None)
@@ -73,7 +79,15 @@ class ModelRouter:
                 response.latency_ms = 0.0
                 return response
             except Exception as e:
-                raise RuntimeError(f"Override provider '{override_name}' failed: {e}") from e
+                raise ModelProviderError(
+                    f"Request-scoped provider '{override_name}' could not complete the request.",
+                    hint=(
+                        "Check X-Astromesh-Provider-Name / X-Astromesh-Provider-Key headers, "
+                        "network access, and that the provider accepts the chosen model."
+                    ),
+                    code="model_provider_override_failed",
+                    cause=e,
+                ) from e
 
         if requirements is None:
             requirements = {}
@@ -81,7 +95,18 @@ class ModelRouter:
         if not requirements.get("vision") and self._detect_vision_requirement(messages):
             requirements["vision"] = True
 
+        registered = list(self._providers.keys())
+        if not registered:
+            raise explain_model_provider_failure(
+                None,
+                candidate_names=[],
+                registered_provider_names=[],
+            )
+
         candidates = self._rank_candidates(requirements)
+        if not candidates:
+            raise explain_no_eligible_providers(registered)
+
         last_error: Exception | None = None
 
         for name in candidates:
@@ -125,7 +150,11 @@ class ModelRouter:
                     health.circuit_open_until = time.time() + self.CIRCUIT_BREAKER_COOLDOWN_S
                     health.is_healthy = False
 
-        raise RuntimeError(f"All providers exhausted. Last error: {last_error}")
+        raise explain_model_provider_failure(
+            last_error,
+            candidate_names=candidates,
+            registered_provider_names=registered,
+        )
 
     @staticmethod
     def _detect_vision_requirement(messages: list[dict]) -> bool:

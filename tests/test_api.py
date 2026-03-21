@@ -41,6 +41,27 @@ async def test_run_agent_unknown_returns_404(client):
     assert resp.status_code == 404
 
 
+async def test_run_agent_model_provider_error_returns_502(client, monkeypatch):
+    from astromesh.api.routes import agents as agents_module
+    from astromesh.errors import ModelProviderError
+
+    class FakeRuntime:
+        async def run(self, *_args, **_kwargs):
+            raise ModelProviderError(
+                "Could not resolve the LLM server hostname (DNS lookup failed).",
+                hint="Use http://127.0.0.1:11434 when the API runs on the host.",
+                code="model_dns_resolution_failed",
+            )
+
+    monkeypatch.setattr(agents_module, "_runtime", FakeRuntime())
+    resp = await client.post("/v1/agents/any-agent/run", json={"query": "hello"})
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert detail["error"] == "model_dns_resolution_failed"
+    assert "DNS" in detail["message"]
+    assert detail["hint"]
+
+
 async def test_create_agent_minimal_returns_201(client):
     resp = await client.post("/v1/agents", json={"metadata": {"name": "api-test-draft-agent"}})
     assert resp.status_code == 201

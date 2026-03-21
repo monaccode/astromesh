@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from astromesh import __version__
+from astromesh.api import ws
 from astromesh.api.routes import (
     agents,
     dashboard,
@@ -22,7 +23,9 @@ from astromesh.api.routes import (
     workflows,
     templates,
 )
-from astromesh.api import ws
+from astromesh.logging_config import setup_logging
+
+setup_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +56,13 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("AgentRuntime bootstrap failed (config_dir=%s)", config_dir)
         raise
+
+    n_agents = len(runtime.list_agents())
+    logger.info(
+        "AgentRuntime ready: config_dir=%s agents_loaded=%d",
+        config_dir,
+        n_agents,
+    )
 
     agents_route.set_runtime(runtime)
     system_route.set_runtime(runtime)

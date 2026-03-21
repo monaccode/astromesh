@@ -355,6 +355,14 @@ class Agent:
 
             tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
             max_iterations = self._orchestration_config.get("max_iterations", 10)
+            logger.debug(
+                "agent.run %s pattern=%s max_iterations=%d tools=%d query_chars=%d",
+                self.name,
+                self._orchestration_config.get("pattern", "react"),
+                max_iterations,
+                len(tool_schemas),
+                len(query_text),
+            )
 
             route_kwargs = {}
             provider_override_config = (context or {}).get("_provider_override")
@@ -448,8 +456,15 @@ class Agent:
 
             tracing.finish_span(root_span)
             result["trace"] = tracing.to_dict()
+            logger.debug(
+                "agent.run %s finished answer_chars=%d steps=%d",
+                self.name,
+                len(result.get("answer", "") or ""),
+                len(result.get("steps") or []),
+            )
             return result
 
         except Exception:
+            logger.exception("agent.run failed agent=%s session=%s", self.name, session_id)
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
             raise
