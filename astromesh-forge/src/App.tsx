@@ -4,6 +4,7 @@ import { Dashboard } from "./components/dashboard/Dashboard";
 import { WizardShell } from "./components/wizard/WizardShell";
 import { CanvasEditor } from "./components/canvas/CanvasEditor";
 import { TemplateGallery } from "./components/templates/TemplateGallery";
+import { ConsoleShell } from "./components/console/ConsoleShell";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/canvas" element={<CanvasEditor />} />
           <Route path="/canvas/:name" element={<CanvasEditor />} />
           <Route path="/templates" element={<TemplateGallery />} />
+          <Route path="/console" element={<ConsoleShell />} />
         </Route>
       </Routes>
     </BrowserRouter>

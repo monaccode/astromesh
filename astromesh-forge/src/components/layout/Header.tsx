@@ -23,6 +23,12 @@ export function Header() {
           >
             Templates
           </Link>
+          <Link
+            to="/console"
+            className="text-gray-400 hover:text-gray-100 transition-colors"
+          >
+            Console
+          </Link>
         </nav>
       </div>
       <div className="flex items-center gap-2 text-sm text-gray-400">

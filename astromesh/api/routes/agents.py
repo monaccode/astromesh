@@ -1,3 +1,5 @@
+import copy
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
@@ -28,6 +30,7 @@ class AgentRunResponse(BaseModel):
     answer: str
     steps: list[dict] = []
     usage: UsageInfo | None = None
+    trace: dict | None = None
 
 
 @router.get("/agents")
@@ -41,14 +44,36 @@ async def list_agents():
 async def get_agent(agent_name: str):
     if not _runtime:
         raise HTTPException(status_code=404, detail="Runtime not initialized")
+    config = _runtime._agent_configs.get(agent_name)
+    if config is not None:
+        return copy.deepcopy(config)
     agent = _runtime._agents.get(agent_name)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
     return {
-        "name": agent.name,
-        "version": agent.version,
-        "namespace": agent.namespace,
-        "description": agent.description,
+        "apiVersion": "astromesh/v1",
+        "kind": "Agent",
+        "metadata": {
+            "name": agent.name,
+            "version": agent.version,
+            "namespace": agent.namespace,
+        },
+        "spec": {
+            "identity": {
+                "display_name": agent.name,
+                "description": agent.description or "",
+            },
+            "model": {
+                "primary": {
+                    "provider": "ollama",
+                    "model": "llama3.1:8b",
+                    "endpoint": "http://127.0.0.1:11434",
+                },
+                "routing": {"strategy": "cost_optimized"},
+            },
+            "prompts": {"system": ""},
+            "orchestration": {"pattern": "react", "max_iterations": 10},
+        },
     }
 
 
@@ -144,7 +169,7 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
                 model_used = span_meta["model"]
         if total_in or total_out:
             usage = UsageInfo(tokens_in=total_in, tokens_out=total_out, model=model_used)
-        return AgentRunResponse(answer=result.get("answer", ""), steps=result.get("steps", []), usage=usage)
+        return AgentRunResponse(answer=result.get("answer", ""), steps=result.get("steps", []), usage=usage, trace=trace if trace else None)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
