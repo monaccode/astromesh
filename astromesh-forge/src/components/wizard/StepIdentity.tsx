@@ -1,4 +1,4 @@
-import { useAgentEditorStore } from "../../stores/agent";
+import { EMPTY_AGENT_CONFIG, useAgentEditorStore } from "../../stores/agent";
 import { Input } from "../ui/Input";
 
 function slugify(value: string): string {
@@ -12,7 +12,15 @@ export function StepIdentity() {
   const config = useAgentEditorStore((s) => s.config);
   const setConfig = useAgentEditorStore((s) => s.setConfig);
 
-  const { metadata, spec } = config;
+  const metadata = { ...EMPTY_AGENT_CONFIG.metadata, ...config.metadata };
+  const spec = {
+    ...EMPTY_AGENT_CONFIG.spec,
+    ...config.spec,
+    identity: {
+      ...EMPTY_AGENT_CONFIG.spec.identity,
+      ...config.spec?.identity,
+    },
+  };
 
   function updateField(updates: Partial<typeof config>) {
     setConfig({ ...config, ...updates });

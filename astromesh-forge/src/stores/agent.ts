@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import type { AgentConfig } from "../types/agent";
 
-const EMPTY_CONFIG: AgentConfig = {
+/** Baseline shape for the wizard; merge partial API/template payloads against this. */
+export const EMPTY_AGENT_CONFIG: AgentConfig = {
   apiVersion: "astromesh/v1",
   kind: "Agent",
   metadata: { name: "", version: "1.0.0" },
@@ -34,7 +35,7 @@ interface AgentEditorState {
 }
 
 export const useAgentEditorStore = create<AgentEditorState>((set) => ({
-  config: structuredClone(EMPTY_CONFIG),
+  config: structuredClone(EMPTY_AGENT_CONFIG),
   dirty: false,
   templateOrigin: null,
   setConfig: (config) => set({ config, dirty: true }),
@@ -48,7 +49,7 @@ export const useAgentEditorStore = create<AgentEditorState>((set) => ({
     })),
   reset: () =>
     set({
-      config: structuredClone(EMPTY_CONFIG),
+      config: structuredClone(EMPTY_AGENT_CONFIG),
       dirty: false,
       templateOrigin: null,
     }),
