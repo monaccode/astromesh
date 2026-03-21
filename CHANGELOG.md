@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.20.0] - 2026-03-21
 
-**Subpackage releases:** core v0.20.0 | forge v0.20.0 | orbit v0.1.1 | adk v0.1.6 | cli v0.1.0 | node v0.1.0
+**Subpackage releases:** core v0.20.0 | forge v0.20.0 | orbit v0.1.1 | adk v0.1.6 | cli v0.1.1 | node v0.1.1
 
 ### Added (Astromesh Forge)
 
