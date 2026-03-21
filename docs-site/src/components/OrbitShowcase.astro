@@ -1,4 +1,12 @@
 ---
+import fs from 'node:fs';
+import path from 'node:path';
+
+const pyprojectPath = path.resolve(import.meta.dirname, '../../../astromesh-orbit/pyproject.toml');
+const content = fs.readFileSync(pyprojectPath, 'utf-8');
+const match = content.match(/^version\s*=\s*"([^"]+)"/m);
+const orbitVersion = match ? match[1] : '0.1.1';
+
 const features = [
   { icon: `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: 'One Command', desc: 'orbit apply' },
   { icon: `<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>`, label: 'Cloud-Native', desc: 'Managed services' },
@@ -26,7 +34,7 @@ const resources = [
   <div class="orbit-header">
     <div class="orbit-badge-row">
       <span class="orbit-badge-new">NEW</span>
-      <span class="orbit-badge-ver">orbit-v0.1.0</span>
+      <span class="orbit-badge-ver">orbit-v{orbitVersion}</span>
     </div>
     <h2 class="orbit-title">
       <span class="orbit-title-thin">Astromesh</span>
