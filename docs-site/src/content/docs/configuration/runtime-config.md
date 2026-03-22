@@ -203,6 +203,12 @@ export ASTROMESH_CONFIG_DIR=/opt/myapp/config
 
 The runtime loads all configuration files (`runtime.yaml`, `providers.yaml`, `channels.yaml`, `agents/*.agent.yaml`, `rag/*.rag.yaml`) from the specified directory.
 
+### Forge, API persistence, and templates
+
+Agents created from **Forge** or **`POST /v1/agents`** are written under `agents/` by default, and Forge **templates** are resolved from one or more directories (merged). Empty `templates/` folders do not hide built-in templates.
+
+For details and environment variables (`ASTROMESH_PERSIST_AGENTS`, `ASTROMESH_TEMPLATES_DIR`), see **[Forge, API & on-disk agents](/astromesh/configuration/forge-api-storage/)**.
+
 ## Multiple Environments
 
 Use separate config directories for different environments:

@@ -120,3 +120,9 @@ template:
 ```
 
 Custom templates appear alongside built-in templates in the Forge gallery. The node serves them via `GET /v1/templates`.
+
+## Where templates are loaded from
+
+The API discovers `*.template.yaml` from several directories (bundled files, `${ASTROMESH_CONFIG_DIR}/templates`, `./config/templates` relative to the server process, and optionally `ASTROMESH_TEMPLATES_DIR`). Later sources override earlier ones when two files share the same `metadata.name`. An **empty** `templates/` directory under your config dir does **not** remove built-in templates.
+
+For the full precedence list, persistence of agents created from Forge, and examples, see **[Forge, API & on-disk agents](/astromesh/configuration/forge-api-storage/)**.

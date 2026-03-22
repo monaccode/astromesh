@@ -48,6 +48,7 @@ export default defineConfig({
             { label: 'Agent YAML Schema', slug: 'configuration/agent-yaml' },
             { label: 'Provider Configuration', slug: 'configuration/providers' },
             { label: 'Runtime Config', slug: 'configuration/runtime-config' },
+            { label: 'Forge, API & on-disk agents', slug: 'configuration/forge-api-storage' },
             { label: 'Profiles Reference', slug: 'configuration/profiles' },
             { label: 'Multi-agent Composition', slug: 'configuration/multi-agent' },
             { label: 'Channels', slug: 'configuration/channels' },
