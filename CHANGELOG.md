@@ -27,17 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Raw** tab: full JSON dump of span attributes and events with copy-to-clipboard
 - **Chip indicators** — inline emoji badges on each span row indicating available data (💬 response, 🔧 tool calls, ✅ success, 📋 events, ⚠️ error, 🛡️ guardrails); clicking a chip opens the detail panel on the corresponding tab
 - **Typed span attributes** — `SpanAttributes` interface replacing untyped `Record<string, unknown>` for type-safe attribute access
+- **Popout detail panel** — maximize button opens span detail as a separate resizable panel between center and right panels; timeline stays visible for navigation; Esc to close; selecting a different span updates the popout automatically
+- **Agent edit shortcuts** — Wizard and Canvas edit buttons in agent selector for quick navigation to `/wizard/{name}` and `/canvas/{name}`
 
 ### Changed (Astromesh Forge)
 
-- **Resizable right panel** — panel width now adjustable via horizontal drag handle on left edge (300–900px range, persisted in localStorage); double-click handle to reset to default (420px)
+- **Resizable right panel** — panel width now adjustable via horizontal drag handle on left edge (280–900px range, persisted in localStorage); double-click handle to reset to default (420px)
+- **Resizable popout panel** — popout detail panel width adjustable (320–1000px), also persisted in localStorage
 - **Resizable vertical split** — timeline and detail panel heights adjustable via drag handle; detail panel only appears when a span is selected
+- **Detail panel full height** — Input, Output, and Raw tabs now fill all available vertical space instead of being capped at 400px
 - **Duration formatting** — span durations now display as human-readable values (`17.5s` instead of `17493.289947509766ms`)
 - **Span selection** — clicking a span highlights it and loads its detail below; chevron click expands/collapses children independently of selection
 
 ### Fixed (Astromesh Forge)
 
 - **Flat attribute reads** — `TraceTimeline` and `SpanNode` now read `input_tokens`/`output_tokens` directly from span attributes instead of broken nested `metadata.usage.prompt_tokens` path
+- **Horizontal resize drag** — fixed closure capturing null element on mount; drag now uses `window.innerWidth - e.clientX` directly
 
 ## [v0.20.0] - 2026-03-21
 
