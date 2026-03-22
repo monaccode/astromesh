@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.21.0] - 2026-03-22
+
+**Subpackage releases:** core v0.21.0 | forge v0.21.0
+
 ### Added (Backend)
 
 - **Span enrichment** — `llm.complete` spans now capture model name, provider, latency (ms), estimated cost, rendered prompt (truncated at 10k chars), model response (truncated at 10k chars), and normalized tool calls
