@@ -1,4 +1,3 @@
-import { Maximize2, Minimize2 } from "lucide-react";
 import type { SpanTreeNode } from "../../utils/trace-tree";
 import { getSpanDotColor } from "../../utils/trace-tree";
 import { SpanOverviewTab } from "./SpanOverviewTab";
@@ -57,16 +56,12 @@ interface SpanDetailPanelProps {
   node: SpanTreeNode | null;
   activeTab: string;
   onTabChange: (tab: string) => void;
-  isWide?: boolean;
-  onToggleWide?: () => void;
 }
 
 export function SpanDetailPanel({
   node,
   activeTab,
   onTabChange,
-  isWide = false,
-  onToggleWide,
 }: SpanDetailPanelProps) {
   if (!node) {
     return (
@@ -92,16 +87,6 @@ export function SpanDetailPanel({
             {node.attributes.model as string} via{" "}
             {node.attributes.provider as string}
           </span>
-        )}
-        <div className="flex-1" />
-        {onToggleWide && (
-          <button
-            className="text-gray-500 hover:text-cyan-400 transition-colors p-0.5"
-            onClick={onToggleWide}
-            title={isWide ? "Collapse (Esc)" : "Expand detail panel"}
-          >
-            {isWide ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
-          </button>
         )}
       </div>
 

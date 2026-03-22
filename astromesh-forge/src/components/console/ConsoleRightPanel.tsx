@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Activity, Maximize2, Minimize2 } from "lucide-react";
+import { Activity } from "lucide-react";
 import { useConsoleStore } from "../../stores/console";
 import { buildSpanTree } from "../../utils/trace-tree";
 import type { SpanTreeNode } from "../../utils/trace-tree";
@@ -7,10 +7,13 @@ import { RunHistoryList } from "./RunHistoryList";
 import { TraceTimeline } from "./TraceTimeline";
 import { SpanDetailPanel } from "./SpanDetailPanel";
 
-const SPLIT_KEY = "astromesh:detail-panel-height";
-const WIDE_KEY = "astromesh:detail-panel-wide";
-const DEFAULT_SPLIT = 0.5;
+const VSPLIT_KEY = "astromesh:detail-panel-height";
+const WIDTH_KEY = "astromesh:right-panel-width";
+const DEFAULT_VSPLIT = 0.5;
 const MIN_PANEL_PX = 60;
+const DEFAULT_WIDTH = 420;
+const MIN_WIDTH = 300;
+const MAX_WIDTH = 900;
 
 function findSpan(nodes: SpanTreeNode[], id: string): SpanTreeNode | null {
   for (const node of nodes) {
@@ -27,52 +30,80 @@ export function ConsoleRightPanel() {
 
   const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Vertical split (timeline / detail)
   const [splitRatio, setSplitRatio] = useState(() => {
-    const saved = localStorage.getItem(SPLIT_KEY);
-    return saved ? parseFloat(saved) : DEFAULT_SPLIT;
+    const saved = localStorage.getItem(VSPLIT_KEY);
+    return saved ? parseFloat(saved) : DEFAULT_VSPLIT;
   });
-  const [isWide, setIsWide] = useState(() => {
-    return localStorage.getItem(WIDE_KEY) === "true";
+
+  // Horizontal width
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = localStorage.getItem(WIDTH_KEY);
+    return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
+  const vDragging = useRef(false);
+  const hDragging = useRef(false);
 
+  // Persist
   useEffect(() => {
-    localStorage.setItem(SPLIT_KEY, String(splitRatio));
+    localStorage.setItem(VSPLIT_KEY, String(splitRatio));
   }, [splitRatio]);
 
   useEffect(() => {
-    localStorage.setItem(WIDE_KEY, String(isWide));
-  }, [isWide]);
+    localStorage.setItem(WIDTH_KEY, String(panelWidth));
+  }, [panelWidth]);
 
+  // Reset selection on run change
   useEffect(() => {
     setSelectedSpanId(null);
     setActiveTab("overview");
   }, [activeTraceRunId]);
 
-  const handleMouseDown = useCallback(() => {
-    dragging.current = true;
+  // Vertical drag (timeline / detail split)
+  const handleVDragStart = useCallback(() => {
+    vDragging.current = true;
     document.body.style.cursor = "row-resize";
     document.body.style.userSelect = "none";
   }, []);
 
+  // Horizontal drag (panel width)
+  const handleHDragStart = useCallback(() => {
+    hDragging.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
   useEffect(() => {
+    const panelEl = containerRef.current?.closest("[data-right-panel]") as HTMLElement | null;
+
     const handleMouseMove = (e: MouseEvent) => {
-      if (!dragging.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const ratio = Math.max(
-        MIN_PANEL_PX / rect.height,
-        Math.min(1 - MIN_PANEL_PX / rect.height, y / rect.height),
-      );
-      setSplitRatio(ratio);
+      if (vDragging.current && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const ratio = Math.max(
+          MIN_PANEL_PX / rect.height,
+          Math.min(1 - MIN_PANEL_PX / rect.height, y / rect.height),
+        );
+        setSplitRatio(ratio);
+      }
+
+      if (hDragging.current && panelEl) {
+        // Drag from left edge: width = right edge of viewport - mouseX
+        const newWidth = window.innerWidth - e.clientX;
+        setPanelWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth)));
+      }
     };
+
     const handleMouseUp = () => {
-      dragging.current = false;
+      vDragging.current = false;
+      hDragging.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
+
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
     return () => {
@@ -81,44 +112,32 @@ export function ConsoleRightPanel() {
     };
   }, []);
 
-  // Esc exits wide mode
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isWide) setIsWide(false);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isWide]);
+  // Double-click on horizontal handle resets width
+  const handleHDoubleClick = useCallback(() => {
+    setPanelWidth(DEFAULT_WIDTH);
+  }, []);
 
-  const tree =
-    activeRun?.trace ? buildSpanTree(activeRun.trace.spans) : [];
-  const selectedSpan = selectedSpanId
-    ? findSpan(tree, selectedSpanId)
-    : null;
-
-  // Wide mode: detail panel pops out as an overlay to the left
-  const detailPanel = (
-    <SpanDetailPanel
-      node={selectedSpan}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      isWide={isWide}
-      onToggleWide={() => setIsWide(!isWide)}
-    />
-  );
+  const tree = activeRun?.trace ? buildSpanTree(activeRun.trace.spans) : [];
+  const selectedSpan = selectedSpanId ? findSpan(tree, selectedSpanId) : null;
 
   return (
-    <>
-      {/* Wide-mode overlay: renders detail over center panel */}
-      {isWide && selectedSpan && (
-        <div className="relative flex-shrink-0" style={{ width: "clamp(400px, 40vw, 640px)" }}>
-          <div className="absolute inset-0 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden z-10">
-            {detailPanel}
-          </div>
-        </div>
-      )}
+    <div
+      data-right-panel
+      className="flex-shrink-0 bg-gray-900 border-l border-gray-800 flex flex-row overflow-hidden"
+      style={{ width: panelWidth }}
+    >
+      {/* Horizontal resize handle (left edge) */}
+      <div
+        className="w-1 flex-shrink-0 cursor-col-resize hover:bg-cyan-500/30 transition-colors group flex items-center justify-center"
+        onMouseDown={handleHDragStart}
+        onDoubleClick={handleHDoubleClick}
+        title="Drag to resize, double-click to reset"
+      >
+        <div className="w-px h-8 bg-gray-700 group-hover:bg-cyan-400/50 transition-colors" />
+      </div>
 
-      <div className="w-[340px] flex-shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden">
+      {/* Panel content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <RunHistoryList />
 
         {activeRun?.trace ? (
@@ -127,9 +146,7 @@ export function ConsoleRightPanel() {
             <div
               className="overflow-y-auto p-3"
               style={{
-                height: !isWide && selectedSpan
-                  ? `${splitRatio * 100}%`
-                  : "100%",
+                height: selectedSpan ? `${splitRatio * 100}%` : "100%",
               }}
             >
               <div className="flex justify-between items-center mb-2">
@@ -137,24 +154,6 @@ export function ConsoleRightPanel() {
                   <Activity size={12} />
                   Trace Timeline
                 </div>
-                {selectedSpan && !isWide && (
-                  <button
-                    className="text-gray-500 hover:text-cyan-400 transition-colors"
-                    onClick={() => setIsWide(true)}
-                    title="Expand detail panel (Esc to close)"
-                  >
-                    <Maximize2 size={11} />
-                  </button>
-                )}
-                {isWide && (
-                  <button
-                    className="text-cyan-400 hover:text-cyan-300 transition-colors"
-                    onClick={() => setIsWide(false)}
-                    title="Collapse detail panel"
-                  >
-                    <Minimize2 size={11} />
-                  </button>
-                )}
               </div>
               <TraceTimeline
                 trace={activeRun.trace}
@@ -164,12 +163,12 @@ export function ConsoleRightPanel() {
               />
             </div>
 
-            {/* Inline detail: only when not in wide mode */}
-            {!isWide && selectedSpan && (
+            {/* Vertical split + detail: only when span selected */}
+            {selectedSpan && (
               <>
                 <div
                   className="h-1.5 bg-gray-800 hover:bg-cyan-500/30 cursor-row-resize flex-shrink-0 flex items-center justify-center group transition-colors"
-                  onMouseDown={handleMouseDown}
+                  onMouseDown={handleVDragStart}
                 >
                   <div className="w-10 h-0.5 bg-gray-600 group-hover:bg-cyan-400/50 rounded transition-colors" />
                 </div>
@@ -178,7 +177,11 @@ export function ConsoleRightPanel() {
                   className="overflow-hidden border-t border-gray-800"
                   style={{ height: `${(1 - splitRatio) * 100}%` }}
                 >
-                  {detailPanel}
+                  <SpanDetailPanel
+                    node={selectedSpan}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                  />
                 </div>
               </>
             )}
@@ -191,6 +194,6 @@ export function ConsoleRightPanel() {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
