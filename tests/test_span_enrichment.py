@@ -1,4 +1,4 @@
-from astromesh.runtime.engine import _truncate, _normalize_tool_calls
+from astromesh.runtime.engine import _parse_args, _truncate, _normalize_tool_calls
 
 
 def test_truncate_none():
@@ -24,6 +24,18 @@ def test_truncate_over_limit():
     assert len(result) > 100
     assert result.startswith("a" * 100)
     assert "[truncated at 200 chars]" in result
+
+
+def test_parse_args_dict_passthrough():
+    assert _parse_args({"key": "val"}) == {"key": "val"}
+
+
+def test_parse_args_json_string():
+    assert _parse_args('{"key": "val"}') == {"key": "val"}
+
+
+def test_parse_args_invalid_json():
+    assert _parse_args("not json") == {"_raw": "not json"}
 
 
 def test_normalize_flat_dict():
