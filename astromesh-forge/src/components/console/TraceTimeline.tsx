@@ -6,16 +6,21 @@ interface TraceTimelineProps {
   trace: Trace;
   label?: string;
   accentColor?: string;
+  selectedSpanId: string | null;
+  onSelectSpan: (spanId: string) => void;
+  onSelectTab: (tab: string) => void;
 }
 
 export function TraceTimeline({
   trace,
   label,
   accentColor = "text-cyan-400",
+  selectedSpanId,
+  onSelectSpan,
+  onSelectTab,
 }: TraceTimelineProps) {
   const tree = buildSpanTree(trace.spans);
-  const rootDuration =
-    tree.length > 0 ? (tree[0].duration_ms ?? 0) : 0;
+  const rootDuration = tree.length > 0 ? (tree[0].duration_ms ?? 0) : 0;
 
   const totalTokensIn = trace.spans.reduce(
     (acc, s) => acc + ((s.attributes.input_tokens as number) ?? 0),
@@ -53,7 +58,14 @@ export function TraceTimeline({
       </div>
 
       {tree.map((node) => (
-        <SpanNode key={node.span_id} node={node} rootDuration={rootDuration} />
+        <SpanNode
+          key={node.span_id}
+          node={node}
+          rootDuration={rootDuration}
+          selectedSpanId={selectedSpanId}
+          onSelectSpan={onSelectSpan}
+          onSelectTab={onSelectTab}
+        />
       ))}
 
       {tree.length === 0 && (

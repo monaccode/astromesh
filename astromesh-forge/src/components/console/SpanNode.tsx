@@ -7,9 +7,11 @@ import {
   Database,
   ChevronDown,
   ChevronRight,
+  FileText,
 } from "lucide-react";
 import type { SpanTreeNode } from "../../utils/trace-tree";
 import { getSpanColor, getSpanDotColor } from "../../utils/trace-tree";
+import { SpanChips } from "./SpanChips";
 
 const SPAN_ICONS: Array<[string, typeof Bot]> = [
   ["agent", Bot],
@@ -18,6 +20,8 @@ const SPAN_ICONS: Array<[string, typeof Bot]> = [
   ["tool", Wrench],
   ["guardrail", Shield],
   ["memory", Database],
+  ["prompt", FileText],
+  ["orchestration", Brain],
 ];
 
 function getSpanIcon(name: string) {
@@ -28,37 +32,62 @@ function getSpanIcon(name: string) {
   return null;
 }
 
-interface SpanNodeProps {
+export interface SpanNodeProps {
   node: SpanTreeNode;
   rootDuration: number;
   depth?: number;
+  selectedSpanId: string | null;
+  onSelectSpan: (spanId: string) => void;
+  onSelectTab: (tab: string) => void;
 }
 
-export function SpanNode({ node, rootDuration, depth = 0 }: SpanNodeProps) {
-  const [expanded, setExpanded] = useState(false);
+export function SpanNode({
+  node,
+  rootDuration,
+  depth = 0,
+  selectedSpanId,
+  onSelectSpan,
+  onSelectTab,
+}: SpanNodeProps) {
+  const [childrenExpanded, setChildrenExpanded] = useState(depth === 0);
   const hasChildren = node.children.length > 0;
-  const hasContent =
-    Object.keys(node.attributes).length > 0 || node.events.length > 0;
-  const isExpandable = hasChildren || hasContent;
+  const isSelected = node.span_id === selectedSpanId;
 
   const duration = node.duration_ms ?? 0;
   const barWidth = rootDuration > 0 ? (duration / rootDuration) * 100 : 0;
   const isError = node.status === "error";
   const SpanIcon = getSpanIcon(node.name);
 
+  const handleClick = () => {
+    onSelectSpan(node.span_id);
+  };
+
+  const handleChevronClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setChildrenExpanded(!childrenExpanded);
+  };
+
+  const handleChipClick = (tab: string) => {
+    onSelectSpan(node.span_id);
+    onSelectTab(tab);
+  };
+
   return (
     <div style={{ marginLeft: depth > 0 ? 14 : 0 }}>
       <div
         className={`bg-gray-800 rounded px-2 py-1.5 border-l-[3px] ${
           isError ? "border-red-500" : getSpanColor(node.name)
-        } ${isExpandable ? "cursor-pointer" : ""} mb-0.5`}
-        onClick={() => isExpandable && setExpanded(!expanded)}
+        } cursor-pointer mb-0.5 ${isSelected ? "ring-1 ring-cyan-500/50 bg-gray-800/80" : ""}`}
+        onClick={handleClick}
       >
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-1.5 min-w-0">
-            {isExpandable && (
-              <span className={getSpanDotColor(node.name)}>
-                {expanded ? (
+            {hasChildren && (
+              <span
+                className={getSpanDotColor(node.name)}
+                onClick={handleChevronClick}
+              >
+                {childrenExpanded ? (
                   <ChevronDown size={10} />
                 ) : (
                   <ChevronRight size={10} />
@@ -79,6 +108,7 @@ export function SpanNode({ node, rootDuration, depth = 0 }: SpanNodeProps) {
             >
               {node.name}
             </span>
+            <SpanChips node={node} onChipClick={handleChipClick} />
             {node.status === "ok" && (
               <span className="bg-green-500/20 text-green-400 text-[8px] px-1 rounded">
                 OK
@@ -107,121 +137,18 @@ export function SpanNode({ node, rootDuration, depth = 0 }: SpanNodeProps) {
         )}
       </div>
 
-      {expanded && hasContent && (
-        <div className="ml-3 mb-1 bg-gray-950 rounded p-2 text-[9px]">
-          {renderAttributes(node)}
-        </div>
-      )}
-
-      {expanded &&
+      {childrenExpanded &&
         node.children.map((child) => (
           <SpanNode
             key={child.span_id}
             node={child}
             rootDuration={rootDuration}
             depth={depth + 1}
+            selectedSpanId={selectedSpanId}
+            onSelectSpan={onSelectSpan}
+            onSelectTab={onSelectTab}
           />
         ))}
-    </div>
-  );
-}
-
-function renderAttributes(node: SpanTreeNode) {
-  const attrs = node.attributes;
-  const meta = attrs.metadata as Record<string, unknown> | undefined;
-
-  const usage = meta?.usage as
-    | { prompt_tokens?: number; completion_tokens?: number }
-    | undefined;
-  const model = meta?.model as string | undefined;
-  const provider = meta?.provider as string | undefined;
-  const toolArgs = (attrs.tool_args ?? meta?.args) as unknown;
-  const toolResult = (attrs.tool_result ?? meta?.result) as unknown;
-  const promptText = (attrs.prompt ?? meta?.prompt) as string | undefined;
-  const responseText = (attrs.response ?? meta?.response) as
-    | string
-    | undefined;
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      {(usage || model || provider) && (
-        <div className="flex gap-3 text-gray-400">
-          {usage?.prompt_tokens != null && (
-            <span className="inline-flex items-center gap-0.5">
-              <span className="text-cyan-400">&uarr;</span>{" "}
-              {usage.prompt_tokens} tokens
-            </span>
-          )}
-          {usage?.completion_tokens != null && (
-            <span className="inline-flex items-center gap-0.5">
-              <span className="text-amber-400">&darr;</span>{" "}
-              {usage.completion_tokens} tokens
-            </span>
-          )}
-          {model && <span>model: {model}</span>}
-          {provider && <span>provider: {provider}</span>}
-        </div>
-      )}
-
-      {promptText && (
-        <div>
-          <div className="text-gray-600 text-[8px] uppercase mb-0.5">
-            Prompt
-          </div>
-          <pre className="text-gray-300 bg-gray-900 rounded p-1.5 overflow-x-auto max-h-24 overflow-y-auto whitespace-pre-wrap text-[9px]">
-            {promptText}
-          </pre>
-        </div>
-      )}
-
-      {responseText && (
-        <div>
-          <div className="text-gray-600 text-[8px] uppercase mb-0.5">
-            Response
-          </div>
-          <pre className="text-gray-300 bg-gray-900 rounded p-1.5 overflow-x-auto max-h-24 overflow-y-auto whitespace-pre-wrap text-[9px]">
-            {responseText}
-          </pre>
-        </div>
-      )}
-
-      {toolArgs != null && (
-        <div>
-          <div className="text-gray-600 text-[8px] uppercase mb-0.5">
-            Arguments
-          </div>
-          <pre className="text-gray-300 bg-gray-900 rounded p-1.5 overflow-x-auto max-h-16 overflow-y-auto text-[9px]">
-            {typeof toolArgs === "string"
-              ? toolArgs
-              : JSON.stringify(toolArgs, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {toolResult != null && (
-        <div>
-          <div className="text-gray-600 text-[8px] uppercase mb-0.5">
-            Result
-          </div>
-          <pre className="text-green-400 bg-gray-900 rounded p-1.5 overflow-x-auto max-h-16 overflow-y-auto text-[9px]">
-            {typeof toolResult === "string"
-              ? toolResult
-              : JSON.stringify(toolResult, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {!usage &&
-        !model &&
-        !promptText &&
-        !responseText &&
-        !toolArgs &&
-        !toolResult &&
-        Object.keys(attrs).length > 0 && (
-          <pre className="text-gray-400 bg-gray-900 rounded p-1.5 overflow-x-auto max-h-24 overflow-y-auto text-[9px]">
-            {JSON.stringify(attrs, null, 2)}
-          </pre>
-        )}
     </div>
   );
 }
