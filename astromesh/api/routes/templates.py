@@ -14,44 +14,60 @@ def set_templates_dir(path: str | None) -> None:
     _templates_dir = path
 
 
-def _resolve_default_templates_dir() -> Path | None:
-    """Find bundled / repo templates without an explicit set_templates_dir call."""
-    env = os.environ.get("ASTROMESH_TEMPLATES_DIR", "").strip()
-    if env:
-        p = Path(env).expanduser().resolve()
-        if p.is_dir():
-            return p
-    cwd_candidate = (Path.cwd() / "config" / "templates").resolve()
-    if cwd_candidate.is_dir():
-        return cwd_candidate
+def _bundled_templates_root() -> Path | None:
+    """Shipped / repo `config/templates` next to the installed package."""
     try:
         import astromesh
 
-        pkg_anchor = Path(astromesh.__file__).resolve().parent.parent
-        dev_candidate = (pkg_anchor / "config" / "templates").resolve()
-        if dev_candidate.is_dir():
-            return dev_candidate
+        p = (Path(astromesh.__file__).resolve().parent.parent / "config" / "templates")
+        return p if p.is_dir() else None
     except Exception:
-        pass
-    return None
+        return None
 
 
-def _active_templates_dir() -> Path | None:
+def _iter_template_root_dirs() -> list[Path]:
+    """Directories to scan for `*.template.yaml`, in merge order (later overrides name)."""
     if _templates_dir is not None:
         p = Path(_templates_dir)
-        return p if p.is_dir() else None
-    return _resolve_default_templates_dir()
+        return [p.resolve()] if p.is_dir() else []
+
+    seen: set[Path] = set()
+    roots: list[Path] = []
+
+    def add(path: Path | None) -> None:
+        if path is None or not path.is_dir():
+            return
+        r = path.resolve()
+        if r in seen:
+            return
+        seen.add(r)
+        roots.append(r)
+
+    add(_bundled_templates_root())
+    cfg = os.environ.get("ASTROMESH_CONFIG_DIR", "").strip()
+    if cfg:
+        add(Path(cfg).expanduser().resolve() / "templates")
+    add((Path.cwd() / "config" / "templates").resolve())
+    env = os.environ.get("ASTROMESH_TEMPLATES_DIR", "").strip()
+    if env:
+        add(Path(env).expanduser().resolve())
+    return roots
 
 
 def _load_templates() -> list[dict]:
-    tpl_path = _active_templates_dir()
-    if not tpl_path:
-        return []
-    templates = []
-    for f in sorted(tpl_path.glob("*.template.yaml")):
-        with open(f) as fh:
-            templates.append(yaml.safe_load(fh))
-    return templates
+    by_name: dict[str, dict] = {}
+    for root in _iter_template_root_dirs():
+        for f in sorted(root.glob("*.template.yaml")):
+            with open(f, encoding="utf-8") as fh:
+                data = yaml.safe_load(fh)
+            if not isinstance(data, dict):
+                continue
+            meta = data.get("metadata") or {}
+            tname = meta.get("name")
+            if not tname:
+                continue
+            by_name[str(tname)] = data
+    return list(by_name.values())
 
 
 @router.get("/templates")

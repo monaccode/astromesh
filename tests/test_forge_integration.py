@@ -66,8 +66,8 @@ async def test_full_forge_flow(forge_config_dir):
             resp = await client.get("/v1/templates")
             assert resp.status_code == 200
             templates = resp.json()
-            assert len(templates) == 1
-            assert templates[0]["name"] == "test-tpl"
+            names = {t["name"] for t in templates}
+            assert "test-tpl" in names
 
             # 2. Get template detail
             resp = await client.get("/v1/templates/test-tpl")

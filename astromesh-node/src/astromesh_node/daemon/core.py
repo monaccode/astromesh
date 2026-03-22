@@ -139,7 +139,7 @@ async def run_daemon(args: argparse.Namespace) -> None:
     memory_routes.set_runtime(runtime)
 
     templates_path = Path(config_dir) / "templates"
-    if templates_path.is_dir():
+    if templates_path.is_dir() and any(templates_path.glob("*.template.yaml")):
         templates_route.set_templates_dir(str(templates_path))
 
     from astromesh.api.routes import mesh as mesh_routes

@@ -41,11 +41,18 @@ async def lifespan(app: FastAPI):
     from astromesh.api.routes import agents as agents_route
     from astromesh.api.routes import memory as memory_route
     from astromesh.api.routes import system as system_route
-    from astromesh.api.routes import templates as templates_route
     from astromesh.api.routes import whatsapp as whatsapp_route
     from astromesh.runtime.engine import AgentRuntime
 
     if agents_route._runtime is not None:
+        # Runtime was injected before serve (e.g. astromeshd). Keep other route modules
+        # in sync — tests that temporarily replace agents._runtime can otherwise leave
+        # memory/system/whatsapp unwired on the next lifespan if teardown order restores
+        # agents._runtime after the prior finally cleared the other routes.
+        r = agents_route._runtime
+        system_route.set_runtime(r)
+        memory_route.set_runtime(r)
+        whatsapp_route.set_runtime(r)
         yield
         return
 
@@ -69,13 +76,6 @@ async def lifespan(app: FastAPI):
     memory_route.set_runtime(runtime)
     whatsapp_route.set_runtime(runtime)
 
-    lifespan_set_templates = False
-    if templates_route._templates_dir is None:
-        templates_path = Path(config_dir) / "templates"
-        if templates_path.is_dir():
-            templates_route.set_templates_dir(str(templates_path))
-            lifespan_set_templates = True
-
     try:
         yield
     finally:
@@ -83,8 +83,6 @@ async def lifespan(app: FastAPI):
         system_route.set_runtime(None)
         memory_route.set_runtime(None)
         whatsapp_route.set_runtime(None)
-        if lifespan_set_templates:
-            templates_route.set_templates_dir(None)
 
 
 app = FastAPI(
