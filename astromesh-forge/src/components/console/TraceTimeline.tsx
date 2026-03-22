@@ -17,17 +17,20 @@ export function TraceTimeline({
   const rootDuration =
     tree.length > 0 ? (tree[0].duration_ms ?? 0) : 0;
 
-  const totalTokensIn = trace.spans.reduce((acc, s) => {
-    const meta = s.attributes.metadata as Record<string, unknown> | undefined;
-    const usage = meta?.usage as { prompt_tokens?: number } | undefined;
-    return acc + (usage?.prompt_tokens ?? 0);
-  }, 0);
+  const totalTokensIn = trace.spans.reduce(
+    (acc, s) => acc + ((s.attributes.input_tokens as number) ?? 0),
+    0,
+  );
 
-  const totalTokensOut = trace.spans.reduce((acc, s) => {
-    const meta = s.attributes.metadata as Record<string, unknown> | undefined;
-    const usage = meta?.usage as { completion_tokens?: number } | undefined;
-    return acc + (usage?.completion_tokens ?? 0);
-  }, 0);
+  const totalTokensOut = trace.spans.reduce(
+    (acc, s) => acc + ((s.attributes.output_tokens as number) ?? 0),
+    0,
+  );
+
+  const totalCost = trace.spans.reduce(
+    (acc, s) => acc + ((s.attributes.cost as number) ?? 0),
+    0,
+  );
 
   return (
     <div className="flex flex-col gap-1">
@@ -43,6 +46,9 @@ export function TraceTimeline({
           <span className="text-gray-500 ml-2">
             {totalTokensIn + totalTokensOut} tokens
           </span>
+        )}
+        {totalCost > 0 && (
+          <span className="text-gray-500 ml-2">${totalCost.toFixed(4)}</span>
         )}
       </div>
 

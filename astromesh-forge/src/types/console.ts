@@ -1,10 +1,41 @@
+export interface SpanAttributes {
+  // Identity
+  agent?: string;
+  session?: string;
+
+  // LLM
+  model?: string;
+  provider?: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  latency_ms?: number;
+  cost?: number;
+  prompt?: string;
+  response?: string;
+  tool_calls?: Array<{ id?: string; name: string; arguments: Record<string, unknown> }>;
+
+  // Tool
+  tool?: string;
+  tool_args?: Record<string, unknown>;
+  tool_result?: string;
+
+  // Orchestration (steps are in span.events)
+  pattern?: string;
+
+  // Error
+  error_message?: string;
+
+  // Catch-all for unknown attributes
+  [key: string]: unknown;
+}
+
 export interface TraceSpan {
   name: string;
   trace_id: string;
   span_id: string;
   parent_span_id: string | null;
   status: "ok" | "error" | "unset";
-  attributes: Record<string, unknown>;
+  attributes: SpanAttributes;
   events: Array<{
     name: string;
     timestamp: number;
