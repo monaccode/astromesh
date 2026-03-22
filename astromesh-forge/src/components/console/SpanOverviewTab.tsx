@@ -33,7 +33,11 @@ export function SpanOverviewTab({ node, onSwitchTab }: SpanOverviewTabProps) {
           {a.latency_ms != null && (
             <div className="bg-gray-800 rounded p-2">
               <div className="text-gray-500 text-[9px] uppercase mb-0.5">Latency</div>
-              <div className="text-orange-400">{Math.round(a.latency_ms)}ms</div>
+              <div className="text-orange-400">
+                {a.latency_ms < 1000
+                  ? `${Math.round(a.latency_ms)}ms`
+                  : `${(a.latency_ms / 1000).toFixed(1)}s`}
+              </div>
             </div>
           )}
           {a.cost != null && (

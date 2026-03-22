@@ -24,6 +24,12 @@ const SPAN_ICONS: Array<[string, typeof Bot]> = [
   ["orchestration", Brain],
 ];
 
+function formatDuration(ms: number): string {
+  if (ms < 1) return "<1ms";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 function getSpanIcon(name: string) {
   const lower = name.toLowerCase();
   for (const [prefix, icon] of SPAN_ICONS) {
@@ -121,7 +127,7 @@ export function SpanNode({
             )}
           </div>
           <span className="text-[10px] text-gray-500 font-mono flex-shrink-0 ml-2">
-            {duration}ms
+            {formatDuration(duration)}
           </span>
         </div>
 
