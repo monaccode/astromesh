@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Orchestration step events** — `orchestration` span records each ReAct/PlanAndExecute step as a timestamped event with thought, action, action_input, observation, and result fields
 - **Error capture** — all span error paths (`llm.complete`, `tool.call`, `agent.run`) now record `error_message` attribute
 - **Helper functions** — `_truncate()` for safe text truncation, `_normalize_tool_calls()` for provider-agnostic tool call format, `_parse_args()` for JSON string argument handling (OpenAI compatibility)
+- **Agent YAML persistence** — agents created or updated via the HTTP API (`POST /v1/agents`) are written to `agents/<name>.agent.yaml` under `ASTROMESH_CONFIG_DIR` when `ASTROMESH_PERSIST_AGENTS=1` (default). Set to `0` for tests.
+- **Multi-root template discovery** — `GET /v1/templates` now merges `*.template.yaml` from multiple directories: bundled package templates, `${ASTROMESH_CONFIG_DIR}/templates`, `./config/templates`, and `ASTROMESH_TEMPLATES_DIR`. Later sources override earlier when names match. Empty directories no longer hide built-in templates.
+- **Lifespan runtime wiring** — when runtime is pre-injected (e.g. by `astromeshd`), lifespan now wires all route modules (system, memory, whatsapp) instead of only agents
+
+### Changed (Backend)
+
+- **Node daemon template guard** — `astromeshd` skips `set_templates_dir` when `templates/` exists but contains no `*.template.yaml` files
+- **Lifespan cleanup** — removed lifespan-level template directory management; templates route handles its own directory resolution
 
 ### Added (Astromesh Forge)
 
@@ -43,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Flat attribute reads** — `TraceTimeline` and `SpanNode` now read `input_tokens`/`output_tokens` directly from span attributes instead of broken nested `metadata.usage.prompt_tokens` path
 - **Horizontal resize drag** — fixed closure capturing null element on mount; drag now uses `window.innerWidth - e.clientX` directly
+- **Forge integration test** — template assertion now checks name membership instead of exact count, compatible with multi-root discovery
+- **Test isolation** — `conftest.py` auto-disables agent YAML persistence (`ASTROMESH_PERSIST_AGENTS=0`) to prevent writing into repo during tests
 
 ## [v0.20.0] - 2026-03-21
 
