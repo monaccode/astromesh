@@ -14,8 +14,8 @@ export function SpanOutputTab({ node }: { node: SpanTreeNode }) {
   }
 
   return (
-    <div className="p-3">
-      <pre className="text-gray-300 bg-gray-800 rounded p-3 text-[10px] whitespace-pre-wrap break-words overflow-y-auto max-h-[400px]">
+    <div className="p-3 h-full">
+      <pre className="text-gray-300 bg-gray-800 rounded p-3 text-[10px] whitespace-pre-wrap break-words overflow-y-auto h-full">
         {content as string}
       </pre>
     </div>

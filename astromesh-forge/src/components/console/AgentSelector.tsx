@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Bot } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Bot, Pencil, GitBranch } from "lucide-react";
 import { useConnectionStore } from "../../stores/connection";
 import { useConsoleStore } from "../../stores/console";
 import type { AgentMeta } from "../../types/agent";
@@ -10,6 +11,7 @@ export function AgentSelector() {
   const connected = useConnectionStore((s) => s.connected);
   const { selectedAgent, selectAgent } = useConsoleStore();
   const [agents, setAgents] = useState<AgentMeta[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!connected) return;
@@ -35,11 +37,32 @@ export function AgentSelector() {
         ))}
       </select>
       {selectedAgent && (
-        <div className="mt-1 flex items-center gap-2">
-          <Badge variant="success">deployed</Badge>
-          <span className="text-gray-500 text-xs">
-            {agents.find((a) => a.name === selectedAgent)?.version ?? ""}
-          </span>
+        <div className="mt-1.5 flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Badge variant="success">deployed</Badge>
+            <span className="text-gray-500 text-xs">
+              {agents.find((a) => a.name === selectedAgent)?.version ?? ""}
+            </span>
+          </div>
+          {/* Edit shortcuts */}
+          <div className="flex gap-1.5">
+            <button
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 rounded text-[10px] text-gray-400 hover:text-gray-200 transition-colors"
+              onClick={() => navigate(`/wizard/${selectedAgent}`)}
+              title="Edit agent in wizard"
+            >
+              <Pencil size={10} />
+              Wizard
+            </button>
+            <button
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 rounded text-[10px] text-gray-400 hover:text-gray-200 transition-colors"
+              onClick={() => navigate(`/canvas/${selectedAgent}`)}
+              title="Edit agent in canvas"
+            >
+              <GitBranch size={10} />
+              Canvas
+            </button>
+          </div>
         </div>
       )}
     </div>

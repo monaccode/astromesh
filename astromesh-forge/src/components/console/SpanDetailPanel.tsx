@@ -115,7 +115,7 @@ export function SpanDetailPanel({
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {currentTab === "overview" && (
           <SpanOverviewTab node={node} onSwitchTab={onTabChange} />
         )}
