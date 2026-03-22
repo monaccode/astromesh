@@ -99,3 +99,14 @@ Channel adapters live in `astromesh/channels/`. Config in `config/channels.yaml`
 - Main branch: `develop`
 - All async: providers, tools, memory backends, and route handlers are async
 - Config from env vars for secrets, YAML files for structure
+
+## Changelog Rule
+
+**MANDATORY:** Before creating any commit with type `feat:`, `fix:`, or `refactor:`, you MUST update `CHANGELOG.md` first using the `/changelog-automation` skill. Add the change under the `## [Unreleased]` section in the appropriate subsection (Added, Changed, Fixed). If the `[Unreleased]` section doesn't exist, create it below the header. Follow the [Keep a Changelog](https://keepachangelog.com/) format. Group entries under `### Added (Backend)`, `### Added (Astromesh Forge)`, `### Changed`, `### Fixed`, etc. as appropriate. Never commit a `feat`/`fix`/`refactor` change without its changelog entry in the same commit or an immediately preceding commit.
+
+## Release Checklist
+
+When creating a release, bump ALL version files in sync:
+- `pyproject.toml` → `version`
+- `astromesh/__init__.py` → `__version__`
+- `astromesh-forge/package.json` → `version`
