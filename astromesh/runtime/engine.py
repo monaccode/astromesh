@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 from pathlib import Path
 
 import yaml
@@ -19,6 +21,21 @@ from astromesh.orchestration.swarm import SwarmPattern
 logger = logging.getLogger(__name__)
 
 
+def _agent_disk_persist_enabled() -> bool:
+    return os.environ.get("ASTROMESH_PERSIST_AGENTS", "1").lower() not in (
+        "0",
+        "false",
+        "no",
+    )
+
+
+def _validate_agent_filesystem_name(name: str) -> None:
+    if not name or not isinstance(name, str):
+        raise ValueError("Invalid agent name")
+    if name != Path(name).name or ".." in name:
+        raise ValueError("Invalid agent name")
+
+
 def _make_builtin_handler(tool_instance, agent_name):
     """Create an async handler closure for a builtin tool instance."""
 
@@ -30,6 +47,45 @@ def _make_builtin_handler(tool_instance, agent_name):
         return result.to_dict()
 
     return _handler
+
+
+def _truncate(text: str | None, limit: int) -> str:
+    """Truncate text to limit chars, appending a marker if truncated."""
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f"\n... [truncated at {len(text)} chars]"
+
+
+def _parse_args(args):
+    """Parse arguments that may be a JSON string (OpenAI) or already a dict."""
+    if isinstance(args, str):
+        try:
+            return json.loads(args)
+        except (json.JSONDecodeError, ValueError):
+            return {"_raw": args}
+    return args
+
+
+def _normalize_tool_calls(raw_calls: list) -> list[dict]:
+    """Normalize tool_calls to plain JSON-serializable dicts."""
+    normalized = []
+    for tc in raw_calls:
+        if isinstance(tc, dict):
+            if "function" in tc:
+                normalized.append(
+                    {
+                        "id": tc.get("id"),
+                        "name": tc["function"]["name"],
+                        "arguments": _parse_args(tc["function"].get("arguments", {})),
+                    }
+                )
+            else:
+                normalized.append(tc)
+        else:
+            normalized.append({"raw": str(tc)})
+    return normalized
 
 
 class AgentRuntime:
@@ -59,6 +115,9 @@ class AgentRuntime:
                 agent = self._build_agent(config)
             except Exception:
                 logger.exception("Skipping agent %s: failed to build from config", name)
+                if name and name != "<unknown>":
+                    self._agent_configs[name] = config
+                    self._agent_status[name] = "draft"
                 continue
             self._agents[agent.name] = agent
             self._agent_configs[name] = config
@@ -71,9 +130,7 @@ class AgentRuntime:
         for config in configs:
             name = config["metadata"]["name"]
             agent_tools = [
-                t["agent"]
-                for t in config["spec"].get("tools", [])
-                if t.get("type") == "agent"
+                t["agent"] for t in config["spec"].get("tools", []) if t.get("type") == "agent"
             ]
             graph[name] = agent_tools
 
@@ -88,9 +145,7 @@ class AgentRuntime:
                     continue  # references external agent, skip
                 if color[neighbor] == GRAY:
                     cycle = path + [neighbor]
-                    raise ValueError(
-                        f"Circular agent reference detected: {' -> '.join(cycle)}"
-                    )
+                    raise ValueError(f"Circular agent reference detected: {' -> '.join(cycle)}")
                 if color[neighbor] == WHITE:
                     dfs(neighbor, path + [neighbor])
             color[node] = BLACK
@@ -226,37 +281,65 @@ class AgentRuntime:
         seen = set()
         # Include deployed agents from _agents
         for a in self._agents.values():
-            result.append({
-                "name": a.name,
-                "version": a.version,
-                "namespace": a.namespace,
-                "status": self._agent_status.get(a.name, "deployed"),
-            })
+            result.append(
+                {
+                    "name": a.name,
+                    "version": a.version,
+                    "namespace": a.namespace,
+                    "status": self._agent_status.get(a.name, "deployed"),
+                }
+            )
             seen.add(a.name)
         # Include non-deployed agents from _agent_configs
         for name, config in self._agent_configs.items():
             if name not in seen:
                 metadata = config.get("metadata", {})
-                result.append({
-                    "name": name,
-                    "version": metadata.get("version", "0.1.0"),
-                    "namespace": metadata.get("namespace", "default"),
-                    "status": self._agent_status.get(name, "draft"),
-                })
+                result.append(
+                    {
+                        "name": name,
+                        "version": metadata.get("version", "0.1.0"),
+                        "namespace": metadata.get("namespace", "default"),
+                        "status": self._agent_status.get(name, "draft"),
+                    }
+                )
         return result
+
+    def _agent_yaml_path(self, name: str) -> Path:
+        _validate_agent_filesystem_name(name)
+        return self._config_dir / "agents" / f"{name}.agent.yaml"
+
+    def _persist_agent_yaml(self, name: str, config: dict) -> None:
+        if not _agent_disk_persist_enabled():
+            return
+        path = self._agent_yaml_path(name)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            yaml.safe_dump(config, sort_keys=False, allow_unicode=True),
+            encoding="utf-8",
+        )
+
+    def _remove_agent_yaml(self, name: str) -> None:
+        if not _agent_disk_persist_enabled():
+            return
+        try:
+            path = self._agent_yaml_path(name)
+        except ValueError:
+            return
+        if path.is_file():
+            path.unlink()
 
     async def register_agent(self, config: dict) -> None:
         """Register an agent dynamically from a config dict (same schema as YAML).
         Stores the config and sets status to 'draft' without building the agent.
         The agent must be explicitly deployed via deploy_agent()."""
-        name = (
-            config.get("metadata", {}).get("name")
-            or config.get("spec", {}).get("identity", {}).get("name")
-        )
+        name = config.get("metadata", {}).get("name") or config.get("spec", {}).get(
+            "identity", {}
+        ).get("name")
         if not name:
             raise ValueError("Agent config must include metadata.name or spec.identity.name")
         self._agent_configs[name] = config
         self._agent_status[name] = "draft"
+        self._persist_agent_yaml(name, config)
 
     async def deploy_agent(self, name: str) -> None:
         """Build and deploy a registered agent, making it available for execution."""
@@ -266,6 +349,7 @@ class AgentRuntime:
         agent = self._build_agent(config)
         self._agents[agent.name] = agent
         self._agent_status[name] = "deployed"
+        self._persist_agent_yaml(name, config)
 
     def pause_agent(self, name: str) -> None:
         """Pause a deployed agent, removing it from active execution."""
@@ -283,6 +367,7 @@ class AgentRuntime:
             self.pause_agent(name)
         self._agent_configs[name] = config
         self._agent_status[name] = "draft"
+        self._persist_agent_yaml(name, config)
 
     def unregister_agent(self, name: str) -> None:
         """Remove a dynamically registered agent."""
@@ -291,6 +376,7 @@ class AgentRuntime:
         self._agents.pop(name, None)
         self._agent_configs.pop(name, None)
         self._agent_status.pop(name, None)
+        self._remove_agent_yaml(name)
 
 
 class Agent:
@@ -375,9 +461,7 @@ class Agent:
                 route_kwargs["provider_override"] = (override_name, override_provider)
 
             async def model_fn(messages, tools):
-                llm_span = tracing.start_span(
-                    "llm.complete", parent_span_id=root_span.span_id
-                )
+                llm_span = tracing.start_span("llm.complete", parent_span_id=root_span.span_id)
                 full_messages = [{"role": "system", "content": rendered_prompt}] + messages
                 try:
                     response = await self._router.route(full_messages, tools=tools, **route_kwargs)
@@ -388,9 +472,20 @@ class Agent:
                         llm_span.set_attribute(
                             "output_tokens", response.usage.get("output_tokens", 0)
                         )
+                    llm_span.set_attribute("model", response.model)
+                    llm_span.set_attribute("provider", response.provider)
+                    llm_span.set_attribute("latency_ms", response.latency_ms)
+                    llm_span.set_attribute("cost", response.cost)
+                    llm_span.set_attribute(
+                        "tool_calls",
+                        _normalize_tool_calls(response.tool_calls) if response.tool_calls else [],
+                    )
+                    llm_span.set_attribute("prompt", _truncate(rendered_prompt, 10_000))
+                    llm_span.set_attribute("response", _truncate(response.content, 10_000))
                     tracing.finish_span(llm_span)
                     return response
-                except Exception:
+                except Exception as e:
+                    llm_span.set_attribute("error_message", str(e))
                     tracing.finish_span(llm_span, status=SpanStatus.ERROR)
                     raise
 
@@ -402,9 +497,12 @@ class Agent:
                     observation = await self._tools.execute(
                         name, args, {"agent": self.name, "session": session_id}
                     )
+                    tool_span.set_attribute("tool_args", args)
+                    tool_span.set_attribute("tool_result", _truncate(str(observation), 5_000))
                     tracing.finish_span(tool_span)
                     return observation
-                except Exception:
+                except Exception as e:
+                    tool_span.set_attribute("error_message", str(e))
                     tracing.finish_span(tool_span, status=SpanStatus.ERROR)
                     raise
 
@@ -421,6 +519,21 @@ class Agent:
                 tools=tool_schemas,
                 max_iterations=max_iterations,
             )
+            for i, step in enumerate(result.get("steps", [])):
+                step_data = {
+                    "iteration": i + 1,
+                    "pattern": self._orchestration_config.get("pattern", "react"),
+                }
+                if hasattr(step, "thought") and step.thought:
+                    step_data["thought"] = _truncate(step.thought, 5_000)
+                if hasattr(step, "action") and step.action:
+                    step_data["action"] = step.action
+                    step_data["action_input"] = step.action_input or {}
+                if hasattr(step, "observation") and step.observation:
+                    step_data["observation"] = _truncate(step.observation, 5_000)
+                if hasattr(step, "result") and step.result:
+                    step_data["result"] = _truncate(step.result, 5_000)
+                orch_span.add_event("orch_step", step_data)
             tracing.finish_span(orch_span)
 
             # Extract text for storage; keep full multimodal content in metadata.
@@ -432,9 +545,7 @@ class Agent:
                 user_content = query
                 user_metadata = {}
 
-            persist_span = tracing.start_span(
-                "memory_persist", parent_span_id=root_span.span_id
-            )
+            persist_span = tracing.start_span("memory_persist", parent_span_id=root_span.span_id)
             await self._memory.persist_turn(
                 session_id,
                 ConversationTurn(
@@ -464,7 +575,8 @@ class Agent:
             )
             return result
 
-        except Exception:
+        except Exception as e:
             logger.exception("agent.run failed agent=%s session=%s", self.name, session_id)
+            root_span.set_attribute("error_message", str(e))
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
             raise
