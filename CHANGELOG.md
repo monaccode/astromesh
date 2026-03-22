@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- **Span enrichment** — `llm.complete` spans now capture model name, provider, latency (ms), estimated cost, rendered prompt (truncated at 10k chars), model response (truncated at 10k chars), and normalized tool calls
+- **Tool span enrichment** — `tool.call` spans now capture tool arguments and execution result (truncated at 5k chars)
+- **Orchestration step events** — `orchestration` span records each ReAct/PlanAndExecute step as a timestamped event with thought, action, action_input, observation, and result fields
+- **Error capture** — all span error paths (`llm.complete`, `tool.call`, `agent.run`) now record `error_message` attribute
+- **Helper functions** — `_truncate()` for safe text truncation, `_normalize_tool_calls()` for provider-agnostic tool call format, `_parse_args()` for JSON string argument handling (OpenAI compatibility)
+
+### Added (Astromesh Forge)
+
+- **Span Detail Panel** — split-panel trace inspector with 7 tabbed views for deep debugging:
+  - **Overview** tab: model/provider/latency/cost metrics grid, token usage (input/output/total), orchestration step visualization (thought → action → observation chain with colored borders), response preview, and error display
+  - **Input** tab: full rendered prompt sent to the LLM
+  - **Output** tab: full model response or tool execution result
+  - **Tool Calls** tab: normalized tool call arguments and results as formatted JSON
+  - **Guardrails** tab: guardrail events with action type coloring (ready for when guardrail execution is wired)
+  - **Events** tab: chronological span events with relative timestamps
+  - **Raw** tab: full JSON dump of span attributes and events with copy-to-clipboard
+- **Chip indicators** — inline emoji badges on each span row indicating available data (💬 response, 🔧 tool calls, ✅ success, 📋 events, ⚠️ error, 🛡️ guardrails); clicking a chip opens the detail panel on the corresponding tab
+- **Typed span attributes** — `SpanAttributes` interface replacing untyped `Record<string, unknown>` for type-safe attribute access
+
+### Changed (Astromesh Forge)
+
+- **Resizable right panel** — panel width now adjustable via horizontal drag handle on left edge (300–900px range, persisted in localStorage); double-click handle to reset to default (420px)
+- **Resizable vertical split** — timeline and detail panel heights adjustable via drag handle; detail panel only appears when a span is selected
+- **Duration formatting** — span durations now display as human-readable values (`17.5s` instead of `17493.289947509766ms`)
+- **Span selection** — clicking a span highlights it and loads its detail below; chevron click expands/collapses children independently of selection
+
+### Fixed (Astromesh Forge)
+
+- **Flat attribute reads** — `TraceTimeline` and `SpanNode` now read `input_tokens`/`output_tokens` directly from span attributes instead of broken nested `metadata.usage.prompt_tokens` path
+
 ## [v0.20.0] - 2026-03-21
 
 **Subpackage releases:** core v0.20.0 | forge v0.20.0 | orbit v0.1.1 | adk v0.1.6 | cli v0.1.1 | node v0.1.1
