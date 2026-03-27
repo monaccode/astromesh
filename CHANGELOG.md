@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs site dark-only theme** — removed light theme CSS fallback (`[data-theme='light']` block); consolidated `:root` declarations into a single dark-mode-only block
+
 ## [v0.21.0] - 2026-03-22
 
 **Subpackage releases:** core v0.21.0 | forge v0.21.0

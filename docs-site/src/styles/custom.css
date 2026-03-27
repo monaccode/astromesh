@@ -2,7 +2,10 @@
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* ── Dark mode only — no light theme ─────────── */
 :root {
+  color-scheme: dark;
+
   /* Override Starlight accent palette — derived from logo cyan */
   --sl-color-accent-low: #071825;
   --sl-color-accent: #00d4ff;
@@ -21,23 +24,6 @@
   /* Fonts */
   --sl-font: 'DM Sans', system-ui, sans-serif;
   --sl-font-mono: 'JetBrains Mono', ui-monospace, monospace;
-}
-
-/* ── Force dark mode permanently ──────────────── */
-:root {
-  color-scheme: dark;
-}
-
-:root[data-theme='light'] {
-  /* Redirect light tokens to dark values */
-  --sl-color-accent-low: #071825;
-  --sl-color-accent: #00d4ff;
-  --sl-color-accent-high: #67e8f9;
-  --sl-color-bg: var(--sl-color-gray-6);
-  --sl-color-bg-nav: var(--sl-color-gray-6);
-  --sl-color-bg-sidebar: var(--sl-color-gray-6);
-  --sl-color-text: var(--sl-color-gray-1);
-  --sl-color-text-accent: var(--sl-color-accent-high);
 }
 
 /* ── Header logo ─────────────────────────────── */
