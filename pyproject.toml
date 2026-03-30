@@ -1,6 +1,6 @@
 [project]
 name = "astromesh"
-version = "0.21.0"
+version = "0.22.0"
 description = "Astromesh Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.9.0",
     "pyyaml>=6.0",
     "jinja2>=3.1.0",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]

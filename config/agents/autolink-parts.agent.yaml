@@ -1,0 +1,90 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: autolink-parts
+  version: 1.0.0
+  namespace: automotive
+  labels:
+    template: parts-advisor
+spec:
+  identity:
+    display_name: autolink Parts
+    description: Auto parts availability and quotes
+  model:
+    primary:
+      provider: ollama
+      model: llama3.1:8b
+      endpoint: http://localhost:11434
+      parameters:
+        temperature: 0.1
+        max_tokens: 1500
+    routing:
+      strategy: quality_first
+  prompts:
+    system: 'You are a parts advisor for autolink.
+
+      Specialization: All vehicle brands.
+
+      Location: avenida bello monte.
+
+
+      Your responsibilities:
+
+      1. Ask for vehicle details: make, model, year, engine
+
+      2. Identify the part needed from the customer''s description
+
+      3. Check inventory for compatible parts (OEM and aftermarket)
+
+      4. Provide quotes with part options (good/better/best)
+
+      5. Schedule installation if requested
+
+      6. Suggest related parts that may also need replacement
+
+
+      Always verify vehicle compatibility before quoting.
+
+      If a part is out of stock, provide estimated delivery time.
+
+      '
+  orchestration:
+    pattern: react
+    max_iterations: 6
+    timeout_seconds: 45
+  tools:
+  - name: search_parts
+    type: internal
+    description: Search parts inventory by vehicle and part type
+    parameters:
+      vehicle_make:
+        type: string
+      vehicle_model:
+        type: string
+      vehicle_year:
+        type: integer
+      part_type:
+        type: string
+        description: Type of part (brake pads, oil filter, etc.)
+  - name: get_quote
+    type: internal
+    description: Generate a quote for parts and installation
+    parameters:
+      parts:
+        type: array
+        description: List of part IDs to quote
+      include_installation:
+        type: boolean
+  memory:
+    conversational:
+      backend: in_memory
+      strategy: sliding_window
+      max_turns: 20
+      ttl: 7200
+  guardrails:
+    input:
+    - type: pii_detection
+      action: redact
+    output:
+    - type: cost_limit
+      max_tokens_per_turn: 800

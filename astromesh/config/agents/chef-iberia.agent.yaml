@@ -1,0 +1,31 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: chef-iberia
+  version: 1.0.0
+  labels:
+    iberia: 'true'
+spec:
+  identity:
+    display_name: Chef de Iberia
+    description: Este es el Chef de Iberia
+  model:
+    primary:
+      provider: ollama
+      model: llama3.1:8b
+      endpoint: http://localhost:11434
+    routing:
+      strategy: latency_optimized
+  prompts:
+    system: 'Tu eres un chef especializado en la marca de mantequilla Iberia por ello
+      vas a responder sólo con recetas de platos a los usuarios.
+
+
+      Deben ser recetas mexicanas donde resalte el uso del producto.'
+  orchestration:
+    pattern: plan_and_execute
+    max_iterations: 10
+  memory:
+    conversational:
+      backend: in_memory
+      strategy: sliding_window

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.22.0] - 2026-03-30
+
+**Subpackage releases:** core v0.22.0 | forge v0.22.0
+
+### Added (Backend)
+
+- **`psutil` dependency** — added `psutil>=5.9.0` to core dependencies for system resource monitoring
+- **Example agent configs** — added `autolink-parts` (automotive parts advisor) and `chef-iberia` (Iberia chef assistant) agent YAML definitions
+- **Config package** — added `astromesh/config/agents/` for bundled agent configurations
+
 ### Changed
 
 - **Docs site dark-only theme** — removed light theme CSS fallback (`[data-theme='light']` block); consolidated `:root` declarations into a single dark-mode-only block
