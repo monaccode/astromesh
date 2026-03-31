@@ -11,6 +11,8 @@ export interface SpanAttributes {
   latency_ms?: number;
   cost?: number;
   prompt?: string;
+  input_messages?: string;
+  query?: string;
   response?: string;
   tool_calls?: Array<{ id?: string; name: string; arguments: Record<string, unknown> }>;
 

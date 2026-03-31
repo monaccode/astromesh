@@ -427,6 +427,8 @@ class Agent:
                 else " ".join(p.get("text", "") for p in query if p.get("type") == "text")
             )
 
+            root_span.set_attribute("query", query_text[:5000])
+
             mem_span = tracing.start_span("memory_build")
             memory_context = await self._memory.build_context(
                 session_id, query_text, max_tokens=4096
@@ -481,6 +483,16 @@ class Agent:
                         _normalize_tool_calls(response.tool_calls) if response.tool_calls else [],
                     )
                     llm_span.set_attribute("prompt", _truncate(rendered_prompt, 10_000))
+                    # Store user messages so traces show the actual input
+                    user_msgs = [m for m in messages if m.get("role") == "user"]
+                    if user_msgs:
+                        llm_span.set_attribute(
+                            "input_messages",
+                            _truncate(
+                                "\n".join(m.get("content", "") for m in user_msgs if isinstance(m.get("content"), str)),
+                                10_000,
+                            ),
+                        )
                     llm_span.set_attribute("response", _truncate(response.content, 10_000))
                     tracing.finish_span(llm_span)
                     return response

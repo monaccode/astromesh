@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.0] - 2026-03-30
+
+**Subpackage releases:** core v0.23.0 | forge v0.23.0
+
+### Added (Backend)
+
+- **Trace query capture** — root `agent.run` spans now store the user query (up to 5k chars) as a `query` attribute
+- **Trace input messages** — `llm.complete` spans now capture user-role messages as `input_messages` attribute for full trace visibility
+
+### Added (Astromesh Forge)
+
+- **Span input tab redesign** — input tab now shows User Query, Input Messages, and System Prompt as labeled sections with color-coded headers
+- **Overview query preview** — span overview tab displays user query and input message previews with "View full input" links for long content
+- **Input tab detection** — span detail panel now correctly enables the Input tab when `query` or `input_messages` attributes are present
+
 ## [v0.22.0] - 2026-03-30
 
 **Subpackage releases:** core v0.22.0 | forge v0.22.0

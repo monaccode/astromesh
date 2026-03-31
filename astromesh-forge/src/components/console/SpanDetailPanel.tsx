@@ -32,7 +32,11 @@ function tabHasData(node: SpanTreeNode, tabId: TabId): boolean {
     case "overview":
       return true; // Always available
     case "input":
-      return typeof a.prompt === "string" && a.prompt.length > 0;
+      return (
+        (typeof a.prompt === "string" && a.prompt.length > 0) ||
+        (typeof a.query === "string" && a.query.length > 0) ||
+        (typeof a.input_messages === "string" && a.input_messages.length > 0)
+      );
     case "output":
       return (
         (typeof a.response === "string" && a.response.length > 0) ||

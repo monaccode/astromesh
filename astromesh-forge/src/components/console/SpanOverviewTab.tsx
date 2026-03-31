@@ -12,9 +12,38 @@ export function SpanOverviewTab({ node, onSwitchTab }: SpanOverviewTabProps) {
   const orchSteps = node.events.filter((e) => e.name === "orch_step");
   const hasResponse = typeof a.response === "string" && a.response.length > 0;
   const isError = node.status === "error";
+  const hasQuery = typeof a.query === "string" && a.query.length > 0;
+  const hasInputMsgs = typeof a.input_messages === "string" && a.input_messages.length > 0;
 
   return (
     <div className="flex flex-col gap-3 p-3 text-[11px]">
+      {/* User query (on agent.run spans) */}
+      {hasQuery && (
+        <div className="bg-purple-500/5 border-l-2 border-purple-400 rounded-r p-2">
+          <div className="text-purple-400 text-[9px] uppercase mb-0.5">User Query</div>
+          <div className="text-gray-100">{a.query as string}</div>
+        </div>
+      )}
+
+      {/* Input messages (on llm.complete spans) */}
+      {hasInputMsgs && !hasQuery && (
+        <div className="bg-purple-500/5 border-l-2 border-purple-400 rounded-r p-2">
+          <div className="text-purple-400 text-[9px] uppercase mb-0.5">Input Message</div>
+          <div className="text-gray-100 whitespace-pre-wrap">
+            {(a.input_messages as string).slice(0, 500)}
+            {(a.input_messages as string).length > 500 && "..."}
+          </div>
+          {(a.input_messages as string).length > 500 && (
+            <button
+              className="text-cyan-400 text-[9px] mt-1 hover:underline"
+              onClick={() => onSwitchTab("input")}
+            >
+              View full input
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Metrics grid */}
       {hasMetrics && (
         <div className="grid grid-cols-2 gap-2">
