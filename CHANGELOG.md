@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.2] - 2026-04-06
+
+### Fixed
+
+- **orbit**: Handle missing gcloud CLI gracefully — `_run_gcloud` now catches `FileNotFoundError` and returns error code 127 instead of crashing with an unhandled exception when gcloud is not installed
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.3 — graceful handling of missing gcloud CLI
+
 ## [v0.23.1] - 2026-04-06
 
 ### Fixed
