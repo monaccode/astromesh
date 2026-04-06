@@ -18,7 +18,7 @@ from astromesh_orbit.providers.gcp.validators import (
     check_gcloud_auth,
     check_project,
 )
-from astromesh_orbit.terraform.backend import ensure_gcs_state_bucket
+from astromesh_orbit.terraform.backend import ensure_gcs_state_bucket, ensure_vpc_peering
 from astromesh_orbit.terraform.runner import TerraformRunner
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -99,12 +99,13 @@ class GCPProvider:
             )
             raise RuntimeError(f"Validation failed:\n{msgs}")
 
-        # Ensure state bucket
+        # Ensure state bucket + VPC peering
         await ensure_gcs_state_bucket(
             config.spec.provider.project,
             config.spec.provider.region,
             config.metadata.name,
         )
+        ensure_vpc_peering(config.spec.provider.project)
 
         # Generate and apply
         work_dir = output_dir
