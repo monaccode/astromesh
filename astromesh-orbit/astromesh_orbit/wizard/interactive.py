@@ -65,7 +65,7 @@ def run_wizard(output_path: Path = Path("orbit.yaml")) -> Path:
     )
 
     output_path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
-    console.print(f"\n  [green]✓[/] {output_path} written\n")
+    console.print(f"\n  [green]OK[/] {output_path} written\n")
 
     # Append .orbit/ to .gitignore
     gitignore = Path(".gitignore")
@@ -74,10 +74,10 @@ def run_wizard(output_path: Path = Path("orbit.yaml")) -> Path:
         if ".orbit/" not in content:
             with gitignore.open("a") as f:
                 f.write("\n# Astromesh Orbit working directory\n.orbit/\n")
-            console.print("  [green]✓[/] .orbit/ added to .gitignore\n")
+            console.print("  [green]OK[/] .orbit/ added to .gitignore\n")
     else:
         gitignore.write_text("# Astromesh Orbit working directory\n.orbit/\n")
-        console.print("  [green]✓[/] .gitignore created with .orbit/\n")
+        console.print("  [green]OK[/] .gitignore created with .orbit/\n")
 
     console.print("  Next steps:")
     console.print("    astromeshctl orbit plan     # Preview infrastructure")

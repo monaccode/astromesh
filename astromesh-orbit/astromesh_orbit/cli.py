@@ -68,10 +68,10 @@ def plan(config: str = typer.Option("orbit.yaml", help="Path to orbit.yaml")):
         if not validation.ok:
             console.print(" [red]FAILED[/]\n")
             for c in validation.checks:
-                icon = "[green]\u2713[/]" if c.passed else "[red]\u2717[/]"
+                icon = "[green]OK[/]" if c.passed else "[red]FAIL[/]"
                 console.print(f"    {icon} {c.message}")
                 if c.remediation:
-                    console.print(f"      \u2192 {c.remediation}")
+                    console.print(f"      -> {c.remediation}")
             raise typer.Exit(1)
         console.print(" [green]OK[/]")
 
@@ -114,7 +114,7 @@ def apply(
         prov = _get_provider(cfg)
         GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
-        console.print("\n  [cyan bold]Astromesh Orbit \u2014 Deploying[/]\n")
+        console.print("\n  [cyan bold]Astromesh Orbit -- Deploying[/]\n")
 
         try:
             result = await prov.provision(cfg, GENERATED_DIR)
@@ -122,7 +122,7 @@ def apply(
             console.print(f"  [red]Error:[/] {e}")
             raise typer.Exit(1)
 
-        console.print("\n  [green bold]\u2713 Deployment complete![/]\n")
+        console.print("\n  [green bold]OK Deployment complete![/]\n")
 
         table = Table(title="Endpoints")
         table.add_column("Service", style="cyan")
@@ -152,7 +152,7 @@ def status(config: str = typer.Option("orbit.yaml", help="Path to orbit.yaml")):
         table.add_column("URL", style="dim")
         for r in ds.resources:
             color = "green" if r.status == "running" else "red"
-            table.add_row(r.name, r.resource_type, f"[{color}]{r.status}[/]", r.url or "\u2014")
+            table.add_row(r.name, r.resource_type, f"[{color}]{r.status}[/]", r.url or "--")
         console.print(table)
         console.print(f"\n  State bucket: {ds.state_bucket}")
 
@@ -175,7 +175,7 @@ def destroy(
 
         console.print("\n  [yellow]Destroying infrastructure...[/]\n")
         await prov.destroy(cfg, GENERATED_DIR)
-        console.print("  [green]\u2713 All resources destroyed.[/]\n")
+        console.print("  [green]OK All resources destroyed.[/]\n")
 
     asyncio.run(_destroy())
 
@@ -188,8 +188,8 @@ def eject(output_dir: str = typer.Option("./orbit-terraform", help="Output direc
         cfg = _load_config("orbit.yaml")
         prov = _get_provider(cfg)
         result = await prov.eject(cfg, Path(output_dir))
-        console.print(f"\n  [green]\u2713[/] Terraform files exported to {result}/")
-        console.print("  These are standalone \u2014 no Orbit dependency.\n")
+        console.print(f"\n  [green]OK[/] Terraform files exported to {result}/")
+        console.print("  These are standalone -- no Orbit dependency.\n")
         console.print("  Next steps:")
         console.print(f"    cd {output_dir}")
         console.print("    terraform plan")

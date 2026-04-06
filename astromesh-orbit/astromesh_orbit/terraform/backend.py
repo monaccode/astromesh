@@ -25,7 +25,7 @@ async def ensure_gcs_state_bucket(project: str, region: str, name: str) -> str:
     await proc.communicate()
 
     if proc.returncode == 0:
-        console.print(f"  [green]\u2713[/] State bucket exists: gs://{bucket_name}")
+        console.print(f"  [green]OK[/] State bucket exists: gs://{bucket_name}")
         return bucket_name
 
     # Try to create
@@ -55,7 +55,7 @@ async def ensure_gcs_state_bucket(project: str, region: str, name: str) -> str:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        console.print(f"  [green]\u2713[/] State bucket created: gs://{bucket_name}")
+        console.print(f"  [green]OK[/] State bucket created: gs://{bucket_name}")
         return bucket_name
 
     # Naming collision — append hash
@@ -83,5 +83,5 @@ async def ensure_gcs_state_bucket(project: str, region: str, name: str) -> str:
             f"  gsutil mb -p {project} -l {region} gs://{bucket_name}"
         )
 
-    console.print(f"  [green]\u2713[/] State bucket created: gs://{bucket_name}")
+    console.print(f"  [green]OK[/] State bucket created: gs://{bucket_name}")
     return bucket_name
