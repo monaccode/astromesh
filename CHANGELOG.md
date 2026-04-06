@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.9] - 2026-04-06
+
+### Fixed
+
+- **api**: Default `ASTROMESH_CORS_ORIGINS` to `*` (was `http://localhost:5173`) — enables Cortex (Electron) to call the runtime API on Cloud Run deployments without CORS errors
+- **orbit**: Removed reserved `PORT` env var from Cloud Run template — Cloud Run sets it automatically from the `ports` block
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.10 — Cloud Run template PORT fix
+
 ## [v0.23.8] - 2026-04-06
 
 ### Fixed
