@@ -20,6 +20,10 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
     containers {
       image = "{{ svc.image }}"
 
+      ports {
+        container_port = 8000
+      }
+
       resources {
         limits = {
           cpu    = "{{ svc.spec.cpu }}"
@@ -27,6 +31,10 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
         }
       }
 
+      env {
+        name  = "PORT"
+        value = "8000"
+      }
       env {
         name  = "ASTROMESH_DATABASE_URL"
         value = "postgresql+asyncpg://astromesh:${random_password.db_password.result}@/astromesh?host=/cloudsql/${google_sql_database_instance.main.connection_name}"
