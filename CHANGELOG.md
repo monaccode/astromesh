@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.7] - 2026-04-06
+
+### Added
+
+- **orbit**: Auto-create VPC peering for Cloud SQL during provision — `ensure_vpc_peering()` creates IP range + private services connection via google-auth API when `GOOGLE_APPLICATION_CREDENTIALS` is set
+- **orbit**: `-lock=false` on all tofu commands (init, plan, apply, destroy) to prevent stale state lock conflicts in single-user Cortex deployments
+- **orbit**: `-reconfigure` flag on `tofu init` to handle backend config changes without interactive prompts
+
+### Fixed
+
+- **orbit**: VPC access connector name truncated to 19 chars + "-vpc" suffix to meet GCP's 23-char limit
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.8 — auto VPC peering, lock-free operations, init reconfigure
+
 ## [v0.23.6] - 2026-04-06
 
 ### Fixed

@@ -66,14 +66,14 @@ class TerraformRunner:
 
     async def init(self, work_dir: Path) -> None:
         code, stdout, stderr = await self._run(
-            [self._bin, "init", "-input=false", "-no-color"], cwd=work_dir
+            [self._bin, "init", "-input=false", "-reconfigure", "-lock=false", "-no-color"], cwd=work_dir
         )
         if code != 0:
             raise RuntimeError(f"init failed:\n{stderr or stdout}")
 
     async def plan(self, work_dir: Path) -> PlanResult:
         code, stdout, stderr = await self._run(
-            [self._bin, "plan", "-input=false", "-no-color"], cwd=work_dir
+            [self._bin, "plan", "-input=false", "-lock=false", "-no-color"], cwd=work_dir
         )
         combined = stdout + stderr
         create = re.findall(r"\+ (\S+)", combined)
@@ -87,7 +87,7 @@ class TerraformRunner:
         )
 
     async def apply(self, work_dir: Path, auto_approve: bool = False) -> ApplyResult:
-        args = [self._bin, "apply", "-input=false", "-no-color"]
+        args = [self._bin, "apply", "-input=false", "-lock=false", "-no-color"]
         if auto_approve:
             args.append("-auto-approve")
         code, stdout, stderr = await self._run(args, cwd=work_dir)
@@ -97,7 +97,7 @@ class TerraformRunner:
         return ApplyResult(success=True, outputs=outputs, raw_output=stdout)
 
     async def destroy(self, work_dir: Path, auto_approve: bool = False) -> None:
-        args = [self._bin, "destroy", "-input=false", "-no-color"]
+        args = [self._bin, "destroy", "-input=false", "-lock=false", "-no-color"]
         if auto_approve:
             args.append("-auto-approve")
         code, stdout, stderr = await self._run(args, cwd=work_dir)

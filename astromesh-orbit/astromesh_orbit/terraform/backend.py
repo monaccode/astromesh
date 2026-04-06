@@ -112,3 +112,69 @@ async def ensure_gcs_state_bucket(project: str, region: str, name: str) -> str:
 
     console.print(f"  [green]OK[/] State bucket created: gs://{bucket_name}")
     return bucket_name
+
+
+def ensure_vpc_peering(project: str, network: str = "default") -> None:
+    """Ensure private services connection exists for Cloud SQL. Uses google-auth library."""
+    if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        return  # Skip — gcloud users manage this manually
+
+    try:
+        from google.auth import default as auth_default
+        from google.auth.transport.requests import AuthorizedSession
+    except ImportError:
+        return
+
+    import time
+
+    creds, _ = auth_default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    session = AuthorizedSession(creds)
+
+    # Check if service connection already exists
+    r = session.get(
+        f"https://servicenetworking.googleapis.com/v1/services/"
+        f"servicenetworking.googleapis.com/connections"
+        f"?network=projects/{project}/global/networks/{network}"
+    )
+    if r.ok and r.json().get("connections"):
+        console.print(f"  [green]OK[/] VPC peering exists")
+        return
+
+    # Create IP range if needed
+    r = session.get(
+        f"https://compute.googleapis.com/compute/v1/projects/{project}/global/addresses/google-managed-services"
+    )
+    if r.status_code == 404:
+        console.print("  Creating IP range for private services...", end="")
+        r = session.post(
+            f"https://compute.googleapis.com/compute/v1/projects/{project}/global/addresses",
+            json={
+                "name": "google-managed-services",
+                "purpose": "VPC_PEERING",
+                "addressType": "INTERNAL",
+                "prefixLength": 20,
+                "network": f"projects/{project}/global/networks/{network}",
+            },
+        )
+        if r.status_code >= 400:
+            console.print(f" [yellow]WARN[/] Could not create IP range: {r.json().get('error', {}).get('message', '')}")
+            return
+        console.print(" OK")
+        time.sleep(10)
+
+    # Create peering connection
+    console.print("  Creating VPC peering for Cloud SQL...", end="")
+    r = session.post(
+        f"https://servicenetworking.googleapis.com/v1/services/"
+        f"servicenetworking.googleapis.com/connections",
+        json={
+            "network": f"projects/{project}/global/networks/{network}",
+            "reservedPeeringRanges": ["google-managed-services"],
+        },
+    )
+    if r.status_code >= 400:
+        console.print(f" [yellow]WARN[/] Could not create peering: {r.text[:200]}")
+        return
+    console.print(" OK")
+    # Wait for peering to propagate
+    time.sleep(15)
