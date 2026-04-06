@@ -54,11 +54,12 @@ class OrbitSpec(BaseModel):
     cache: CacheSpec = CacheSpec()
     secrets: SecretsSpec = SecretsSpec()
     images: ImagesSpec = ImagesSpec()
+    env: dict[str, str] = {}
 
 
 class OrbitMetadata(BaseModel):
     name: str
-    environment: Literal["dev", "staging", "production"] = "dev"
+    environment: Literal["develop", "staging", "production"] = "develop"
 
 
 class OrbitConfig(BaseModel):

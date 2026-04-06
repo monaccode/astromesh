@@ -67,6 +67,7 @@ class GCPProvider:
                     "image": config.spec.images.runtime,
                 },
             ],
+            "custom_env": getattr(config.spec, "env", None) or {},
         }
 
     async def validate(self, config: OrbitConfig) -> ValidationResult:

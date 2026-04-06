@@ -1,6 +1,6 @@
 [project]
 name = "astromesh"
-version = "0.23.9"
+version = "0.24.0"
 description = "Astromesh Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
 readme = "README.md"
 requires-python = ">=3.12"
