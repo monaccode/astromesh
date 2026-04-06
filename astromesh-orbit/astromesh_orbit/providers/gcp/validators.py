@@ -21,13 +21,16 @@ _GCLOUD = "gcloud.cmd" if sys.platform == "win32" else "gcloud"
 
 
 async def _run_gcloud(*args: str) -> tuple[int, str, str]:
-    proc = await asyncio.create_subprocess_exec(
-        _GCLOUD,
-        *args,
-        "--format=json",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            _GCLOUD,
+            *args,
+            "--format=json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        return 127, "", "gcloud CLI not found in PATH"
     stdout, stderr = await proc.communicate()
     return proc.returncode or 0, stdout.decode(), stderr.decode()
 
