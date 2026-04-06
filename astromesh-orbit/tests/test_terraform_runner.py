@@ -1,6 +1,7 @@
 """Tests for TerraformRunner — mocked subprocess calls."""
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -11,7 +12,8 @@ from astromesh_orbit.terraform.runner import TerraformRunner, TerraformNotFoundE
 
 @pytest.fixture
 def runner():
-    return TerraformRunner()
+    with patch("astromesh_orbit.terraform.runner.shutil.which", return_value=None):
+        return TerraformRunner()
 
 
 async def test_check_installed_success(runner: TerraformRunner):
@@ -28,13 +30,14 @@ async def test_check_installed_not_found(runner: TerraformRunner):
             await runner.check_installed()
 
 
-async def test_init_calls_terraform(runner: TerraformRunner, tmp_path: Path):
+async def test_init_calls_binary(runner: TerraformRunner, tmp_path: Path):
     with patch.object(runner, "_run", new_callable=AsyncMock) as mock_run:
-        mock_run.return_value = (0, "Terraform has been successfully initialized!", "")
+        mock_run.return_value = (0, "Initialized!", "")
         await runner.init(tmp_path)
         mock_run.assert_called_once()
         args = mock_run.call_args[0][0]
-        assert args[:2] == ["terraform", "init"]
+        assert args[0] == runner._bin
+        assert args[1] == "init"
 
 
 async def test_plan_parses_output(runner: TerraformRunner, tmp_path: Path):
@@ -71,11 +74,12 @@ async def test_apply_failure(runner: TerraformRunner, tmp_path: Path):
         assert "insufficient permissions" in result.raw_output
 
 
-async def test_destroy_calls_terraform(runner: TerraformRunner, tmp_path: Path):
+async def test_destroy_calls_binary(runner: TerraformRunner, tmp_path: Path):
     with patch.object(runner, "_run", new_callable=AsyncMock) as mock_run:
-        mock_run.return_value = (0, "Destroy complete! Resources: 8 destroyed.", "")
+        mock_run.return_value = (0, "Destroy complete!", "")
         await runner.destroy(tmp_path, auto_approve=True)
         args = mock_run.call_args[0][0]
+        assert args[0] == runner._bin
         assert "destroy" in args
 
 
@@ -91,3 +95,37 @@ async def test_output_parses_json(runner: TerraformRunner, tmp_path: Path):
         outputs = await runner.output(tmp_path)
         assert outputs["runtime_url"] == "https://runtime.run.app"
         assert outputs["db_connection"] == "10.0.0.5:5432"
+
+
+async def test_uses_tofu_path_env_var(tmp_path: Path):
+    with patch.dict("os.environ", {"TOFU_PATH": str(tmp_path / "tofu")}):
+        # Create the fake binary so isfile check passes
+        fake = tmp_path / "tofu"
+        fake.write_text("fake")
+        r = TerraformRunner()
+        assert r._bin == str(fake)
+
+
+async def test_falls_back_to_tofu_in_path():
+    with patch.dict("os.environ", {}, clear=False):
+        # Remove TOFU_PATH if present
+        os.environ.pop("TOFU_PATH", None)
+        with patch("astromesh_orbit.terraform.runner.shutil.which", return_value="/usr/bin/tofu"):
+            r = TerraformRunner()
+            assert r._bin == "/usr/bin/tofu"
+
+
+async def test_falls_back_to_terraform_in_path():
+    with patch.dict("os.environ", {}, clear=False):
+        os.environ.pop("TOFU_PATH", None)
+        with patch("astromesh_orbit.terraform.runner.shutil.which", side_effect=lambda x: "/usr/bin/terraform" if x == "terraform" else None):
+            r = TerraformRunner()
+            assert r._bin == "/usr/bin/terraform"
+
+
+async def test_falls_back_to_tofu_string_when_nothing_found():
+    with patch.dict("os.environ", {}, clear=False):
+        os.environ.pop("TOFU_PATH", None)
+        with patch("astromesh_orbit.terraform.runner.shutil.which", return_value=None):
+            r = TerraformRunner()
+            assert r._bin == "tofu"

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.5] - 2026-04-06
+
+### Added
+
+- **orbit**: `TerraformRunner` reads `TOFU_PATH` env var to locate the OpenTofu/Terraform binary, with fallback chain: `TOFU_PATH` -> `tofu` in PATH -> `terraform` in PATH. Enables Cortex to bundle OpenTofu without requiring system-wide install
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.6 — `TOFU_PATH` env var support in TerraformRunner
+
 ## [v0.23.4] - 2026-04-06
 
 ### Fixed
