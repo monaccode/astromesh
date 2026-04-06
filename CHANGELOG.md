@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.4] - 2026-04-06
+
+### Fixed
+
+- **orbit**: Replace Unicode symbols (✓, ✗, →, —) with ASCII equivalents in CLI output — fixes `UnicodeEncodeError` on Windows cp1252 consoles and Electron subprocess pipes
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.5 — Windows-safe ASCII CLI output
+
 ## [v0.23.3] - 2026-04-06
 
 ### Added
