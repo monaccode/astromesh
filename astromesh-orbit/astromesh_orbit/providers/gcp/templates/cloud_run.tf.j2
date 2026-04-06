@@ -39,6 +39,12 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
         name  = "ASTROMESH_REDIS_URL"
         value = "redis://${google_redis_instance.main.host}:${google_redis_instance.main.port}"
       }
+{% for key, value in custom_env.items() %}
+      env {
+        name  = "{{ key }}"
+        value = "{{ value }}"
+      }
+{% endfor %}
 
       volume_mounts {
         name       = "cloudsql"
