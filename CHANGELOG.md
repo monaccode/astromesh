@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.24.0] - 2026-04-06
+
+### Added
+
+- **orbit**: Custom environment variables in Cloud Run — `OrbitSpec.env` dict rendered as additional env blocks in the Cloud Run template. Cortex injects workspace environment variables during provision
+- **orbit**: Cloud Run services are now public by default (allUsers IAM binding) — enables Cortex browser to call runtime API without IAM tokens
+- **orbit**: `OrbitMetadata.environment` now accepts `develop | staging | production` (was `dev`)
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.2.0 — custom env vars, public Cloud Run, develop environment
+
 ## [v0.23.9] - 2026-04-06
 
 ### Fixed
