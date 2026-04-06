@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.1] - 2026-04-06
+
+### Fixed
+
+- **orbit**: Use `gcloud.cmd` on Windows for `asyncio.create_subprocess_exec` — fixes `FileNotFoundError` when running `astromeshctl orbit plan/apply` on Windows
+
 ## [v0.23.0] - 2026-03-30
 
 **Subpackage releases:** core v0.23.0 | forge v0.23.0
