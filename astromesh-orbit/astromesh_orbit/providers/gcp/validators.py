@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 
 from astromesh_orbit.core.provider import CheckResult
 
@@ -15,10 +16,13 @@ REQUIRED_APIS = [
     "vpcaccess.googleapis.com",
 ]
 
+# Windows needs gcloud.cmd; create_subprocess_exec can't resolve .cmd from PATH
+_GCLOUD = "gcloud.cmd" if sys.platform == "win32" else "gcloud"
+
 
 async def _run_gcloud(*args: str) -> tuple[int, str, str]:
     proc = await asyncio.create_subprocess_exec(
-        "gcloud",
+        _GCLOUD,
         *args,
         "--format=json",
         stdout=asyncio.subprocess.PIPE,
