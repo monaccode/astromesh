@@ -91,12 +91,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS for standalone Forge
-cors_origins = os.getenv("ASTROMESH_CORS_ORIGINS", "http://localhost:5173").split(",")
+# CORS — allow Cortex (Electron), Forge, and any origin for Cloud Run deployments
+cors_origins = os.getenv("ASTROMESH_CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

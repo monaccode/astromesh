@@ -1,3 +1,3 @@
 """Astromesh Agent Runtime Platform."""
 
-__version__ = "0.23.8"
+__version__ = "0.23.9"
