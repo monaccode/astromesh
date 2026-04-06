@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.3] - 2026-04-06
+
+### Added
+
+- **orbit**: Dual-auth support in GCP validators — when `GOOGLE_APPLICATION_CREDENTIALS` is set, validators use `google-auth` + `google-cloud-resource-manager` libraries instead of requiring gcloud CLI. Auth, project, and API checks all auto-select the appropriate method
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.4 — service account auth support in validators
+
 ## [v0.23.2] - 2026-04-06
 
 ### Fixed
