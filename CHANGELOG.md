@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.8] - 2026-04-06
+
+### Fixed
+
+- **orbit**: Set Cloud Run container port to 8000 (matching astromesh runtime's uvicorn default) with `ports` block and `PORT` env var in Cloud Run template
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.9 — Cloud Run port 8000 fix
+
 ## [v0.23.7] - 2026-04-06
 
 ### Added
