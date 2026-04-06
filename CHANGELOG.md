@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.6] - 2026-04-06
+
+### Fixed
+
+- **orbit**: `ensure_gcs_state_bucket` now uses `google-cloud-storage` Python library when `GOOGLE_APPLICATION_CREDENTIALS` is set, removing the hard dependency on `gsutil` CLI. Falls back to gsutil when no service account key is present. Handles `FileNotFoundError` gracefully when neither is available
+
+### Changed
+
+- **orbit**: Added `google-cloud-storage>=2.14` to `[gcp]` optional dependencies
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.7 — GCS state bucket via Python API (no gsutil needed)
+
 ## [v0.23.5] - 2026-04-06
 
 ### Added
