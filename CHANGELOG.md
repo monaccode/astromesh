@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **orbit**: Use `gcloud.cmd` on Windows for `asyncio.create_subprocess_exec` — fixes `FileNotFoundError` when running `astromeshctl orbit plan/apply` on Windows
 
+### Changed
+
+- **docs**: Updated Ecosystem table with current versions — Core v0.23.1, CLI v0.1.1, Orbit v0.1.2; added Cortex v0.3.0 and Nexus v0.3.0 as new ecosystem components
+
+### Subpackage releases
+
+- `astromesh-orbit` v0.1.2 — Windows `gcloud.cmd` fix
+
 ## [v0.23.0] - 2026-03-30
 
 **Subpackage releases:** core v0.23.0 | forge v0.23.0
