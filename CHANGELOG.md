@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `WhatsAppClient.parse_incoming` now accepts `change["value"]` dict directly instead of the full Meta webhook payload — callers are responsible for iterating `entry[].changes[]`
+
 ## [v0.26.0] - 2026-04-07
 
 ### Added
