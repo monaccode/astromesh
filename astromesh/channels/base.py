@@ -28,6 +28,7 @@ class ChannelMessage:
     timestamp: str
     channel: str  # "whatsapp", "telegram", etc.
     raw_payload: dict = field(default_factory=dict)  # Original payload for debugging
+    contact_name: str | None = None  # populated from Meta contacts[] array
 
 
 class ChannelAdapter(ABC):

@@ -19,7 +19,7 @@ class ChannelEvent:
     ts: str
     agent: str
     channel: str
-    direction: Literal["in", "out"]
+    direction: Literal["in", "out", "system"]
     sender: str
     text: str | None
     media: dict | None
@@ -29,7 +29,7 @@ class ChannelEvent:
         cls,
         agent: str,
         channel: str,
-        direction: Literal["in", "out"],
+        direction: Literal["in", "out", "system"],
         sender: str,
         text: str | None = None,
         media: dict | None = None,
