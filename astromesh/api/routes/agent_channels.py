@@ -119,7 +119,10 @@ async def receive_agent_message(
         )
 
     raw_body = await request.body()
-    payload = await request.json()
+    try:
+        payload = await request.json()
+    except Exception:
+        return Response(status_code=400, content="Invalid JSON")
 
     # Phase 1: signature validation
     if channel_type == "whatsapp":
