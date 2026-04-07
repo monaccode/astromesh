@@ -48,3 +48,81 @@ def test_get_channel_adapter_whatsapp(monkeypatch):
 def test_get_channel_adapter_unknown_type():
     adapter = get_channel_adapter({"type": "slack", "config": {}})
     assert adapter is None
+
+
+from unittest.mock import AsyncMock, patch, MagicMock
+from fastapi.testclient import TestClient
+from astromesh.api.routes.agent_channels import router, set_runtime
+
+
+@pytest.fixture
+def mock_runtime():
+    rt = MagicMock()
+    rt._agent_configs = {
+        "test-agent": {
+            "spec": {
+                "channels": [
+                    {
+                        "type": "whatsapp",
+                        "config": {
+                            "access_token": "test-token",
+                            "phone_number_id": "12345",
+                            "app_secret": "",
+                            "verify_token": "my-verify",
+                        },
+                    }
+                ]
+            }
+        }
+    }
+    rt.run = AsyncMock(return_value={"answer": "Hello!"})
+    return rt
+
+
+@pytest.fixture
+def client(mock_runtime):
+    from fastapi import FastAPI
+    from astromesh.channels.resolver import clear_cache
+
+    app = FastAPI()
+    app.include_router(router, prefix="/v1")
+    set_runtime(mock_runtime)
+    clear_cache()
+    return TestClient(app)
+
+
+def test_webhook_verify(client):
+    resp = client.get(
+        "/v1/agents/test-agent/channels/whatsapp/webhook",
+        params={
+            "hub.mode": "subscribe",
+            "hub.verify_token": "my-verify",
+            "hub.challenge": "challenge123",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.text == "challenge123"
+
+
+def test_webhook_verify_wrong_token(client):
+    resp = client.get(
+        "/v1/agents/test-agent/channels/whatsapp/webhook",
+        params={
+            "hub.mode": "subscribe",
+            "hub.verify_token": "wrong",
+            "hub.challenge": "challenge123",
+        },
+    )
+    assert resp.status_code == 403
+
+
+def test_webhook_verify_unknown_agent(client):
+    resp = client.get(
+        "/v1/agents/nonexistent/channels/whatsapp/webhook",
+        params={
+            "hub.mode": "subscribe",
+            "hub.verify_token": "my-verify",
+            "hub.challenge": "challenge123",
+        },
+    )
+    assert resp.status_code == 404
