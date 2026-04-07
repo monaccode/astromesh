@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.25.0] - 2026-04-07
+
+### Added
+
+- **Per-agent channel webhooks**: new endpoints `GET/POST /v1/agents/{agent_name}/channels/{channel_type}/webhook` — each agent gets its own webhook URL with its own credentials, enabling multi-agent multi-channel deployments from a single runtime
+- **Channel config resolver**: `astromesh/channels/resolver.py` — resolves `${ENV_VAR}` references in agent channel config, creates cached adapter instances per agent
+- **Agent YAML channels spec**: agents can now declare `channels:` in their spec with per-channel config (tokens, secrets), replacing the global `channels.yaml` default_agent pattern
+
+### Changed
+
+- **Backward compatible**: existing global `/v1/channels/whatsapp/webhook` route stays as deprecated fallback
+
 ## [v0.24.0] - 2026-04-06
 
 ### Added
