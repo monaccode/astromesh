@@ -52,6 +52,7 @@ async def verify_agent_webhook(
 
 async def _process_agent_message(agent_name: str, channel_type: str, message) -> None:
     """Process incoming channel message in background, send reply, emit out-event."""
+    adapter = None
     try:
         adapter, _ = get_agent_channel(_runtime, agent_name, channel_type)
         if not adapter:
@@ -80,10 +81,11 @@ async def _process_agent_message(agent_name: str, channel_type: str, message) ->
             "Failed to process %s message for agent %s from %s",
             channel_type, agent_name, message.sender_id,
         )
-        try:
-            await adapter.send_text(message.sender_id, "Sorry, an error occurred.")
-        except Exception:
-            logger.exception("Failed to send error reply to %s", message.sender_id)
+        if adapter is not None:
+            try:
+                await adapter.send_text(message.sender_id, "Sorry, an error occurred.")
+            except Exception:
+                logger.exception("Failed to send error reply to %s", message.sender_id)
 
 
 @router.post("/agents/{agent_name}/channels/{channel_type}/webhook")

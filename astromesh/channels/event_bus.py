@@ -54,16 +54,13 @@ class ChannelEventBus:
 
     def emit(self, event: ChannelEvent) -> None:
         """Store in ring buffer and fan-out to all registered subscriber queues."""
-        self._buffer.append(event)
         with self._lock:
-            subscribers = list(self._subscribers)
-        for q in subscribers:
-            try:
-                q.put_nowait(event)
-            except asyncio.QueueFull:
-                logger.warning(
-                    "Subscriber queue full — dropping event for agent=%s", event.agent
-                )
+            self._buffer.append(event)
+            for q in list(self._subscribers):
+                try:
+                    q.put_nowait(event)
+                except asyncio.QueueFull:
+                    logger.warning("Subscriber queue full — dropping event for agent=%s", event.agent)
 
     def new_subscriber_queue(self) -> asyncio.Queue[ChannelEvent]:
         """Register and return a fresh Queue. Caller MUST call remove_subscriber when done."""
