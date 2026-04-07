@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [v0.27.0] - 2026-04-07
 
-- `WhatsAppClient.parse_incoming` now accepts `change["value"]` dict directly instead of the full Meta webhook payload — callers are responsible for iterating `entry[].changes[]`
+### Added
+- `WebhookEventDispatcher` — classifies Meta webhook events by `change["field"]` before any parsing; extensible via `WebhookEventHandler` protocol (`astromesh/channels/webhook_dispatcher.py`)
+- `StatusUpdateHandler` — built-in handler for WhatsApp delivery/read/failed receipts; emits a `system` SSE event per status update, never routes to the agent
+- `DefaultWebhookEventHandler` — fallback for unregistered webhook fields; logs the event and emits a `system` SSE event
+- `contact_name: str | None` field on `ChannelMessage` — populated from the Meta `contacts[]` array when available
+- `"system"` direction literal on `ChannelEvent` — used for status updates and non-message webhook events surfaced in the Channel Activity panel
+- Two-phase dispatch in the per-agent webhook endpoint (`/v1/agents/{name}/channels/whatsapp/webhook`): inspects `change["field"]` before any parsing; user messages are enriched with the sender's WhatsApp display name and routed to the agent; status receipts go to `StatusUpdateHandler`; all other fields go to `WebhookEventDispatcher`
+- Contact name passed to `runtime.run()` as `context={"contact_name": ...}` — reference in agent system prompts via `{% if contact_name %}Address the user as {{ contact_name }}.{% endif %}`
+- Webhook Event Dispatcher reference documentation with full Meta fields table, custom handler registration guide, and cross-link from the WhatsApp integration guide
+
+### Changed
+- `WhatsAppClient.parse_incoming` now accepts a `change["value"]` dict directly instead of the full Meta webhook payload — callers are responsible for iterating `entry[].changes[]` and passing each value
+
+### Fixed
+- Per-agent webhook endpoint returns HTTP 400 for non-JSON request bodies (previously returned unhandled 500)
+- Channel-level WhatsApp webhook route (`/v1/channels/whatsapp/webhook`) was passing the full Meta payload to `parse_incoming` instead of iterating `entry[].changes[]` — now correctly extracts each `change["value"]`
 
 ## [v0.26.0] - 2026-04-07
 
@@ -1119,7 +1134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ProviderProtocol, CompletionResponse, RoutingStrategy
 - Project scaffolding with uv + pyproject.toml
 
-[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/monaccode/astromesh/compare/v0.27.0...HEAD
+[v0.27.0]: https://github.com/monaccode/astromesh/compare/v0.26.0...v0.27.0
 [0.16.1]: https://github.com/monaccode/astromesh/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/monaccode/astromesh/compare/v0.15.4...v0.16.0
 [0.15.4]: https://github.com/monaccode/astromesh/compare/v0.15.3...v0.15.4
