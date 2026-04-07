@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from astromesh import __version__
 from astromesh.api import ws
 from astromesh.api.routes import (
+    agent_channels,
     agents,
     dashboard,
     memory,
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
         yield
         return
 
+    from astromesh.api.routes import agent_channels as agent_channels_route
     from astromesh.api.routes import agents as agents_route
     from astromesh.api.routes import memory as memory_route
     from astromesh.api.routes import system as system_route
@@ -53,6 +55,7 @@ async def lifespan(app: FastAPI):
         system_route.set_runtime(r)
         memory_route.set_runtime(r)
         whatsapp_route.set_runtime(r)
+        agent_channels_route.set_runtime(r)
         yield
         return
 
@@ -75,6 +78,7 @@ async def lifespan(app: FastAPI):
     system_route.set_runtime(runtime)
     memory_route.set_runtime(runtime)
     whatsapp_route.set_runtime(runtime)
+    agent_channels_route.set_runtime(runtime)
 
     try:
         yield
@@ -83,6 +87,7 @@ async def lifespan(app: FastAPI):
         system_route.set_runtime(None)
         memory_route.set_runtime(None)
         whatsapp_route.set_runtime(None)
+        agent_channels_route.set_runtime(None)
 
 
 app = FastAPI(
@@ -107,6 +112,7 @@ app.include_router(tools.router, prefix="/v1")
 app.include_router(rag.router, prefix="/v1")
 app.include_router(ws.router, prefix="/v1")
 app.include_router(whatsapp.router, prefix="/v1")
+app.include_router(agent_channels.router, prefix="/v1")
 app.include_router(system.router, prefix="/v1")
 app.include_router(mesh.router, prefix="/v1")
 app.include_router(traces.router, prefix="/v1")
