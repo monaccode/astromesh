@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.26.0] - 2026-04-07
+
+### Added
+
+- **ChannelEventBus**: thread-safe asyncio event bus (`astromesh/channels/event_bus.py`) that fans out `ChannelEvent` objects to SSE subscribers; ring buffer retains last 100 events for late-joining clients
+- **SSE channel events endpoint**: `GET /v1/channels/events?agent=` streams channel traffic as `text/event-stream`; replays buffered events on connect, then streams live; 15 s keepalive pings
+- **Incoming event emission**: `receive_agent_message` emits a `direction="in"` `ChannelEvent` for each parsed inbound message before dispatching to the agent
+- **Outgoing event emission**: `_process_agent_message` emits a `direction="out"` `ChannelEvent` after a successful `send_text` reply
+
+### Fixed
+
+- **`adapter` unbound in error handler**: added `adapter = None` sentinel before the `try:` block in `_process_agent_message` — prevents `UnboundLocalError` when the adapter was never initialised before an exception
+- **Atomic buffer append in EventBus**: moved `self._buffer.append(event)` inside the `self._lock` block to eliminate a race between the buffer write and subscriber fan-out
+
 ## [v0.25.0] - 2026-04-07
 
 ### Added
