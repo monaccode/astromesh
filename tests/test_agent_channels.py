@@ -185,3 +185,108 @@ def test_sse_agent_filter(client, clean_bus):
                 break
 
     assert lines_seen == ["bot-a"]
+
+
+# ── Two-phase dispatcher tests ─────────────────────────────────────────────
+
+from unittest.mock import AsyncMock
+
+
+def test_contact_name_extracted_and_set_on_message(client, mock_runtime, mocker):
+    """Contact name from contacts[] is set on the ChannelMessage before processing."""
+    captured_messages = []
+
+    def capture_task(func, *args, **kwargs):
+        # args = (agent_name, channel_type, msg)
+        if len(args) >= 3:
+            captured_messages.append(args[2])  # the ChannelMessage
+
+    mocker.patch(
+        "astromesh.api.routes.agent_channels.BackgroundTasks.add_task",
+        side_effect=capture_task,
+    )
+
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [{
+            "changes": [{
+                "field": "messages",
+                "value": {
+                    "messaging_product": "whatsapp",
+                    "contacts": [{"profile": {"name": "Juan Pérez"}, "wa_id": "573001234567"}],
+                    "messages": [{
+                        "from": "573001234567",
+                        "id": "wamid.test123",
+                        "timestamp": "1712500000",
+                        "type": "text",
+                        "text": {"body": "hola"},
+                    }],
+                },
+            }],
+        }],
+    }
+    resp = client.post(
+        "/v1/agents/test-agent/channels/whatsapp/webhook",
+        json=payload,
+        headers={"X-Hub-Signature-256": "sha256=bypass"},
+    )
+    assert resp.status_code == 200
+    assert len(captured_messages) == 1
+    assert captured_messages[0].contact_name == "Juan Pérez"
+
+
+def test_status_update_dispatched_not_sent_to_agent(client, mock_runtime, mocker):
+    """Payloads with only statuses[] go to dispatcher, never to the agent."""
+    mock_dispatch = mocker.patch(
+        "astromesh.api.routes.agent_channels.webhook_dispatcher.dispatch",
+        new_callable=AsyncMock,
+    )
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [{
+            "changes": [{
+                "field": "messages",
+                "value": {
+                    "statuses": [
+                        {"status": "delivered", "recipient_id": "573001234567", "id": "wamid.abc"}
+                    ],
+                },
+            }],
+        }],
+    }
+    resp = client.post(
+        "/v1/agents/test-agent/channels/whatsapp/webhook",
+        json=payload,
+        headers={"X-Hub-Signature-256": "sha256=bypass"},
+    )
+    assert resp.status_code == 200
+    mock_runtime.run.assert_not_called()
+    mock_dispatch.assert_called_once_with(
+        "statuses",
+        {"statuses": [{"status": "delivered", "recipient_id": "573001234567", "id": "wamid.abc"}]},
+        "test-agent",
+    )
+
+
+def test_unknown_field_dispatched(client, mock_runtime, mocker):
+    """Non-messages fields go to dispatcher."""
+    mock_dispatch = mocker.patch(
+        "astromesh.api.routes.agent_channels.webhook_dispatcher.dispatch",
+        new_callable=AsyncMock,
+    )
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [{"changes": [{"field": "account_update", "value": {"event": "VERIFIED_ACCOUNT"}}]}],
+    }
+    resp = client.post(
+        "/v1/agents/test-agent/channels/whatsapp/webhook",
+        json=payload,
+        headers={"X-Hub-Signature-256": "sha256=bypass"},
+    )
+    assert resp.status_code == 200
+    mock_runtime.run.assert_not_called()
+    mock_dispatch.assert_called_once_with(
+        "account_update",
+        {"event": "VERIFIED_ACCOUNT"},
+        "test-agent",
+    )

@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from astromesh.channels.event_bus import ChannelEvent, channel_event_bus
 from astromesh.channels.media import build_multimodal_query
 from astromesh.channels.resolver import get_agent_channel
+from astromesh.channels.webhook_dispatcher import webhook_dispatcher
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["channels"])
@@ -60,10 +61,12 @@ async def _process_agent_message(agent_name: str, channel_type: str, message) ->
             return
 
         query = await build_multimodal_query(message, adapter)
+        context = {"contact_name": message.contact_name} if message.contact_name else None
         result = await _runtime.run(
             agent_name=agent_name,
             query=query,
             session_id=f"{channel_type}_{message.sender_id}",
+            context=context,
         )
         answer = result.get("answer", "Sorry, I couldn't process your message.")
         await adapter.send_text(message.sender_id, answer)
@@ -95,7 +98,19 @@ async def receive_agent_message(
     request: Request,
     background_tasks: BackgroundTasks,
 ):
-    """Receive incoming channel messages, emit in-events, dispatch to agent."""
+    """Two-phase webhook dispatcher for per-agent channel webhooks.
+
+    Phase 1 — signature validation (unchanged for whatsapp).
+    Phase 2 — field-based dispatch per ``change["field"]``:
+
+    - ``field="messages"`` + ``"messages"`` key present → parse + enrich + agent
+    - ``field="messages"`` + ``"statuses"`` key present → StatusUpdateHandler
+    - any other field → WebhookEventDispatcher (log + SSE system event)
+
+    The ``contacts`` array in the ``messages`` value is used to enrich each
+    parsed message with the sender's WhatsApp display name before it is
+    passed to ``_process_agent_message``.
+    """
     adapter, _ = get_agent_channel(_runtime, agent_name, channel_type)
     if adapter is None:
         return Response(
@@ -103,34 +118,56 @@ async def receive_agent_message(
             content=f"Agent '{agent_name}' has no {channel_type} channel configured",
         )
 
-    body = await request.body()
-
-    if channel_type == "whatsapp":
-        signature = request.headers.get("X-Hub-Signature-256", "")
-        if not adapter.verify_request(body, signature):
-            return Response(status_code=403)
-
+    raw_body = await request.body()
     payload = await request.json()
-    messages = await adapter.parse_incoming(payload)
 
-    for msg in messages:
-        logger.info(
-            "%s message for agent %s from %s: %s",
-            channel_type, agent_name, msg.sender_id, msg.message_id,
-        )
-        # Emit incoming event
-        channel_event_bus.emit(ChannelEvent.create(
-            agent=agent_name,
-            channel=channel_type,
-            direction="in",
-            sender=msg.sender_id,
-            text=msg.text,
-            media=(
-                {"type": msg.media[0].media_type, "url": msg.media[0].source_id}
-                if msg.media else None
-            ),
-        ))
-        background_tasks.add_task(_process_agent_message, agent_name, channel_type, msg)
+    # Phase 1: signature validation
+    if channel_type == "whatsapp":
+        sig = request.headers.get("X-Hub-Signature-256", "")
+        if not adapter.verify_request(raw_body, sig):
+            return Response(status_code=403, content="Invalid signature")
+
+    # Phase 2: field-based dispatch
+    for entry in payload.get("entry", []):
+        for change in entry.get("changes", []):
+            field = change.get("field", "")
+            value = change.get("value", {})
+
+            if field == "messages":
+                # Build contact name lookup: {wa_id: display_name}
+                contact_names: dict[str, str] = {
+                    c["wa_id"]: c.get("profile", {}).get("name", "")
+                    for c in value.get("contacts", [])
+                    if "wa_id" in c
+                }
+
+                if "messages" in value:
+                    messages = await adapter.parse_incoming(value)
+                    for msg in messages:
+                        msg.contact_name = contact_names.get(msg.sender_id) or None
+                        channel_event_bus.emit(
+                            ChannelEvent.create(
+                                agent=agent_name,
+                                channel=channel_type,
+                                direction="in",
+                                sender=msg.sender_id,
+                                text=msg.text,
+                                media=(
+                                    [{"type": m.media_type, "mime": m.mime_type} for m in msg.media]
+                                    if msg.media
+                                    else None
+                                ),
+                            )
+                        )
+                        background_tasks.add_task(
+                            _process_agent_message, agent_name, channel_type, msg
+                        )
+
+                if "statuses" in value:
+                    await webhook_dispatcher.dispatch("statuses", value, agent_name)
+
+            else:
+                await webhook_dispatcher.dispatch(field, value, agent_name)
 
     return {"status": "ok"}
 
