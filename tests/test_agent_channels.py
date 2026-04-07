@@ -126,3 +126,62 @@ def test_webhook_verify_unknown_agent(client):
         },
     )
     assert resp.status_code == 404
+
+
+# ── SSE endpoint tests ─────────────────────────────────────────────────────
+
+from astromesh.channels.event_bus import channel_event_bus, ChannelEvent as BusEvent
+
+
+@pytest.fixture(autouse=False)
+def clean_bus():
+    """Reset event bus state between tests."""
+    channel_event_bus._buffer.clear()
+    channel_event_bus._subscribers.clear()
+    yield
+    channel_event_bus._buffer.clear()
+    channel_event_bus._subscribers.clear()
+
+
+def test_sse_endpoint_exists_and_returns_event_stream(client, clean_bus):
+    """GET /v1/channels/events should return 200 text/event-stream."""
+    with client.stream("GET", "/v1/channels/events") as resp:
+        assert resp.status_code == 200
+        assert "text/event-stream" in resp.headers["content-type"]
+
+
+def test_sse_replays_buffered_events(client, clean_bus):
+    """Events in the buffer should be replayed immediately on SSE connect."""
+    channel_event_bus.emit(BusEvent.create(
+        agent="test-agent", channel="whatsapp", direction="in",
+        sender="+1", text="buffered",
+    ))
+
+    import json
+    with client.stream("GET", "/v1/channels/events") as resp:
+        for line in resp.iter_lines():
+            if line.startswith("data:"):
+                evt = json.loads(line[5:].strip())
+                assert evt["text"] == "buffered"
+                break
+
+
+def test_sse_agent_filter(client, clean_bus):
+    """?agent= filter should only replay matching events."""
+    channel_event_bus.emit(BusEvent.create(
+        agent="bot-a", channel="whatsapp", direction="in", sender="+1", text="a",
+    ))
+    channel_event_bus.emit(BusEvent.create(
+        agent="bot-b", channel="whatsapp", direction="in", sender="+2", text="b",
+    ))
+
+    import json
+    lines_seen = []
+    with client.stream("GET", "/v1/channels/events?agent=bot-a") as resp:
+        for line in resp.iter_lines():
+            if line.startswith("data:"):
+                evt = json.loads(line[5:].strip())
+                lines_seen.append(evt["agent"])
+                break
+
+    assert lines_seen == ["bot-a"]
