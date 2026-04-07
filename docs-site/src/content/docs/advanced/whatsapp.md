@@ -194,6 +194,12 @@ When Meta verifies ownership of the webhook URL:
 
 ### POST Webhook (Incoming Messages)
 
+:::tip
+For full details on how Astromesh classifies all incoming Meta webhook events
+(status updates, account events, template changes, and how to register custom
+handlers), see [Webhook Event Dispatcher](/advanced/webhook-events).
+:::
+
 When a user sends a message:
 
 1. Meta sends `POST /v1/channels/whatsapp/webhook` with a JSON payload containing the message
