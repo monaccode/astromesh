@@ -35,8 +35,8 @@ class ChannelAdapter(ABC):
     """Base class for all channel integrations."""
 
     @abstractmethod
-    async def parse_incoming(self, payload: dict) -> list[ChannelMessage]:
-        """Parse a raw webhook payload into channel messages."""
+    async def parse_incoming(self, value: dict) -> list[ChannelMessage]:
+        """Parse a single change value dict (``change["value"]``) into ChannelMessages."""
         ...
 
     @abstractmethod

@@ -97,3 +97,31 @@ async def test_dispatcher_has_status_handler_preregistered():
     dispatcher = WebhookEventDispatcher()
     assert "statuses" in dispatcher._handlers
     assert isinstance(dispatcher._handlers["statuses"], StatusUpdateHandler)
+
+
+from astromesh.channels.whatsapp import WhatsAppClient
+
+
+async def test_parse_incoming_accepts_value_dict():
+    """parse_incoming receives change["value"], not the full payload."""
+    client = WhatsAppClient()
+    value = {
+        "messaging_product": "whatsapp",
+        "messages": [{
+            "from": "573001234567",
+            "id": "wamid.test1",
+            "timestamp": "1712500000",
+            "type": "text",
+            "text": {"body": "hola"},
+        }],
+    }
+    messages = await client.parse_incoming(value)
+    assert len(messages) == 1
+    assert messages[0].sender_id == "573001234567"
+    assert messages[0].text == "hola"
+
+
+async def test_parse_incoming_empty_value():
+    client = WhatsAppClient()
+    assert await client.parse_incoming({}) == []
+    assert await client.parse_incoming({"messages": []}) == []
