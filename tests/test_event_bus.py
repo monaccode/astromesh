@@ -66,3 +66,23 @@ def test_remove_subscriber_idempotent():
     q = bus.new_subscriber_queue()
     bus.remove_subscriber(q)
     bus.remove_subscriber(q)  # should not raise
+
+
+@pytest.mark.asyncio
+async def test_concurrent_emit_and_remove():
+    """emit() and remove_subscriber() can interleave safely."""
+    bus = ChannelEventBus()
+    q = bus.new_subscriber_queue()
+
+    async def emitter():
+        for _ in range(10):
+            bus.emit(_evt())
+            await asyncio.sleep(0)
+
+    async def remover():
+        await asyncio.sleep(0)
+        bus.remove_subscriber(q)
+
+    await asyncio.gather(emitter(), remover())
+    # No exception = pass; queue may have 0-10 items depending on timing
+    assert len(bus._subscribers) == 0

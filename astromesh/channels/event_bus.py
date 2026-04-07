@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import threading
 import uuid
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Literal
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -14,7 +19,7 @@ class ChannelEvent:
     ts: str
     agent: str
     channel: str
-    direction: str   # "in" | "out"
+    direction: Literal["in", "out"]
     sender: str
     text: str | None
     media: dict | None
@@ -24,7 +29,7 @@ class ChannelEvent:
         cls,
         agent: str,
         channel: str,
-        direction: str,
+        direction: Literal["in", "out"],
         sender: str,
         text: str | None = None,
         media: dict | None = None,
@@ -45,26 +50,33 @@ class ChannelEventBus:
     def __init__(self, buffer_size: int = 100) -> None:
         self._buffer: deque[ChannelEvent] = deque(maxlen=buffer_size)
         self._subscribers: list[asyncio.Queue[ChannelEvent]] = []
+        self._lock = threading.Lock()
 
     def emit(self, event: ChannelEvent) -> None:
         """Store in ring buffer and fan-out to all registered subscriber queues."""
         self._buffer.append(event)
-        for q in list(self._subscribers):
+        with self._lock:
+            subscribers = list(self._subscribers)
+        for q in subscribers:
             try:
                 q.put_nowait(event)
             except asyncio.QueueFull:
-                pass  # slow subscriber — drop
+                logger.warning(
+                    "Subscriber queue full — dropping event for agent=%s", event.agent
+                )
 
     def new_subscriber_queue(self) -> asyncio.Queue[ChannelEvent]:
         """Register and return a fresh Queue. Caller MUST call remove_subscriber when done."""
         q: asyncio.Queue[ChannelEvent] = asyncio.Queue(maxsize=200)
-        self._subscribers.append(q)
+        with self._lock:
+            self._subscribers.append(q)
         return q
 
     def remove_subscriber(self, q: asyncio.Queue[ChannelEvent]) -> None:
         """Unregister a subscriber queue."""
-        if q in self._subscribers:
-            self._subscribers.remove(q)
+        with self._lock:
+            if q in self._subscribers:
+                self._subscribers.remove(q)
 
     def get_buffer_snapshot(self) -> list[ChannelEvent]:
         """Return a copy of the current ring buffer (most recent up to buffer_size events)."""
