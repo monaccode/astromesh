@@ -84,8 +84,17 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_text_message(self):
         client = WhatsAppClient()
-        payload = _make_webhook_payload(phone="5511888888888", text="Hello")
-        messages = await client.parse_incoming(payload)
+        value = {
+            "messaging_product": "whatsapp",
+            "messages": [{
+                "from": "5511888888888",
+                "id": "wamid.abc123",
+                "timestamp": "1700000000",
+                "type": "text",
+                "text": {"body": "Hello"},
+            }],
+        }
+        messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].sender_id == "5511888888888"
         assert messages[0].text == "Hello"
@@ -94,16 +103,14 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_image_message(self):
         client = WhatsAppClient()
-        payload = {
-            "entry": [{"changes": [{"value": {"messages": [
-                {
-                    "from": "123", "id": "m1", "timestamp": "1700000000",
-                    "type": "image",
-                    "image": {"id": "img_123", "mime_type": "image/jpeg"},
-                },
-            ]}}]}],
-        }
-        messages = await client.parse_incoming(payload)
+        value = {"messages": [
+            {
+                "from": "123", "id": "m1", "timestamp": "1700000000",
+                "type": "image",
+                "image": {"id": "img_123", "mime_type": "image/jpeg"},
+            },
+        ]}
+        messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].text is None
         assert len(messages[0].media) == 1
@@ -113,82 +120,72 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_image_with_caption(self):
         client = WhatsAppClient()
-        payload = {
-            "entry": [{"changes": [{"value": {"messages": [
-                {
-                    "from": "123", "id": "m1", "timestamp": "1700000000",
-                    "type": "image",
-                    "image": {
-                        "id": "img_123", "mime_type": "image/jpeg",
-                        "caption": "What is this?",
-                    },
+        value = {"messages": [
+            {
+                "from": "123", "id": "m1", "timestamp": "1700000000",
+                "type": "image",
+                "image": {
+                    "id": "img_123", "mime_type": "image/jpeg",
+                    "caption": "What is this?",
                 },
-            ]}}]}],
-        }
-        messages = await client.parse_incoming(payload)
+            },
+        ]}
+        messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].text == "What is this?"
         assert len(messages[0].media) == 1
 
     async def test_parse_incoming_audio_message(self):
         client = WhatsAppClient()
-        payload = {
-            "entry": [{"changes": [{"value": {"messages": [
-                {
-                    "from": "123", "id": "m1", "timestamp": "1700000000",
-                    "type": "audio",
-                    "audio": {"id": "aud_1", "mime_type": "audio/ogg"},
-                },
-            ]}}]}],
-        }
-        messages = await client.parse_incoming(payload)
+        value = {"messages": [
+            {
+                "from": "123", "id": "m1", "timestamp": "1700000000",
+                "type": "audio",
+                "audio": {"id": "aud_1", "mime_type": "audio/ogg"},
+            },
+        ]}
+        messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].media[0].media_type == "audio"
         assert messages[0].media[0].mime_type == "audio/ogg"
 
     async def test_parse_incoming_document_with_filename(self):
         client = WhatsAppClient()
-        payload = {
-            "entry": [{"changes": [{"value": {"messages": [
-                {
-                    "from": "123", "id": "m1", "timestamp": "1700000000",
-                    "type": "document",
-                    "document": {
-                        "id": "doc_1", "mime_type": "application/pdf",
-                        "filename": "report.pdf",
-                    },
+        value = {"messages": [
+            {
+                "from": "123", "id": "m1", "timestamp": "1700000000",
+                "type": "document",
+                "document": {
+                    "id": "doc_1", "mime_type": "application/pdf",
+                    "filename": "report.pdf",
                 },
-            ]}}]}],
-        }
-        messages = await client.parse_incoming(payload)
+            },
+        ]}
+        messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].media[0].media_type == "document"
         assert messages[0].media[0].filename == "report.pdf"
 
     async def test_parse_incoming_ignores_unsupported_types(self):
         client = WhatsAppClient()
-        payload = {
-            "entry": [{"changes": [{"value": {"messages": [
-                {"from": "123", "id": "m1", "type": "sticker", "sticker": {}},
-            ]}}]}],
-        }
-        messages = await client.parse_incoming(payload)
+        value = {"messages": [
+            {"from": "123", "id": "m1", "type": "sticker", "sticker": {}},
+        ]}
+        messages = await client.parse_incoming(value)
         assert messages == []
 
     async def test_parse_incoming_empty_payload(self):
         client = WhatsAppClient()
         assert await client.parse_incoming({}) == []
-        assert await client.parse_incoming({"entry": []}) == []
+        assert await client.parse_incoming({"messages": []}) == []
 
     async def test_parse_incoming_multiple_messages(self):
         client = WhatsAppClient()
-        payload = {
-            "entry": [{"changes": [{"value": {"messages": [
-                {"from": "111", "id": "m1", "timestamp": "1", "type": "text", "text": {"body": "A"}},
-                {"from": "222", "id": "m2", "timestamp": "2", "type": "text", "text": {"body": "B"}},
-            ]}}]}],
-        }
-        messages = await client.parse_incoming(payload)
+        value = {"messages": [
+            {"from": "111", "id": "m1", "timestamp": "1", "type": "text", "text": {"body": "A"}},
+            {"from": "222", "id": "m2", "timestamp": "2", "type": "text", "text": {"body": "B"}},
+        ]}
+        messages = await client.parse_incoming(value)
         assert len(messages) == 2
         assert messages[0].sender_id == "111"
         assert messages[1].sender_id == "222"

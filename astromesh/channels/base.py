@@ -28,14 +28,15 @@ class ChannelMessage:
     timestamp: str
     channel: str  # "whatsapp", "telegram", etc.
     raw_payload: dict = field(default_factory=dict)  # Original payload for debugging
+    contact_name: str | None = None  # populated from Meta contacts[] array
 
 
 class ChannelAdapter(ABC):
     """Base class for all channel integrations."""
 
     @abstractmethod
-    async def parse_incoming(self, payload: dict) -> list[ChannelMessage]:
-        """Parse a raw webhook payload into channel messages."""
+    async def parse_incoming(self, value: dict) -> list[ChannelMessage]:
+        """Parse a single change value dict (``change["value"]``) into ChannelMessages."""
         ...
 
     @abstractmethod

@@ -41,48 +41,55 @@ class WhatsAppClient(ChannelAdapter):
         )
         return hmac.compare_digest(expected, signature)
 
-    async def parse_incoming(self, payload: dict) -> list[ChannelMessage]:
-        """Parse Meta webhook payload and extract text and media messages."""
+    async def parse_incoming(self, value: dict) -> list[ChannelMessage]:
+        """Parse a single ``change["value"]`` dict into ChannelMessages.
+
+        Args:
+            value: The ``change["value"]`` dict from a Meta webhook entry.
+                   Contains ``messages``, ``contacts``, ``statuses``, etc.
+                   The caller (webhook endpoint) is responsible for iterating
+                   ``entry[].changes[]`` and passing each value here.
+
+        Returns:
+            List of parsed ChannelMessage objects (text and/or media).
+            Unsupported message types (sticker, reaction, etc.) are silently skipped.
+        """
         messages: list[ChannelMessage] = []
-        for entry in payload.get("entry", []):
-            for change in entry.get("changes", []):
-                value = change.get("value", {})
-                for msg in value.get("messages", []):
-                    msg_type = msg.get("type", "")
-                    text: str | None = None
-                    media: list[MediaAttachment] = []
+        for msg in value.get("messages", []):
+            msg_type = msg.get("type", "")
+            text: str | None = None
+            media: list[MediaAttachment] = []
 
-                    if msg_type == "text":
-                        text = msg["text"]["body"]
-                    elif msg_type in _WA_MEDIA_TYPES:
-                        media_data = msg.get(msg_type, {})
-                        media.append(
-                            MediaAttachment(
-                                media_type=_WA_MEDIA_TYPES[msg_type],
-                                mime_type=media_data.get("mime_type", f"{msg_type}/*"),
-                                content=None,
-                                source_id=media_data.get("id", ""),
-                                filename=media_data.get("filename"),
-                            )
-                        )
-                        # Some media messages include a caption as text.
-                        caption = media_data.get("caption")
-                        if caption:
-                            text = caption
-                    else:
-                        continue  # Skip unsupported message types.
-
-                    messages.append(
-                        ChannelMessage(
-                            sender_id=msg["from"],
-                            text=text,
-                            media=media,
-                            message_id=msg["id"],
-                            timestamp=msg.get("timestamp", ""),
-                            channel="whatsapp",
-                            raw_payload=msg,
-                        )
+            if msg_type == "text":
+                text = msg["text"]["body"]
+            elif msg_type in _WA_MEDIA_TYPES:
+                media_data = msg.get(msg_type, {})
+                media.append(
+                    MediaAttachment(
+                        media_type=_WA_MEDIA_TYPES[msg_type],
+                        mime_type=media_data.get("mime_type", f"{msg_type}/*"),
+                        content=None,
+                        source_id=media_data.get("id", ""),
+                        filename=media_data.get("filename"),
                     )
+                )
+                caption = media_data.get("caption")
+                if caption:
+                    text = caption
+            else:
+                continue  # Skip unsupported types (sticker, reaction, interactive, etc.)
+
+            messages.append(
+                ChannelMessage(
+                    sender_id=msg["from"],
+                    text=text,
+                    media=media,
+                    message_id=msg["id"],
+                    timestamp=msg.get("timestamp", ""),
+                    channel="whatsapp",
+                    raw_payload=msg,
+                )
+            )
         return messages
 
     async def send_text(self, recipient_id: str, text: str) -> dict:

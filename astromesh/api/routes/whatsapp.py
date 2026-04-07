@@ -68,10 +68,13 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
         return Response(status_code=403)
 
     payload = await request.json()
-    messages = await _whatsapp.parse_incoming(payload)
 
-    for msg in messages:
-        logger.info("WhatsApp message from %s: %s", msg.sender_id, msg.message_id)
-        background_tasks.add_task(_process_message, msg)
+    for entry in payload.get("entry", []):
+        for change in entry.get("changes", []):
+            if change.get("field") == "messages":
+                messages = await _whatsapp.parse_incoming(change.get("value", {}))
+                for msg in messages:
+                    logger.info("WhatsApp message from %s: %s", msg.sender_id, msg.message_id)
+                    background_tasks.add_task(_process_message, msg)
 
     return {"status": "ok"}

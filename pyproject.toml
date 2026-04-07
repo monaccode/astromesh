@@ -1,6 +1,6 @@
 [project]
 name = "astromesh"
-version = "0.26.0"
+version = "0.27.0"
 description = "Astromesh Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -44,6 +44,7 @@ dev = [
     "ruff>=0.6.0",
     "pytest-benchmark>=4.0",
     "asgi-lifespan>=2.1.0",
+    "pytest-mock>=3.15.1",
 ]
 
 [build-system]
@@ -61,7 +62,7 @@ line-length = 100
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.26.0"
+version = "0.27.0"
 version_files = [
     "pyproject.toml:version",
     "astromesh/__init__.py:__version__",
