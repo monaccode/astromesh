@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.28.0] - 2026-04-22
+
+### Added
+- `spec.model.extra` — optional map `{name: provider_block}` on agent YAML to register N additional LLM providers alongside `primary` / `fallback`; all registered providers are ranked together by the configured routing strategy. Reserved slot names (`primary`, `fallback`) inside `extra` are rejected to prevent silent shadowing (`astromesh/runtime/engine.py`)
+- Test coverage for the extra-provider slot, including the mixed-scenario case (primary + fallback + multiple extras) and the extras-only case with no primary (`tests/test_engine.py`)
+- Wheel-friendly config resolution: API now discovers agent/template configs from `astromesh/_bundled/config` when installed from a wheel, or from `<repo>/config` when running from source — no manual `ASTROMESH_CONFIG_DIR` required (`astromesh/api/main.py`, `astromesh/api/routes/templates.py`)
+- Hatchling build config force-includes `config/` into the wheel under `astromesh/_bundled/config`, so `pip install astromesh` ships working defaults (`pyproject.toml`)
+
+### Changed
+- Default Ollama endpoint in shipped templates and RAG configs normalized to `http://localhost:11434` (previously `http://ollama:11434`, which only resolved inside the Docker Compose network) — makes out-of-the-box `uv run` work without Docker (`config/providers.yaml`, `config/rag/product-knowledge.rag.yaml`, all `config/templates/*.template.yaml`)
+
 ## [v0.27.0] - 2026-04-07
 
 ### Added

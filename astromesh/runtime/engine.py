@@ -155,53 +155,85 @@ class AgentRuntime:
                 dfs(node, [node])
 
     def _register_model_providers(self, router: ModelRouter, model_spec: dict) -> None:
-        """Wire primary/fallback blocks from agent YAML into the router."""
+        """Wire provider blocks from the agent YAML into the router.
+
+        Accepts three sources, registered in this order:
+          - `primary:`    — conventional top-slot block
+          - `fallback:`   — conventional fallback block
+          - `extra:`      — optional map of {name: block} for N additional providers
+        Each provider is registered under its slot/name; `ModelRouter.route()`
+        ranks them all together using the configured strategy.
+        """
         from astromesh.providers.ollama_provider import OllamaProvider
         from astromesh.providers.openai_compat import OpenAICompatProvider
+
+        def build_provider(block: dict) -> object | None:
+            ptype = (block.get("provider") or "").strip().lower()
+            if not ptype:
+                return None
+            if ptype == "ollama":
+                base = (block.get("endpoint") or "http://localhost:11434").rstrip("/")
+                return OllamaProvider(
+                    config={
+                        "base_url": base,
+                        "model": block.get("model", "llama3"),
+                        "timeout": float(block.get("timeout", 120)),
+                    }
+                )
+            if ptype in ("openai_compat", "openai", "azure_openai"):
+                base = (block.get("endpoint") or "https://api.openai.com/v1").rstrip("/")
+                return OpenAICompatProvider(
+                    config={
+                        "base_url": base,
+                        "model": block.get("model", "gpt-4o-mini"),
+                        "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
+                        "api_key": block.get("api_key"),
+                    }
+                )
+            return None
+
+        def register(slot: str, block: dict) -> bool:
+            ptype = (block.get("provider") or "").strip().lower()
+            if not ptype:
+                return False
+            try:
+                prov = build_provider(block)
+            except Exception:
+                logger.exception("Failed to register %s provider %r", slot, ptype)
+                return False
+            if prov is None:
+                logger.warning(
+                    "Unknown model provider %r in %s; add wiring in engine._register_model_providers",
+                    ptype, slot,
+                )
+                return False
+            router.register_provider(slot, prov)
+            return True
 
         registered = 0
         for slot in ("primary", "fallback"):
             block = model_spec.get(slot)
-            if not isinstance(block, dict):
-                continue
-            ptype = (block.get("provider") or "").strip().lower()
-            if not ptype:
-                continue
-            try:
-                if ptype == "ollama":
-                    base = (block.get("endpoint") or "http://localhost:11434").rstrip("/")
-                    prov = OllamaProvider(
-                        config={
-                            "base_url": base,
-                            "model": block.get("model", "llama3"),
-                            "timeout": float(block.get("timeout", 120)),
-                        }
-                    )
-                    router.register_provider(slot, prov)
-                    registered += 1
-                elif ptype in ("openai_compat", "openai", "azure_openai"):
-                    base = (block.get("endpoint") or "https://api.openai.com/v1").rstrip("/")
-                    prov = OpenAICompatProvider(
-                        config={
-                            "base_url": base,
-                            "model": block.get("model", "gpt-4o-mini"),
-                            "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
-                            "api_key": block.get("api_key"),
-                        }
-                    )
-                    router.register_provider(slot, prov)
-                    registered += 1
-                else:
-                    logger.warning(
-                        "Unknown model provider %r in %s; add wiring in engine._register_model_providers",
-                        ptype,
-                        slot,
-                    )
-            except Exception:
-                logger.exception("Failed to register %s provider %r", slot, ptype)
+            if isinstance(block, dict) and register(slot, block):
+                registered += 1
+
+        extras = model_spec.get("extra")
+        if extras is not None:
+            if not isinstance(extras, dict):
+                logger.warning("spec.model.extra must be a mapping of {name: provider block}; got %s", type(extras).__name__)
+            else:
+                for name, block in extras.items():
+                    if name in ("primary", "fallback"):
+                        logger.warning("spec.model.extra.%s conflicts with the reserved slot name; skipping", name)
+                        continue
+                    if not isinstance(block, dict):
+                        logger.warning("spec.model.extra.%s must be a mapping; skipping", name)
+                        continue
+                    if register(str(name), block):
+                        registered += 1
+
         if registered == 0:
             logger.warning(
-                "No LLM providers registered from model spec (check primary/fallback provider types)"
+                "No LLM providers registered from model spec (check primary/fallback/extra provider types)"
             )
 
     def _build_agent(self, config):

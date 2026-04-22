@@ -7,7 +7,7 @@ spec:
   providers:
     ollama:
       type: ollama
-      endpoint: "http://ollama:11434"
+      endpoint: "http://localhost:11434"
       models:
         - "llama3.1:8b"
         - "llama3.1:70b"

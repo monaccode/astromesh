@@ -31,6 +31,30 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
+def _resolve_config_dir() -> str:
+    """Pick the config dir: explicit env > cwd/config > bundled defaults > repo source > 'config'."""
+    env_val = os.environ.get("ASTROMESH_CONFIG_DIR", "").strip()
+    if env_val:
+        return env_val
+    cwd_config = Path("config")
+    if cwd_config.is_dir():
+        return str(cwd_config.resolve())
+    try:
+        import astromesh as _astromesh
+        pkg_dir = Path(_astromesh.__file__).resolve().parent
+        # Wheel install: config force-included under the package
+        bundled = pkg_dir / "_bundled" / "config"
+        if bundled.is_dir():
+            return str(bundled)
+        # Editable/source install: <repo>/config next to the package dir
+        repo_config = pkg_dir.parent / "config"
+        if repo_config.is_dir():
+            return str(repo_config)
+    except Exception:
+        pass
+    return "config"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Bootstrap AgentRuntime for `uvicorn astromesh.api.main:app` (astromeshd sets runtime before serve)."""
@@ -59,7 +83,7 @@ async def lifespan(app: FastAPI):
         yield
         return
 
-    config_dir = os.environ.get("ASTROMESH_CONFIG_DIR", "config")
+    config_dir = _resolve_config_dir()
     runtime = AgentRuntime(config_dir=config_dir)
     try:
         await runtime.bootstrap()
