@@ -18,7 +18,7 @@ spec:
   embeddings:
     provider: ollama
     model: "nomic-embed-text"
-    endpoint: "http://ollama:11434"
+    endpoint: "http://localhost:11434"
     dimension: 768
 
   vector_store:
