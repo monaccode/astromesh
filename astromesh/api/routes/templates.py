@@ -15,12 +15,20 @@ def set_templates_dir(path: str | None) -> None:
 
 
 def _bundled_templates_root() -> Path | None:
-    """Shipped / repo `config/templates` next to the installed package."""
+    """Templates shipped with the installed package (wheel) or the source repo (dev)."""
     try:
         import astromesh
 
-        p = (Path(astromesh.__file__).resolve().parent.parent / "config" / "templates")
-        return p if p.is_dir() else None
+        pkg_dir = Path(astromesh.__file__).resolve().parent
+        # Wheel layout: config/ force-included under the package as _bundled/config
+        wheel_path = pkg_dir / "_bundled" / "config" / "templates"
+        if wheel_path.is_dir():
+            return wheel_path
+        # Dev/source layout: repo_root/config/templates
+        repo_path = pkg_dir.parent / "config" / "templates"
+        if repo_path.is_dir():
+            return repo_path
+        return None
     except Exception:
         return None
 
