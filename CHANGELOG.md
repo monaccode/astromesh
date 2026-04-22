@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.28.0] - 2026-04-22
+
 ### Added
 - `spec.model.extra` — optional map `{name: provider_block}` on agent YAML to register N additional LLM providers alongside `primary` / `fallback`; all registered providers are ranked together by the configured routing strategy. Reserved slot names (`primary`, `fallback`) inside `extra` are rejected to prevent silent shadowing (`astromesh/runtime/engine.py`)
 - Test coverage for the extra-provider slot, including the mixed-scenario case (primary + fallback + multiple extras) and the extras-only case with no primary (`tests/test_engine.py`)
