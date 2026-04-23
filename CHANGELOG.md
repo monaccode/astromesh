@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.28.1] - 2026-04-22
+
+### Fixed
+- Docker build: copy `config/` into the builder stage before `uv pip install ".[${ASTROMESH_EXTRAS}]"` so hatchling's new `force-include` of `config/ → astromesh/_bundled/config` can resolve; without this, the v0.28.0 wheel-bundling change aborted the release Docker workflow with exit code 1 (`Dockerfile`)
+
 ## [v0.28.0] - 2026-04-22
 
 ### Added
