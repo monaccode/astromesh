@@ -97,3 +97,34 @@ async def test_run_agent_respects_max_iterations(fake_caller):
     runtime = ADKRuntime()
     with pytest.raises(RuntimeError, match="max_iterations"):
         await runtime.run_agent(looper, "loop", "s", None, None)
+
+
+@pytest.mark.asyncio
+async def test_stream_agent_emits_events_per_step(fake_caller):
+    @tool(description="echo")
+    async def echo(text: str) -> str:
+        return text
+
+    @agent(name="streamer", model="claude-haiku-4-5", tools=[echo], max_iterations=3)
+    async def streamer(ctx):
+        """stream test"""
+        return None
+
+    fake_caller.append(LlmResult(
+        text="", input_tokens=5, output_tokens=2, model="claude-haiku-4-5", cost_usd=0.0001,
+        tool_calls=[{"id": "x", "name": "echo", "arguments": {"text": "hi"}}],
+    ))
+    fake_caller.append(LlmResult(
+        text="hi back", input_tokens=10, output_tokens=3, model="claude-haiku-4-5", cost_usd=0.0001,
+    ))
+
+    runtime = ADKRuntime()
+    events = []
+    async for ev in runtime.stream_agent(streamer, "go", "s", None, True, None):
+        events.append(ev)
+
+    types = [e.type for e in events]
+    assert "step" in types
+    assert types[-1] == "done"
+    step_kinds = [e.step.get("kind") for e in events if e.type == "step"]
+    assert "tool_call" in step_kinds

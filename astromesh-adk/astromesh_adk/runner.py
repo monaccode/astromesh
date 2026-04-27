@@ -136,8 +136,39 @@ class ADKRuntime:
         raise RuntimeError(f"max_iterations={a.max_iterations} reached without final answer")
 
     async def stream_agent(self, agent_wrapper, query, session_id="default", context=None, stream_steps=False, callbacks=None):
-        result = await self.run_agent(agent_wrapper, query, session_id, context, callbacks)
-        yield StreamEvent(type="done", step={"answer": result.answer, "model": result.model})
+        async for ev in self._stream_local(agent_wrapper, query, session_id, context or {}, stream_steps, callbacks):
+            yield ev
+
+    async def _stream_local(self, a, query, session_id, context, stream_steps, callbacks):
+        tools_by_name = {t.tool_name: t for t in (a.tools or [])}
+        tools_schema = [
+            {"name": t.tool_name, "description": t.tool_description, "input_schema": t.parameters_schema}
+            for t in (a.tools or [])
+        ]
+        messages: list[dict] = [{"role": "user", "content": query if isinstance(query, str) else str(query)}]
+
+        for iteration in range(a.max_iterations):
+            result = await dispatch_with_fallback(
+                primary_model=a.model,
+                fallback_models=([a.fallback_model] if a.fallback_model else []),
+                routing=a.routing,
+                payload={"system": a.system_prompt, "messages": messages, "tools": tools_schema, "max_tokens": 4096},
+                caller=_llm_caller,
+            )
+
+            if not result.tool_calls:
+                yield StreamEvent(type="step", step={"kind": "final", "text": result.text, "model": result.model})
+                yield StreamEvent(type="done", step={"answer": result.text, "model": result.model})
+                return
+
+            for tc in result.tool_calls:
+                t = tools_by_name.get(tc["name"])
+                out = await t(**tc["arguments"])
+                yield StreamEvent(type="step", step={"kind": "tool_call", "tool": tc["name"], "args": tc["arguments"], "result": out})
+                messages.append({"role": "assistant", "content": result.text or "", "tool_calls": result.tool_calls})
+                messages.append({"role": "tool", "results": [{"tool_use_id": tc["id"], "content": out}]})
+
+        raise RuntimeError(f"max_iterations={a.max_iterations} reached without final answer")
 
     async def run_class_agent(self, *args, **kwargs):
         raise NotImplementedError("run_class_agent not in MVP; pending future task")
