@@ -1,11 +1,19 @@
-"""ADK Runtime — stub for initial agent module import."""
-
+"""ADK Runtime — local execution implementation."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, AsyncIterator
+
+from astromesh_adk._internal.llm_dispatch import (
+    LlmResult,
+    dispatch_with_fallback,
+)
+from astromesh_adk.result import RunResult, StreamEvent
 
 if TYPE_CHECKING:
-    from astromesh_adk.agent import AgentWrapper, Agent
+    from astromesh_adk.agent import AgentWrapper
+    from astromesh_adk.team import AgentTeam
+
 
 _default_runtime = None
 
@@ -18,8 +26,20 @@ def get_or_create_runtime():
     return _default_runtime
 
 
+async def _llm_caller(model: str, payload: dict) -> LlmResult:
+    """Default LLM caller. Tests monkeypatch this symbol.
+
+    In production, downstream consumers (e.g. agents-clarus) replace this via
+    `runner._llm_caller = my_provider_dispatch` at module init.
+    """
+    raise RuntimeError(
+        "No LLM caller configured. Set astromesh_adk.runner._llm_caller "
+        "to an async callable (model, payload) -> LlmResult."
+    )
+
+
 class ADKRuntime:
-    """Placeholder — full implementation in Task 13."""
+    """Local in-process execution of agents and teams."""
 
     async def start(self) -> None:
         pass
@@ -35,19 +55,78 @@ class ADKRuntime:
         await self.shutdown()
         return False
 
-    async def run_agent(self, agent_wrapper, query, session_id, context, callbacks):
-        raise NotImplementedError("ADKRuntime.run_agent not yet implemented")
+    async def run_agent(
+        self,
+        agent_wrapper: "AgentWrapper",
+        query,
+        session_id: str = "default",
+        context: dict | None = None,
+        callbacks=None,
+    ) -> RunResult:
+        return await self._run_local(agent_wrapper, query, session_id, context or {}, callbacks)
 
-    async def stream_agent(self, agent_wrapper, query, session_id, context, stream_steps, callbacks):
-        raise NotImplementedError("ADKRuntime.stream_agent not yet implemented")
-        yield  # make it a generator
+    async def _run_local(
+        self,
+        a: "AgentWrapper",
+        query,
+        session_id: str,
+        context: dict,
+        callbacks,
+    ) -> RunResult:
+        t0 = time.perf_counter()
+        user_text = query if isinstance(query, str) else str(query)
 
-    async def run_class_agent(self, agent_instance, query, session_id, context, callbacks):
-        raise NotImplementedError("ADKRuntime.run_class_agent not yet implemented")
+        result = await dispatch_with_fallback(
+            primary_model=a.model,
+            fallback_models=([a.fallback_model] if a.fallback_model else []),
+            routing=a.routing,
+            payload={
+                "system": a.system_prompt,
+                "user": user_text,
+                "tools": [],
+                "max_tokens": 4096,
+            },
+            caller=_llm_caller,
+        )
 
-    async def stream_class_agent(self, agent_instance, query, session_id, context, stream_steps, callbacks):
-        raise NotImplementedError("ADKRuntime.stream_class_agent not yet implemented")
-        yield  # make it a generator
+        latency_ms = (time.perf_counter() - t0) * 1000
+        return RunResult(
+            answer=result.text,
+            steps=[],
+            trace=None,
+            cost=result.cost_usd,
+            tokens={"input": result.input_tokens, "output": result.output_tokens},
+            latency_ms=latency_ms,
+            model=result.model,
+            metadata={"session_id": session_id},
+        )
 
-    async def run_team(self, team, query, session_id, context, callbacks):
-        raise NotImplementedError("ADKRuntime.run_team not yet implemented")
+    async def stream_agent(self, agent_wrapper, query, session_id="default", context=None, stream_steps=False, callbacks=None):
+        result = await self.run_agent(agent_wrapper, query, session_id, context, callbacks)
+        yield StreamEvent(type="done", step={"answer": result.answer, "model": result.model})
+
+    async def run_class_agent(self, *args, **kwargs):
+        raise NotImplementedError("run_class_agent not in MVP; pending future task")
+
+    async def stream_class_agent(self, *args, **kwargs):
+        raise NotImplementedError("stream_class_agent not in MVP; pending future task")
+        yield  # generator stub
+
+    async def run_team(self, team: "AgentTeam", query, session_id="default", context=None, callbacks=None) -> RunResult:
+        ctx = context or {}
+        if team.pattern == "pipeline":
+            return await self._run_pipeline(team, query, session_id, ctx, callbacks)
+        if team.pattern == "parallel":
+            return await self._run_parallel(team, query, session_id, ctx, callbacks)
+        if team.pattern == "supervisor":
+            return await self._run_supervisor(team, query, session_id, ctx, callbacks)
+        raise NotImplementedError(f"team.pattern={team.pattern!r} not supported in 0.1.7 MVP")
+
+    async def _run_pipeline(self, team, query, session_id, context, callbacks):
+        raise NotImplementedError  # filled in Task A6
+
+    async def _run_parallel(self, team, query, session_id, context, callbacks):
+        raise NotImplementedError  # filled in Task A7
+
+    async def _run_supervisor(self, team, query, session_id, context, callbacks):
+        raise NotImplementedError  # filled in Task A8
