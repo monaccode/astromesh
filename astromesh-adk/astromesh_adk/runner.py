@@ -9,6 +9,7 @@ from astromesh_adk._internal.llm_dispatch import (
     dispatch_with_fallback,
 )
 from astromesh_adk.result import RunResult, StreamEvent
+from astromesh_adk.team import AgentTeam as AgentTeam_
 
 if TYPE_CHECKING:
     from astromesh_adk.agent import AgentWrapper
@@ -188,7 +189,40 @@ class ADKRuntime:
         raise NotImplementedError(f"team.pattern={team.pattern!r} not supported in 0.1.7 MVP")
 
     async def _run_pipeline(self, team, query, session_id, context, callbacks):
-        raise NotImplementedError  # filled in Task A6
+        previous_outputs: dict = dict(context.get("previous_outputs", {}))
+        current_input = query
+        agg_input_tokens = 0
+        agg_output_tokens = 0
+        agg_cost = 0.0
+        last_answer = ""
+        last_model = ""
+        all_steps: list[dict] = []
+
+        for sub in team.agents:
+            ctx_with_outputs = {**context, "previous_outputs": dict(previous_outputs)}
+            if isinstance(sub, AgentTeam_):
+                sub_result = await self.run_team(sub, current_input, session_id, ctx_with_outputs, callbacks)
+            else:
+                sub_result = await self._run_local(sub, current_input, session_id, ctx_with_outputs, callbacks)
+            agg_input_tokens += sub_result.tokens["input"]
+            agg_output_tokens += sub_result.tokens["output"]
+            agg_cost += sub_result.cost
+            last_answer = sub_result.answer
+            last_model = sub_result.model
+            previous_outputs[sub.name] = sub_result.answer
+            all_steps.append({"agent": sub.name, "answer": sub_result.answer, "steps": sub_result.steps})
+            current_input = sub_result.answer
+
+        return RunResult(
+            answer=last_answer,
+            steps=all_steps,
+            trace=None,
+            cost=agg_cost,
+            tokens={"input": agg_input_tokens, "output": agg_output_tokens},
+            latency_ms=0.0,
+            model=last_model,
+            metadata={"session_id": session_id, "previous_outputs": previous_outputs, "pattern": "pipeline"},
+        )
 
     async def _run_parallel(self, team, query, session_id, context, callbacks):
         raise NotImplementedError  # filled in Task A7
