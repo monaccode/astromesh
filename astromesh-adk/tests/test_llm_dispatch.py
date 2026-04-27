@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock
 
 from astromesh_adk._internal.llm_dispatch import (
     LlmCall,
@@ -12,6 +11,14 @@ from astromesh_adk._internal.llm_dispatch import (
     PermanentError,
     dispatch_with_fallback,
 )
+
+
+@pytest.fixture(autouse=True)
+def _instant_backoff(monkeypatch):
+    """Mockea asyncio.sleep dentro del módulo para que los tests no esperen."""
+    async def _no_sleep(_seconds: float) -> None:
+        return None
+    monkeypatch.setattr("astromesh_adk._internal.llm_dispatch.asyncio.sleep", _no_sleep)
 
 
 @pytest.mark.asyncio
