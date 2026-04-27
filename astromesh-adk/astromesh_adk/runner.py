@@ -1,6 +1,7 @@
 """ADK Runtime — local execution implementation."""
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import TYPE_CHECKING, AsyncIterator
 
@@ -225,7 +226,39 @@ class ADKRuntime:
         )
 
     async def _run_parallel(self, team, query, session_id, context, callbacks):
-        raise NotImplementedError  # filled in Task A7
+        async def _run_one(sub):
+            ctx_copy = dict(context)
+            if isinstance(sub, AgentTeam_):
+                return sub.name, await self.run_team(sub, query, session_id, ctx_copy, callbacks)
+            return sub.name, await self._run_local(sub, query, session_id, ctx_copy, callbacks)
+
+        results: dict = {}
+        async with asyncio.TaskGroup() as tg:
+            tasks = [tg.create_task(_run_one(sub)) for sub in team.agents]
+
+        for t in tasks:
+            name, res = t.result()
+            results[name] = res
+
+        agg_input = sum(r.tokens["input"] for r in results.values())
+        agg_output = sum(r.tokens["output"] for r in results.values())
+        agg_cost = sum(r.cost for r in results.values())
+        previous_outputs = {name: r.answer for name, r in results.items()}
+
+        # Aggregated answer = JSON of outputs (downstream agents in pipeline parsean)
+        import json
+        agg_answer = json.dumps(previous_outputs, ensure_ascii=False)
+
+        return RunResult(
+            answer=agg_answer,
+            steps=[{"agent": n, "answer": r.answer, "steps": r.steps} for n, r in results.items()],
+            trace=None,
+            cost=agg_cost,
+            tokens={"input": agg_input, "output": agg_output},
+            latency_ms=0.0,
+            model="multi",
+            metadata={"session_id": session_id, "previous_outputs": previous_outputs, "pattern": "parallel"},
+        )
 
     async def _run_supervisor(self, team, query, session_id, context, callbacks):
         raise NotImplementedError  # filled in Task A8
