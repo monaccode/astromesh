@@ -74,32 +74,66 @@ class ADKRuntime:
         callbacks,
     ) -> RunResult:
         t0 = time.perf_counter()
-        user_text = query if isinstance(query, str) else str(query)
+        steps: list[dict] = []
+        tools_by_name = {t.tool_name: t for t in (a.tools or [])}
+        tools_schema = [
+            {"name": t.tool_name, "description": t.tool_description, "input_schema": t.parameters_schema}
+            for t in (a.tools or [])
+        ]
+        messages: list[dict] = [{"role": "user", "content": query if isinstance(query, str) else str(query)}]
 
-        result = await dispatch_with_fallback(
-            primary_model=a.model,
-            fallback_models=([a.fallback_model] if a.fallback_model else []),
-            routing=a.routing,
-            payload={
-                "system": a.system_prompt,
-                "user": user_text,
-                "tools": [],
-                "max_tokens": 4096,
-            },
-            caller=_llm_caller,
-        )
+        total_input = 0
+        total_output = 0
+        total_cost = 0.0
+        last_model = a.model
 
-        latency_ms = (time.perf_counter() - t0) * 1000
-        return RunResult(
-            answer=result.text,
-            steps=[],
-            trace=None,
-            cost=result.cost_usd,
-            tokens={"input": result.input_tokens, "output": result.output_tokens},
-            latency_ms=latency_ms,
-            model=result.model,
-            metadata={"session_id": session_id},
-        )
+        for iteration in range(a.max_iterations):
+            result = await dispatch_with_fallback(
+                primary_model=a.model,
+                fallback_models=([a.fallback_model] if a.fallback_model else []),
+                routing=a.routing,
+                payload={
+                    "system": a.system_prompt,
+                    "messages": messages,
+                    "tools": tools_schema,
+                    "max_tokens": 4096,
+                },
+                caller=_llm_caller,
+            )
+            total_input += result.input_tokens
+            total_output += result.output_tokens
+            total_cost += result.cost_usd
+            last_model = result.model
+
+            if not result.tool_calls:
+                steps.append({"kind": "final", "text": result.text})
+                latency_ms = (time.perf_counter() - t0) * 1000
+                return RunResult(
+                    answer=result.text,
+                    steps=steps,
+                    trace=None,
+                    cost=total_cost,
+                    tokens={"input": total_input, "output": total_output},
+                    latency_ms=latency_ms,
+                    model=last_model,
+                    metadata={"session_id": session_id, "iterations": iteration + 1},
+                )
+
+            # Execute tool calls
+            tool_results = []
+            for tc in result.tool_calls:
+                t = tools_by_name.get(tc["name"])
+                if t is None:
+                    out = {"error": f"unknown tool {tc['name']!r}"}
+                else:
+                    out = await t(**tc["arguments"])
+                steps.append({"kind": "tool_call", "tool": tc["name"], "args": tc["arguments"], "result": out})
+                tool_results.append({"tool_use_id": tc["id"], "content": out})
+
+            messages.append({"role": "assistant", "content": result.text or "", "tool_calls": result.tool_calls})
+            messages.append({"role": "tool", "results": tool_results})
+
+        raise RuntimeError(f"max_iterations={a.max_iterations} reached without final answer")
 
     async def stream_agent(self, agent_wrapper, query, session_id="default", context=None, stream_steps=False, callbacks=None):
         result = await self.run_agent(agent_wrapper, query, session_id, context, callbacks)

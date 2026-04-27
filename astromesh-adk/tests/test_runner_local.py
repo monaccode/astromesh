@@ -39,3 +39,61 @@ async def test_run_agent_no_tools_returns_final_answer(fake_caller):
     assert result.tokens["input"] == 10
     assert result.tokens["output"] == 2
     assert result.model == "claude-haiku-4-5"
+
+
+from astromesh_adk import tool
+
+
+@pytest.mark.asyncio
+async def test_run_agent_executes_tool_call_and_loops(fake_caller):
+    @tool(description="Add two integers")
+    async def add(a: int, b: int) -> int:
+        return a + b
+
+    @agent(name="math", model="claude-sonnet-4-6", tools=[add], max_iterations=5)
+    async def math(ctx):
+        """Use the add tool to do arithmetic."""
+        return None
+
+    # First LLM turn: requests tool call
+    fake_caller.append(LlmResult(
+        text="",
+        input_tokens=20, output_tokens=10, model="claude-sonnet-4-6", cost_usd=0.002,
+        tool_calls=[{"id": "tc1", "name": "add", "arguments": {"a": 6, "b": 7}}],
+    ))
+    # Second LLM turn: final answer
+    fake_caller.append(LlmResult(
+        text="13", input_tokens=30, output_tokens=2, model="claude-sonnet-4-6", cost_usd=0.003,
+    ))
+
+    runtime = ADKRuntime()
+    result = await runtime.run_agent(math, "what is 6+7?", "s", None, None)
+
+    assert result.answer == "13"
+    assert len(result.steps) == 2  # tool_call + final
+    assert result.steps[0]["kind"] == "tool_call"
+    assert result.steps[0]["tool"] == "add"
+    assert result.steps[0]["result"] == 13
+
+
+@pytest.mark.asyncio
+async def test_run_agent_respects_max_iterations(fake_caller):
+    @tool(description="loops")
+    async def noop() -> str:
+        return "ok"
+
+    @agent(name="looper", model="claude-haiku-4-5", tools=[noop], max_iterations=2)
+    async def looper(ctx):
+        """Loop forever via tool calls."""
+        return None
+
+    # Always request a tool call — should stop after max_iterations
+    for _ in range(5):
+        fake_caller.append(LlmResult(
+            text="", input_tokens=5, output_tokens=2, model="claude-haiku-4-5", cost_usd=0.0001,
+            tool_calls=[{"id": "tc", "name": "noop", "arguments": {}}],
+        ))
+
+    runtime = ADKRuntime()
+    with pytest.raises(RuntimeError, match="max_iterations"):
+        await runtime.run_agent(looper, "loop", "s", None, None)
