@@ -261,4 +261,90 @@ class ADKRuntime:
         )
 
     async def _run_supervisor(self, team, query, session_id, context, callbacks):
-        raise NotImplementedError  # filled in Task A8
+        sup = team.supervisor
+        if sup is None:
+            raise ValueError("supervisor pattern requires team.supervisor")
+        workers_by_name = {w.name: w for w in team.workers}
+
+        worker_descriptions = "\n".join(f"- {w.name}: {w.description}" for w in team.workers)
+        sup_system = (
+            (sup.system_prompt or "")
+            + "\n\n# Workers disponibles\n" + worker_descriptions
+            + "\n\n# Tools disponibles\n"
+            + "- delegate_to(worker: str, task: str) -> delega una tarea a un worker\n"
+            + "- final_answer(answer: str) -> entrega la respuesta final"
+        )
+        delegate_schema = {
+            "name": "delegate_to",
+            "description": "Delega una tarea a un worker del equipo.",
+            "input_schema": {
+                "type": "object",
+                "properties": {"worker": {"type": "string"}, "task": {"type": "string"}},
+                "required": ["worker", "task"],
+            },
+        }
+        final_schema = {
+            "name": "final_answer",
+            "description": "Entrega la respuesta final del equipo.",
+            "input_schema": {
+                "type": "object",
+                "properties": {"answer": {"type": "string"}},
+                "required": ["answer"],
+            },
+        }
+
+        messages: list[dict] = [{"role": "user", "content": query if isinstance(query, str) else str(query)}]
+        worker_results: dict = {}
+        agg_input = agg_output = 0
+        agg_cost = 0.0
+        last_model = sup.model
+
+        for _ in range(sup.max_iterations):
+            sup_res = await dispatch_with_fallback(
+                primary_model=sup.model,
+                fallback_models=([sup.fallback_model] if sup.fallback_model else []),
+                routing=sup.routing,
+                payload={"system": sup_system, "messages": messages, "tools": [delegate_schema, final_schema], "max_tokens": 4096},
+                caller=_llm_caller,
+            )
+            agg_input += sup_res.input_tokens
+            agg_output += sup_res.output_tokens
+            agg_cost += sup_res.cost_usd
+            last_model = sup_res.model
+
+            if not sup_res.tool_calls:
+                # Treated as final
+                return RunResult(
+                    answer=sup_res.text, steps=[], trace=None, cost=agg_cost,
+                    tokens={"input": agg_input, "output": agg_output}, latency_ms=0.0,
+                    model=last_model,
+                    metadata={"session_id": session_id, "worker_results": worker_results, "pattern": "supervisor"},
+                )
+
+            tool_results = []
+            for tc in sup_res.tool_calls:
+                if tc["name"] == "final_answer":
+                    return RunResult(
+                        answer=tc["arguments"]["answer"], steps=[], trace=None, cost=agg_cost,
+                        tokens={"input": agg_input, "output": agg_output}, latency_ms=0.0,
+                        model=last_model,
+                        metadata={"session_id": session_id, "worker_results": worker_results, "pattern": "supervisor"},
+                    )
+                if tc["name"] == "delegate_to":
+                    worker_name = tc["arguments"]["worker"]
+                    worker = workers_by_name.get(worker_name)
+                    if worker is None:
+                        out = {"error": f"unknown worker {worker_name!r}"}
+                    else:
+                        sub_res = await self._run_local(worker, tc["arguments"]["task"], session_id, dict(context), callbacks)
+                        worker_results[worker_name] = sub_res.answer
+                        agg_input += sub_res.tokens["input"]
+                        agg_output += sub_res.tokens["output"]
+                        agg_cost += sub_res.cost
+                        out = sub_res.answer
+                    tool_results.append({"tool_use_id": tc["id"], "content": out})
+
+            messages.append({"role": "assistant", "content": sup_res.text or "", "tool_calls": sup_res.tool_calls})
+            messages.append({"role": "tool", "results": tool_results})
+
+        raise RuntimeError(f"supervisor max_iterations reached without final_answer")
