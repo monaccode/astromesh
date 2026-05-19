@@ -66,7 +66,9 @@ def set_runtime(rt: ADKRuntime | None) -> None:
 
 
 class ADKRuntime:
-    """Placeholder — methods filled in subsequent tasks."""
+    """In-process runtime: executes ADK agents/teams via the Astromesh core
+    engine (orchestration patterns, ModelRouter, providers) and emits a
+    RunResult with cost/token/latency accounting from the tracing context."""
 
     def __init__(self, provider_factory: Any = resolve_provider) -> None:
         self._provider_factory = provider_factory
