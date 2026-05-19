@@ -4,6 +4,7 @@ tracing)."""
 
 from __future__ import annotations
 
+import dataclasses
 from typing import TYPE_CHECKING, Any
 
 from astromesh_adk.providers import parse_model_string, resolve_provider
@@ -11,9 +12,23 @@ from astromesh.core.model_router import ModelRouter
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.providers.base import CompletionResponse
 from astromesh_adk.context import RunContext
+from astromesh_adk.result import RunResult
+from astromesh.orchestration.patterns import (
+    ParallelFanOutPattern,
+    PipelinePattern,
+    PlanAndExecutePattern,
+    ReActPattern,
+)
 
 if TYPE_CHECKING:
     pass
+
+_PATTERNS = {
+    "react": ReActPattern,
+    "plan_and_execute": PlanAndExecutePattern,
+    "parallel_fan_out": ParallelFanOutPattern,
+    "pipeline": PipelinePattern,
+}
 
 _default_runtime: ADKRuntime | None = None
 
@@ -162,6 +177,57 @@ class ADKRuntime:
         ctx._call_tool_fn = tool_fn
         ctx._complete_fn = _complete
         return ctx
+
+    @staticmethod
+    def _steps_to_dicts(steps: list) -> list[dict]:
+        out = []
+        for s in steps:
+            out.append(s if isinstance(s, dict) else dataclasses.asdict(s))
+        return out
+
+    async def run_agent(
+        self,
+        agent_wrapper: Any,
+        query: str,
+        session_id: str = "default",
+        context: dict | None = None,
+        callbacks: Any = None,
+    ) -> RunResult:
+        tctx = TracingContext(agent_wrapper.name, session_id)
+        root = tctx.start_span("agent.run", {"agent": agent_wrapper.name})
+        try:
+            ctx = self._build_context(agent_wrapper, query, session_id, context)
+            handler_out = await agent_wrapper._handler(ctx)
+            if isinstance(handler_out, str):
+                answer, steps = handler_out, []
+            else:
+                model_fn = self._make_model_fn(agent_wrapper, tctx)
+                tool_fn = self._make_tool_fn(getattr(agent_wrapper, "tools", []), tctx)
+                pattern_cls = _PATTERNS.get(
+                    getattr(agent_wrapper, "pattern", "react"), ReActPattern
+                )
+                pattern = pattern_cls()
+                result = await pattern.execute(
+                    query,
+                    context or {},
+                    model_fn,
+                    tool_fn,
+                    getattr(agent_wrapper, "tools", []),
+                    max_iterations=getattr(agent_wrapper, "max_iterations", 10),
+                )
+                answer = result.get("answer", "")
+                steps = result.get("steps", [])
+            tctx.finish_span(root, SpanStatus.OK)
+        except Exception:
+            tctx.finish_span(root, SpanStatus.ERROR)
+            raise
+        return RunResult.from_runtime(
+            {
+                "answer": answer,
+                "steps": self._steps_to_dicts(steps),
+                "trace": tctx.to_dict(),
+            }
+        )
 
     async def start(self) -> None:
         pass

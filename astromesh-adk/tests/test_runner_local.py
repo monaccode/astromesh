@@ -143,3 +143,59 @@ def test_build_context_wires_callables():
     assert ctx.session_id == "sess-1"
     assert ctx._call_tool_fn is not None
     assert ctx._complete_fn is not None
+
+
+@pytest.mark.asyncio
+async def test_run_agent_returns_runresult_with_trace_accounting():
+    prov = FakeProvider("claude-x", content="final answer")
+    rt = ADKRuntime(provider_factory=lambda p, m, c: prov)
+
+    result = await rt.run_agent(_agent(model="claude-x"), "what is 2+2?", "sess-1")
+
+    assert result.answer == "final answer"
+    assert isinstance(result.steps, list)
+    assert result.cost == pytest.approx(0.002)
+    assert result.tokens == {"input": 11, "output": 7}
+    assert result.latency_ms >= 0
+    assert result.model == "claude-x"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_runs_tool_then_finishes():
+    from astromesh_adk.tools import tool
+
+    @tool(description="echo")
+    async def echo(text: str) -> str:
+        return f"echoed:{text}"
+
+    from astromesh_adk.agent import agent
+
+    @agent(name="t", model="claude-x", tools=[echo])
+    async def _h(ctx):
+        """sys"""
+        return None
+
+    class TwoStep(FakeProvider):
+        def __init__(self):
+            super().__init__("claude-x")
+            self._n = 0
+
+        async def complete(self, messages, **kwargs):
+            self._n += 1
+            if self._n == 1:
+                return CompletionResponse(
+                    content="thinking", model="claude-x", provider="fake",
+                    usage={"input_tokens": 1, "output_tokens": 1}, latency_ms=1.0,
+                    cost=0.0,
+                    tool_calls=[{"id": "1", "name": "echo", "arguments": {"text": "hi"}}],
+                )
+            return CompletionResponse(
+                content="done", model="claude-x", provider="fake",
+                usage={"input_tokens": 1, "output_tokens": 1}, latency_ms=1.0, cost=0.0,
+                tool_calls=[],
+            )
+
+    rt = ADKRuntime(provider_factory=lambda p, m, c: TwoStep())
+    result = await rt.run_agent(_h, "go", "s")
+    assert result.answer == "done"
+    assert any(s.get("action") == "echo" for s in result.steps)
