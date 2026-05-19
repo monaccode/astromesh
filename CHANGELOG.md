@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `astromesh_adk.runner.ADKRuntime` — in-process runtime bridging ADK abstractions (`AgentWrapper`/`Agent`/`AgentTeam`) to the Astromesh core engine (orchestration patterns, `ModelRouter`, providers, tracing). Includes `_provider_and_model` model→provider mapping, `_make_model_fn` (router + fallback + system-prompt injection + `llm.complete` span), `_make_tool_fn` (`tool.call` span), and `_build_context` (`astromesh-adk/astromesh_adk/runner.py`)
+
 ## [v0.28.1] - 2026-04-22
 
 ### Fixed

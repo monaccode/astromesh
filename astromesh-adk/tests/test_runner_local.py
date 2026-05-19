@@ -118,10 +118,13 @@ async def test_tool_fn_invokes_tool_and_records_span():
 
     rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m))
     tctx = TracingContext("a", "s1")
-    fn = rt._make_tool_fn([add])
+    fn = rt._make_tool_fn([add], tctx)
 
     result = await fn("add", {"a": 2, "b": 3})
     assert result == 5
+    tool_spans = [s for s in tctx.spans if s.name == "tool.call"]
+    assert len(tool_spans) == 1
+    assert tool_spans[0].attributes["tool"] == "add"
 
 
 @pytest.mark.asyncio

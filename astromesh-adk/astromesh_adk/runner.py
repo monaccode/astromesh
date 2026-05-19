@@ -4,21 +4,16 @@ tracing)."""
 
 from __future__ import annotations
 
-import asyncio
-import dataclasses
 from typing import TYPE_CHECKING, Any
 
 from astromesh_adk.providers import parse_model_string, resolve_provider
-from astromesh_adk.result import RunResult, StreamEvent
 from astromesh.core.model_router import ModelRouter
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.providers.base import CompletionResponse
 from astromesh_adk.context import RunContext
 
 if TYPE_CHECKING:
-    from astromesh_adk.agent import Agent, AgentWrapper
-    from astromesh_adk.callbacks import Callbacks
-    from astromesh_adk.team import AgentTeam
+    pass
 
 _default_runtime: ADKRuntime | None = None
 
@@ -113,7 +108,7 @@ class ADKRuntime:
 
         return model_fn
 
-    def _make_tool_fn(self, tools: list | None):
+    def _make_tool_fn(self, tools: list | None, tctx: "TracingContext | None" = None):
         index = {}
         for t in tools or []:
             name = getattr(t, "tool_name", getattr(t, "name", None))
@@ -124,9 +119,19 @@ class ADKRuntime:
             if name not in index:
                 raise KeyError(f"tool {name!r} not registered")
             t = index[name]
-            if hasattr(t, "execute"):
-                return await t.execute(args)
-            return await t(**(args or {}))
+            span = tctx.start_span("tool.call", {"tool": name}) if tctx else None
+            try:
+                if hasattr(t, "execute"):
+                    result = await t.execute(args)
+                else:
+                    result = await t(**(args or {}))
+            except Exception:
+                if span is not None and tctx is not None:
+                    tctx.finish_span(span, SpanStatus.ERROR)
+                raise
+            if span is not None and tctx is not None:
+                tctx.finish_span(span, SpanStatus.OK)
+            return result
 
         return tool_fn
 
