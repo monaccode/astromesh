@@ -56,3 +56,18 @@ def test_resolve_provider_with_config():
         },
     )
     assert provider is not None
+
+
+def test_resolve_provider_anthropic_uses_anthropic_base_url(monkeypatch):
+    """resolve_provider must pass base_url so anthropic reaches api.anthropic.com, not api.openai.com."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    p = resolve_provider("anthropic", "claude-haiku-4-5", None)
+    assert p.base_url == "https://api.anthropic.com/v1"
+    assert p.api_key == "test-key"
+
+
+def test_resolve_provider_openai_default_base_url(monkeypatch):
+    """OpenAI provider must resolve to the OpenAI base URL by default."""
+    monkeypatch.setenv("OPENAI_API_KEY", "ok")
+    p = resolve_provider("openai", "gpt-4o-mini", None)
+    assert p.base_url == "https://api.openai.com/v1"

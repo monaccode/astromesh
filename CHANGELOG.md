@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `resolve_provider` now passes the provider endpoint as `base_url` (and `api_key_env`) so non-default providers (notably `anthropic` → `https://api.anthropic.com/v1`) actually reach their configured endpoint instead of silently falling back to the OpenAI default (`astromesh-adk/astromesh_adk/providers.py`)
+
 ### Added
 - `astromesh_adk.runner.ADKRuntime` — in-process runtime bridging ADK abstractions (`AgentWrapper`/`Agent`/`AgentTeam`) to the Astromesh core engine (orchestration patterns, `ModelRouter`, providers, tracing). Includes `_provider_and_model` model→provider mapping, `_make_model_fn` (router + fallback + system-prompt injection + `llm.complete` span), `_make_tool_fn` (`tool.call` span), and `_build_context` (`astromesh-adk/astromesh_adk/runner.py`)
 - `ADKRuntime.run_agent` — executes a single agent through the core orchestration pattern (ReAct default) under an `agent.run` root span; returns a `RunResult` with cost/token/latency accounting from the trace (`astromesh-adk/astromesh_adk/runner.py`)
