@@ -199,3 +199,41 @@ async def test_run_agent_runs_tool_then_finishes():
     result = await rt.run_agent(_h, "go", "s")
     assert result.answer == "done"
     assert any(s.get("action") == "echo" for s in result.steps)
+
+
+from astromesh_adk.team import AgentTeam
+
+
+@pytest.mark.asyncio
+async def test_run_team_parallel_aggregates_and_sums():
+    rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m, content=m))
+    team = AgentTeam(
+        name="par", pattern="parallel",
+        agents=[_agent(name="x", model="claude-x"), _agent(name="y", model="gpt-y")],
+    )
+    result = await rt.run_team(team, "q", "s")
+
+    assert {s["agent"] for s in result.steps} == {"x", "y"}
+    assert result.tokens["input"] == 22  # 11 + 11
+    assert result.cost == pytest.approx(0.004)
+
+
+@pytest.mark.asyncio
+async def test_run_team_pipeline_threads_output_and_nests():
+    seen = []
+
+    class RecordingProvider(FakeProvider):
+        async def complete(self, messages, **kwargs):
+            seen.append(messages[-1]["content"])
+            return await super().complete(messages, **kwargs)
+
+    rt = ADKRuntime(provider_factory=lambda p, m, c: RecordingProvider(m, content=f"out-{m}"))
+    inner = AgentTeam(name="inner", pattern="parallel", agents=[_agent(name="a", model="claude-a")])
+    team = AgentTeam(
+        name="pipe", pattern="pipeline",
+        agents=[inner, _agent(name="b", model="claude-b")],
+    )
+    result = await rt.run_team(team, "start", "s")
+
+    assert result.answer == "out-claude-b"
+    assert any("out-claude-a" in c for c in seen)

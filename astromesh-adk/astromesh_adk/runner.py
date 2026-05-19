@@ -4,6 +4,7 @@ tracing)."""
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 from typing import TYPE_CHECKING, Any
 
@@ -228,6 +229,88 @@ class ADKRuntime:
                 "trace": tctx.to_dict(),
             }
         )
+
+    @staticmethod
+    def _is_team(obj: Any) -> bool:
+        return hasattr(obj, "pattern") and hasattr(obj, "agents") and not hasattr(obj, "_handler")
+
+    async def _run_member(self, member: Any, query: str, session_id: str, context):
+        if self._is_team(member):
+            return await self.run_team(member, query, session_id, context)
+        return await self.run_agent(member, query, session_id, context)
+
+    def _aggregate(self, name: str, session_id: str, children: list[tuple[str, RunResult]]) -> RunResult:
+        spans: list = []
+        steps: list = []
+        cost = 0.0
+        tin = tout = 0
+        latency = 0.0
+        parts = []
+        for agent_name, r in children:
+            cost += r.cost
+            tin += r.tokens.get("input", 0)
+            tout += r.tokens.get("output", 0)
+            latency = max(latency, r.latency_ms)
+            parts.append(f"## {agent_name}\n{r.answer}")
+            steps.append({"agent": agent_name, "answer": r.answer, "steps": r.steps})
+            if r.trace and r.trace.get("spans"):
+                spans.extend(r.trace["spans"])
+        return RunResult(
+            answer="\n\n".join(parts),
+            steps=steps,
+            trace={"trace_id": session_id, "agent": name, "session_id": session_id,
+                   "is_sampled": True, "spans": spans},
+            cost=cost,
+            tokens={"input": tin, "output": tout},
+            latency_ms=latency,
+            model="multi",
+        )
+
+    async def run_team(
+        self,
+        team: Any,
+        query: str,
+        session_id: str = "default",
+        context: dict | None = None,
+        callbacks: Any = None,
+    ) -> RunResult:
+        pattern = team.pattern
+        members = team.agents
+
+        if pattern == "parallel":
+            results = await asyncio.gather(
+                *[self._run_member(m, query, session_id, context) for m in members]
+            )
+            named = [
+                (m.name if hasattr(m, "name") else f"member{i}", r)
+                for i, (m, r) in enumerate(zip(members, results))
+            ]
+            return self._aggregate(team.name, session_id, named)
+
+        if pattern == "pipeline":
+            current = query
+            children: list[tuple[str, RunResult]] = []
+            last: RunResult | None = None
+            for i, m in enumerate(members):
+                r = await self._run_member(m, current, session_id, context)
+                children.append((getattr(m, "name", f"stage{i}"), r))
+                current = r.answer
+                last = r
+            agg = self._aggregate(team.name, session_id, children)
+            agg.answer = last.answer if last else ""
+            return agg
+
+        if pattern == "supervisor":
+            return await self._run_supervisor(team, query, session_id, context)
+        if pattern == "swarm":
+            return await self._run_swarm(team, query, session_id, context)
+        raise ValueError(f"unknown team pattern {pattern!r}")
+
+    async def _run_supervisor(self, *a, **k):
+        raise NotImplementedError
+
+    async def _run_swarm(self, *a, **k):
+        raise NotImplementedError
 
     async def start(self) -> None:
         pass
