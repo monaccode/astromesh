@@ -13,6 +13,7 @@ from astromesh_adk.result import RunResult, StreamEvent
 from astromesh.core.model_router import ModelRouter
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.providers.base import CompletionResponse
+from astromesh_adk.context import RunContext
 
 if TYPE_CHECKING:
     from astromesh_adk.agent import Agent, AgentWrapper
@@ -111,6 +112,51 @@ class ADKRuntime:
             return resp
 
         return model_fn
+
+    def _make_tool_fn(self, tools: list | None):
+        index = {}
+        for t in tools or []:
+            name = getattr(t, "tool_name", getattr(t, "name", None))
+            if name:
+                index[name] = t
+
+        async def tool_fn(name: str, args: dict) -> Any:
+            if name not in index:
+                raise KeyError(f"tool {name!r} not registered")
+            t = index[name]
+            if hasattr(t, "execute"):
+                return await t.execute(args)
+            return await t(**(args or {}))
+
+        return tool_fn
+
+    def _build_context(
+        self, agent: Any, query: str, session_id: str, context: dict | None = None
+    ) -> RunContext:
+        tool_names = [
+            getattr(t, "tool_name", getattr(t, "name", "tool"))
+            for t in getattr(agent, "tools", [])
+        ]
+        ctx = RunContext.from_run_params(
+            query=query,
+            session_id=session_id,
+            agent_name=agent.name,
+            context=context,
+            tool_names=tool_names,
+        )
+        tool_fn = self._make_tool_fn(getattr(agent, "tools", []))
+
+        async def _complete(q: str, **kw) -> str:
+            from astromesh.observability.tracing import TracingContext as _TC
+
+            tctx = _TC(agent.name, session_id)
+            mf = self._make_model_fn(agent, tctx)
+            resp = await mf([{"role": "user", "content": q}], None)
+            return resp.content
+
+        ctx._call_tool_fn = tool_fn
+        ctx._complete_fn = _complete
+        return ctx
 
     async def start(self) -> None:
         pass

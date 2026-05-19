@@ -106,3 +106,37 @@ async def test_model_fn_falls_back_on_primary_failure():
 
     resp = await fn([{"role": "user", "content": "hi"}], None)
     assert resp.content == "fallback-answer"
+
+
+@pytest.mark.asyncio
+async def test_tool_fn_invokes_tool_and_records_span():
+    from astromesh_adk.tools import tool
+
+    @tool(description="adds")
+    async def add(a: int, b: int) -> int:
+        return a + b
+
+    rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m))
+    tctx = TracingContext("a", "s1")
+    fn = rt._make_tool_fn([add])
+
+    result = await fn("add", {"a": 2, "b": 3})
+    assert result == 5
+
+
+@pytest.mark.asyncio
+async def test_tool_fn_unknown_tool_raises():
+    rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m))
+    fn = rt._make_tool_fn([])
+    with pytest.raises(KeyError):
+        await fn("nope", {})
+
+
+def test_build_context_wires_callables():
+    rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m))
+    ctx = rt._build_context(_agent(name="z"), "the-query", "sess-1")
+    assert ctx.agent_name == "z"
+    assert ctx.query == "the-query"
+    assert ctx.session_id == "sess-1"
+    assert ctx._call_tool_fn is not None
+    assert ctx._complete_fn is not None
