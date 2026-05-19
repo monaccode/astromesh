@@ -283,3 +283,8 @@ async def test_run_team_supervisor_delegates_to_worker():
     team = AgentTeam(name="t", pattern="supervisor", supervisor=_sup, workers=[_w])
     result = await rt.run_team(team, "please do work", "s")
     assert "final from sup" in result.answer
+    # Prove the worker was actually delegated to (not a no-op tool_fn):
+    serialized_steps = str(result.steps)
+    assert "worker-did-it" in serialized_steps, (
+        f"worker delegation not observable in steps: {result.steps!r}"
+    )
