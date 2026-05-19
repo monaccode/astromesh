@@ -13,7 +13,7 @@ from astromesh.core.model_router import ModelRouter
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.providers.base import CompletionResponse
 from astromesh_adk.context import RunContext
-from astromesh_adk.result import RunResult
+from astromesh_adk.result import RunResult, StreamEvent
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
     PipelinePattern,
@@ -373,6 +373,40 @@ class ADKRuntime:
                 "trace": tctx.to_dict(),
             }
         )
+
+    async def stream_agent(
+        self, agent_wrapper, query, session_id="default",
+        context=None, stream_steps=False, callbacks=None,
+    ):
+        result = await self.run_agent(agent_wrapper, query, session_id, context, callbacks)
+        if stream_steps:
+            for s in result.steps:
+                yield StreamEvent(type="step", step=s)
+        yield StreamEvent(type="done", result=result)
+
+    async def run_class_agent(
+        self, agent_instance, query, session_id="default", context=None, callbacks=None,
+    ) -> RunResult:
+        ctx = self._build_context(agent_instance, query, session_id, context)
+        await agent_instance.on_before_run(ctx)
+        if not hasattr(agent_instance, "_handler"):
+            async def _noop(c):
+                return None
+
+            agent_instance._handler = _noop  # type: ignore[attr-defined]
+        result = await self.run_agent(agent_instance, query, session_id, context, callbacks)
+        await agent_instance.on_after_run(ctx, result)
+        return result
+
+    async def stream_class_agent(
+        self, agent_instance, query, session_id="default",
+        context=None, stream_steps=False, callbacks=None,
+    ):
+        result = await self.run_class_agent(agent_instance, query, session_id, context, callbacks)
+        if stream_steps:
+            for s in result.steps:
+                yield StreamEvent(type="step", step=s)
+        yield StreamEvent(type="done", result=result)
 
     async def start(self) -> None:
         pass

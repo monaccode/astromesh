@@ -288,3 +288,33 @@ async def test_run_team_supervisor_delegates_to_worker():
     assert "worker-did-it" in serialized_steps, (
         f"worker delegation not observable in steps: {result.steps!r}"
     )
+
+
+@pytest.mark.asyncio
+async def test_stream_agent_emits_done_with_runresult():
+    rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m, content="streamed"))
+    events = [e async for e in rt.stream_agent(_agent(model="claude-x"), "q", "s")]
+    assert events[-1].type == "done"
+    assert events[-1].result.answer == "streamed"
+
+
+@pytest.mark.asyncio
+async def test_run_class_agent_runs_hooks():
+    from astromesh_adk.agent import Agent
+
+    calls = []
+
+    class MyAgent(Agent):
+        name = "cls"
+        model = "claude-x"
+
+        async def on_before_run(self, ctx):
+            calls.append("before")
+
+        async def on_after_run(self, ctx, result):
+            calls.append("after")
+
+    rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m, content="cls-out"))
+    result = await rt.run_class_agent(MyAgent(), "q", "s")
+    assert result.answer == "cls-out"
+    assert calls == ["before", "after"]

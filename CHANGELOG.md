@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ADKRuntime.run_agent` — executes a single agent through the core orchestration pattern (ReAct default) under an `agent.run` root span; returns a `RunResult` with cost/token/latency accounting from the trace (`astromesh-adk/astromesh_adk/runner.py`)
 - `ADKRuntime.run_team` — `parallel` (concurrent fan-out, aggregated tokens/cost/spans) and `pipeline` (sequential, answer threaded stage→stage, nested `AgentTeam` supported) orchestration of multi-agent teams (`astromesh-adk/astromesh_adk/runner.py`)
 - `ADKRuntime.run_team` `supervisor` and `swarm` patterns — supervisor/entry agent drives the core pattern with a delegating tool_fn that runs worker agents via `run_agent` (`astromesh-adk/astromesh_adk/runner.py`)
+- `ADKRuntime.stream_agent`/`stream_class_agent` (StreamEvent step/done) and `run_class_agent` (class `Agent` lifecycle hooks on_before_run/on_after_run) (`astromesh-adk/astromesh_adk/runner.py`)
 
 ## [v0.28.1] - 2026-04-22
 
