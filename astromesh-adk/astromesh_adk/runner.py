@@ -20,6 +20,8 @@ from astromesh.orchestration.patterns import (
     PlanAndExecutePattern,
     ReActPattern,
 )
+from astromesh.orchestration.supervisor import SupervisorPattern
+from astromesh.orchestration.swarm import SwarmPattern
 
 if TYPE_CHECKING:
     pass
@@ -306,11 +308,71 @@ class ADKRuntime:
             return await self._run_swarm(team, query, session_id, context)
         raise ValueError(f"unknown team pattern {pattern!r}")
 
-    async def _run_supervisor(self, *a, **k):
-        raise NotImplementedError
+    async def _run_supervisor(self, team, query, session_id, context) -> RunResult:
+        supervisor = team.supervisor
+        workers = {w.name: w for w in team.workers}
+        tctx = TracingContext(supervisor.name, session_id)
+        root = tctx.start_span("agent.run", {"agent": supervisor.name})
+        model_fn = self._make_model_fn(supervisor, tctx)
 
-    async def _run_swarm(self, *a, **k):
-        raise NotImplementedError
+        async def delegating_tool_fn(name: str, args: dict):
+            if name in workers:
+                r = await self.run_agent(
+                    workers[name], args.get("query", query), session_id, context
+                )
+                return r.answer
+            raise KeyError(f"worker {name!r} not found")
+
+        pattern = SupervisorPattern(team._build_workers_dict())
+        try:
+            result = await pattern.execute(
+                query, context or {}, model_fn, delegating_tool_fn,
+                [], max_iterations=getattr(supervisor, "max_iterations", 10),
+            )
+            tctx.finish_span(root, SpanStatus.OK)
+        except Exception:
+            tctx.finish_span(root, SpanStatus.ERROR)
+            raise
+        return RunResult.from_runtime(
+            {
+                "answer": result.get("answer", ""),
+                "steps": self._steps_to_dicts(result.get("steps", [])),
+                "trace": tctx.to_dict(),
+            }
+        )
+
+    async def _run_swarm(self, team, query, session_id, context) -> RunResult:
+        agents = {a.name: a for a in team.agents}
+        entry = team.entry_agent or team.agents[0]
+        tctx = TracingContext(entry.name, session_id)
+        root = tctx.start_span("agent.run", {"agent": entry.name})
+        model_fn = self._make_model_fn(entry, tctx)
+
+        async def handoff_tool_fn(name: str, args: dict):
+            if name in agents:
+                r = await self.run_agent(
+                    agents[name], args.get("query", query), session_id, context
+                )
+                return r.answer
+            raise KeyError(f"agent {name!r} not found")
+
+        pattern = SwarmPattern(team._build_agent_configs())
+        try:
+            result = await pattern.execute(
+                query, context or {}, model_fn, handoff_tool_fn, [],
+                max_iterations=getattr(entry, "max_iterations", 10),
+            )
+            tctx.finish_span(root, SpanStatus.OK)
+        except Exception:
+            tctx.finish_span(root, SpanStatus.ERROR)
+            raise
+        return RunResult.from_runtime(
+            {
+                "answer": result.get("answer", ""),
+                "steps": self._steps_to_dicts(result.get("steps", [])),
+                "trace": tctx.to_dict(),
+            }
+        )
 
     async def start(self) -> None:
         pass

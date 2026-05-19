@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `astromesh_adk.runner.ADKRuntime` — in-process runtime bridging ADK abstractions (`AgentWrapper`/`Agent`/`AgentTeam`) to the Astromesh core engine (orchestration patterns, `ModelRouter`, providers, tracing). Includes `_provider_and_model` model→provider mapping, `_make_model_fn` (router + fallback + system-prompt injection + `llm.complete` span), `_make_tool_fn` (`tool.call` span), and `_build_context` (`astromesh-adk/astromesh_adk/runner.py`)
 - `ADKRuntime.run_agent` — executes a single agent through the core orchestration pattern (ReAct default) under an `agent.run` root span; returns a `RunResult` with cost/token/latency accounting from the trace (`astromesh-adk/astromesh_adk/runner.py`)
 - `ADKRuntime.run_team` — `parallel` (concurrent fan-out, aggregated tokens/cost/spans) and `pipeline` (sequential, answer threaded stage→stage, nested `AgentTeam` supported) orchestration of multi-agent teams (`astromesh-adk/astromesh_adk/runner.py`)
+- `ADKRuntime.run_team` `supervisor` and `swarm` patterns — supervisor/entry agent drives the core pattern with a delegating tool_fn that runs worker agents via `run_agent` (`astromesh-adk/astromesh_adk/runner.py`)
 
 ## [v0.28.1] - 2026-04-22
 

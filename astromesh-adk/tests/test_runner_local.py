@@ -237,3 +237,49 @@ async def test_run_team_pipeline_threads_output_and_nests():
 
     assert result.answer == "out-claude-b"
     assert any("out-claude-a" in c for c in seen)
+
+
+@pytest.mark.asyncio
+async def test_run_team_supervisor_delegates_to_worker():
+    import json
+    from astromesh_adk.agent import agent
+
+    @agent(name="sup", model="claude-sup")
+    async def _sup(ctx):
+        """supervisor"""
+        return None
+
+    @agent(name="worker", model="claude-w", description="does the work")
+    async def _w(ctx):
+        """worker"""
+        return None
+
+    class SupProvider(FakeProvider):
+        def __init__(self):
+            super().__init__("claude-sup")
+            self._n = 0
+
+        async def complete(self, messages, **kwargs):
+            self._n += 1
+            if self._n == 1:
+                # SupervisorPattern expects JSON with "delegate" key in content
+                return CompletionResponse(
+                    content=json.dumps({"delegate": "worker", "task": "do it"}),
+                    model="claude-sup", provider="fake",
+                    usage={"input_tokens": 1, "output_tokens": 1}, latency_ms=1.0, cost=0.0,
+                    tool_calls=[],
+                )
+            return CompletionResponse(
+                content=json.dumps({"final_answer": "final from sup"}),
+                model="claude-sup", provider="fake",
+                usage={"input_tokens": 1, "output_tokens": 1}, latency_ms=1.0, cost=0.0,
+                tool_calls=[],
+            )
+
+    def factory(p, m, c):
+        return SupProvider() if m == "claude-sup" else FakeProvider(m, content="worker-did-it")
+
+    rt = ADKRuntime(provider_factory=factory)
+    team = AgentTeam(name="t", pattern="supervisor", supervisor=_sup, workers=[_w])
+    result = await rt.run_team(team, "please do work", "s")
+    assert "final from sup" in result.answer
