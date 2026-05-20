@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Subpackage releases
+- `astromesh-adk` v0.1.7 — `ADKRuntime` rewrite over the core engine + `resolve_provider` `base_url` fix. See `astromesh-adk/CHANGELOG.md`.
+
 ## [v0.28.1] - 2026-04-22
 
 ### Fixed

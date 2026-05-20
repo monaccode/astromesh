@@ -1,47 +1,414 @@
-"""ADK Runtime — local execution implementation."""
+"""ADK Runtime — in-process execution bridging ADK abstractions to the
+Astromesh core engine (orchestration patterns + model router + providers +
+tracing)."""
+
 from __future__ import annotations
 
 import asyncio
-import time
-from typing import TYPE_CHECKING, AsyncIterator
+import dataclasses
+from typing import TYPE_CHECKING, Any
 
-from astromesh_adk._internal.llm_dispatch import (
-    LlmResult,
-    dispatch_with_fallback,
-)
+from astromesh_adk.providers import parse_model_string, resolve_provider
+from astromesh.core.model_router import ModelRouter
+from astromesh.observability.tracing import SpanStatus, TracingContext
+from astromesh.providers.base import CompletionResponse
+from astromesh_adk.context import RunContext
 from astromesh_adk.result import RunResult, StreamEvent
-from astromesh_adk.team import AgentTeam as AgentTeam_
+from astromesh.orchestration.patterns import (
+    ParallelFanOutPattern,
+    PipelinePattern,
+    PlanAndExecutePattern,
+    ReActPattern,
+)
+from astromesh.orchestration.supervisor import SupervisorPattern
+from astromesh.orchestration.swarm import SwarmPattern
 
 if TYPE_CHECKING:
-    from astromesh_adk.agent import AgentWrapper
-    from astromesh_adk.team import AgentTeam
+    pass
+
+_PATTERNS = {
+    "react": ReActPattern,
+    "plan_and_execute": PlanAndExecutePattern,
+    "parallel_fan_out": ParallelFanOutPattern,
+    "pipeline": PipelinePattern,
+}
+
+_default_runtime: ADKRuntime | None = None
 
 
-_default_runtime = None
+def _provider_and_model(model: str) -> tuple[str, str]:
+    """Map a model id to (provider_name, model_name).
+
+    Bare Clarus model ids (e.g. 'claude-haiku-4-5', 'gpt-4o-mini') have no
+    'provider/' prefix; parse_model_string would wrongly default them all to
+    openai, so we route by family first.
+    """
+    if "/" in model:
+        return parse_model_string(model)
+    if model.startswith("claude"):
+        return "anthropic", model
+    if model.startswith(("gpt", "o1", "o3", "o4", "chatgpt")):
+        return "openai", model
+    return parse_model_string(model)
 
 
-def get_or_create_runtime():
-    """Get or lazily create the default ADKRuntime."""
+def get_or_create_runtime() -> ADKRuntime:
     global _default_runtime
     if _default_runtime is None:
         _default_runtime = ADKRuntime()
     return _default_runtime
 
 
-async def _llm_caller(model: str, payload: dict) -> LlmResult:
-    """Default LLM caller. Tests monkeypatch this symbol.
-
-    In production, downstream consumers (e.g. agents-clarus) replace this via
-    `runner._llm_caller = my_provider_dispatch` at module init.
-    """
-    raise RuntimeError(
-        "No LLM caller configured. Set astromesh_adk.runner._llm_caller "
-        "to an async callable (model, payload) -> LlmResult."
-    )
+def set_runtime(rt: ADKRuntime | None) -> None:
+    """Test hook: override the process-wide runtime singleton."""
+    global _default_runtime
+    _default_runtime = rt
 
 
 class ADKRuntime:
-    """Local in-process execution of agents and teams."""
+    """In-process runtime: executes ADK agents/teams via the Astromesh core
+    engine (orchestration patterns, ModelRouter, providers) and emits a
+    RunResult with cost/token/latency accounting from the tracing context."""
+
+    def __init__(self, provider_factory: Any = resolve_provider) -> None:
+        self._provider_factory = provider_factory
+
+    def _adk_tools_to_specs(self, tools: list | None) -> list[dict]:
+        specs = []
+        for t in tools or []:
+            specs.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": getattr(t, "tool_name", getattr(t, "name", "tool")),
+                        "description": getattr(t, "tool_description", getattr(t, "description", "")),
+                        "parameters": getattr(t, "parameters_schema", {}) or {},
+                    },
+                }
+            )
+        return specs
+
+    def _make_model_fn(self, agent: Any, tctx: TracingContext):
+        primary_model = agent.model
+        fallback_model = getattr(agent, "fallback_model", None)
+        routing = getattr(agent, "routing", "cost_optimized")
+        model_config = getattr(agent, "model_config", None)
+        system_prompt = getattr(agent, "system_prompt", "") or ""
+
+        router = ModelRouter({"strategy": routing})
+        for m in [primary_model] + ([fallback_model] if fallback_model else []):
+            pname, mname = _provider_and_model(m)
+            provider = self._provider_factory(pname, mname, model_config)
+            router.register_provider(m, provider)
+
+        async def model_fn(messages: list[dict], tools: list | None = None) -> CompletionResponse:
+            full = list(messages)
+            if system_prompt and not (full and full[0].get("role") == "system"):
+                full = [{"role": "system", "content": system_prompt}] + full
+
+            specs = self._adk_tools_to_specs(tools)
+            span = tctx.start_span("llm.complete", {"model": primary_model})
+            try:
+                kwargs: dict = {}
+                if specs:
+                    kwargs["tools"] = specs
+                resp = await router.route(
+                    full, requirements={"tools": bool(specs)}, **kwargs
+                )
+            except Exception:
+                tctx.finish_span(span, SpanStatus.ERROR)
+                raise
+            usage = resp.usage or {}
+            span.set_attribute("model", resp.model)
+            span.set_attribute("cost", resp.cost)
+            span.set_attribute("input_tokens", usage.get("input_tokens", 0))
+            span.set_attribute("output_tokens", usage.get("output_tokens", 0))
+            tctx.finish_span(span, SpanStatus.OK)
+            return resp
+
+        return model_fn
+
+    def _make_tool_fn(self, tools: list | None, tctx: "TracingContext | None" = None):
+        index = {}
+        for t in tools or []:
+            name = getattr(t, "tool_name", getattr(t, "name", None))
+            if name:
+                index[name] = t
+
+        async def tool_fn(name: str, args: dict) -> Any:
+            if name not in index:
+                raise KeyError(f"tool {name!r} not registered")
+            t = index[name]
+            span = tctx.start_span("tool.call", {"tool": name}) if tctx else None
+            try:
+                if hasattr(t, "execute"):
+                    result = await t.execute(args)
+                else:
+                    result = await t(**(args or {}))
+            except Exception:
+                if span is not None and tctx is not None:
+                    tctx.finish_span(span, SpanStatus.ERROR)
+                raise
+            if span is not None and tctx is not None:
+                tctx.finish_span(span, SpanStatus.OK)
+            return result
+
+        return tool_fn
+
+    def _build_context(
+        self, agent: Any, query: str, session_id: str, context: dict | None = None
+    ) -> RunContext:
+        tool_names = [
+            getattr(t, "tool_name", getattr(t, "name", "tool"))
+            for t in getattr(agent, "tools", [])
+        ]
+        ctx = RunContext.from_run_params(
+            query=query,
+            session_id=session_id,
+            agent_name=agent.name,
+            context=context,
+            tool_names=tool_names,
+        )
+        tool_fn = self._make_tool_fn(getattr(agent, "tools", []))
+
+        async def _complete(q: str, **kw) -> str:
+            from astromesh.observability.tracing import TracingContext as _TC
+
+            tctx = _TC(agent.name, session_id)
+            mf = self._make_model_fn(agent, tctx)
+            resp = await mf([{"role": "user", "content": q}], None)
+            return resp.content
+
+        ctx._call_tool_fn = tool_fn
+        ctx._complete_fn = _complete
+        return ctx
+
+    @staticmethod
+    def _steps_to_dicts(steps: list) -> list[dict]:
+        out = []
+        for s in steps:
+            out.append(s if isinstance(s, dict) else dataclasses.asdict(s))
+        return out
+
+    async def run_agent(
+        self,
+        agent_wrapper: Any,
+        query: str,
+        session_id: str = "default",
+        context: dict | None = None,
+        callbacks: Any = None,
+    ) -> RunResult:
+        tctx = TracingContext(agent_wrapper.name, session_id)
+        root = tctx.start_span("agent.run", {"agent": agent_wrapper.name})
+        try:
+            ctx = self._build_context(agent_wrapper, query, session_id, context)
+            handler_out = await agent_wrapper._handler(ctx)
+            if isinstance(handler_out, str):
+                answer, steps = handler_out, []
+            else:
+                model_fn = self._make_model_fn(agent_wrapper, tctx)
+                tool_fn = self._make_tool_fn(getattr(agent_wrapper, "tools", []), tctx)
+                pattern_cls = _PATTERNS.get(
+                    getattr(agent_wrapper, "pattern", "react"), ReActPattern
+                )
+                pattern = pattern_cls()
+                result = await pattern.execute(
+                    query,
+                    context or {},
+                    model_fn,
+                    tool_fn,
+                    getattr(agent_wrapper, "tools", []),
+                    max_iterations=getattr(agent_wrapper, "max_iterations", 10),
+                )
+                answer = result.get("answer", "")
+                steps = result.get("steps", [])
+            tctx.finish_span(root, SpanStatus.OK)
+        except Exception:
+            tctx.finish_span(root, SpanStatus.ERROR)
+            raise
+        return RunResult.from_runtime(
+            {
+                "answer": answer,
+                "steps": self._steps_to_dicts(steps),
+                "trace": tctx.to_dict(),
+            }
+        )
+
+    @staticmethod
+    def _is_team(obj: Any) -> bool:
+        return hasattr(obj, "pattern") and hasattr(obj, "agents") and not hasattr(obj, "_handler")
+
+    async def _run_member(self, member: Any, query: str, session_id: str, context):
+        if self._is_team(member):
+            return await self.run_team(member, query, session_id, context)
+        return await self.run_agent(member, query, session_id, context)
+
+    def _aggregate(self, name: str, session_id: str, children: list[tuple[str, RunResult]]) -> RunResult:
+        spans: list = []
+        steps: list = []
+        cost = 0.0
+        tin = tout = 0
+        latency = 0.0
+        parts = []
+        for agent_name, r in children:
+            cost += r.cost
+            tin += r.tokens.get("input", 0)
+            tout += r.tokens.get("output", 0)
+            latency = max(latency, r.latency_ms)
+            parts.append(f"## {agent_name}\n{r.answer}")
+            steps.append({"agent": agent_name, "answer": r.answer, "steps": r.steps})
+            if r.trace and r.trace.get("spans"):
+                spans.extend(r.trace["spans"])
+        return RunResult(
+            answer="\n\n".join(parts),
+            steps=steps,
+            trace={"trace_id": session_id, "agent": name, "session_id": session_id,
+                   "is_sampled": True, "spans": spans},
+            cost=cost,
+            tokens={"input": tin, "output": tout},
+            latency_ms=latency,
+            model="multi",
+        )
+
+    async def run_team(
+        self,
+        team: Any,
+        query: str,
+        session_id: str = "default",
+        context: dict | None = None,
+        callbacks: Any = None,
+    ) -> RunResult:
+        pattern = team.pattern
+        members = team.agents
+
+        if pattern == "parallel":
+            results = await asyncio.gather(
+                *[self._run_member(m, query, session_id, context) for m in members]
+            )
+            named = [
+                (m.name if hasattr(m, "name") else f"member{i}", r)
+                for i, (m, r) in enumerate(zip(members, results))
+            ]
+            return self._aggregate(team.name, session_id, named)
+
+        if pattern == "pipeline":
+            current = query
+            children: list[tuple[str, RunResult]] = []
+            last: RunResult | None = None
+            for i, m in enumerate(members):
+                r = await self._run_member(m, current, session_id, context)
+                children.append((getattr(m, "name", f"stage{i}"), r))
+                current = r.answer
+                last = r
+            agg = self._aggregate(team.name, session_id, children)
+            agg.answer = last.answer if last else ""
+            return agg
+
+        if pattern == "supervisor":
+            return await self._run_supervisor(team, query, session_id, context)
+        if pattern == "swarm":
+            return await self._run_swarm(team, query, session_id, context)
+        raise ValueError(f"unknown team pattern {pattern!r}")
+
+    async def _run_supervisor(self, team, query, session_id, context) -> RunResult:
+        supervisor = team.supervisor
+        workers = {w.name: w for w in team.workers}
+        tctx = TracingContext(supervisor.name, session_id)
+        root = tctx.start_span("agent.run", {"agent": supervisor.name})
+        model_fn = self._make_model_fn(supervisor, tctx)
+
+        async def delegating_tool_fn(name: str, args: dict):
+            if name in workers:
+                r = await self.run_agent(
+                    workers[name], args.get("query", query), session_id, context
+                )
+                return r.answer
+            raise KeyError(f"worker {name!r} not found")
+
+        pattern = SupervisorPattern(team._build_workers_dict())
+        try:
+            result = await pattern.execute(
+                query, context or {}, model_fn, delegating_tool_fn,
+                [], max_iterations=getattr(supervisor, "max_iterations", 10),
+            )
+            tctx.finish_span(root, SpanStatus.OK)
+        except Exception:
+            tctx.finish_span(root, SpanStatus.ERROR)
+            raise
+        return RunResult.from_runtime(
+            {
+                "answer": result.get("answer", ""),
+                "steps": self._steps_to_dicts(result.get("steps", [])),
+                "trace": tctx.to_dict(),
+            }
+        )
+
+    async def _run_swarm(self, team, query, session_id, context) -> RunResult:
+        agents = {a.name: a for a in team.agents}
+        entry = team.entry_agent or team.agents[0]
+        tctx = TracingContext(entry.name, session_id)
+        root = tctx.start_span("agent.run", {"agent": entry.name})
+        model_fn = self._make_model_fn(entry, tctx)
+
+        async def handoff_tool_fn(name: str, args: dict):
+            if name in agents:
+                r = await self.run_agent(
+                    agents[name], args.get("query", query), session_id, context
+                )
+                return r.answer
+            raise KeyError(f"agent {name!r} not found")
+
+        pattern = SwarmPattern(team._build_agent_configs())
+        try:
+            result = await pattern.execute(
+                query, context or {}, model_fn, handoff_tool_fn, [],
+                max_iterations=getattr(entry, "max_iterations", 10),
+            )
+            tctx.finish_span(root, SpanStatus.OK)
+        except Exception:
+            tctx.finish_span(root, SpanStatus.ERROR)
+            raise
+        return RunResult.from_runtime(
+            {
+                "answer": result.get("answer", ""),
+                "steps": self._steps_to_dicts(result.get("steps", [])),
+                "trace": tctx.to_dict(),
+            }
+        )
+
+    async def stream_agent(
+        self, agent_wrapper, query, session_id="default",
+        context=None, stream_steps=False, callbacks=None,
+    ):
+        result = await self.run_agent(agent_wrapper, query, session_id, context, callbacks)
+        if stream_steps:
+            for s in result.steps:
+                yield StreamEvent(type="step", step=s)
+        yield StreamEvent(type="done", result=result)
+
+    async def run_class_agent(
+        self, agent_instance, query, session_id="default", context=None, callbacks=None,
+    ) -> RunResult:
+        ctx = self._build_context(agent_instance, query, session_id, context)
+        await agent_instance.on_before_run(ctx)
+        if not hasattr(agent_instance, "_handler"):
+            async def _noop(c):
+                return None
+
+            agent_instance._handler = _noop  # type: ignore[attr-defined]
+        result = await self.run_agent(agent_instance, query, session_id, context, callbacks)
+        await agent_instance.on_after_run(ctx, result)
+        return result
+
+    async def stream_class_agent(
+        self, agent_instance, query, session_id="default",
+        context=None, stream_steps=False, callbacks=None,
+    ):
+        result = await self.run_class_agent(agent_instance, query, session_id, context, callbacks)
+        if stream_steps:
+            for s in result.steps:
+                yield StreamEvent(type="step", step=s)
+        yield StreamEvent(type="done", result=result)
 
     async def start(self) -> None:
         pass
@@ -49,302 +416,10 @@ class ADKRuntime:
     async def shutdown(self) -> None:
         pass
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> ADKRuntime:
         await self.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> bool:
         await self.shutdown()
         return False
-
-    async def run_agent(
-        self,
-        agent_wrapper: "AgentWrapper",
-        query,
-        session_id: str = "default",
-        context: dict | None = None,
-        callbacks=None,
-    ) -> RunResult:
-        return await self._run_local(agent_wrapper, query, session_id, context or {}, callbacks)
-
-    async def _run_local(
-        self,
-        a: "AgentWrapper",
-        query,
-        session_id: str,
-        context: dict,
-        callbacks,
-    ) -> RunResult:
-        t0 = time.perf_counter()
-        steps: list[dict] = []
-        tools_by_name = {t.tool_name: t for t in (a.tools or [])}
-        tools_schema = [
-            {"name": t.tool_name, "description": t.tool_description, "input_schema": t.parameters_schema}
-            for t in (a.tools or [])
-        ]
-        messages: list[dict] = [{"role": "user", "content": query if isinstance(query, str) else str(query)}]
-
-        total_input = 0
-        total_output = 0
-        total_cost = 0.0
-        last_model = a.model
-
-        for iteration in range(a.max_iterations):
-            result = await dispatch_with_fallback(
-                primary_model=a.model,
-                fallback_models=([a.fallback_model] if a.fallback_model else []),
-                routing=a.routing,
-                payload={
-                    "system": a.system_prompt,
-                    "messages": messages,
-                    "tools": tools_schema,
-                    "max_tokens": 4096,
-                },
-                caller=_llm_caller,
-            )
-            total_input += result.input_tokens
-            total_output += result.output_tokens
-            total_cost += result.cost_usd
-            last_model = result.model
-
-            if not result.tool_calls:
-                steps.append({"kind": "final", "text": result.text})
-                latency_ms = (time.perf_counter() - t0) * 1000
-                return RunResult(
-                    answer=result.text,
-                    steps=steps,
-                    trace=None,
-                    cost=total_cost,
-                    tokens={"input": total_input, "output": total_output},
-                    latency_ms=latency_ms,
-                    model=last_model,
-                    metadata={"session_id": session_id, "iterations": iteration + 1},
-                )
-
-            # Execute tool calls
-            tool_results = []
-            for tc in result.tool_calls:
-                t = tools_by_name.get(tc["name"])
-                if t is None:
-                    out = {"error": f"unknown tool {tc['name']!r}"}
-                else:
-                    out = await t(**tc["arguments"])
-                steps.append({"kind": "tool_call", "tool": tc["name"], "args": tc["arguments"], "result": out})
-                tool_results.append({"tool_use_id": tc["id"], "content": out})
-
-            messages.append({"role": "assistant", "content": result.text or "", "tool_calls": result.tool_calls})
-            messages.append({"role": "tool", "results": tool_results})
-
-        raise RuntimeError(f"max_iterations={a.max_iterations} reached without final answer")
-
-    async def stream_agent(self, agent_wrapper, query, session_id="default", context=None, stream_steps=False, callbacks=None):
-        async for ev in self._stream_local(agent_wrapper, query, session_id, context or {}, stream_steps, callbacks):
-            yield ev
-
-    async def _stream_local(self, a, query, session_id, context, stream_steps, callbacks):
-        tools_by_name = {t.tool_name: t for t in (a.tools or [])}
-        tools_schema = [
-            {"name": t.tool_name, "description": t.tool_description, "input_schema": t.parameters_schema}
-            for t in (a.tools or [])
-        ]
-        messages: list[dict] = [{"role": "user", "content": query if isinstance(query, str) else str(query)}]
-
-        for iteration in range(a.max_iterations):
-            result = await dispatch_with_fallback(
-                primary_model=a.model,
-                fallback_models=([a.fallback_model] if a.fallback_model else []),
-                routing=a.routing,
-                payload={"system": a.system_prompt, "messages": messages, "tools": tools_schema, "max_tokens": 4096},
-                caller=_llm_caller,
-            )
-
-            if not result.tool_calls:
-                yield StreamEvent(type="step", step={"kind": "final", "text": result.text, "model": result.model})
-                yield StreamEvent(type="done", step={"answer": result.text, "model": result.model})
-                return
-
-            for tc in result.tool_calls:
-                t = tools_by_name.get(tc["name"])
-                out = await t(**tc["arguments"])
-                yield StreamEvent(type="step", step={"kind": "tool_call", "tool": tc["name"], "args": tc["arguments"], "result": out})
-                messages.append({"role": "assistant", "content": result.text or "", "tool_calls": result.tool_calls})
-                messages.append({"role": "tool", "results": [{"tool_use_id": tc["id"], "content": out}]})
-
-        raise RuntimeError(f"max_iterations={a.max_iterations} reached without final answer")
-
-    async def run_class_agent(self, *args, **kwargs):
-        raise NotImplementedError("run_class_agent not in MVP; pending future task")
-
-    async def stream_class_agent(self, *args, **kwargs):
-        raise NotImplementedError("stream_class_agent not in MVP; pending future task")
-        yield  # generator stub
-
-    async def run_team(self, team: "AgentTeam", query, session_id="default", context=None, callbacks=None) -> RunResult:
-        ctx = context or {}
-        if team.pattern == "pipeline":
-            return await self._run_pipeline(team, query, session_id, ctx, callbacks)
-        if team.pattern == "parallel":
-            return await self._run_parallel(team, query, session_id, ctx, callbacks)
-        if team.pattern == "supervisor":
-            return await self._run_supervisor(team, query, session_id, ctx, callbacks)
-        raise NotImplementedError(f"team.pattern={team.pattern!r} not supported in 0.1.7 MVP")
-
-    async def _run_pipeline(self, team, query, session_id, context, callbacks):
-        previous_outputs: dict = dict(context.get("previous_outputs", {}))
-        current_input = query
-        agg_input_tokens = 0
-        agg_output_tokens = 0
-        agg_cost = 0.0
-        last_answer = ""
-        last_model = ""
-        all_steps: list[dict] = []
-
-        for sub in team.agents:
-            ctx_with_outputs = {**context, "previous_outputs": dict(previous_outputs)}
-            if isinstance(sub, AgentTeam_):
-                sub_result = await self.run_team(sub, current_input, session_id, ctx_with_outputs, callbacks)
-            else:
-                sub_result = await self._run_local(sub, current_input, session_id, ctx_with_outputs, callbacks)
-            agg_input_tokens += sub_result.tokens["input"]
-            agg_output_tokens += sub_result.tokens["output"]
-            agg_cost += sub_result.cost
-            last_answer = sub_result.answer
-            last_model = sub_result.model
-            previous_outputs[sub.name] = sub_result.answer
-            all_steps.append({"agent": sub.name, "answer": sub_result.answer, "steps": sub_result.steps})
-            current_input = sub_result.answer
-
-        return RunResult(
-            answer=last_answer,
-            steps=all_steps,
-            trace=None,
-            cost=agg_cost,
-            tokens={"input": agg_input_tokens, "output": agg_output_tokens},
-            latency_ms=0.0,
-            model=last_model,
-            metadata={"session_id": session_id, "previous_outputs": previous_outputs, "pattern": "pipeline"},
-        )
-
-    async def _run_parallel(self, team, query, session_id, context, callbacks):
-        async def _run_one(sub):
-            ctx_copy = dict(context)
-            if isinstance(sub, AgentTeam_):
-                return sub.name, await self.run_team(sub, query, session_id, ctx_copy, callbacks)
-            return sub.name, await self._run_local(sub, query, session_id, ctx_copy, callbacks)
-
-        results: dict = {}
-        async with asyncio.TaskGroup() as tg:
-            tasks = [tg.create_task(_run_one(sub)) for sub in team.agents]
-
-        for t in tasks:
-            name, res = t.result()
-            results[name] = res
-
-        agg_input = sum(r.tokens["input"] for r in results.values())
-        agg_output = sum(r.tokens["output"] for r in results.values())
-        agg_cost = sum(r.cost for r in results.values())
-        previous_outputs = {name: r.answer for name, r in results.items()}
-
-        # Aggregated answer = JSON of outputs (downstream agents in pipeline parsean)
-        import json
-        agg_answer = json.dumps(previous_outputs, ensure_ascii=False)
-
-        return RunResult(
-            answer=agg_answer,
-            steps=[{"agent": n, "answer": r.answer, "steps": r.steps} for n, r in results.items()],
-            trace=None,
-            cost=agg_cost,
-            tokens={"input": agg_input, "output": agg_output},
-            latency_ms=0.0,
-            model="multi",
-            metadata={"session_id": session_id, "previous_outputs": previous_outputs, "pattern": "parallel"},
-        )
-
-    async def _run_supervisor(self, team, query, session_id, context, callbacks):
-        sup = team.supervisor
-        if sup is None:
-            raise ValueError("supervisor pattern requires team.supervisor")
-        workers_by_name = {w.name: w for w in team.workers}
-
-        worker_descriptions = "\n".join(f"- {w.name}: {w.description}" for w in team.workers)
-        sup_system = (
-            (sup.system_prompt or "")
-            + "\n\n# Workers disponibles\n" + worker_descriptions
-            + "\n\n# Tools disponibles\n"
-            + "- delegate_to(worker: str, task: str) -> delega una tarea a un worker\n"
-            + "- final_answer(answer: str) -> entrega la respuesta final"
-        )
-        delegate_schema = {
-            "name": "delegate_to",
-            "description": "Delega una tarea a un worker del equipo.",
-            "input_schema": {
-                "type": "object",
-                "properties": {"worker": {"type": "string"}, "task": {"type": "string"}},
-                "required": ["worker", "task"],
-            },
-        }
-        final_schema = {
-            "name": "final_answer",
-            "description": "Entrega la respuesta final del equipo.",
-            "input_schema": {
-                "type": "object",
-                "properties": {"answer": {"type": "string"}},
-                "required": ["answer"],
-            },
-        }
-
-        messages: list[dict] = [{"role": "user", "content": query if isinstance(query, str) else str(query)}]
-        worker_results: dict = {}
-        agg_input = agg_output = 0
-        agg_cost = 0.0
-        last_model = sup.model
-
-        for _ in range(sup.max_iterations):
-            sup_res = await dispatch_with_fallback(
-                primary_model=sup.model,
-                fallback_models=([sup.fallback_model] if sup.fallback_model else []),
-                routing=sup.routing,
-                payload={"system": sup_system, "messages": messages, "tools": [delegate_schema, final_schema], "max_tokens": 4096},
-                caller=_llm_caller,
-            )
-            agg_input += sup_res.input_tokens
-            agg_output += sup_res.output_tokens
-            agg_cost += sup_res.cost_usd
-            last_model = sup_res.model
-
-            if not sup_res.tool_calls:
-                # Treated as final
-                return RunResult(
-                    answer=sup_res.text, steps=[], trace=None, cost=agg_cost,
-                    tokens={"input": agg_input, "output": agg_output}, latency_ms=0.0,
-                    model=last_model,
-                    metadata={"session_id": session_id, "worker_results": worker_results, "pattern": "supervisor"},
-                )
-
-            tool_results = []
-            for tc in sup_res.tool_calls:
-                if tc["name"] == "final_answer":
-                    return RunResult(
-                        answer=tc["arguments"]["answer"], steps=[], trace=None, cost=agg_cost,
-                        tokens={"input": agg_input, "output": agg_output}, latency_ms=0.0,
-                        model=last_model,
-                        metadata={"session_id": session_id, "worker_results": worker_results, "pattern": "supervisor"},
-                    )
-                if tc["name"] == "delegate_to":
-                    worker_name = tc["arguments"]["worker"]
-                    worker = workers_by_name.get(worker_name)
-                    if worker is None:
-                        out = {"error": f"unknown worker {worker_name!r}"}
-                    else:
-                        sub_res = await self._run_local(worker, tc["arguments"]["task"], session_id, dict(context), callbacks)
-                        worker_results[worker_name] = sub_res.answer
-                        agg_input += sub_res.tokens["input"]
-                        agg_output += sub_res.tokens["output"]
-                        agg_cost += sub_res.cost
-                        out = sub_res.answer
-                    tool_results.append({"tool_use_id": tc["id"], "content": out})
-
-            messages.append({"role": "assistant", "content": sup_res.text or "", "tool_calls": sup_res.tool_calls})
-            messages.append({"role": "tool", "results": tool_results})
-
-        raise RuntimeError(f"supervisor max_iterations reached without final_answer")

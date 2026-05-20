@@ -75,8 +75,9 @@ def resolve_provider(
     # Build provider config dict matching Astromesh constructors
     provider_config = {"model": model_name}
     if endpoint:
-        provider_config["endpoint"] = endpoint
+        provider_config["base_url"] = endpoint
     if env_var:
+        provider_config["api_key_env"] = env_var
         api_key = os.environ.get(env_var, "")
         if api_key:
             provider_config["api_key"] = api_key
