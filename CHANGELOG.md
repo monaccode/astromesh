@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.28.2] - 2026-05-20
+
+No changes to the `astromesh` core package; this release tracks the
+subpackage releases below so Docker images (`fulfarodev/astromesh:0.28.2`)
+and PyPI builds advance in lockstep with the latest subpackage tags.
+
 ### Subpackage releases
-- `astromesh-adk` v0.1.7 — `ADKRuntime` rewrite over the core engine + `resolve_provider` `base_url` fix. See `astromesh-adk/CHANGELOG.md`.
+- `astromesh-adk` v0.1.7 — `ADKRuntime` rewrite that bridges ADK abstractions to the core engine (orchestration patterns + `ModelRouter` + providers + tracing) and `resolve_provider` `base_url`/`api_key_env` fix so non-OpenAI endpoints are honored. See `astromesh-adk/CHANGELOG.md`.
+- `astromesh-orbit` v0.2.0 — custom env vars in Cloud Run, public-by-default services, dual auth (service account + gcloud CLI), auto VPC peering, lock-free ops, `TOFU_PATH` support, plus Cloud Run `PORT`/port-8000/Windows cp1252 fixes. See `astromesh-orbit/CHANGELOG.md`.
 
 ## [v0.28.1] - 2026-04-22
 
