@@ -149,3 +149,60 @@ async def test_swarm_pattern():
     pattern = SwarmPattern()
     result = await pattern.execute("question", {}, model_fn, AsyncMock(), [])
     assert result["answer"] == "The answer is 42"
+
+
+@pytest.mark.asyncio
+async def test_react_echoes_tool_call_in_openai_format():
+    """When a tool call iteration happens, ReAct echoes the assistant
+    tool_calls back into the next request. After 0.28.4, tc["arguments"]
+    is a parsed dict (internal shape); but the assistant.tool_calls field
+    sent to OpenAI-compatible APIs MUST be the nested OpenAI shape:
+    {id, type:"function", function:{name, arguments:<JSON string>}}.
+    Otherwise the API rejects the next request with 400 Bad Request."""
+    import json as _json
+
+    captured = []
+
+    async def capturing_model_fn(messages, tools):
+        captured.append([dict(m) for m in messages])
+        if len(captured) == 1:
+            return make_response(
+                "I'll call calc_roi",
+                tool_calls=[{
+                    "id": "tc_1",
+                    "name": "calc_roi",
+                    "arguments": {"monthly_volume": 100, "minutes_saved_per_unit": 5},
+                }],
+            )
+        return make_response("ROI is positive")
+
+    tool_fn = AsyncMock(return_value={"monthly_savings_usd": 416.67})
+
+    pattern = ReActPattern()
+    await pattern.execute(
+        query="What's the ROI?", context={}, model_fn=capturing_model_fn,
+        tool_fn=tool_fn, tools=[],
+    )
+
+    # Second model call: the assistant message echoing the tool call must
+    # use the nested OpenAI format, not the normalized internal shape.
+    second_call_messages = captured[1]
+    assistant_msg = next(
+        m for m in second_call_messages
+        if m.get("role") == "assistant" and m.get("tool_calls")
+    )
+    tc = assistant_msg["tool_calls"][0]
+    assert tc.get("type") == "function", f"tool_call missing type:function — got {tc}"
+    assert "function" in tc, f"tool_call missing nested 'function' key — got {tc}"
+    assert tc["function"]["name"] == "calc_roi"
+    # arguments MUST be a JSON string per the OpenAI schema
+    assert isinstance(tc["function"]["arguments"], str), (
+        f"arguments must be a JSON string, got {type(tc['function']['arguments']).__name__}"
+    )
+    assert _json.loads(tc["function"]["arguments"]) == {
+        "monthly_volume": 100,
+        "minutes_saved_per_unit": 5,
+    }
+    # The matching tool-result message follows with the same tool_call_id
+    tool_msg = next(m for m in second_call_messages if m.get("role") == "tool")
+    assert tool_msg["tool_call_id"] == "tc_1"

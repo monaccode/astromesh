@@ -51,11 +51,26 @@ class ReActPattern(OrchestrationPattern):
                             observation=str(observation),
                         )
                     )
+                    # Reshape the normalized internal tool_call back to OpenAI
+                    # format before echoing it to the LLM. Since 0.28.4 the
+                    # provider normalizes tool_calls to {id, name, arguments:dict}
+                    # for internal consumption — but the assistant.tool_calls
+                    # field sent over the wire MUST be the nested OpenAI shape
+                    # {id, type:"function", function:{name, arguments:<JSON
+                    # string>}}, or the API rejects the next request as 400.
+                    oai_tc = {
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {
+                            "name": tc["name"],
+                            "arguments": json_mod.dumps(tc["arguments"], ensure_ascii=False),
+                        },
+                    }
                     messages.append(
                         {
                             "role": "assistant",
                             "content": response.content,
-                            "tool_calls": [tc],
+                            "tool_calls": [oai_tc],
                         }
                     )
                     messages.append(
