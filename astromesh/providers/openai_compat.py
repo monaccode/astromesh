@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from typing import Any, AsyncIterator
@@ -20,6 +21,33 @@ PRICING: dict[str, tuple[float, float]] = {
     "gpt-4": (0.0300, 0.0600),
     "gpt-3.5-turbo": (0.0005, 0.0015),
 }
+
+
+def _normalize_tool_calls(raw: list[dict] | None) -> list[dict]:
+    """Normalize OpenAI nested tool-calls to astromesh's flat canonical shape.
+
+    OpenAI/Anthropic-compat APIs return tool calls as
+    {"id", "type", "function": {"name", "arguments": "<json string>"}}.
+    astromesh's orchestration patterns and clarus's structured-output consumer
+    expect {"id", "name", "arguments": <dict>}.
+    """
+    normalized: list[dict] = []
+    for tc in raw or []:
+        fn = tc.get("function", {})
+        args = fn.get("arguments", tc.get("arguments", {}))
+        if isinstance(args, str):
+            try:
+                args = json.loads(args) if args.strip() else {}
+            except json.JSONDecodeError:
+                args = {"_raw": args}
+        normalized.append(
+            {
+                "id": tc.get("id", ""),
+                "name": fn.get("name") or tc.get("name", ""),
+                "arguments": args,
+            }
+        )
+    return normalized
 
 
 class OpenAICompatProvider:
@@ -92,7 +120,7 @@ class OpenAICompatProvider:
             usage={"input_tokens": input_tokens, "output_tokens": output_tokens},
             latency_ms=latency_ms,
             cost=cost,
-            tool_calls=message.get("tool_calls", []),
+            tool_calls=_normalize_tool_calls(message.get("tool_calls")),
         )
 
     async def stream(self, messages: list[dict], **kwargs: Any) -> AsyncIterator[CompletionChunk]:
@@ -117,8 +145,6 @@ class OpenAICompatProvider:
                         content="", model=model, provider="openai_compat", done=True
                     )
                     break
-                import json
-
                 chunk_data = json.loads(raw)
                 delta = chunk_data["choices"][0].get("delta", {})
                 yield CompletionChunk(
