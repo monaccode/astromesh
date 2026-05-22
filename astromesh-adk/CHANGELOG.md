@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-05-22
+
 ### Added
 - The ADK runner now invokes the `Callbacks` API during execution: `on_tool_result` fires after each tool call and `on_error` on a tool failure, threaded through `run_team → _run_member → run_agent → _make_tool_fn`. Callback invocations are guarded so a faulty callback cannot break a run. Previously `callbacks` was accepted by `run_agent`/`run_team` but never invoked (`astromesh_adk/runner.py`)
 
