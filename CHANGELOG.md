@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.28.5] - 2026-05-22
+
+### Fixed
+- `ReActPattern.execute` now reshapes the normalized internal tool-call `{id, name, arguments:dict}` back to the OpenAI nested shape `{id, type:"function", function:{name, arguments:<JSON string>}}` before echoing it into the next assistant message. After 0.28.4's normalize, the internal shape was being sent over the wire as-is and the API rejected the second turn with `400 Bad Request` whenever an agent took a follow-up step after a tool call. Other patterns (PlanAndExecute, Pipeline, ParallelFanOut) don't echo `tool_calls` back, so they were unaffected (`astromesh/orchestration/patterns.py`)
+
 ## [v0.28.4] - 2026-05-22
 
 ### Fixed
