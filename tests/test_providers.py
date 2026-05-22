@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import httpx
+import pytest
 import respx
 
+from astromesh.errors import ModelProviderError
 from astromesh.providers.base import CompletionResponse
 from astromesh.providers.hf_tgi_provider import HFTGIProvider
 from astromesh.providers.llamacpp_provider import LlamaCppProvider
@@ -120,6 +122,26 @@ async def test_openai_compat_complete():
 def test_openai_compat_supports_tools():
     provider = OpenAICompatProvider({"model": "gpt-4o", "api_key": "sk-test"})
     assert provider.supports_tools() is True
+
+
+async def test_openai_compat_missing_api_key_fails_fast(monkeypatch):
+    """No API key → fail fast with a clear ModelProviderError instead of an
+    empty 'Authorization: Bearer ' header that httpx rejects as illegal."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    provider = OpenAICompatProvider(
+        {
+            "base_url": "https://api.anthropic.com/v1",
+            "model": "claude-sonnet-4-6",
+            "api_key_env": "ANTHROPIC_API_KEY",
+        }
+    )
+
+    with pytest.raises(ModelProviderError) as exc_info:
+        await provider.complete(MESSAGES)
+
+    assert exc_info.value.code == "model_missing_api_key"
+    assert "ANTHROPIC_API_KEY" in exc_info.value.hint
 
 
 # ===================================================================
