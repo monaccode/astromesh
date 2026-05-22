@@ -128,7 +128,7 @@ class ADKRuntime:
 
         return model_fn
 
-    def _make_tool_fn(self, tools: list | None, tctx: "TracingContext | None" = None):
+    def _make_tool_fn(self, tools: list | None, tctx: "TracingContext | None" = None, callbacks=None):
         index = {}
         for t in tools or []:
             name = getattr(t, "tool_name", getattr(t, "name", None))
@@ -145,12 +145,22 @@ class ADKRuntime:
                     result = await t.execute(args)
                 else:
                     result = await t(**(args or {}))
-            except Exception:
+            except Exception as exc:
                 if span is not None and tctx is not None:
                     tctx.finish_span(span, SpanStatus.ERROR)
+                if callbacks is not None:
+                    try:
+                        await callbacks.on_error(exc, {"tool": name})
+                    except Exception:  # noqa: BLE001 — callbacks are best-effort
+                        pass
                 raise
             if span is not None and tctx is not None:
                 tctx.finish_span(span, SpanStatus.OK)
+            if callbacks is not None:
+                try:
+                    await callbacks.on_tool_result(name, args, result)
+                except Exception:  # noqa: BLE001 — callbacks are best-effort
+                    pass
             return result
 
         return tool_fn
@@ -207,7 +217,7 @@ class ADKRuntime:
                 answer, steps = handler_out, []
             else:
                 model_fn = self._make_model_fn(agent_wrapper, tctx)
-                tool_fn = self._make_tool_fn(getattr(agent_wrapper, "tools", []), tctx)
+                tool_fn = self._make_tool_fn(getattr(agent_wrapper, "tools", []), tctx, callbacks)
                 pattern_cls = _PATTERNS.get(
                     getattr(agent_wrapper, "pattern", "react"), ReActPattern
                 )
@@ -238,10 +248,10 @@ class ADKRuntime:
     def _is_team(obj: Any) -> bool:
         return hasattr(obj, "pattern") and hasattr(obj, "agents") and not hasattr(obj, "_handler")
 
-    async def _run_member(self, member: Any, query: str, session_id: str, context):
+    async def _run_member(self, member: Any, query: str, session_id: str, context, callbacks=None):
         if self._is_team(member):
-            return await self.run_team(member, query, session_id, context)
-        return await self.run_agent(member, query, session_id, context)
+            return await self.run_team(member, query, session_id, context, callbacks)
+        return await self.run_agent(member, query, session_id, context, callbacks)
 
     def _aggregate(self, name: str, session_id: str, children: list[tuple[str, RunResult]]) -> RunResult:
         spans: list = []
@@ -283,7 +293,7 @@ class ADKRuntime:
 
         if pattern == "parallel":
             results = await asyncio.gather(
-                *[self._run_member(m, query, session_id, context) for m in members]
+                *[self._run_member(m, query, session_id, context, callbacks) for m in members]
             )
             named = [
                 (m.name if hasattr(m, "name") else f"member{i}", r)
@@ -296,7 +306,7 @@ class ADKRuntime:
             children: list[tuple[str, RunResult]] = []
             last: RunResult | None = None
             for i, m in enumerate(members):
-                r = await self._run_member(m, current, session_id, context)
+                r = await self._run_member(m, current, session_id, context, callbacks)
                 children.append((getattr(m, "name", f"stage{i}"), r))
                 current = r.answer
                 last = r
