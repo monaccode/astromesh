@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.28.4] - 2026-05-22
+
+### Fixed
+- `OpenAICompatProvider.complete()` now normalizes tool-calls from the OpenAI nested shape (`{function: {name, arguments-as-json-string}}`) to the flat canonical shape (`{id, name, arguments-as-dict}`) that the orchestration patterns and structured-output consumers expect. Previously a tool-calling agent crashed the run with `KeyError: 'name'` at `orchestration/patterns.py` (`astromesh/providers/openai_compat.py`)
+
 ## [v0.28.3] - 2026-05-22
 
 ### Fixed

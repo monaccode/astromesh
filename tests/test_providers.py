@@ -12,7 +12,7 @@ from astromesh.providers.hf_tgi_provider import HFTGIProvider
 from astromesh.providers.llamacpp_provider import LlamaCppProvider
 from astromesh.providers.ollama_provider import OllamaProvider
 from astromesh.providers.onnx_provider import ONNXProvider
-from astromesh.providers.openai_compat import OpenAICompatProvider
+from astromesh.providers.openai_compat import OpenAICompatProvider, _normalize_tool_calls
 from astromesh.providers.vllm_provider import VLLMProvider
 
 # ---------------------------------------------------------------------------
@@ -142,6 +142,78 @@ async def test_openai_compat_missing_api_key_fails_fast(monkeypatch):
 
     assert exc_info.value.code == "model_missing_api_key"
     assert "ANTHROPIC_API_KEY" in exc_info.value.hint
+
+
+OPENAI_TOOL_CALL_RESPONSE = {
+    "id": "chatcmpl-tc",
+    "object": "chat.completion",
+    "choices": [
+        {
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "calc_roi",
+                            "arguments": '{"monthly_volume": 100, "minutes_saved": 5}',
+                        },
+                    }
+                ],
+            },
+            "finish_reason": "tool_calls",
+        }
+    ],
+    "usage": {"prompt_tokens": 10, "completion_tokens": 8, "total_tokens": 18},
+}
+
+
+@respx.mock
+async def test_openai_compat_normalizes_tool_calls():
+    """The API returns tool_calls in OpenAI nested shape
+    ({function: {name, arguments-as-json-string}}). complete() must normalize
+    to the flat canonical shape {id, name, arguments-as-dict} that astromesh's
+    orchestration patterns expect — otherwise patterns.py does tc["name"] and
+    raises KeyError: 'name'."""
+    respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=OPENAI_TOOL_CALL_RESPONSE)
+    )
+
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.openai.com/v1", "model": "gpt-4o", "api_key": "sk-test"}
+    )
+    result = await provider.complete(MESSAGES)
+
+    assert result.tool_calls == [
+        {
+            "id": "call_1",
+            "name": "calc_roi",
+            "arguments": {"monthly_volume": 100, "minutes_saved": 5},
+        }
+    ]
+
+
+def test_normalize_tool_calls_arg_shapes():
+    """_normalize_tool_calls handles non-string-args paths: an already-dict
+    arguments value passes through unchanged, a malformed JSON string is
+    preserved as {"_raw": ...} for debuggability, and None input yields []."""
+    # (a) arguments already a dict — passes through unchanged
+    already_dict = _normalize_tool_calls(
+        [{"id": "c1", "function": {"name": "f", "arguments": {"k": "v"}}}]
+    )
+    assert already_dict == [{"id": "c1", "name": "f", "arguments": {"k": "v"}}]
+
+    # (b) malformed JSON string — preserved under "_raw"
+    malformed = _normalize_tool_calls(
+        [{"id": "c2", "function": {"name": "g", "arguments": "{not json"}}]
+    )
+    assert malformed == [{"id": "c2", "name": "g", "arguments": {"_raw": "{not json"}}]
+
+    # (c) None input — empty list
+    assert _normalize_tool_calls(None) == []
 
 
 # ===================================================================
