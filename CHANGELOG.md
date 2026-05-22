@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.28.3] - 2026-05-22
+
 ### Fixed
 - `OpenAICompatProvider` now fails fast with a clear `ModelProviderError` (`code=model_missing_api_key`) when no API key is configured. Previously it built an empty `Authorization: Bearer ` header and the request died with the cryptic `httpx.LocalProtocolError: Illegal header value b'Bearer '`; the router surfaced that as the last-error string with no hint that a key was simply missing. The error now reads `No API key for OpenAI-compatible provider (model '...')` and names the expected env var. Router fallback is unaffected — the provider raises at request time like any other failure (`astromesh/providers/openai_compat.py`)
 
