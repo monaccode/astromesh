@@ -40,10 +40,26 @@ def _python_type_to_json(annotation) -> str:
     return _TYPE_MAP.get(annotation, "string")
 
 
+def _is_pydantic_model(t) -> bool:
+    """Duck-typed Pydantic v2 BaseModel check (avoids a hard pydantic dep)."""
+    return inspect.isclass(t) and hasattr(t, "model_json_schema") and hasattr(t, "model_validate")
+
+
 def _generate_schema(func) -> dict:
-    """Generate JSON schema from function signature and type hints."""
+    """Generate JSON schema from function signature and type hints.
+
+    Special case: a single user-facing param annotated as a Pydantic BaseModel
+    returns that model's own JSON schema, so the LLM sees the real field shape
+    instead of `"string"` (the fallback for non-primitive types).
+    """
     sig = inspect.signature(func)
     hints = get_type_hints(func)
+
+    user_params = [n for n in sig.parameters if n not in ("self", "ctx", "context")]
+    if len(user_params) == 1:
+        ann = hints.get(user_params[0])
+        if _is_pydantic_model(ann):
+            return ann.model_json_schema()
 
     properties = {}
     required = []
@@ -90,6 +106,24 @@ class ToolDefinitionWrapper:
         self.timeout = timeout
 
     async def __call__(self, *args, **kwargs):
+        # If called only with kwargs and the function takes a single Pydantic
+        # model parameter, construct that model from the kwargs (the LLM sees
+        # the model's schema and sends its fields directly). Both calling
+        # forms are accepted: nested (`{"<param>": {field: value, ...}}`)
+        # and flat (`{field: value, ...}`).
+        if not args and kwargs:
+            sig = inspect.signature(self._func)
+            user_params = [n for n in sig.parameters if n not in ("self", "ctx", "context")]
+            if len(user_params) == 1:
+                hints = get_type_hints(self._func)
+                ann = hints.get(user_params[0])
+                if _is_pydantic_model(ann):
+                    if user_params[0] in kwargs and len(kwargs) == 1:
+                        raw = kwargs[user_params[0]]
+                        if isinstance(raw, dict):
+                            return await self._func(ann.model_validate(raw))
+                        return await self._func(raw)
+                    return await self._func(ann.model_validate(kwargs))
         return await self._func(*args, **kwargs)
 
     def __repr__(self):

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `@tool` decorator now supports a single Pydantic `BaseModel` parameter (e.g. `def fn(input: MyModel)`): the auto-generated JSON schema is `MyModel.model_json_schema()` instead of degrading to `"string"`, and the wrapper accepts the model's field names as kwargs (constructing the model before calling the function) — matches how LLMs naturally call tools whose params are typed as Pydantic models. Previously a Pydantic param degraded silently and the function received a string at runtime, raising `'str' object has no attribute …` on field access (`astromesh_adk/tools.py`)
+
 ## [0.1.8] - 2026-05-22
 
 ### Added
