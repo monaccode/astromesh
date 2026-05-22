@@ -8,6 +8,8 @@ from typing import Any, AsyncIterator
 
 import httpx
 
+from astromesh.errors import ModelProviderError
+
 from .base import CompletionChunk, CompletionResponse
 
 # Pricing per 1 000 tokens (input, output) in USD
@@ -29,14 +31,24 @@ class OpenAICompatProvider:
         self.model: str = config.get("model", "gpt-4o")
         self.timeout: float = config.get("timeout", 120.0)
 
+        env_var = config.get("api_key_env", "OPENAI_API_KEY")
         api_key = config.get("api_key")
         if not api_key:
-            env_var = config.get("api_key_env", "OPENAI_API_KEY")
             api_key = os.environ.get(env_var, "")
         self.api_key: str = api_key
+        self.api_key_env: str = env_var
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
+        if not self.api_key:
+            raise ModelProviderError(
+                f"No API key for OpenAI-compatible provider (model '{self.model}').",
+                hint=(
+                    f"Set the {self.api_key_env} environment variable, or pass "
+                    f"'api_key' in the provider config. Endpoint: {self.base_url}"
+                ),
+                code="model_missing_api_key",
+            )
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
