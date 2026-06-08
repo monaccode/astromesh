@@ -2,7 +2,14 @@
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-/* ── Dark mode only — no light theme ─────────── */
+/* ── Dark mode only — no light theme ─────────────────────────
+   Enforcement: ThemeSelect is hidden (no toggle) and ThemeProvider
+   forces data-theme="dark" before paint. The rule below is a guard so
+   native form controls/scrollbars stay dark even if light is ever requested. */
+:root[data-theme='light'] {
+  color-scheme: dark;
+}
+
 :root {
   color-scheme: dark;
 

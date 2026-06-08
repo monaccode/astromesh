@@ -17,7 +17,9 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromesh' },
       ],
       components: {
+        // Dark-only: hide the toggle and force the dark theme on every load.
         ThemeSelect: './src/components/ThemeSelect.astro',
+        ThemeProvider: './src/components/ThemeProvider.astro',
         SocialIcons: './src/components/SocialIcons.astro',
       },
       sidebar: [
