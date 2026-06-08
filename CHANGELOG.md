@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Documentation site: added dedicated sections for four previously-undocumented ecosystem projects — **Cortex** (desktop IDE & control plane), **Nexus** (multi-tenant Kubernetes control plane), **Astromesh OS** (immutable `mkosi` appliance), and **Leia** (natural-language Claude Code plugin) — 4 pages each, plus accent-themed `ProductShowcase` landing components (`docs-site/src/content/docs/{cortex,nexus,os,leia}/`, `docs-site/src/components/{Product,Cortex,Nexus,Os,Leia}Showcase.astro`)
+- Rewrote the Ecosystem page (6 → 10 components) with a **Forge vs Cortex** comparison clarifying the two coexist (Forge = node-embedded web SPA, Cortex = desktop IDE), and added a note clarifying that **Astromesh Node** is a native OS-service deployment, not a container (`docs-site/src/content/docs/getting-started/ecosystem.md`, `node/introduction.mdx`)
+- Repurposed the legacy `deployment/astromesh-os` redirect to point at the new Astromesh OS section, and refreshed component versions across the site (core 0.28.5, ADK 0.1.8, CLI 0.1.1, Node 0.1.1, Orbit 0.2.0, Forge 0.23.0, Cortex 0.12.0, Nexus 0.3.0, Leia 0.1.0, OS phase 2b); registered all new sections in the sidebar (`docs-site/astro.config.mjs`)
+
 ## [v0.28.5] - 2026-05-22
 
 ### Fixed
