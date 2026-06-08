@@ -1,0 +1,156 @@
+---
+title: Quickstart
+description: Bootstrap Astromesh Nexus on a local Kind cluster and deploy your first agent.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This guide stands up Nexus on a local Kind cluster, then creates a tenant and deploys an agent — via `kubectl` and via the REST API.
+
+## Prerequisites
+
+| Tool | Purpose |
+|------|---------|
+| Docker | Container runtime |
+| kubectl | Kubernetes CLI |
+| Kind | Local Kubernetes clusters |
+| Helm | Optional — chart-based deploy on existing clusters |
+| Make | Build orchestration |
+
+<Aside type="note">
+The bootstrap script will attempt to install any missing prerequisites (Docker, kubectl, Kind, Helm, Make) using your system package manager. On a fresh machine, it is still worth installing Docker yourself first.
+</Aside>
+
+## Fast Path: Bootstrap on Kind
+
+A single script creates a Kind cluster (`nexus-local`), installs dependencies, builds and deploys the Nexus controller, and seeds a dev account, tenant, and API key.
+
+```bash
+./hack/bootstrap.sh
+```
+
+Under the hood it runs these stages in order:
+
+| Stage | Script | What it does |
+|-------|--------|--------------|
+| 0 | `deploy/bootstrap/00-cluster.sh` | Creates the Kind cluster `nexus-local` |
+| 1 | `deploy/bootstrap/01-dependencies.sh` | Installs in-cluster dependencies |
+| 2 | `deploy/bootstrap/02-astromesh-node.sh` | Stages the astromesh-node components |
+| 3 | `deploy/bootstrap/03-nexus.sh` | Builds + loads the image, installs CRDs, deploys the controller |
+| 4 | `deploy/bootstrap/04-seed.sh` | Registers a dev account, creates a tenant, generates an API key |
+
+On success it prints:
+
+```text
+Nexus ready at http://localhost:8080
+```
+
+The seed step also prints the dev credentials, tenant ID, and raw API key — save the API key, it is shown only once.
+
+<Aside type="tip">
+On Windows, equivalent PowerShell scripts exist alongside the shell ones (`hack/bootstrap.ps1`, `deploy/bootstrap/*.ps1`).
+</Aside>
+
+### Manual install on an existing cluster
+
+If you already have a cluster, the controller deploy is what stage 3 runs:
+
+```bash
+make docker-build IMG=nexus:dev          # build the controller image
+kind load docker-image nexus:dev --name nexus-local   # Kind only
+make install                             # install CRDs
+kubectl create namespace nexus-system
+make deploy IMG=nexus:dev                # deploy the controller
+kubectl rollout status deployment/nexus-controller-manager -n nexus-system --timeout=120s
+```
+
+For non-Kind clusters, push the image to a registry (`make docker-push IMG=...`) and deploy with the Helm chart in `deploy/helm/nexus/` instead of `make deploy`.
+
+## Create a Tenant
+
+### Option A — kubectl
+
+Apply the sample manifests directly:
+
+```bash
+kubectl apply -f config/samples/nexus_v1alpha1_nexustenant.yaml
+kubectl get nexustenants -n nexus-system
+```
+
+Wait for `PHASE` to reach `Ready`. The reconciler will have created the tenant namespace, the `astromesh-node` Deployment/Service, and recorded `status.nodeEndpoint`.
+
+### Option B — REST API
+
+Register, log in, create a tenant, and mint an API key (the dev account below is created by the bootstrap seed step):
+
+```bash
+API_URL="http://localhost:8080"
+
+# Log in and capture the JWT
+TOKEN=$(curl -sf -X POST "$API_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"dev@astromesh.local","password":"astromesh-dev-2024"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
+
+# Create a tenant (JWT required)
+curl -sf -X POST "$API_URL/api/v1/tenants" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"displayName":"My Tenant","nodeProfile":"full"}'
+# -> { "id": "t_...", "crName": "tenant-...", "displayName": "My Tenant" }
+```
+
+## Deploy an Agent
+
+### Option A — kubectl
+
+```bash
+kubectl apply -f config/samples/nexus_v1alpha1_nexusagent.yaml
+kubectl get nexusagents -n tenant-dev
+```
+
+The `NexusAgentReconciler` resolves the tenant's node endpoint, registers and deploys the agent, and moves it `Pending → Deploying → Running`.
+
+### Option B — REST API
+
+The agent endpoints accept the **agent spec YAML as the raw request body** and are tenant-scoped, so the simplest path is an `X-API-Key`. Save your agent spec to a file and POST it:
+
+```bash
+# support-bot.yaml contains a full astromesh/v1 Agent spec
+curl -sf -X POST "$API_URL/api/v1/agents" \
+  -H "X-API-Key: $NEXUS_API_KEY" \
+  -H "Content-Type: application/yaml" \
+  --data-binary @support-bot.yaml
+# -> { "name": "support-bot", "namespace": "tenant-..." }
+```
+
+<Aside type="tip">
+Prefer not to write YAML or curl by hand? [Leia](/astromesh/leia/introduction/) drives Nexus from natural language — describe the agent you want and it issues the API calls for you.
+</Aside>
+
+## Verify
+
+```bash
+# CRs
+kubectl get nexustenants -n nexus-system
+kubectl get nexusagents -n tenant-dev
+
+# Via the API
+curl -sf -H "X-API-Key: $NEXUS_API_KEY" "$API_URL/api/v1/agents"
+curl -sf -H "X-API-Key: $NEXUS_API_KEY" "$API_URL/api/v1/agents/support-bot/status"
+```
+
+A healthy agent reports `phase: Running` and `nodeAck: true`.
+
+## Teardown
+
+```bash
+./hack/teardown.sh
+```
+
+This deletes the `nexus-local` Kind cluster and everything in it. On an existing cluster, use `helm uninstall nexus -n nexus-system` followed by `make uninstall` to remove the CRDs.
+
+## What's Next
+
+- [API Reference](/astromesh/nexus/api-reference/) — full endpoint table and a complete curl walkthrough.
+- [Architecture](/astromesh/nexus/architecture/) — how the reconcilers and CRDs fit together.

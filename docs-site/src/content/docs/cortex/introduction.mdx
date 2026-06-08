@@ -1,0 +1,93 @@
+---
+title: Astromesh Cortex
+description: The desktop IDE and multi-runtime control plane for AI agents
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Currently in v0.12.0">
+  Astromesh Cortex is in active development. The Local Runtime and GCP (via Orbit) targets are fully supported; Nexus cloud mode is evolving alongside the Nexus control plane.
+</Aside>
+
+Astromesh Cortex is a native desktop IDE and control plane for designing, testing, and deploying AI agents. Built on Electron, it gives you a full-screen "Mission Control" surface: a schema-aware YAML editor, a drag-and-drop visual builder, an interactive agent console, and one-click lifecycle management across three runtime targets — a local Python runtime, GCP Cloud Run (via Orbit), and the Nexus Kubernetes cloud.
+
+Cortex is **not** a web SPA, **not** a backend service, and **not** a monitoring-only dashboard. It is a standalone desktop application that owns the full author → test → deploy → operate loop from a single window.
+
+## Cortex vs Forge
+
+Both Cortex and [Forge](/astromesh/forge/introduction/) let you build agents visually, but they serve different needs and coexist within the Astromesh ecosystem.
+
+| | Astromesh Forge | Astromesh Cortex |
+|---|---|---|
+| **Form factor** | Web SPA embedded in an Astromesh node at `/forge` | Standalone desktop app (Electron) |
+| **Backend** | None — pure client, runs in the browser | Native main process with system access |
+| **Scope** | Quick in-node visual building | Full IDE + multi-runtime ops console |
+| **Runtime lifecycle** | — | Installs & manages a local Python runtime |
+| **Cloud provisioning** | — | GCP via Orbit, Nexus cloud connection |
+| **Use it for** | Fast, lightweight edits inside a running node | Designing, testing, and deploying across environments |
+
+<Aside type="tip">
+  Use **Forge** when you want to tweak an agent quickly inside a live node from your browser. Use **Cortex** when you want a full desktop IDE that can spin up runtimes, provision cloud infrastructure, and operate fleets of agents.
+</Aside>
+
+## Architecture
+
+Cortex is a standard Electron application: a React renderer talks to the main process over an IPC bridge, and the main process hosts the services that drive each runtime target.
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Cortex (Electron)                                      │
+│                                                         │
+│  ┌──────────┐  ┌──────────────┐  ┌───────────────────┐ │
+│  │ Renderer │  │ Main Process │  │ Services          │ │
+│  │ (React)  │──│ (IPC Bridge) │──│ · LocalRuntime    │ │
+│  │          │  │              │  │ · Orbit (GCP)     │ │
+│  │ · Editor │  │              │  │ · Nexus (Cloud)   │ │
+│  │ · Console│  │              │  │                   │ │
+│  │ · Deploy │  │              │  │                   │ │
+│  └──────────┘  └──────────────┘  └─────────┬─────────┘ │
+└────────────────────────────────────────────│───────────┘
+                                              │
+                    ┌─────────────────────────┼──────────┐
+                    │                          │          │
+              ┌─────▼─────┐           ┌────────▼────┐  ┌──▼────────┐
+              │ Local     │           │ Nexus       │  │ GCP       │
+              │ Runtime   │           │ (K8s Cloud) │  │ Cloud Run │
+              │ (:8000)   │           │ (:8080)     │  │ (Orbit)   │
+              └───────────┘           └─────────────┘  └───────────┘
+```
+
+### Component breakdown
+
+- **Renderer (React)** — The UI layer: the Monaco-based agent editor, the visual builder canvas, the agent console and trace timeline, and the deploy controls. Pure presentation and interaction; it never touches the OS directly.
+- **Main Process (IPC Bridge)** — The Electron main process. It mediates every privileged operation — file system access, process spawning, network calls — between the renderer and the services over a typed IPC bridge.
+- **Services** — The control-plane logic. `LocalRuntime` installs and supervises a local Python runtime; `Orbit` provisions and manages GCP Cloud Run deployments; `Nexus` authenticates with and operates the Kubernetes cloud.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Desktop shell** | Electron 41 |
+| **UI** | React 19 + Tailwind CSS 4 |
+| **Editor** | Monaco Editor + monaco-yaml |
+| **Visual builder** | @xyflow/react |
+| **State** | Zustand |
+| **Build** | electron-vite + Vite 8 |
+| **Tests** | Vitest |
+
+## Key Capabilities
+
+- **Workspace-centric projects** — A workspace is just a folder with a `.cortex/workspace.json` you commit to git; secrets stay in a gitignored `.cortex/local.json`.
+- **Dual-shell modes** — A Runtime mode for local development and a Nexus mode for cloud operations, toggled with `Ctrl+M`.
+- **Schema-aware YAML editor** — Monaco with validation and autocomplete against the Astromesh agent schema.
+- **Visual agent builder** — A drag-and-drop `@xyflow` canvas with bidirectional YAML sync and inspectors for model, tools, memory, guardrails, permissions, and orchestration.
+- **Agent console & traces** — An interactive chat playground to test running agents, plus a hierarchical trace timeline with per-span latency, inputs, and outputs.
+- **Three runtime targets** — Local Python runtime (`:8000`), GCP Cloud Run via Orbit, and the Nexus Kubernetes cloud (`:8080`).
+- **Channels & dev tunnel** — A WhatsApp setup wizard, a live Channel Activity stream, and ngrok/cloudflared tunnel management for webhook testing.
+
+## What's Next
+
+- [Quick Start](/astromesh/cortex/quickstart/) — Install Cortex and ship your first agent to a local runtime
+- [Runtimes](/astromesh/cortex/runtimes/) — Local, GCP (Orbit), and Nexus targets in depth
+- [Workspaces](/astromesh/cortex/workspaces/) — The workspace model, editor, console, channels, and shortcuts
+- [The Astromesh Ecosystem](/astromesh/getting-started/ecosystem/) — How Cortex fits alongside Forge, Nexus, and Orbit

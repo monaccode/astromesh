@@ -1,0 +1,88 @@
+---
+title: Cortex Workspaces
+description: The workspace model, editor, console, channels, and shortcuts in Cortex
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Everything in Cortex is organized around a **workspace** — a project folder that holds your agents, connections, environments, and UI state. Workspaces are designed to live in git so a whole team shares the same control-plane setup.
+
+## The Workspace Model
+
+A workspace is a folder containing a `.cortex/` directory with two files:
+
+| File | Committed? | Holds |
+|---|---|---|
+| `.cortex/workspace.json` | Yes | Connections, environments, UI state |
+| `.cortex/local.json` | No (auto-gitignored) | Secrets and API keys |
+
+```text
+my-project/
+├── .cortex/
+│   ├── workspace.json   # committed: connections, environments, UI state
+│   └── local.json       # gitignored: API keys, secrets
+└── agents/
+    └── my-agent.yaml
+```
+
+<Aside type="tip">
+  Commit `workspace.json` so teammates inherit your runtime connections and environment definitions. Cortex keeps secrets out of git by writing them to `local.json` and gitignoring it automatically.
+</Aside>
+
+## Dual-Shell Modes
+
+Cortex has two shells you toggle with `Ctrl+M`:
+
+- **Runtime mode** — Local development against the Local Runtime (or a saved remote connection).
+- **Nexus mode** — Cloud operations against the Nexus Kubernetes control plane, with Cluster, Workloads, Observability, and Catalog views.
+
+## Editor & Visual Builder
+
+You author agents two ways, kept in **bidirectional sync**:
+
+- **Agent YAML editor** — Monaco Editor with schema validation and autocomplete against the Astromesh agent schema (via monaco-yaml).
+- **Visual agent builder** — An `@xyflow` drag-and-drop canvas. Inspectors let you configure **model**, **tools**, **memory**, **guardrails**, **permissions**, and **orchestration** without leaving the canvas.
+
+## Console & Traces
+
+- **Agent Console / playground** — An interactive chat to test running agents directly.
+- **Trace timeline** — Hierarchical spans showing per-step latency, inputs, and outputs.
+- **Terminal** — An embedded xterm.js terminal.
+- **Activity log** — A running record of what Cortex and the runtime are doing.
+
+## Channels
+
+Cortex helps you wire agents up to messaging channels:
+
+- **WhatsApp setup wizard** — A 4-step flow integrating with the Meta Graph API: create the app → configure tokens → auto-register the webhook → send a test message.
+- **Channel Activity panel** — A live SSE stream of channel events across all your agents.
+- **Telegram** — Coming soon.
+
+## Dev Tunnel
+
+To receive webhooks during local development, Cortex manages an **ngrok** or **cloudflared** tunnel for you: it auto-downloads the binaries, starts and stops the tunnel, and exposes a public URL. In the WhatsApp wizard, the webhook URL switches between the **tunnel (DEV)** and the **runtime (PRODUCTION)** target.
+
+## Environments
+
+Each workspace can define named **environments** with key/value variables — edit inline and clone an environment to spin up a variant.
+
+- The **active environment's** variables are injected into the local runtime process when it starts.
+- Environments are also selectable when provisioning Cloud Run via Orbit.
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+S` | Save |
+| `Ctrl+B` | Toggle sidebar |
+| `Ctrl+J` | Toggle bottom panel |
+| `Ctrl+M` | Toggle Runtime / Nexus mode |
+| `Ctrl+Shift+P` | Command palette |
+
+Cortex also supports **tabs**, **resizable panels**, and the **deploy split-button** with per-tab target persistence.
+
+## What's Next
+
+- [Quick Start](/astromesh/cortex/quickstart/) — Install Cortex and ship your first agent
+- [Runtimes](/astromesh/cortex/runtimes/) — Local, GCP (Orbit), and Nexus targets in depth
+- [Introduction](/astromesh/cortex/introduction/) — How Cortex fits in the Astromesh ecosystem

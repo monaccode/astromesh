@@ -1,0 +1,185 @@
+---
+title: API Reference
+description: Authentication model, endpoints, and a curl walkthrough for the Nexus REST API.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The Nexus REST API runs on Gin and listens on port `8080`. Base URL: `http://<host>:8080`.
+
+<Aside type="caution">
+This is the `v1alpha1` API. Endpoint paths and request/response shapes may change before 1.0. Examples below labeled "representative" reflect current behaviour but are not a stability contract.
+</Aside>
+
+## Authentication
+
+`/auth/*` routes and the health probes are unauthenticated. Everything under `/api/v1/*` passes through **DualAuthMiddleware**, which accepts either credential type:
+
+| Method | Header | Use case | Scope |
+|--------|--------|----------|-------|
+| Bearer JWT | `Authorization: Bearer <jwt>` | Interactive sessions | User; add `X-Tenant-ID: <id>` to scope to a tenant |
+| API key | `X-API-Key: <key>` | Programmatic clients | Tenant-scoped |
+
+The middleware tries the Bearer JWT first; if absent or invalid, it falls back to `X-API-Key`. If neither is valid it returns `401`.
+
+- **Tenant and key management** (`POST/GET/DELETE /tenants`, `*/keys`) require a **JWT** — they act on behalf of a user.
+- **Agent and observability** routes work with either a JWT (scoped via `X-Tenant-ID`) or an API key (already tenant-scoped).
+
+## Endpoints
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| POST | `/auth/register` | none | Register a user |
+| POST | `/auth/login` | none | Login → access + refresh JWT |
+| POST | `/auth/refresh` | none | Rotate and refresh the access token |
+| GET | `/api/v1/me` | JWT/Key | Current user / tenant |
+| POST | `/api/v1/tenants` | JWT | Create tenant (+ namespace) |
+| GET | `/api/v1/tenants` | JWT | List tenants |
+| DELETE | `/api/v1/tenants/:id` | JWT | Delete tenant |
+| POST | `/api/v1/tenants/:id/keys` | JWT | Create API key |
+| GET | `/api/v1/tenants/:id/keys` | JWT | List API keys |
+| DELETE | `/api/v1/tenants/:id/keys/:hash` | JWT | Revoke API key |
+| POST | `/api/v1/agents` | JWT/Key | Create / register agent |
+| GET | `/api/v1/agents` | JWT/Key | List agents |
+| GET | `/api/v1/agents/:name` | JWT/Key | Get agent spec + status |
+| PUT | `/api/v1/agents/:name` | JWT/Key | Update agent |
+| DELETE | `/api/v1/agents/:name` | JWT/Key | Delete agent |
+| GET | `/api/v1/agents/:name/status` | JWT/Key | Phase, nodeAck, lastSyncedAt |
+| GET | `/api/v1/agents/:name/logs` | JWT/Key | Agent logs |
+| GET | `/api/v1/agents/:name/metrics` | JWT/Key | Agent metrics |
+| GET | `/healthz`, `/readyz` | none | Liveness / readiness probes |
+
+## Walkthrough
+
+A full flow: register → login → create tenant → create API key → deploy an agent → check status.
+
+### 1. Register
+
+```bash
+API_URL="http://localhost:8080"
+
+curl -sf -X POST "$API_URL/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"a-strong-password","displayName":"Admin"}'
+```
+
+Representative response (`201 Created`):
+
+```json
+{
+  "accessToken": "eyJ...",
+  "refreshToken": "...",
+  "user": { "id": "usr_...", "email": "admin@example.com", "displayName": "Admin" }
+}
+```
+
+If the email already exists the endpoint returns `409`; log in instead.
+
+### 2. Login and capture the JWT
+
+```bash
+TOKEN=$(curl -sf -X POST "$API_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"a-strong-password"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
+```
+
+### 3. Create a tenant
+
+```bash
+TENANT=$(curl -sf -X POST "$API_URL/api/v1/tenants" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"displayName":"My Organisation","nodeProfile":"full"}')
+
+TENANT_ID=$(echo "$TENANT" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+```
+
+Representative response (`201 Created`):
+
+```json
+{ "id": "t_...", "crName": "tenant-...", "displayName": "My Organisation" }
+```
+
+### 4. Create an API key
+
+```bash
+KEY=$(curl -sf -X POST "$API_URL/api/v1/tenants/$TENANT_ID/keys" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"label":"ci"}')
+
+API_KEY=$(echo "$KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)['rawKey'])")
+```
+
+Representative response (`201 Created`):
+
+```json
+{ "rawKey": "...", "label": "ci" }
+```
+
+<Aside type="caution">
+`rawKey` is returned only once. Store it securely. Keys are listed and revoked by their hash, not their raw value.
+</Aside>
+
+### 5. Deploy an agent with the API key
+
+The agent endpoints read the **agent spec YAML as the raw request body** (not a JSON wrapper). The agent name is extracted from the spec's `metadata.name`.
+
+```bash
+curl -sf -X POST "$API_URL/api/v1/agents" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/yaml" \
+  --data-binary @support-bot.yaml
+```
+
+Where `support-bot.yaml` is a full `astromesh/v1` Agent spec:
+
+```yaml
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: support-bot
+  version: "1.0.0"
+spec:
+  identity:
+    display_name: "Support Bot"
+  model:
+    primary:
+      provider: ollama
+      model: "llama3.1:8b"
+  orchestration:
+    pattern: react
+```
+
+Representative response (`201 Created`):
+
+```json
+{ "name": "support-bot", "namespace": "tenant-..." }
+```
+
+### 6. Check status
+
+```bash
+curl -sf -H "X-API-Key: $API_KEY" "$API_URL/api/v1/agents/support-bot/status"
+```
+
+The `status` endpoint proxies to the tenant's `astromesh-node` and returns its live view of the agent.
+
+## Response and Error Notes
+
+- **Content type.** `/auth/*`, tenant, and key endpoints use JSON. The agent `POST`/`PUT` endpoints take the raw agent spec **YAML** in the body.
+- **Errors.** Failures return `{ "error": "<message>" }` with the appropriate status:
+  - `400` — invalid body or agent spec validation failure.
+  - `401` — missing/invalid JWT or API key.
+  - `403` — authenticated but not authorized for the tenant.
+  - `404` — agent or user not found.
+  - `409` — email already registered.
+  - `502` — the upstream `astromesh-node` could not be reached (status/metrics).
+- **Token rotation.** `POST /auth/refresh` rotates the refresh token: the old one is revoked and a new access + refresh pair is issued.
+- **Agent listing.** `GET /api/v1/agents` returns a summary array (`name`, `phase`, `createdAt`); `GET /api/v1/agents/:name` returns the full spec plus `status.phase` and `status.nodeAck`.
+
+## What's Next
+
+- [Quickstart](/astromesh/nexus/quickstart/) — end-to-end bootstrap and deploy.
+- [Architecture](/astromesh/nexus/architecture/) — the CRDs and reconcilers behind these endpoints.

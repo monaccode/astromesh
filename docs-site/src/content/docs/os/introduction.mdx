@@ -1,0 +1,62 @@
+---
+title: Astromesh OS
+description: A minimal, immutable, API-only Linux appliance image whose sole purpose is running Astromesh AI agents.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution">
+Astromesh OS is in **early development**. It is built **capability-by-capability** through a phased roadmap, and a hard rule holds throughout: you do not advance to phase N+1 until phase N boots and passes its checks. Phase 0 (validation) is complete; as of June 2026 the project has progressed through immutability and A/B updates (Phase 2a/2b), including automatic rollback. See the [roadmap](/astromesh/os/roadmap/) for the current state of each phase.
+</Aside>
+
+**Astromesh OS** (`astromesh-os`) is a **minimal, immutable, API-only Linux appliance** — a purpose-built distribution whose sole job is running Astromesh AI agents (`astromeshd`). It is not a general-purpose operating system, and it is not something you install on top of an existing OS. It ships as a self-contained disk image: an appliance you boot, not a package you manage.
+
+It is built with [mkosi](https://github.com/systemd/mkosi) on **Debian trixie** (kernel 6.12+ LTS). The Astromesh agent runtime (`astromesh`) is baked directly into the image at a pinned commit, so a given image is reproducible from one exact ref.
+
+## Astromesh OS vs Astromesh Node
+
+It is critical not to confuse Astromesh OS with [Astromesh Node](/astromesh/node/introduction/). They solve different problems.
+
+| | **Astromesh OS** | **Astromesh Node** |
+|---|---|---|
+| What it is | A self-contained, immutable Linux **appliance image** (a distribution) | A cross-platform **installer + daemon** that runs on an OS you already have |
+| Delivery | A bootable disk image, distributed as an OCI artifact (`oras pull`) | `.deb` / `.rpm` / macOS / Windows installer artifacts |
+| Where it runs | Bare metal or a cloud VM, *as* the operating system | On top of Linux, macOS, or Windows |
+| OS lifecycle | You boot a verified, read-only image; updates are A/B image swaps | You self-manage the host OS, drift, and updates |
+| Interactive shell / SSH | None by default (no shell, no package manager at runtime) | Full host shell — it is just a service on your OS |
+| Service | Boots straight to [`astromeshd`](/astromesh/reference/os/daemon/) | Registers [`astromeshd`](/astromesh/reference/os/daemon/) with systemd / launchd / Windows Service Manager |
+
+In short: **Astromesh Node** adapts to your machine; **Astromesh OS** *is* the machine.
+
+## Why an appliance?
+
+Running the agent runtime as a dedicated appliance — rather than as a service inside a general-purpose VM you maintain yourself — buys properties a hand-managed host cannot easily guarantee.
+
+| Property | Appliance (Astromesh OS) | Self-managed general-purpose VM |
+|---|---|---|
+| **Trust** | Verified, read-only root via dm-verity — the running root is cryptographically the image you shipped | Mutable root; you trust that nobody (and nothing) changed it |
+| **Attribution & density** | Purpose-built for agents; nothing competes for the box | Agents share the host with whatever else you installed |
+| **Reproducibility** | The whole image is reproducible from one pinned runtime ref | OS state drifts as you patch, install, and tweak over time |
+| **Attack surface** | Tiny — no interactive shell, no package manager at runtime | Full general-purpose OS, with all the surface that implies |
+
+## What is in the image
+
+The image is deliberately small (the core image must stay **≤ 500 MB** — the build fails if it exceeds the ceiling). It contains only what is needed to boot and serve agents:
+
+- **systemd + systemd-boot** with a **UKI** (Unified Kernel Image) for boot.
+- A **Debian trixie** userland, aggressively trimmed (locale, man pages, and docs removed).
+- **Python 3** plus the Astromesh runtime, baked in at the commit pinned in `runtime.pin`.
+- The `astromeshd` daemon, started as the system's default target — the OS boots straight to the agent API.
+
+Because the image is API-only, there is no login prompt to use it. You reach it over its HTTP API (`/v1/...`), the same surface the rest of the Astromesh ecosystem speaks.
+
+## Boot to agent
+
+The system's default target *is* the agent. On boot, systemd-boot selects the UKI, the kernel comes up with output forwarded to the serial console, networking is brought up via DHCP, and `astromeshd` starts and begins answering on its API. There is no interactive step — a healthy boot ends with `/v1/health` returning `200` and the agent ready to take queries.
+
+## What's next
+
+- [Architecture](/astromesh/os/architecture/) — immutability, A/B updates, the shared `/var`, OCI distribution, and the 500 MB ceiling.
+- [Building](/astromesh/os/building/) — building the image on a Linux toolchain (Docker or WSL2 + KVM), and bumping the pinned runtime.
+- [Roadmap](/astromesh/os/roadmap/) — the phased plan and the gate that guards each phase.
+- [Ecosystem overview](/astromesh/getting-started/ecosystem/) — where Astromesh OS fits among the other Astromesh products.

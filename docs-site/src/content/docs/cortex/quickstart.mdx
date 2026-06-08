@@ -1,0 +1,72 @@
+---
+title: Cortex Quick Start
+description: Install Astromesh Cortex and ship your first agent to a local runtime
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This guide takes you from a fresh checkout to a running agent you can chat with — all from the Cortex desktop app.
+
+## Prerequisites
+
+- **Node.js 22+**
+- **git**
+
+Cortex manages its own Python runtime, so you do **not** need Python pre-installed to get started — the Local Runtime installer provisions a virtual environment for you.
+
+## Install & Run
+
+Cortex is an Electron app built with electron-vite. Clone the repository, install dependencies, and start it in development mode:
+
+```bash
+npm install      # install dependencies
+npm run dev      # development mode (Electron + HMR)
+```
+
+To produce a distributable desktop build, or to run the test suite:
+
+```bash
+npm run build    # build the desktop app
+npm test         # run Vitest
+```
+
+<Aside type="note">
+  `npm run dev` launches the Electron shell with hot module replacement, so renderer changes reload instantly while you work.
+</Aside>
+
+## First-Run Walkthrough
+
+### 1. Create a workspace
+
+When Cortex launches you land on the **Welcome** page. Choose **New Workspace** or **Open Folder**. Cortex writes a `.cortex/workspace.json` into the folder — this is your committable project file holding connections, environments, and UI state. The **Runtime** shell opens automatically.
+
+<Aside type="tip">
+  Secrets such as API keys are stored separately in `.cortex/local.json`, which Cortex auto-gitignores. Only `workspace.json` is meant to be committed.
+</Aside>
+
+### 2. Install the Local Runtime
+
+In the Runtime shell, run the **Install Local Runtime** flow — an 8-step installer. Cortex creates a Python virtual environment with `uv`, installs the Astromesh stack:
+
+```bash
+pip install astromesh[mesh] astromesh-cli astromesh-orbit[gcp]
+```
+
+and spawns a uvicorn server on `:8000`. Install, start, stop, update, and uninstall are all one click, with health polling so you always know the runtime's status.
+
+### 3. Create an agent
+
+Open a new agent and define it in the **YAML editor** (Monaco, with schema validation and autocomplete), or build it on the **visual canvas** by dragging nodes for the model, tools, memory, guardrails, permissions, and orchestration. The two views stay in bidirectional sync, so edits in one reflect in the other.
+
+### 4. Test it in the Console
+
+With the Local Runtime running, open the **Agent Console** — an interactive chat playground — and send the agent a message. Inspect the **Trace timeline** to see the hierarchical spans, with latency, inputs, and outputs for each step of the run.
+
+### 5. Deploy
+
+Use the **Deploy split-button** to deploy to your persisted target. For a first run, that's the Local Runtime on `:8000`. The target is remembered per tab and shown with a badge.
+
+## Next Steps
+
+- [Runtimes](/astromesh/cortex/runtimes/) — Manage the Local Runtime lifecycle and add GCP (Orbit) and Nexus targets
+- [Workspaces](/astromesh/cortex/workspaces/) — Go deeper on the workspace model, channels, environments, and keyboard shortcuts

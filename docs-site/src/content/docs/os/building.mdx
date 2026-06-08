@@ -1,0 +1,95 @@
+---
+title: Building
+description: Building the Astromesh OS image on a Linux-only toolchain — via Docker, or a WSL2 + KVM local dev-loop — and bumping the pinned runtime.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Astromesh OS is built with [mkosi](https://github.com/systemd/mkosi) and tested with QEMU. This page covers building the image locally. There are two paths — a Docker container or a WSL2 + KVM dev-loop — but in both cases the real gate is CI.
+
+<Aside type="caution">
+Astromesh OS is in early development. The exact commands here track the project's README; if anything drifts, the repository README and the GitHub Actions workflow are the source of truth.
+</Aside>
+
+## Prerequisites
+
+The entire build toolchain — **mkosi**, **QEMU/KVM**, dm-verity, the UKI tooling — is **Linux-only**. You cannot build the image natively on Windows or macOS. On those hosts you build inside Linux, either a privileged Debian container (Docker) or a WSL2 Debian instance with KVM.
+
+<Aside type="tip">
+**CI (GitHub Actions) is the authoritative gate.** The local paths below are for fast iteration before you push; the CI workflow is what decides whether a build truly passes.
+</Aside>
+
+## Docker path (Windows / macOS)
+
+Build inside a privileged Debian trixie container. Bind-mount the source tree, install the toolchain, build the runtime `.deb` first, then build the image:
+
+```bash
+docker run --rm -it --privileged -v "$PWD":/work -w /work debian:trixie bash
+# inside the container:
+apt-get update && apt-get install -y mkosi qemu-system-x86 git python3 python3-pip
+# build the runtime .deb first (see .github/workflows/phase0-ci.yml), then:
+PHASE0_MODE=stub mkosi build
+```
+
+The `--privileged` flag is required because mkosi needs loop devices to assemble the rootfs. `PHASE0_MODE=stub` builds with a local stub provider so the boot-to-agent check can run without a real frontier API key.
+
+## WSL2 + KVM local dev-loop
+
+For fast iteration without waiting on CI (and without the TCG flakiness of GitHub-hosted runners), reproduce the boot/update gate locally in WSL2 with KVM.
+
+### One-time setup (from the Windows host)
+
+```powershell
+wsl --install -d Debian --no-launch
+# enable systemd + drvfs metadata, then apply:
+wsl -d Debian -u root -- bash -lc "printf '[boot]\nsystemd=true\n\n[automount]\noptions=metadata\n' > /etc/wsl.conf"
+wsl --shutdown
+# install the same toolset CI uses:
+wsl -d Debian -u root -- bash -lc "apt-get update && apt-get install -y mkosi systemd-ukify systemd-boot systemd-boot-efi mtools dosfstools ca-certificates qemu-system-x86 qemu-utils ovmf curl rsync git python3"
+# verify KVM is exposed (needs nested virtualization, default on Win11):
+wsl -d Debian -u root -- ls -l /dev/kvm
+```
+
+If `/dev/kvm` is missing, add `nestedVirtualization=true` under `[wsl2]` in `%UserProfile%\.wslconfig` and run `wsl --shutdown`.
+
+### Fetch the runtime .deb once
+
+The runtime `.deb` rarely changes — it depends only on `runtime.pin`. Fetch the latest CI build once into `dist/` (run on the Windows side, where `gh` is authenticated):
+
+```powershell
+gh run download -n astromesh-deb -D dist
+```
+
+### Run the loop
+
+Run as root in WSL (mkosi needs loop devices). The source of truth stays on `D:\`; the harness rsyncs into a native ext4 path (`~/astromesh-build`) and builds there, because drvfs cannot host a mkosi rootfs build:
+
+```powershell
+wsl -d Debian -u root -- bash /mnt/d/monaccode/astromesh-os/tests/local/dev-loop.sh update
+```
+
+### Dev-loop targets
+
+| Target | What it does |
+|---|---|
+| `build` | Build the image only |
+| `boot` | Single boot, asserting immutability and health |
+| `update` | Full A/B v1→v2 update gate (**default**) |
+| `inspect` | Compare the UKI roothash against the on-disk verity PARTUUIDs |
+| `clean` | Clean build artifacts |
+
+## Bumping the pinned runtime
+
+The `astromesh` runtime baked into the image is pinned in `runtime.pin`:
+
+```ini
+# runtime.pin
+ASTROMESH_REF=<commit SHA of monaccode/astromesh>
+```
+
+To move the image to a new runtime, edit `ASTROMESH_REF` to a new commit SHA of `monaccode/astromesh`, then re-run CI. The image is reproducible from that exact ref, and CI fails if it cannot resolve it. Because the runtime `.deb` depends only on `runtime.pin`, a bump is the trigger for rebuilding it.
+
+## Next steps
+
+- [Architecture](/astromesh/os/architecture/) — what the build produces and why (verity, A/B, the 500 MB ceiling).
+- [Roadmap](/astromesh/os/roadmap/) — the phase gates that each build must clear.

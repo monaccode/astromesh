@@ -1,0 +1,43 @@
+---
+import ProductShowcase from './ProductShowcase.astro';
+
+// Version hardcoded — astromesh-nexus is a separate repo (not checked out by the
+// docs CI). Bump on release. Source: astromesh-nexus CHANGELOG / git tag.
+const version = '0.3.0';
+
+const lines = [
+  { t: 'apiVersion: nexus.astromesh.io/v1alpha1', k: 'key' },
+  { t: 'kind: NexusTenant', k: 'key' },
+  { t: 'metadata:', k: 'key' },
+  { t: '  name: tenant-prod', k: 'plain' },
+  { t: 'spec:', k: 'key' },
+  { t: '  displayName: "Production"', k: 'str' },
+  { t: '  nodeProfile: full', k: 'plain' },
+  { t: '  resourceQuota: { maxAgents: 20 }', k: 'plain' },
+];
+
+const features = [
+  { icon: `<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>`, label: 'Multi-Tenant', desc: 'Namespace isolation' },
+  { icon: `<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 22V12"/>`, label: 'K8s Operator', desc: 'CRDs + reconcilers' },
+  { icon: `<path d="M4 17l6-6-6-6"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: 'REST API', desc: 'Gin :8080 · JWT + keys' },
+  { icon: `<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/>`, label: 'Per-Tenant Node', desc: 'astromesh-node :8000' },
+  { icon: `<polyline points="20 6 9 17 4 12"/>`, label: 'Agent Lifecycle', desc: 'register → deploy → run' },
+  { icon: `<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`, label: 'Observability', desc: 'status · logs · metrics' },
+];
+---
+
+<ProductShowcase
+  name="Nexus"
+  version={version}
+  badge="NEW"
+  tagline="Multi-Tenant Cloud Control Plane"
+  description="A Kubernetes operator that provisions isolated tenants, runs an astromesh-node per tenant, and syncs agents through a REST API — the cloud backbone behind Cortex, Forge, and Leia."
+  accent="#34d399"
+  accentDeep="#10b981"
+  panelTitle="nexustenant.yaml"
+  lines={lines}
+  features={features}
+  terminal={["./hack/bootstrap.sh", "kubectl get nexustenants -n nexus-system"]}
+  ctaPrimary={{ text: 'Deploy Nexus', href: '/astromesh/nexus/quickstart/' }}
+  ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/nexus/introduction/' }}
+/>
