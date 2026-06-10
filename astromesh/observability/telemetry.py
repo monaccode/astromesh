@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 
@@ -7,6 +8,23 @@ class TelemetryConfig:
     otlp_endpoint: str = "http://localhost:4317"
     enabled: bool = True
     sample_rate: float = 1.0
+
+    @classmethod
+    def from_env_and_dict(cls, observability: dict) -> "TelemetryConfig":
+        """Build from a runtime.yaml spec.observability dict + OTEL_* env. Export is OFF by default —
+        only enabled when observability.otlp.enabled is truthy. Endpoint precedence: explicit dict
+        endpoint > OTEL_EXPORTER_OTLP_ENDPOINT env > localhost:4317 (the node-local collector default).
+        """
+        otlp = (observability or {}).get("otlp", {}) or {}
+        endpoint = (
+            otlp.get("endpoint")
+            or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+            or "http://localhost:4317"
+        )
+        return cls(
+            otlp_endpoint=endpoint,
+            enabled=bool(otlp.get("enabled", False)),
+        )
 
 
 class TelemetryManager:
