@@ -28,6 +28,7 @@ class DaemonConfig:
     services: dict[str, bool] = field(default_factory=dict)
     peers: list[dict] = field(default_factory=list)
     mesh: dict = field(default_factory=dict)
+    observability: dict = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict) -> DaemonConfig:
@@ -40,6 +41,7 @@ class DaemonConfig:
             services=spec.get("services", {}),
             peers=spec.get("peers", []),
             mesh=spec.get("mesh", {}),
+            observability=spec.get("observability", {}),
         )
 
     @classmethod
