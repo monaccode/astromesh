@@ -144,6 +144,13 @@ async def run_daemon(args: argparse.Namespace) -> None:
             tm.setup()
             traces_route.set_collector(OTLPCollector(telemetry_manager=tm))
             logger.info("OTLP trace export enabled (endpoint=%s)", tcfg.otlp_endpoint)
+            # Fase 4.4c: also export per-agent egress-byte metrics to the same collector.
+            from astromesh.observability.metrics_export import MetricsManager, MetricsConfig, set_manager
+            mcfg = MetricsConfig.from_env_and_dict(daemon_config.observability)
+            mm = MetricsManager(endpoint=mcfg.endpoint, enabled=mcfg.enabled)
+            mm.setup()
+            set_manager(mm)
+            logger.info("agent-egress metric export enabled (endpoint=%s)", mcfg.endpoint)
     except Exception:
         logger.exception("OTLP export setup failed; continuing without it")
 
