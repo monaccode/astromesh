@@ -66,13 +66,19 @@ class ReActPattern(OrchestrationPattern):
                             "arguments": json_mod.dumps(tc["arguments"], ensure_ascii=False),
                         },
                     }
-                    messages.append(
-                        {
-                            "role": "assistant",
-                            "content": response.content,
-                            "tool_calls": [oai_tc],
-                        }
-                    )
+                    assistant_msg = {
+                        "role": "assistant",
+                        "content": response.content,
+                        "tool_calls": [oai_tc],
+                    }
+                    # Thinking models (Kimi k2.5/k2.6 on Moonshot) require the
+                    # assistant's reasoning_content to be echoed back on the
+                    # tool-call message, or the next request 400s with
+                    # "reasoning_content is missing in assistant tool call message".
+                    reasoning = getattr(response, "reasoning_content", None)
+                    if reasoning:
+                        assistant_msg["reasoning_content"] = reasoning
+                    messages.append(assistant_msg)
                     messages.append(
                         {
                             "role": "tool",

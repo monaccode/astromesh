@@ -121,6 +121,7 @@ class OpenAICompatProvider:
             latency_ms=latency_ms,
             cost=cost,
             tool_calls=_normalize_tool_calls(message.get("tool_calls")),
+            reasoning_content=message.get("reasoning_content"),
         )
 
     async def stream(self, messages: list[dict], **kwargs: Any) -> AsyncIterator[CompletionChunk]:

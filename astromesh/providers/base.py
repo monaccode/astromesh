@@ -28,6 +28,10 @@ class CompletionResponse:
     latency_ms: float
     cost: float
     tool_calls: list = field(default_factory=list)
+    # Chain-of-thought emitted by "thinking" models (e.g. Kimi k2.5/k2.6 on
+    # Moonshot). Must be echoed back on the assistant tool-call message in the
+    # next turn or the provider rejects it; carried here so patterns can do so.
+    reasoning_content: str | None = None
     metadata: dict = field(default_factory=dict)
 
 
