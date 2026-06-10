@@ -52,8 +52,14 @@ class TelemetryManager:
             self._provider.add_span_processor(BatchSpanProcessor(exporter))
             trace.set_tracer_provider(self._provider)
             self._tracer = trace.get_tracer(self._config.service_name)
-        except ImportError:
+        except ImportError as e:
+            # e.g. grpcio's C extension needs libstdc++ at runtime; without the exporter, traces are
+            # not exported (the runtime keeps working). Warn loudly so it's not a silent no-op.
             self._tracer = None
+            import logging
+            logging.getLogger("astromeshd").warning(
+                "OTLP exporter unavailable, traces will not be exported: %r", e
+            )
 
     def get_tracer(self):
         return self._tracer
