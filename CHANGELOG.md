@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Documentation site: added dedicated sections for four previously-undocumented ecosystem projects — **Cortex** (desktop IDE & control plane), **Nexus** (multi-tenant Kubernetes control plane), **Astromesh OS** (immutable `mkosi` appliance), and **Leia** (natural-language Claude Code plugin) — 4 pages each, plus accent-themed `ProductShowcase` landing components (`docs-site/src/content/docs/{cortex,nexus,os,leia}/`, `docs-site/src/components/{Product,Cortex,Nexus,Os,Leia}Showcase.astro`)
+- Rewrote the Ecosystem page (6 → 10 components) with a **Forge vs Cortex** comparison clarifying the two coexist (Forge = node-embedded web SPA, Cortex = desktop IDE), and added a note clarifying that **Astromesh Node** is a native OS-service deployment, not a container (`docs-site/src/content/docs/getting-started/ecosystem.md`, `node/introduction.mdx`)
+- Repurposed the legacy `deployment/astromesh-os` redirect to point at the new Astromesh OS section, and refreshed component versions across the site (core 0.28.5, ADK 0.1.8, CLI 0.1.1, Node 0.1.1, Orbit 0.2.0, Forge 0.23.0, Cortex 0.12.0, Nexus 0.3.0, Leia 0.1.0, OS phase 2b); registered all new sections in the sidebar (`docs-site/astro.config.mjs`)
+- Documentation site is now dark-only by design: overrode Starlight's `ThemeProvider` to force `data-theme="dark"` before paint (removing the system-preference / stored-theme fallback to light) alongside the already-hidden theme toggle (`docs-site/src/components/ThemeProvider.astro`, `custom.css`)
+
+## [v0.28.6] - 2026-06-09
+
+### Fixed
+- `ReActPattern` now preserves `reasoning_content` across tool-call turns. Thinking models (e.g. Kimi k2.5/k2.6 on Moonshot) return a `reasoning_content` field alongside `tool_calls` and **require** it to be echoed back on the assistant tool-call message in the next turn, or the API rejects the request with `400 Bad Request` — `thinking is enabled but reasoning_content is missing in assistant tool call message`. The loop previously dropped it, breaking every multi-turn tool call against a thinking model. `CompletionResponse` gained a `reasoning_content` field, `OpenAICompatProvider.complete()` captures it from the response, and `ReActPattern` echoes it back when present (omitted for non-thinking models, so their behavior is unchanged) (`astromesh/providers/base.py`, `astromesh/providers/openai_compat.py`, `astromesh/orchestration/patterns.py`)
+
 ## [v0.28.5] - 2026-05-22
 
 ### Fixed

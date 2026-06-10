@@ -50,7 +50,7 @@ The installer:
 Expected output:
 
 ```
-Installing Astromesh Node v0.18.0...
+Installing Astromesh Node v0.1.1...
 Creating system user '_astromesh'...
 Creating directories...
   /etc/astromesh/
@@ -73,7 +73,7 @@ astromeshctl version
 Expected output:
 
 ```
-Astromesh Node v0.18.0
+Astromesh Node v0.1.1
 Daemon:   /usr/local/bin/astromeshd
 CLI:      /usr/local/bin/astromeshctl
 Python:   3.12.x

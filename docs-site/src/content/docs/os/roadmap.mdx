@@ -1,0 +1,71 @@
+---
+title: Roadmap
+description: The phased plan for Astromesh OS — each phase gated by a boot-and-pass check — and the kernel differential that is its defensible core.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Astromesh OS is built **capability-by-capability** through phases, not as a single big-bang release. Each phase delivers a working appliance and is guarded by an explicit exit gate.
+
+<Aside type="caution">
+Astromesh OS is in early development. Phase 0 is complete, and as of June 2026 the project has progressed through Phase 2 (immutability + A/B updates with automatic rollback). Phases 3 and beyond describe planned work.
+</Aside>
+
+## The rule: don't advance until it boots
+
+The governing rule, inherited from the build spec, is simple and absolute:
+
+> **You do not advance to phase N+1 until phase N boots and passes its checks.**
+
+Each gate below is a real, automated check — not a milestone you declare done. CI (GitHub Actions) is the authoritative judge of whether a gate is met.
+
+## Phases
+
+| Phase | Delivers | Exit gate |
+|---|---|---|
+| **0 — Unit validation** | Astromesh-core as a systemd service on a **standard** mkosi/Debian image, booting in QEMU/KVM | `200` on `/v1/health` **and** an agent query answered via the API against a frontier provider; `astromeshctl doctor` green |
+| **1 — Minimal + boot-to-agent** | Custom target, aggressive trimming, the size gate; push the OCI artifact via ORAS | Core image **≤ 500 MB** **and** boots as a cloud image; the build **fails** if it exceeds the ceiling |
+| **2 — Immutability + updates** | dm-verity over root, read-only root, A/B with systemd-sysupdate + automatic rollback | Update **and** rollback proven — a new boot that fails health rolls back to the previous slot |
+| **3 — Security** | TPM/sealed secrets, remote attestation, no-shell + break-glass, SELinux enforcing, Secure Boot; fail-closed kernel guarantees (tool sandbox + egress) | A secret is accessible **only** under an intact boot; the agent **does not start** without sandbox and egress guaranteed |
+| **4 — Agent-native + fleet** | Declarative machine-config join (static peers → Maia gossip), causal eBPF telemetry, OTel export, optional GPU sysext | A node **joins the mesh from machine-config alone** — no SSH |
+| **post-4** | `sched_ext` scheduler + GPU broker, agent-aware memory/OOM, CRIU snapshot/restore | Incremental — each capability lands behind its own check |
+
+### Phase 0 — Unit validation *(done)*
+
+Prove the runtime works as a systemd service on a plain Debian/mkosi image that boots in QEMU/KVM. This phase is intentionally **not** minimal or immutable — that is Phase 1 onward. The gate is a live health check plus one real agent query, with `astromeshctl doctor` green.
+
+### Phase 1 — Minimal + boot-to-agent
+
+Strip the image down to a custom boot-to-agent target, enforce the **500 MB** ceiling as a build-failing gate, and publish the OCI artifact over ORAS. The dominant size term is the runtime's Python closure, so trimming focuses there.
+
+### Phase 2 — Immutability + updates *(reached as of June 2026)*
+
+Make the root read-only and verified with dm-verity, and ship updates as atomic A/B image swaps via systemd-sysupdate, with **automatic rollback**: a freshly updated slot that boots but fails its health check is never blessed and the system returns to the last known-good slot. See [Architecture](/astromesh/os/architecture/) for the mechanism.
+
+### Phase 3 — Security *(planned)*
+
+Add TPM-sealed secrets and remote attestation, lock down the appliance with no interactive shell (plus a break-glass path), enforce SELinux, and enable Secure Boot. This phase also introduces the **fail-closed** kernel guarantees: the agent will not start unless its tool sandbox and egress governance are in place.
+
+### Phase 4 — Agent-native + fleet *(planned)*
+
+Turn the appliance into a fleet member that configures itself declaratively. A node joins the mesh purely from its machine-config (static peers first, migrating to Maia gossip as it matures), with causal eBPF telemetry exported via OpenTelemetry and an optional GPU sysext. The gate is a no-SSH join.
+
+### post-4 *(planned)*
+
+Further kernel-level work: a `sched_ext` scheduler with a GPU broker, agent-aware memory and OOM handling, and CRIU-based snapshot/restore. Each lands incrementally behind its own check.
+
+## The kernel differential
+
+The phases above culminate in a set of kernel-level capabilities that are meant to be the OS's **defensible core** — the reason an agent appliance is worth building rather than just running a service on a stock VM:
+
+- **eBPF/XDP egress governance** — governing and shaping what an agent can talk to at the network layer.
+- **Causal cost attribution** — attributing cost and resource use back to the agent (and action) that caused it.
+- **A scheduler** tuned for agent workloads.
+
+The framing matters: these exist for **trust, attribution, and density** — *not* "it runs faster." They are sequenced into the phases deliberately (egress and sandbox in Phase 3; causal telemetry in Phase 4; scheduler and friends post-4) rather than exposed as a pile of loose tunables.
+
+## Related
+
+- [Introduction](/astromesh/os/introduction/) — what Astromesh OS is, and how it differs from [Astromesh Node](/astromesh/node/introduction/).
+- [Architecture](/astromesh/os/architecture/) — the mechanisms behind the Phase 2 gates.
+- [Building](/astromesh/os/building/) — building and iterating against these gates locally.

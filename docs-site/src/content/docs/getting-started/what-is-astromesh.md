@@ -148,7 +148,7 @@ Astromesh supports multiple deployment models depending on your scale and operat
 
 ## The Broader Ecosystem
 
-The core runtime is one part of a larger ecosystem. Astromesh includes a Python SDK (**ADK**), a CLI for managing nodes (**CLI**), a cross-platform system installer (**Node**), a visual agent builder (**Forge**), and cloud infrastructure provisioning (**Orbit**). See [The Ecosystem](/astromesh/getting-started/ecosystem/) for how they all fit together.
+The core runtime is one part of a larger ecosystem. Astromesh includes a Python SDK (**ADK**), a CLI for managing nodes (**CLI**), a cross-platform system installer (**Node**), an immutable agent appliance (**OS**), visual builders for the web (**Forge**) and the desktop (**Cortex**), cloud infrastructure provisioning (**Orbit**), a multi-tenant Kubernetes control plane (**Nexus**), and a natural-language Claude Code plugin (**Leia**). See [The Ecosystem](/astromesh/getting-started/ecosystem/) for how they all fit together.
 
 ## Next Steps
 

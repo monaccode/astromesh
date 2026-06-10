@@ -1,0 +1,15 @@
+---
+// Override of Starlight's ThemeProvider. The Astromesh docs are dark-only by
+// design, so instead of reading localStorage / prefers-color-scheme we force the
+// dark theme on every load (inline, before first paint → no flash) and persist
+// it so Starlight's own logic never flips back to light.
+---
+
+<script is:inline>
+	(() => {
+		document.documentElement.dataset.theme = 'dark';
+		try {
+			localStorage.setItem('starlight-theme', 'dark');
+		} catch {}
+	})();
+</script>

@@ -27,7 +27,7 @@ astromeshctl version
 Output:
 
 ```
-Astromesh Node v0.18.0
+Astromesh Node v0.1.1
 Daemon:   /opt/astromesh/bin/astromeshd
 CLI:      /opt/astromesh/bin/astromeshctl
 Python:   3.12.x
@@ -71,7 +71,7 @@ Output:
 │         Astromesh Status             │
 ├──────────────┬───────────────────────┤
 │ Status       │ ● Running             │
-│ Version      │ 0.18.0                │
+│ Version      │ 0.1.1                 │
 │ Uptime       │ 4h 12m 33s            │
 │ Profile      │ full                  │
 │ PID          │ 4521                  │
@@ -86,7 +86,7 @@ JSON output:
 ```json
 {
   "status": "running",
-  "version": "0.18.0",
+  "version": "0.1.1",
   "uptime_seconds": 15153,
   "profile": "full",
   "pid": 4521,

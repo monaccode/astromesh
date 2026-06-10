@@ -29,10 +29,10 @@ For ARM64 (e.g., Raspberry Pi, AWS Graviton):
 curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_arm64.deb
 ```
 
-To download a specific version, replace `latest` with the version tag (e.g., `v0.18.0`):
+To download a specific version, replace `latest` with the version tag (e.g., `v0.1.1`):
 
 ```bash
-curl -LO https://github.com/monaccode/astromesh/releases/download/v0.18.0/astromesh_0.18.0_amd64.deb
+curl -LO https://github.com/monaccode/astromesh/releases/download/v0.1.1/astromesh_0.1.1_amd64.deb
 ```
 
 ## Install
@@ -45,7 +45,7 @@ Expected output:
 
 ```
 Reading package lists... Done
-Setting up astromesh (0.18.0) ...
+Setting up astromesh (0.1.1) ...
 Creating system user 'astromesh'...
 Creating directories...
   /etc/astromesh/
@@ -66,7 +66,7 @@ astromeshctl version
 Expected output:
 
 ```
-Astromesh Node v0.18.0
+Astromesh Node v0.1.1
 Daemon:   /opt/astromesh/bin/astromeshd
 CLI:      /opt/astromesh/bin/astromeshctl
 Python:   3.12.x

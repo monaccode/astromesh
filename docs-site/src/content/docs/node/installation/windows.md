@@ -61,7 +61,7 @@ The installer:
 Expected output:
 
 ```
-Installing Astromesh Node v0.18.0...
+Installing Astromesh Node v0.1.1...
 Creating directories...
   C:\ProgramData\Astromesh\config\
   C:\ProgramData\Astromesh\data\
@@ -83,7 +83,7 @@ astromeshctl version
 Expected output:
 
 ```
-Astromesh Node v0.18.0
+Astromesh Node v0.1.1
 Daemon:   C:\Program Files\Astromesh\bin\astromeshd.exe
 CLI:      C:\Program Files\Astromesh\bin\astromeshctl.exe
 Python:   3.12.x

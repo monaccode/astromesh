@@ -1,0 +1,43 @@
+---
+import ProductShowcase from './ProductShowcase.astro';
+
+// Astromesh OS is image-based (no semver package); we surface the current phase
+// instead. Separate repo, not checked out by the docs CI. Source: astromesh-os.
+const version = 'phase2b';
+
+const lines = [
+  { t: '[Distribution]', k: 'comment' },
+  { t: 'Distribution=debian   Release=trixie', k: 'plain' },
+  { t: '[Content]', k: 'comment' },
+  { t: 'Bootloader=systemd-boot', k: 'key' },
+  { t: 'UnifiedKernelImages=yes', k: 'key' },
+  { t: 'SplitArtifacts=uki,partitions', k: 'key' },
+  { t: '# read-only root · dm-verity · A/B', k: 'comment' },
+  { t: '# core image must stay ≤ 500 MB', k: 'comment' },
+];
+
+const features = [
+  { icon: `<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>`, label: 'Immutable Root', desc: 'dm-verity verified' },
+  { icon: `<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>`, label: 'A/B Updates', desc: 'sysupdate + rollback' },
+  { icon: `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`, label: 'API-Only', desc: 'No shell · no SSH' },
+  { icon: `<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>`, label: 'Tiny Footprint', desc: '≤ 500 MB ceiling' },
+  { icon: `<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/>`, label: 'OCI Artifact', desc: 'Pulled via ORAS' },
+  { icon: `<line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>`, label: 'Reproducible', desc: 'Pinned runtime ref' },
+];
+---
+
+<ProductShowcase
+  name="OS"
+  version={version}
+  badge="APPLIANCE"
+  tagline="Immutable Agent Appliance"
+  description="A minimal, immutable, API-only Linux appliance built with mkosi on Debian — a verified read-only root, A/B updates with automatic rollback, and the Astromesh runtime baked in at a pinned commit."
+  accent="#fb923c"
+  accentDeep="#f97316"
+  panelTitle="mkosi.conf"
+  lines={lines}
+  features={features}
+  terminal={["PHASE0_MODE=stub mkosi build", "tests/local/dev-loop.sh update"]}
+  ctaPrimary={{ text: 'Build the Image', href: '/astromesh/os/building/' }}
+  ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/os/introduction/' }}
+/>

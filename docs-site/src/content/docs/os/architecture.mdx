@@ -1,0 +1,97 @@
+---
+title: Architecture
+description: Immutability, A/B updates, the shared /var, OCI distribution, the 500 MB ceiling, and reproducibility from a pinned runtime.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Astromesh OS is an immutable appliance. Its architecture exists to make one guarantee cheap to verify: the root filesystem you are running is exactly the image that was shipped, and updates either succeed cleanly or roll back. This page covers how that guarantee is built.
+
+<Aside type="caution">
+Astromesh OS is in early development. The mechanisms below reflect the project through Phase 2b (immutability + A/B updates with automatic rollback) as of June 2026. See the [roadmap](/astromesh/os/roadmap/) for what is in place per phase.
+</Aside>
+
+## Immutability: dm-verity over a read-only root
+
+The OS ships as a **disk image**, not a container. The root filesystem is mounted read-only and protected by **dm-verity**: a Merkle (hash) tree over the root partition lets the kernel verify every block it reads against a single trusted **roothash**. A tampered or corrupted root block fails verification rather than being served silently.
+
+This is why there is no package manager and no shell at runtime — there is nothing writable to install into. Mutable state lives elsewhere (see the shared `/var` below), and the runtime's generated `runtime.yaml` is produced at boot into a writable path (tmpfs/overlay on `/var` or `/etc`) rather than living on the verity-protected root. Read-only profiles are baked into `/etc/astromesh/profiles/`.
+
+## Distribution: OCI artifact via ORAS
+
+The image is distributed as an **OCI artifact** and pulled with `oras pull` — it is **never** `docker run`. The artifact is a disk image that happens to live in an OCI registry; treating it as a container would be a category error. Pull it, write it to a disk or convert it to a cloud image format, and boot it.
+
+## A/B updates with UKI + systemd-sysupdate
+
+Updates are atomic image swaps across two root slots, **A** and **B**.
+
+```text
+            ESP (/EFI/Linux)                  GPT partitions
+        ┌───────────────────────┐        ┌──────────────────────────┐
+        │  UKI v1   (Type-2)    │        │ root-A   + root-A-verity  │  ← active slot
+        │  UKI v2   (Type-2)    │ ◄────  │ root-B   + root-B-verity  │  ← inactive (being updated)
+        └───────────┬───────────┘        │ /var  (SHARED, writable)  │
+                    │                     └──────────────────────────┘
+        systemd-boot picks the NEWEST UKI
+```
+
+- Each image build produces a **UKI** (Unified Kernel Image) — kernel, initrd, and command line in one signed file — installed as a **Type-2 entry** in the ESP under `/EFI/Linux`. **systemd-boot** picks the newest UKI automatically.
+- **systemd-sysupdate** downloads the new image into the inactive slot.
+- The A/B updater then **relabels the inactive slot's GPT partition UUIDs** to the new image's verity roothash halves (the roothash is split across the root and root-verity partition UUIDs), using `sfdisk`. This is what binds a slot's partitions to a specific verified root.
+
+### Automatic rollback
+
+A new image must prove itself before it is trusted. systemd-boot boots the newest entry with a bounded number of tries; the booted slot is only **blessed as good** by Astromesh OS's own health-gated check once `/v1/health` confirms the agent is up. The stock `systemd-bless-boot.service`, which would mark any booted slot good unconditionally, is masked so blessing happens *only* on health.
+
+If a freshly updated slot boots but fails its health check, it is never blessed; systemd-boot exhausts its tries and **automatically rolls back to the previous, known-good slot**. An update that breaks the agent therefore self-heals.
+
+## Shared /var and the fixed Seed
+
+`/var` is a **single partition shared across both A and B slots** — it holds writable runtime state that must survive an update. This creates a subtle constraint: both v1 and v2 must agree on `/var`'s filesystem UUID, because each build bakes that UUID into its `/etc/fstab`.
+
+To guarantee agreement, mkosi uses a **fixed `Seed`** so repart-generated UUIDs are reproducible across builds. Without a fixed seed, v1 and v2 would derive *different* UUIDs for `/var`; the new slot's `var.mount` would then wait forever for a by-uuid device that never appears, dropping the system into emergency mode.
+
+```text
+Fixed mkosi Seed  ──►  deterministic /var fs UUID  ──►  same /etc/fstab entry in v1 and v2
+                                                          ──►  shared /var mounts on either slot
+```
+
+## Boot path
+
+Boot is **systemd-boot + UKI**. The kernel command line forwards both the kernel log and the journal to the serial console (`console=ttyS0`, `systemd.journald.forward_to_console=1`) so the QEMU/CI boot harness can observe boot progress and service startup. The default target is the agent itself, so a successful boot ends with `astromeshd` serving its API.
+
+## The 500 MB ceiling
+
+The core image must be **≤ 500 MB**. This is a hard build gate, not a guideline: a finalize step measures the assembled rootfs and **fails the build** if it exceeds the budget (default 500 MB), printing a breakdown of the heaviest paths to help diagnose the overage.
+
+The dominant term is **not** the base distribution — it is the **Python closure** of the runtime. Accordingly, the base is trimmed (locale, man, doc, info, lintian removed) and the runtime's virtualenv is stripped of bytecode caches (`__pycache__`, `*.pyc`) and in-package test directories during the image build.
+
+## Reproducibility: runtime.pin
+
+The exact `astromesh` runtime built into the image is pinned by a commit SHA in `runtime.pin`:
+
+```ini
+# runtime.pin
+ASTROMESH_REF=<commit SHA of monaccode/astromesh>
+```
+
+The image is reproducible from that exact ref. Bumping the runtime is a deliberate edit to `ASTROMESH_REF`; CI fails if it cannot resolve the ref. See [Building](/astromesh/os/building/) for the bump procedure.
+
+## mkosi.conf highlights
+
+The build is driven by `mkosi.conf`. Key settings:
+
+| Key | Value | Why it matters |
+|---|---|---|
+| `Distribution` / `Release` | `debian` / `trixie` | Debian trixie base, kernel 6.12+ LTS |
+| `Format` | `disk` | Produces a bootable disk image, not a container |
+| `Bootloader` | `systemd-boot` | Selects the newest UKI for A/B |
+| `UnifiedKernelImages` | `yes` | Type-2 UKI in the ESP, replaceable per update |
+| `SplitArtifacts` | `uki,partitions` | Emits the UKI and partitions separately for A/B + verity |
+| `Seed` | fixed UUID | Reproducible UUIDs so v1/v2 agree on the shared `/var` |
+| `KernelCommandLine` | `console=ttyS0 ...forward_to_console=1` | Boot + journal visible on serial for CI/QEMU |
+| `Packages` | systemd, systemd-boot(-efi), python3, python3-venv, fdisk, linux-image-cloud-amd64, ... | Minimal set; `fdisk` provides `sfdisk` for the A/B updater |
+| `RemoveFiles` | locale, i18n, info, lintian, doc, man | Trim toward the 500 MB ceiling |
+| `RootPassword` | `hashed:!` | Root account locked — no interactive login |
+
+The root and root-verity partition sizes are pinned (min == max) so the verity hash partition is identical across repart passes, keeping the **verity roothash reproducible** — which is what lets the UKI command line match the on-disk verity layout.

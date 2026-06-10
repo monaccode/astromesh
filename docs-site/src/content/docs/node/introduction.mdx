@@ -3,7 +3,13 @@ title: "Astromesh Node"
 description: "Native system service deployment for Astromesh on Linux, macOS, and Windows"
 ---
 
+import { Aside } from '@astrojs/starlight/components';
+
 **Astromesh Node** is the native system-level deployment of Astromesh. It installs the `astromeshd` daemon and `astromeshctl` CLI as a first-class service on your operating system — integrating with systemd on Linux, launchd on macOS, and Windows Service Manager on Windows.
+
+<Aside type="tip" title="Node is a way to run the runtime — not a container">
+Astromesh Node is **one of several parallel ways to bring up the same Astromesh runtime**, and it runs it as a **native operating-system service** — *not* inside Docker. [Docker](/astromesh/deployment/docker-single/), [Helm / Kubernetes](/astromesh/deployment/helm-kubernetes/), the [OS appliance](/astromesh/os/introduction/), and [Orbit](/astromesh/orbit/introduction/) are sibling deployment methods that all run the same `astromeshd` daemon and expose the same REST API. Reach for **Node** when you want the runtime supervised by systemd / launchd / Windows Service directly on a host — bare metal, VM, or edge — with no containers.
+</Aside>
 
 ## What is Astromesh Node?
 

@@ -1,0 +1,111 @@
+---
+title: Leia Quickstart
+description: Install the Leia plugin and go from idea to a deployed WhatsApp agent in minutes.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This guide takes you from a fresh install to a live agent on a local [Nexus](/astromesh/nexus/introduction/) cluster.
+
+## Requirements
+
+- **Claude Code CLI** — Leia is a Claude Code plugin.
+- **kubectl** and **kind** — for creating and managing local clusters.
+- **curl** — Leia calls the Nexus REST API over `curl`.
+- **Ollama** *(optional)* — for local models; a cloud fallback is available if Ollama is not present.
+
+## Install
+
+Install from git, or from a release tarball.
+
+```bash
+# from git
+git clone https://github.com/monaccode/astromesh-leia.git
+claude plugins add ./astromesh-leia
+
+# or from a release tarball
+curl -L https://github.com/monaccode/astromesh-leia/releases/latest/download/astromesh-leia-v0.1.0.tar.gz | tar xz
+claude plugins add ./astromesh-leia
+```
+
+Once installed, `/leia` becomes available inside Claude Code. Run it with no arguments to see the welcome menu.
+
+## The idea-to-deployed workflow
+
+This is the headline flow — from a one-time cluster bootstrap to a live, testable agent.
+
+```bash
+/leia bootstrap local                                  # 1. one-time: local Kind nexus cluster
+/leia I need a WhatsApp bot for my restaurant          # 2. create (interpreter → architect → preview → deploy)
+/leia status                                           # 3. dashboard
+/leia test my-restaurant                               # 4. interactive test
+/leia logs my-restaurant --follow                      # 5. live logs
+/leia teardown                                         # (optional) destroy local cluster
+```
+
+What happens in step 2: the [`leia-interpreter`](/astromesh/leia/templates/) parses your sentence into structured intent, [`leia-architect`](/astromesh/leia/templates/) designs a complete `astromesh/v1` agent manifest, Leia previews it for your approval, and then deploys it to the cluster. No YAML required to get started.
+
+<Aside type="note">
+Registering the WhatsApp webhook in Meta is a manual step **outside** the plugin. See the [WhatsApp setup guide](/astromesh/advanced/whatsapp/) for the end-to-end channel configuration.
+</Aside>
+
+## Contexts & configuration
+
+Leia stores its connection details in `~/.astromesh-leia/config.yaml`. The file holds **named contexts** (one per cluster), a `current-context` pointer, and a set of `defaults`.
+
+```yaml
+current-context: local
+contexts:
+  local:
+    nexus-url: http://localhost:8080
+    api-key: nxk_...          # Nexus API key
+    cluster-type: kind         # kind | remote
+    cluster-name: nexus-local
+defaults:
+  channel: whatsapp
+  model-provider: auto         # smart model detection
+  tenant: default
+```
+
+Each context records its `nexus-url`, `api-key` (an `nxk_...` key), `cluster-type` (`kind` or `remote`), and `cluster-name`. Switch between clusters with:
+
+```bash
+/leia config use <name>
+```
+
+See [`/leia config`](/astromesh/leia/commands/#leia-config) for managing contexts and defaults.
+
+## Bootstrap: local vs remote
+
+`/leia bootstrap` sets up the cluster Leia deploys to.
+
+| Mode | What it does |
+|------|--------------|
+| `local` | Creates a **Kind** cluster, deploys Nexus, and saves the context to your config. |
+| `remote` | Connects to an **existing** Nexus cluster by URL and API key — no cluster is created. |
+
+```bash
+/leia bootstrap local      # create a local Kind cluster and save the context
+/leia bootstrap remote     # connect to an existing cluster by URL + API key
+```
+
+### Smart model detection
+
+When the architect designs an agent, it runs `ollama list` and prefers a local model if one is available, falling back to a cloud model otherwise. With `model-provider: auto` in your defaults, you do not have to pick a provider by hand.
+
+## Teardown
+
+<Aside type="danger">
+`/leia teardown` on a **Kind** context is **destructive**: it destroys the local cluster, deletes all data, and removes the context from your config. Leia asks for explicit confirmation first. For a **remote** context, teardown only removes your local connection — it does **not** touch the remote cluster.
+</Aside>
+
+```bash
+/leia teardown             # tear down the current context (with confirmation)
+/leia teardown <name>      # tear down a specific context
+```
+
+## What's Next
+
+- [Commands](/astromesh/leia/commands/) — every `/leia` command in detail.
+- [Templates & Subagents](/astromesh/leia/templates/) — the building blocks Leia uses.
+- [Nexus Quickstart](/astromesh/nexus/quickstart/) — set up the cluster from the Nexus side.

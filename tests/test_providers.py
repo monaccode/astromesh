@@ -196,6 +196,59 @@ async def test_openai_compat_normalizes_tool_calls():
     ]
 
 
+REASONING_TOOL_CALL_RESPONSE = {
+    "id": "chatcmpl-reason",
+    "object": "chat.completion",
+    "choices": [
+        {
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "reasoning_content": "The user wants ROI; I'll call calc_roi.",
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "calc_roi", "arguments": '{"inversion": 1000}'},
+                    }
+                ],
+            },
+            "finish_reason": "tool_calls",
+        }
+    ],
+    "usage": {"prompt_tokens": 10, "completion_tokens": 8, "total_tokens": 18},
+}
+
+
+@respx.mock
+async def test_openai_compat_captures_reasoning_content():
+    """Thinking models (Kimi k2.5/k2.6 on Moonshot) return a reasoning_content
+    field that MUST be surfaced on CompletionResponse — the ReAct pattern echoes
+    it back on the next turn's assistant message, or the API 400s. A normal
+    response without the field yields None."""
+    respx.post("https://api.moonshot.ai/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=REASONING_TOOL_CALL_RESPONSE)
+    )
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k2.5", "api_key": "sk-test"}
+    )
+    result = await provider.complete(MESSAGES)
+    assert result.reasoning_content == "The user wants ROI; I'll call calc_roi."
+
+
+@respx.mock
+async def test_openai_compat_reasoning_content_none_when_absent():
+    respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=OPENAI_CHAT_RESPONSE)
+    )
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.openai.com/v1", "model": "gpt-4o", "api_key": "sk-test"}
+    )
+    result = await provider.complete(MESSAGES)
+    assert result.reasoning_content is None
+
+
 def test_normalize_tool_calls_arg_shapes():
     """_normalize_tool_calls handles non-string-args paths: an already-dict
     arguments value passes through unchanged, a malformed JSON string is

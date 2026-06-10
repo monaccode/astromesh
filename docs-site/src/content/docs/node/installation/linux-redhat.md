@@ -32,7 +32,7 @@ curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astrome
 To download a specific version:
 
 ```bash
-curl -LO https://github.com/monaccode/astromesh/releases/download/v0.18.0/astromesh_0.18.0_x86_64.rpm
+curl -LO https://github.com/monaccode/astromesh/releases/download/v0.1.1/astromesh_0.1.1_x86_64.rpm
 ```
 
 ## Install
@@ -60,7 +60,7 @@ Expected output:
 ```
 Preparing...                          ################################# [100%]
 Updating / installing...
-   1:astromesh-0.18.0                 ################################# [100%]
+   1:astromesh-0.1.1                 ################################# [100%]
 Creating system user 'astromesh'...
 Creating directories...
 Installing Python virtual environment...
@@ -77,7 +77,7 @@ astromeshctl version
 Expected output:
 
 ```
-Astromesh Node v0.18.0
+Astromesh Node v0.1.1
 Daemon:   /opt/astromesh/bin/astromeshd
 CLI:      /opt/astromesh/bin/astromeshctl
 Python:   3.12.x

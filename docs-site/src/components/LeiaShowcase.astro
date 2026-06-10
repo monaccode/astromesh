@@ -1,0 +1,43 @@
+---
+import ProductShowcase from './ProductShowcase.astro';
+
+// Version hardcoded — astromesh-leia is a separate repo (Claude Code plugin),
+// not checked out by the docs CI. Bump on release. Source: astromesh-leia.
+const version = '0.1.0';
+
+const lines = [
+  { t: '/leia bootstrap local', k: 'cmd' },
+  { t: '  ✓ Kind cluster ready · nexus @ :8080', k: 'comment' },
+  { t: '/leia I need a WhatsApp bot for my café', k: 'cmd' },
+  { t: '  ◆ interpreter → architect → preview', k: 'comment' },
+  { t: '  ✓ deployed: cafe-support (running)', k: 'str' },
+  { t: '/leia test cafe-support', k: 'cmd' },
+  { t: '  > "What time do you open?"', k: 'plain' },
+  { t: '  ◇ "We open at 8am every day ☕"', k: 'str' },
+];
+
+const features = [
+  { icon: `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>`, label: 'Natural Language', desc: 'Plain-English ops' },
+  { icon: `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: '10 Commands', desc: 'create · deploy · test' },
+  { icon: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>`, label: '5 Subagents', desc: 'interpreter → architect' },
+  { icon: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>`, label: '6 Templates', desc: 'support · booking · …' },
+  { icon: `<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>`, label: 'Nexus-Native', desc: 'Kind or remote cluster' },
+  { icon: `<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>`, label: 'Smart Models', desc: 'Ollama + cloud fallback' },
+];
+---
+
+<ProductShowcase
+  name="Leia"
+  version={version}
+  badge="PLUGIN"
+  tagline="Agents in Plain English"
+  description="A Claude Code plugin that turns a business idea into a deployed WhatsApp agent on a Nexus cluster — no Kubernetes required. Named after Leia, a lemon beagle: approachable, loyal, friendly."
+  accent="#c084fc"
+  accentDeep="#a855f7"
+  panelTitle="leia · session"
+  lines={lines}
+  features={features}
+  terminal={["claude plugins add ./astromesh-leia", "/leia create a lead-qualifier bot"]}
+  ctaPrimary={{ text: 'Get Started', href: '/astromesh/leia/quickstart/' }}
+  ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/leia/introduction/' }}
+/>

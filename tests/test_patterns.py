@@ -206,3 +206,67 @@ async def test_react_echoes_tool_call_in_openai_format():
     # The matching tool-result message follows with the same tool_call_id
     tool_msg = next(m for m in second_call_messages if m.get("role") == "tool")
     assert tool_msg["tool_call_id"] == "tc_1"
+
+
+@dataclass
+class ThinkingResponse:
+    content: str
+    tool_calls: list | None = None
+    reasoning_content: str | None = None
+
+
+@pytest.mark.asyncio
+async def test_react_echoes_reasoning_content_for_thinking_models():
+    """Thinking models (Kimi k2.5/k2.6 on Moonshot) require the assistant's
+    reasoning_content to be echoed back on the tool-call message, or the next
+    request 400s with 'reasoning_content is missing in assistant tool call
+    message'. ReAct must carry response.reasoning_content through."""
+    captured = []
+
+    async def capturing_model_fn(messages, tools):
+        captured.append([dict(m) for m in messages])
+        if len(captured) == 1:
+            return ThinkingResponse(
+                content="",
+                tool_calls=[{"id": "tc_1", "name": "calc_roi", "arguments": {"inversion": 1000}}],
+                reasoning_content="The user wants ROI; I'll call calc_roi.",
+            )
+        return ThinkingResponse(content="ROI is 30%")
+
+    tool_fn = AsyncMock(return_value={"roi": 30})
+    pattern = ReActPattern()
+    await pattern.execute(
+        query="ROI?", context={}, model_fn=capturing_model_fn, tool_fn=tool_fn, tools=[],
+    )
+
+    assistant_msg = next(
+        m for m in captured[1] if m.get("role") == "assistant" and m.get("tool_calls")
+    )
+    assert assistant_msg.get("reasoning_content") == "The user wants ROI; I'll call calc_roi."
+
+
+@pytest.mark.asyncio
+async def test_react_omits_reasoning_content_when_absent():
+    """Non-thinking models don't emit reasoning_content; the echoed assistant
+    message must not carry the key (sending it empty/null can itself be rejected)."""
+    captured = []
+
+    async def capturing_model_fn(messages, tools):
+        captured.append([dict(m) for m in messages])
+        if len(captured) == 1:
+            return make_response(
+                "I'll call calc_roi",
+                tool_calls=[{"id": "tc_1", "name": "calc_roi", "arguments": {"inversion": 1000}}],
+            )
+        return make_response("ROI is 30%")
+
+    tool_fn = AsyncMock(return_value={"roi": 30})
+    pattern = ReActPattern()
+    await pattern.execute(
+        query="ROI?", context={}, model_fn=capturing_model_fn, tool_fn=tool_fn, tools=[],
+    )
+
+    assistant_msg = next(
+        m for m in captured[1] if m.get("role") == "assistant" and m.get("tool_calls")
+    )
+    assert "reasoning_content" not in assistant_msg

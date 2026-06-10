@@ -17,7 +17,9 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromesh' },
       ],
       components: {
+        // Dark-only: hide the toggle and force the dark theme on every load.
         ThemeSelect: './src/components/ThemeSelect.astro',
+        ThemeProvider: './src/components/ThemeProvider.astro',
         SocialIcons: './src/components/SocialIcons.astro',
       },
       sidebar: [
@@ -58,7 +60,8 @@ export default defineConfig({
           label: 'Deployment',
           items: [
             { label: 'Standalone (from source)', slug: 'deployment/standalone' },
-            { label: 'Astromesh Node', slug: 'deployment/astromesh-os' },
+            { label: 'Astromesh OS (appliance)', slug: 'deployment/astromesh-os' },
+            { label: 'Astromesh Node (service)', link: '/astromesh/node/introduction/' },
             { label: 'Docker Single Node', slug: 'deployment/docker-single' },
             { label: 'Docker Maia', slug: 'deployment/docker-maia' },
             { label: 'Docker Maia + GPU', slug: 'deployment/docker-maia-gpu' },
@@ -106,7 +109,7 @@ export default defineConfig({
           ],
         },
         {
-          label: 'Forge',
+          label: 'Forge (Web Builder)',
           items: [
             { label: 'Introduction', slug: 'forge/introduction' },
             { label: 'Quick Start', slug: 'forge/quickstart' },
@@ -117,6 +120,24 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Cortex (Desktop IDE)',
+          items: [
+            { label: 'Introduction', slug: 'cortex/introduction' },
+            { label: 'Quick Start', slug: 'cortex/quickstart' },
+            { label: 'Runtimes & Connections', slug: 'cortex/runtimes' },
+            { label: 'Workspaces & Editor', slug: 'cortex/workspaces' },
+          ],
+        },
+        {
+          label: 'Astromesh Leia',
+          items: [
+            { label: 'Introduction', slug: 'leia/introduction' },
+            { label: 'Quick Start', slug: 'leia/quickstart' },
+            { label: 'Command Reference', slug: 'leia/commands' },
+            { label: 'Templates & Agents', slug: 'leia/templates' },
+          ],
+        },
+        {
           label: 'Astromesh Orbit',
           items: [
             { label: 'Introduction', slug: 'orbit/introduction' },
@@ -124,6 +145,15 @@ export default defineConfig({
             { label: 'Configuration', slug: 'orbit/configuration' },
             { label: 'GCP Provider', slug: 'orbit/gcp-provider' },
             { label: 'CLI Reference', slug: 'orbit/cli-reference' },
+          ],
+        },
+        {
+          label: 'Astromesh Nexus',
+          items: [
+            { label: 'Introduction', slug: 'nexus/introduction' },
+            { label: 'Architecture & CRDs', slug: 'nexus/architecture' },
+            { label: 'Quick Start', slug: 'nexus/quickstart' },
+            { label: 'API Reference', slug: 'nexus/api-reference' },
           ],
         },
         {
@@ -143,6 +173,15 @@ export default defineConfig({
             { label: 'Configuration', slug: 'node/configuration' },
             { label: 'CLI Reference', slug: 'node/cli-reference' },
             { label: 'Troubleshooting', slug: 'node/troubleshooting' },
+          ],
+        },
+        {
+          label: 'Astromesh OS',
+          items: [
+            { label: 'Introduction', slug: 'os/introduction' },
+            { label: 'Architecture', slug: 'os/architecture' },
+            { label: 'Building the Image', slug: 'os/building' },
+            { label: 'Phases & Roadmap', slug: 'os/roadmap' },
           ],
         },
       ],
