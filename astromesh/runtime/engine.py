@@ -624,3 +624,13 @@ class Agent:
             root_span.set_attribute("error_message", str(e))
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
             raise
+        finally:
+            # Fase 4.3: emit the completed trace to the active collector (InternalCollector for
+            # /v1/traces, or OTLPCollector when OTLP export is enabled). In `finally` so a failed run
+            # (e.g. no provider) still exports the pre-LLM spans. Best-effort; never breaks the run.
+            try:
+                from astromesh.api.routes.traces import get_collector
+
+                await get_collector().emit_trace(tracing)
+            except Exception:
+                logger.debug("trace emit failed", exc_info=True)
