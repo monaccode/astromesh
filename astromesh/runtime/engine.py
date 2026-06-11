@@ -649,6 +649,7 @@ class Agent:
                 from astromesh.observability.metrics_export import get_manager as _gm2
                 _m2 = _gm2()
                 if _m2 is not None:
+                    _m2.record_run(tracing)   # Fase 4.3b: derive engine metrics from the span tree
                     _m2.flush()
             except Exception:
                 logger.debug("agent-egress flush failed", exc_info=True)

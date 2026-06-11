@@ -73,3 +73,57 @@ def test_record_run_is_best_effort_when_disabled():
         spans = []
         agent_name = "x"
     m.record_run(_Empty())
+
+
+async def test_engine_calls_record_run(tmp_path):
+    from astromesh.observability import metrics_export as mx
+    from astromesh.runtime.engine import AgentRuntime
+
+    seen = {"record_run": 0, "agent_run_span": False}
+
+    class CapMgr:
+        def record(self, agent, model, n):
+            pass
+
+        def record_run(self, ctx):
+            seen["record_run"] += 1
+            if any(getattr(s, "name", "") == "agent.run" for s in getattr(ctx, "spans", [])):
+                seen["agent_run_span"] = True
+
+        def flush(self, timeout_millis=5000):
+            pass
+
+    mx.set_manager(CapMgr())
+
+    agents_dir = tmp_path / "agents"; agents_dir.mkdir()
+    (agents_dir / "a.agent.yaml").write_text(
+        """
+apiVersion: astromesh/v1
+kind: Agent
+metadata: {name: rec-agent, version: "0.1.0", namespace: t}
+spec:
+  identity: {display_name: A, description: A}
+  model: {primary: {provider: ollama, model: m, endpoint: "http://127.0.0.1:1/v1"}}
+  prompts: {system: "sys"}
+  orchestration: {pattern: react, max_iterations: 1}
+"""
+    )
+    rt = AgentRuntime(config_dir=str(tmp_path)); await rt.bootstrap()
+    agent = rt._agents["rec-agent"]
+
+    class Resp:
+        model = "m"; provider = "p"; content = "hi"; tool_calls = None
+        usage = {"input_tokens": 3, "output_tokens": 2}; latency_ms = 1.0; cost = 0.0
+
+    async def fake_route(messages, tools=None, **kw):
+        return Resp()
+
+    agent._router.route = fake_route
+
+    try:
+        await rt.run("rec-agent", "hello there", "s1")
+    except Exception:
+        pass
+
+    assert seen["record_run"] >= 1
+    assert seen["agent_run_span"] is True
