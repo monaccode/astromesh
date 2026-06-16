@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repurposed the legacy `deployment/astromesh-os` redirect to point at the new Astromesh OS section, and refreshed component versions across the site (core 0.28.5, ADK 0.1.8, CLI 0.1.1, Node 0.1.1, Orbit 0.2.0, Forge 0.23.0, Cortex 0.12.0, Nexus 0.3.0, Leia 0.1.0, OS phase 2b); registered all new sections in the sidebar (`docs-site/astro.config.mjs`)
 - Documentation site is now dark-only by design: overrode Starlight's `ThemeProvider` to force `data-theme="dark"` before paint (removing the system-preference / stored-theme fallback to light) alongside the already-hidden theme toggle (`docs-site/src/components/ThemeProvider.astro`, `custom.css`)
 
+## [v0.28.7] - 2026-06-16
+
+### Added
+- Fase 4 observability runtime: activate OTLP trace export at node startup
+  (`set_collector(OTLPCollector)`), emit engine spans from `engine.run`, and a
+  `MetricsManager` exporting per-agent egress bytes plus the full engine metric
+  set over OTLP. Bundles the `observability` extra (OpenTelemetry SDK + OTLP) in
+  the node `.deb` venv. Previously lived only on `develop` and shipped in no
+  release; merged onto `main` on top of v0.28.6.
+
 ## [v0.28.6] - 2026-06-09
 
 ### Fixed
