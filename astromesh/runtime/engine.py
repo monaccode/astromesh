@@ -499,6 +499,16 @@ class Agent:
                 full_messages = [{"role": "system", "content": rendered_prompt}] + messages
                 try:
                     response = await self._router.route(full_messages, tools=tools, **route_kwargs)
+                    # Fase 4.4c: attribute the outbound provider-request bytes to this agent.
+                    try:
+                        import json as _json
+                        from astromesh.observability.metrics_export import get_manager as _gm
+                        _m = _gm()
+                        if _m is not None:
+                            _req_bytes = len(_json.dumps(full_messages, default=str))
+                            _m.record(self.name, getattr(response, "model", "unknown"), _req_bytes)
+                    except Exception:
+                        pass
                     if hasattr(response, "usage") and response.usage:
                         llm_span.set_attribute(
                             "input_tokens", response.usage.get("input_tokens", 0)
@@ -624,3 +634,22 @@ class Agent:
             root_span.set_attribute("error_message", str(e))
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
             raise
+        finally:
+            # Fase 4.3: emit the completed trace to the active collector (InternalCollector for
+            # /v1/traces, or OTLPCollector when OTLP export is enabled). In `finally` so a failed run
+            # (e.g. no provider) still exports the pre-LLM spans. Best-effort; never breaks the run.
+            try:
+                from astromesh.api.routes.traces import get_collector
+
+                await get_collector().emit_trace(tracing)
+            except Exception:
+                logger.debug("trace emit failed", exc_info=True)
+            # Fase 4.4c: flush the per-agent egress metric (cold gRPC needs a waited flush, like traces).
+            try:
+                from astromesh.observability.metrics_export import get_manager as _gm2
+                _m2 = _gm2()
+                if _m2 is not None:
+                    _m2.record_run(tracing)   # Fase 4.3b: derive engine metrics from the span tree
+                    _m2.flush()
+            except Exception:
+                logger.debug("agent-egress flush failed", exc_info=True)

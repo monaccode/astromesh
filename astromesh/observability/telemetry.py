@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 
@@ -7,6 +8,23 @@ class TelemetryConfig:
     otlp_endpoint: str = "http://localhost:4317"
     enabled: bool = True
     sample_rate: float = 1.0
+
+    @classmethod
+    def from_env_and_dict(cls, observability: dict) -> "TelemetryConfig":
+        """Build from a runtime.yaml spec.observability dict + OTEL_* env. Export is OFF by default —
+        only enabled when observability.otlp.enabled is truthy. Endpoint precedence: explicit dict
+        endpoint > OTEL_EXPORTER_OTLP_ENDPOINT env > localhost:4317 (the node-local collector default).
+        """
+        otlp = (observability or {}).get("otlp", {}) or {}
+        endpoint = (
+            otlp.get("endpoint")
+            or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+            or "http://localhost:4317"
+        )
+        return cls(
+            otlp_endpoint=endpoint,
+            enabled=bool(otlp.get("enabled", False)),
+        )
 
 
 class TelemetryManager:
@@ -34,11 +52,27 @@ class TelemetryManager:
             self._provider.add_span_processor(BatchSpanProcessor(exporter))
             trace.set_tracer_provider(self._provider)
             self._tracer = trace.get_tracer(self._config.service_name)
-        except ImportError:
+        except ImportError as e:
+            # e.g. grpcio's C extension needs libstdc++ at runtime; without the exporter, traces are
+            # not exported (the runtime keeps working). Warn loudly so it's not a silent no-op.
             self._tracer = None
+            import logging
+            logging.getLogger("astromeshd").warning(
+                "OTLP exporter unavailable, traces will not be exported: %r", e
+            )
 
     def get_tracer(self):
         return self._tracer
+
+    def flush(self, timeout_millis: int = 5000) -> None:
+        """Force the span processor to export queued spans now. The BatchSpanProcessor's background
+        timer is unreliable under the node's sandboxed systemd unit (and a cold gRPC channel needs a
+        waited export), so callers flush explicitly after emitting a trace."""
+        if self._provider is not None:
+            try:
+                self._provider.force_flush(timeout_millis=timeout_millis)
+            except Exception:
+                pass
 
     def trace_agent_run(self, agent_name: str, session_id: str):
         """Context manager decorator for tracing agent runs."""
