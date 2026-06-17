@@ -1,9 +1,11 @@
 ---
 import ProductShowcase from './ProductShowcase.astro';
 
-// Astromesh OS is image-based (no semver package); we surface the current phase
-// instead. Separate repo, not checked out by the docs CI. Source: astromesh-os.
-const version = 'phase2b';
+// Astromesh OS is a distro/appliance, not a package — but it is versioned like the
+// rest of the ecosystem (semver) with the roadmap phase surfaced as a maturity badge.
+// Separate repo, not checked out by the docs CI, so the version is hardcoded here.
+// Source: github.com/monaccode/astromesh-os.
+const version = '0.4.0';
 
 const lines = [
   { t: '[Distribution]', k: 'comment' },
@@ -31,13 +33,13 @@ const features = [
   version={version}
   badge="APPLIANCE"
   tagline="Immutable Agent Appliance"
-  description="A minimal, immutable, API-only Linux appliance built with mkosi on Debian — a verified read-only root, A/B updates with automatic rollback, and the Astromesh runtime baked in at a pinned commit."
+  description="A minimal, immutable, API-only Linux appliance built with mkosi on Debian trixie — a verified read-only root, A/B updates with automatic rollback, and the Astromesh runtime baked in at a pinned commit. Mature through Phase 4 + post-4: TPM-sealed secrets, mesh mTLS, OTel, and eBPF causal egress."
   accent="#fb923c"
   accentDeep="#f97316"
   panelTitle="mkosi.conf"
   lines={lines}
   features={features}
-  terminal={["PHASE0_MODE=stub mkosi build", "tests/local/dev-loop.sh update"]}
-  ctaPrimary={{ text: 'Build the Image', href: '/astromesh/os/building/' }}
+  terminal={["oras pull ghcr.io/monaccode/astromesh-os:v0.4.0", "PHASE0_MODE=stub mkosi build"]}
+  ctaPrimary={{ text: 'Operations & Commands', href: '/astromesh/os/operations/' }}
   ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/os/introduction/' }}
 />

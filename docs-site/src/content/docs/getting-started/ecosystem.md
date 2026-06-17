@@ -11,11 +11,11 @@ You can use just the core runtime with YAML config files, or combine it with the
 
 | Component | What it does | Package / Repo | Version |
 |-----------|-------------|----------------|---------|
-| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns, memory, tools, and guardrails | `astromesh` | v0.28.5 |
+| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns, memory, tools, and guardrails | `astromesh` | v0.28.7 |
 | **ADK** | Python-first agent SDK with decorators, CLI, and hot reload | `astromesh-adk` | v0.1.8 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.1.1 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.1 |
-| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | `astromesh-os` | Phase 2b |
+| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.4.0 (Phase 4) |
 | **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.23.0 |
 | **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.12.0 |
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.2.0 |

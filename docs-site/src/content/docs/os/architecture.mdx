@@ -7,8 +7,8 @@ import { Aside } from '@astrojs/starlight/components';
 
 Astromesh OS is an immutable appliance. Its architecture exists to make one guarantee cheap to verify: the root filesystem you are running is exactly the image that was shipped, and updates either succeed cleanly or roll back. This page covers how that guarantee is built.
 
-<Aside type="caution">
-Astromesh OS is in early development. The mechanisms below reflect the project through Phase 2b (immutability + A/B updates with automatic rollback) as of June 2026. See the [roadmap](/astromesh/os/roadmap/) for what is in place per phase.
+<Aside type="note">
+The mechanisms below reflect the project through **Phase 4 + post-4** as of June 2026 — immutability and A/B updates with automatic rollback (Phase 2), the security layer (Phase 3), and the agent-native fleet layer (Phase 4). See the [roadmap](/astromesh/os/roadmap/) for what is in place per phase.
 </Aside>
 
 ## Immutability: dm-verity over a read-only root
@@ -60,9 +60,32 @@ Fixed mkosi Seed  ──►  deterministic /var fs UUID  ──►  same /etc/fs
 
 Boot is **systemd-boot + UKI**. The kernel command line forwards both the kernel log and the journal to the serial console (`console=ttyS0`, `systemd.journald.forward_to_console=1`) so the QEMU/CI boot harness can observe boot progress and service startup. The default target is the agent itself, so a successful boot ends with `astromeshd` serving its API.
 
+## Security layer (Phase 3)
+
+On top of the verified, read-only root, the appliance is hardened so that secrets and the agent itself are bound to an intact boot:
+
+- **TPM-sealed secrets** — provider keys and other secrets are sealed to the platform's TPM (PCR-bound), so they are recoverable **only** when the machine boots the expected, measured image. A tampered boot cannot unseal them.
+- **No interactive shell + break-glass** — the appliance ships with no login and no runtime package manager (`RootPassword=hashed:!`). A separate, audited break-glass path exists for recovery rather than a standing shell.
+- **AppArmor + tool sandbox** — `astromeshd` and the agent's tool execution run confined under AppArmor, so a tool cannot reach beyond its sandbox.
+- **Egress governance** — outbound network access is governed (allowlisted), not open by default.
+- **Secure Boot** — the signed UKI chain is verified by the firmware.
+
+A **fail-closed** rule ties these together: the agent **does not start** unless its tool sandbox and egress governance are in place. Security is a boot precondition, not a runtime toggle.
+
+## Fleet layer (Phase 4)
+
+A Phase 4 appliance is a self-configuring fleet member — it joins the mesh from its declarative machine-config alone, with **no SSH**:
+
+- **Machine-config join** — a node reads its peers and identity from machine-config (static peers first, migrating to Maia gossip as it matures) and joins on boot.
+- **Mesh mTLS / IPsec** — node-to-node traffic is mutually authenticated and encrypted.
+- **OpenTelemetry export** — boot, health, and runtime metrics are exported over OTel.
+- **eBPF causal egress** — egress is observed and attributed at the kernel layer with eBPF, so cost and network use trace back to the agent (and action) that caused them.
+
+This is the appliance's **defensible core** — trust, attribution, and density — rather than raw speed. See the [roadmap](/astromesh/os/roadmap/#the-kernel-differential) for how these capabilities are sequenced.
+
 ## The 500 MB ceiling
 
-The core image must be **≤ 500 MB**. This is a hard build gate, not a guideline: a finalize step measures the assembled rootfs and **fails the build** if it exceeds the budget (default 500 MB), printing a breakdown of the heaviest paths to help diagnose the overage.
+The core image must be **≤ 500 MB**, and currently lands at **~285 MB**. This is a hard build gate, not a guideline: a finalize step measures the assembled rootfs and **fails the build** if it exceeds the budget (default 500 MB), printing a breakdown of the heaviest paths to help diagnose the overage.
 
 The dominant term is **not** the base distribution — it is the **Python closure** of the runtime. Accordingly, the base is trimmed (locale, man, doc, info, lintian removed) and the runtime's virtualenv is stripped of bytecode caches (`__pycache__`, `*.pyc`) and in-package test directories during the image build.
 

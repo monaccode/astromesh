@@ -7,8 +7,8 @@ import { Aside } from '@astrojs/starlight/components';
 
 Astromesh OS is built **capability-by-capability** through phases, not as a single big-bang release. Each phase delivers a working appliance and is guarded by an explicit exit gate.
 
-<Aside type="caution">
-Astromesh OS is in early development. Phase 0 is complete, and as of June 2026 the project has progressed through Phase 2 (immutability + A/B updates with automatic rollback). Phases 3 and beyond describe planned work.
+<Aside type="note">
+As of June 2026 the project is implemented through **Phase 4 + post-4**, all merged to `main`: boot-to-agent (Phase 0), minimal image + OCI publish (Phase 1), immutability + A/B updates with automatic rollback (Phase 2), the security layer (Phase 3), the agent-native fleet layer (Phase 4), and post-4 kernel-level work. One acceptance gate is explicitly deferred (see post-4 below).
 </Aside>
 
 ## The rule: don't advance until it boots
@@ -38,21 +38,21 @@ Prove the runtime works as a systemd service on a plain Debian/mkosi image that 
 
 Strip the image down to a custom boot-to-agent target, enforce the **500 MB** ceiling as a build-failing gate, and publish the OCI artifact over ORAS. The dominant size term is the runtime's Python closure, so trimming focuses there.
 
-### Phase 2 — Immutability + updates *(reached as of June 2026)*
+### Phase 2 — Immutability + updates *(done)*
 
 Make the root read-only and verified with dm-verity, and ship updates as atomic A/B image swaps via systemd-sysupdate, with **automatic rollback**: a freshly updated slot that boots but fails its health check is never blessed and the system returns to the last known-good slot. See [Architecture](/astromesh/os/architecture/) for the mechanism.
 
-### Phase 3 — Security *(planned)*
+### Phase 3 — Security *(done)*
 
-Add TPM-sealed secrets and remote attestation, lock down the appliance with no interactive shell (plus a break-glass path), enforce SELinux, and enable Secure Boot. This phase also introduces the **fail-closed** kernel guarantees: the agent will not start unless its tool sandbox and egress governance are in place.
+Adds TPM-sealed secrets, locks down the appliance with no interactive shell (plus a break-glass path), enforces **AppArmor**, and enables Secure Boot. This phase also introduces the **fail-closed** kernel guarantees: the agent will not start unless its tool sandbox and egress governance are in place.
 
-### Phase 4 — Agent-native + fleet *(planned)*
+### Phase 4 — Agent-native + fleet *(done)*
 
-Turn the appliance into a fleet member that configures itself declaratively. A node joins the mesh purely from its machine-config (static peers first, migrating to Maia gossip as it matures), with causal eBPF telemetry exported via OpenTelemetry and an optional GPU sysext. The gate is a no-SSH join.
+Turns the appliance into a fleet member that configures itself declaratively. A node joins the mesh purely from its machine-config (static peers first, migrating to Maia gossip as it matures), with mesh mTLS/IPsec, causal eBPF egress telemetry exported via OpenTelemetry. The gate is a no-SSH join.
 
-### post-4 *(planned)*
+### post-4 *(done, one gate deferred)*
 
-Further kernel-level work: a `sched_ext` scheduler with a GPU broker, agent-aware memory and OOM handling, and CRIU-based snapshot/restore. Each lands incrementally behind its own check.
+Further kernel-level work: cgroup memory governance, CRIU-based snapshot/restore, and a `sched_ext` scheduler with a GPU broker. These are implemented behind their own checks. Two acceptance gates are **deferred** for environmental reasons rather than missing code: `sched_ext` ships as a guarded, fail-closed, default-off loader, but Debian trixie's 6.12 kernel is built without `CONFIG_SCHED_CLASS_EXT` (backports 7.0 has it), so its gate waits on moving the kernel baseline; the **GPU broker** waits on GPU-equipped VMs and ships behind a `sysext-gpu` extension.
 
 ## The kernel differential
 

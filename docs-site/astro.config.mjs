@@ -180,6 +180,7 @@ export default defineConfig({
           items: [
             { label: 'Introduction', slug: 'os/introduction' },
             { label: 'Architecture', slug: 'os/architecture' },
+            { label: 'Operations & Commands', slug: 'os/operations' },
             { label: 'Building the Image', slug: 'os/building' },
             { label: 'Phases & Roadmap', slug: 'os/roadmap' },
           ],

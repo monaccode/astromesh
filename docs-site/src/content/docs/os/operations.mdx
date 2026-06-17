@@ -1,0 +1,135 @@
+---
+title: Operations & Commands
+description: Pulling and booting the Astromesh OS image, health checks, talking to the agent API, A/B updates with automatic rollback, and astromeshctl.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Astromesh OS is an **API-only appliance**: there is no interactive shell, no SSH, and no package manager at runtime. You operate it by *pulling and booting an image*, *talking to its HTTP API*, and *shipping A/B image updates* — not by logging in and running commands on the box. This page collects the commands you actually use, on the host that builds/deploys it and against the running appliance.
+
+<Aside type="tip">
+The canonical artifact coordinates and workflow names live in the [`monaccode/astromesh-os`](https://github.com/monaccode/astromesh-os) repository. The registry path below is illustrative — check the repo's `phase1-publish` workflow for the exact ref.
+</Aside>
+
+## 1. Pull the image (OCI artifact via ORAS)
+
+The image is distributed as an **OCI artifact** and pulled with [`oras`](https://oras.land) — it is a disk image that happens to live in a registry, so it is **never** `docker run`.
+
+```bash
+# Pull the appliance image for a given version into ./out
+oras pull ghcr.io/monaccode/astromesh-os:v0.4.0 -o ./out
+ls ./out          # → the raw disk image + split UKI / partition artifacts
+```
+
+<Aside type="caution">
+`oras pull`, never `docker run`. Treating the disk image as a container is a category error — it is meant to be written to a disk or converted to a cloud image, then booted.
+</Aside>
+
+## 2. Boot the image
+
+### Write to a disk (bare metal)
+
+```bash
+# Write the raw image to a target disk (DESTRUCTIVE — pick the right device)
+sudo dd if=./out/astromesh-os.raw of=/dev/sdX bs=4M status=progress conv=fsync
+```
+
+### Convert to a cloud image
+
+```bash
+# e.g. to qcow2 for a local/QEMU or cloud upload
+qemu-img convert -O qcow2 ./out/astromesh-os.raw astromesh-os.qcow2
+```
+
+On boot, systemd-boot selects the newest UKI, the kernel comes up with its log forwarded to the serial console, networking is brought up via DHCP, and `astromeshd` starts. There is no login prompt — a healthy boot ends with the agent answering on its API.
+
+## 3. Confirm it is up — health check
+
+The system's default target *is* the agent. A successful boot is defined by the health endpoint returning `200`:
+
+```bash
+curl -fsS http://<node-ip>:8000/v1/health
+# → {"status":"ok", ...}
+```
+
+This is the same check the boot harness uses, and the same check that **blesses** an A/B update as good (see below).
+
+## 4. Talk to the agent
+
+You reach the appliance over the same `/v1/...` HTTP surface as the rest of the Astromesh ecosystem — run an agent, stream over WebSocket, inspect tools and memory:
+
+```bash
+# Run an agent
+curl -fsS -X POST http://<node-ip>:8000/v1/agents/<name>/run \
+  -H 'content-type: application/json' \
+  -d '{"query": "hello", "session_id": "demo"}'
+```
+
+See the [API Endpoints reference](/astromesh/reference/api-endpoints/) for the full surface.
+
+## 5. A/B updates with automatic rollback
+
+Updates are **atomic image swaps** across two root slots (A and B), driven by `systemd-sysupdate`. The flow is fully image-based — you never patch the running root:
+
+```bash
+# Check what update is available
+systemd-sysupdate list
+
+# Download the new image into the inactive slot and stage it
+systemd-sysupdate update
+
+# Reboot into the newest UKI (systemd-boot picks it automatically)
+systemctl reboot
+```
+
+**Automatic rollback** is the safety net: a freshly updated slot boots with a bounded number of tries and is only **blessed as good** once `/v1/health` confirms the agent is up. If the new slot boots but fails its health check, it is never blessed; systemd-boot exhausts its tries and **rolls back to the previous, known-good slot**. An update that breaks the agent self-heals — there is nothing to undo by hand.
+
+<Aside type="note">
+The stock `systemd-bless-boot.service` is masked so blessing happens **only** on a healthy agent, not unconditionally on any boot. See [Architecture → Automatic rollback](/astromesh/os/architecture/#automatic-rollback).
+</Aside>
+
+## 6. Diagnostics — `astromeshctl doctor`
+
+The runtime ships `astromeshctl`, the same management CLI used across the ecosystem. Its `doctor` subcommand is the green/red signal the Phase 0 gate asserts:
+
+```bash
+astromeshctl doctor      # boot + config + provider reachability checks
+```
+
+See the [CLI reference](/astromesh/reference/os/cli/) for the full `astromeshctl` surface and the [daemon reference](/astromesh/reference/os/daemon/) for `astromeshd`.
+
+## 7. Bump the baked-in runtime
+
+The exact `astromesh` runtime in the image is pinned by ref in `runtime.pin` (currently `v0.28.7`). Bumping it is a deliberate edit, then a rebuild:
+
+```ini
+# runtime.pin — prefer a release tag over a floating branch tip
+ASTROMESH_REF=v0.28.7
+```
+
+CI checks out that ref and builds the runtime `.deb` from source, so the image is reproducible from it; CI **fails** if the ref cannot be resolved. See [Building → Bumping the pinned runtime](/astromesh/os/building/#bumping-the-pinned-runtime).
+
+## 8. Local build & boot gate (dev-loop)
+
+For iterating on the image itself (not operating a deployed one), the repo ships a WSL2 + KVM dev-loop. Full setup is on the [Building](/astromesh/os/building/) page; the targets:
+
+| Target | What it does |
+|---|---|
+| `build` | Build the image only |
+| `boot` | Single boot, asserting immutability and health |
+| `update` | Full A/B v1→v2 update gate (**default**) |
+| `inspect` | Compare the UKI roothash against the on-disk verity PARTUUIDs |
+| `clean` | Clean build artifacts |
+
+```powershell
+wsl -d Debian -u root -- bash /mnt/d/monaccode/astromesh-os/tests/local/dev-loop.sh update
+```
+
+CI (GitHub Actions) remains the authoritative gate; the local loop is for fast iteration before you push.
+
+## Related
+
+- [Introduction](/astromesh/os/introduction/) — what the appliance is, and how it differs from [Astromesh Node](/astromesh/node/introduction/).
+- [Architecture](/astromesh/os/architecture/) — the mechanisms behind these commands (verity, A/B, rollback, security, fleet).
+- [Building](/astromesh/os/building/) — building the image and the WSL2 + KVM dev-loop.
+- [Roadmap](/astromesh/os/roadmap/) — the phase gates each build clears.

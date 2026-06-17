@@ -5,10 +5,11 @@ description: Deploy Astromesh as a minimal, immutable, API-only Linux appliance.
 
 **Astromesh OS** is a minimal, immutable, **API-only Linux appliance** that exists for one purpose: running Astromesh agents. It is built with `mkosi` on Debian, ships a verified read-only root (dm-verity), updates via A/B slots with automatic rollback, and bakes the runtime in at a pinned commit — no shell, no SSH, no package manager at runtime.
 
-👉 **Full documentation has moved to its own section: [Astromesh OS](/astromesh/os/introduction/).**
+👉 **Full documentation has moved to its own section: [Astromesh OS](/astromesh/os/introduction/).** Source: [`github.com/monaccode/astromesh-os`](https://github.com/monaccode/astromesh-os) (`v0.4.0`, mature through Phase 4 + post-4).
 
 - [Introduction](/astromesh/os/introduction/) — what the appliance is and why
-- [Architecture](/astromesh/os/architecture/) — immutability, A/B updates, UKI, the 500 MB ceiling
+- [Architecture](/astromesh/os/architecture/) — immutability, A/B updates, UKI, security, fleet, the 500 MB ceiling
+- [Operations & Commands](/astromesh/os/operations/) — pull, boot, health-check, A/B update, and `astromeshctl`
 - [Building the Image](/astromesh/os/building/) — mkosi, the WSL2 + KVM dev loop, and CI
 - [Phases & Roadmap](/astromesh/os/roadmap/) — the gated path from Phase 0 to fleet
 
