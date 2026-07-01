@@ -12,7 +12,7 @@ from astromesh.providers.hf_tgi_provider import HFTGIProvider
 from astromesh.providers.llamacpp_provider import LlamaCppProvider
 from astromesh.providers.ollama_provider import OllamaProvider
 from astromesh.providers.onnx_provider import ONNXProvider
-from astromesh.providers.openai_compat import OpenAICompatProvider, _normalize_tool_calls, _provider_label
+from astromesh.providers.openai_compat import CACHE_INPUT_PRICING, OpenAICompatProvider, _normalize_tool_calls, _provider_label
 from astromesh.providers.vllm_provider import VLLMProvider
 
 # ---------------------------------------------------------------------------
@@ -377,3 +377,58 @@ async def test_openai_compat_kimi_reports_kimi_provider_and_cost():
     result = await provider.complete(MESSAGES)
     assert result.provider == "kimi"
     assert result.cost > 0
+
+
+# ===================================================================
+# Cache pricing + cache_read_input_tokens (Task 1)
+# ===================================================================
+
+
+def test_estimated_cost_applies_cache_discount():
+    provider = OpenAICompatProvider({"model": "kimi-k2.5", "api_key": "sk-test"})
+    # 2000 input, 1000 cacheados, 500 output:
+    #   uncached 1000 * 0.0006/1000 = 0.0006
+    #   cached   1000 * 0.0001/1000 = 0.0001
+    #   output    500 * 0.0025/1000 = 0.00125
+    assert provider.estimated_cost("kimi-k2.5", 2000, 500, 1000) == pytest.approx(0.00195)
+    # sin cache = comportamiento previo
+    assert provider.estimated_cost("kimi-k2.5", 2000, 500, 0) == pytest.approx(
+        (2000 / 1000) * 0.0006 + (500 / 1000) * 0.0025
+    )
+
+
+def test_estimated_cost_clamps_cached_to_input():
+    provider = OpenAICompatProvider({"model": "kimi-k2.5", "api_key": "sk-test"})
+    # cached > input → se clampa a input; todo cacheado
+    assert provider.estimated_cost("kimi-k2.5", 1000, 0, 5000) == pytest.approx(
+        (1000 / 1000) * 0.0001
+    )
+
+
+def test_estimated_cost_no_cache_rate_no_discount():
+    provider = OpenAICompatProvider({"model": "gpt-4o", "api_key": "sk-test"})
+    # gpt-4o no está en CACHE_INPUT_PRICING → la porción "cacheada" se cobra a tarifa normal
+    assert provider.estimated_cost("gpt-4o", 1000, 0, 500) == pytest.approx((1000 / 1000) * 0.0025)
+
+
+@respx.mock
+async def test_complete_exposes_cache_read_input_tokens():
+    body = {
+        "choices": [{"message": {"content": "ok"}}],
+        "usage": {"prompt_tokens": 2000, "completion_tokens": 500, "cached_tokens": 1000},
+    }
+    respx.post("https://api.moonshot.ai/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=body)
+    )
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k2.5", "api_key": "sk-test"}
+    )
+    result = await provider.complete(MESSAGES)
+    assert result.usage["cache_read_input_tokens"] == 1000
+    assert result.usage["input_tokens"] == 2000
+    assert result.cost == pytest.approx(0.00195)
+
+
+def test_cache_input_pricing_has_kimi():
+    assert CACHE_INPUT_PRICING["kimi-k2.5"] == 0.0001
+    assert CACHE_INPUT_PRICING["kimi-k2.6"] == 0.00016
