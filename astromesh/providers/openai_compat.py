@@ -25,6 +25,12 @@ PRICING: dict[str, tuple[float, float]] = {
     "kimi-k2.6": (0.00095, 0.0040),
 }
 
+# Cached-input rates (Moonshot/Kimi context cache). Confirm against the account before publishing.
+CACHE_INPUT_PRICING: dict[str, float] = {
+    "kimi-k2.5": 0.0001,
+    "kimi-k2.6": 0.00016,
+}
+
 
 def _provider_label(model: str) -> str:
     """Etiqueta del proveedor derivada del nombre del modelo. El adapter
@@ -128,13 +134,18 @@ class OpenAICompatProvider:
         usage_data = data.get("usage", {})
         input_tokens = usage_data.get("prompt_tokens", 0)
         output_tokens = usage_data.get("completion_tokens", 0)
-        cost = self.estimated_cost(model, input_tokens, output_tokens)
+        cached_tokens = usage_data.get("cached_tokens", 0)
+        cost = self.estimated_cost(model, input_tokens, output_tokens, cached_tokens)
 
         return CompletionResponse(
             content=message.get("content", "") or "",
             model=model,
             provider=_provider_label(model),
-            usage={"input_tokens": input_tokens, "output_tokens": output_tokens},
+            usage={
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cache_read_input_tokens": cached_tokens,
+            },
             latency_ms=latency_ms,
             cost=cost,
             tool_calls=_normalize_tool_calls(message.get("tool_calls")),
@@ -152,6 +163,8 @@ class OpenAICompatProvider:
         }
         payload.update(kwargs)
 
+        # TODO: if a streaming consumer ever needs cache tokens, the streamed usage
+        # must also carry cache_read_input_tokens (from the final [DONE] chunk) like complete() does.
         async with client.stream("POST", "/chat/completions", json=payload) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
@@ -187,9 +200,17 @@ class OpenAICompatProvider:
         model_lower = self.model.lower()
         return "vision" in model_lower or "gpt-4o" in model_lower
 
-    def estimated_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
+    def estimated_cost(
+        self, model: str, input_tokens: int, output_tokens: int, cached_tokens: int = 0
+    ) -> float:
         pricing = PRICING.get(model)
         if pricing is None:
             return 0.0
         input_price, output_price = pricing
-        return (input_tokens / 1000) * input_price + (output_tokens / 1000) * output_price
+        cached = max(0, min(cached_tokens, input_tokens))  # cached ⊆ input
+        cache_price = CACHE_INPUT_PRICING.get(model, input_price)  # sin tarifa → sin descuento
+        return (
+            ((input_tokens - cached) / 1000) * input_price
+            + (cached / 1000) * cache_price
+            + (output_tokens / 1000) * output_price
+        )
