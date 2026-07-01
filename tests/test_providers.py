@@ -429,6 +429,15 @@ async def test_complete_exposes_cache_read_input_tokens():
     assert result.cost == pytest.approx(0.00195)
 
 
+def test_estimated_cost_cache_discount_k26():
+    provider = OpenAICompatProvider({"model": "kimi-k2.6", "api_key": "sk-test"})
+    # 2000 input, 1000 cached, 500 output:
+    #   uncached 1000 * 0.00095/1000 + cached 1000 * 0.00016/1000 + output 500 * 0.0040/1000
+    assert provider.estimated_cost("kimi-k2.6", 2000, 500, 1000) == pytest.approx(
+        (1000 / 1000) * 0.00095 + (1000 / 1000) * 0.00016 + (500 / 1000) * 0.0040
+    )
+
+
 def test_cache_input_pricing_has_kimi():
     assert CACHE_INPUT_PRICING["kimi-k2.5"] == 0.0001
     assert CACHE_INPUT_PRICING["kimi-k2.6"] == 0.00016

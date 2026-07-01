@@ -25,7 +25,7 @@ PRICING: dict[str, tuple[float, float]] = {
     "kimi-k2.6": (0.00095, 0.0040),
 }
 
-# Cached-input pricing per 1 000 tokens in USD (Moonshot/Kimi context cache).
+# Cached-input rates (Moonshot/Kimi context cache). Confirm against the account before publishing.
 CACHE_INPUT_PRICING: dict[str, float] = {
     "kimi-k2.5": 0.0001,
     "kimi-k2.6": 0.00016,
@@ -163,6 +163,8 @@ class OpenAICompatProvider:
         }
         payload.update(kwargs)
 
+        # TODO: if a streaming consumer ever needs cache tokens, the streamed usage
+        # must also carry cache_read_input_tokens (from the final [DONE] chunk) like complete() does.
         async with client.stream("POST", "/chat/completions", json=payload) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
