@@ -12,7 +12,7 @@ from astromesh.providers.hf_tgi_provider import HFTGIProvider
 from astromesh.providers.llamacpp_provider import LlamaCppProvider
 from astromesh.providers.ollama_provider import OllamaProvider
 from astromesh.providers.onnx_provider import ONNXProvider
-from astromesh.providers.openai_compat import OpenAICompatProvider, _normalize_tool_calls
+from astromesh.providers.openai_compat import OpenAICompatProvider, _normalize_tool_calls, _provider_label
 from astromesh.providers.vllm_provider import VLLMProvider
 
 # ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ async def test_openai_compat_complete():
 
     assert isinstance(result, CompletionResponse)
     assert result.content == "Hello from OpenAI!"
-    assert result.provider == "openai_compat"
+    assert result.provider == "openai"
     assert result.usage["input_tokens"] == 15
     assert result.usage["output_tokens"] == 25
     assert result.cost > 0
@@ -342,3 +342,38 @@ def test_onnx_provider_init():
     assert provider.supports_vision() is False
     assert provider.estimated_cost("any", 100, 100) == 0.0
     assert provider._session is None
+
+
+# ===================================================================
+# _provider_label + Kimi pricing (Task 1)
+# ===================================================================
+
+
+def test_provider_label_maps_by_model_prefix():
+    assert _provider_label("kimi-k2.5") == "kimi"
+    assert _provider_label("kimi-k2.6") == "kimi"
+    assert _provider_label("moonshot-v1-8k") == "kimi"
+    assert _provider_label("claude-3-5-sonnet") == "anthropic"
+    assert _provider_label("gpt-4o") == "openai"
+    assert _provider_label("o3-mini") == "openai"
+    assert _provider_label("mistral-large") == "openai_compat"
+
+
+def test_estimated_cost_kimi_nonzero():
+    provider = OpenAICompatProvider({"model": "kimi-k2.5", "api_key": "sk-test"})
+    # 1000 in + 1000 out → 0.0006 + 0.0025
+    assert provider.estimated_cost("kimi-k2.5", 1000, 1000) == pytest.approx(0.0031)
+    assert provider.estimated_cost("kimi-k2.6", 1000, 1000) == pytest.approx(0.00495)
+
+
+@respx.mock
+async def test_openai_compat_kimi_reports_kimi_provider_and_cost():
+    respx.post("https://api.moonshot.ai/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=OPENAI_CHAT_RESPONSE)
+    )
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k2.5", "api_key": "sk-test"}
+    )
+    result = await provider.complete(MESSAGES)
+    assert result.provider == "kimi"
+    assert result.cost > 0
