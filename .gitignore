@@ -37,3 +37,6 @@ docs-site/.astro/
 
 # Astromesh Orbit working directory
 .orbit/
+
+# SDD scratch
+.superpowers/
