@@ -20,7 +20,24 @@ PRICING: dict[str, tuple[float, float]] = {
     "gpt-4-turbo": (0.0100, 0.0300),
     "gpt-4": (0.0300, 0.0600),
     "gpt-3.5-turbo": (0.0005, 0.0015),
+    # Moonshot / Kimi (cache-miss). Confirm against the account before publishing.
+    "kimi-k2.5": (0.0006, 0.0025),
+    "kimi-k2.6": (0.00095, 0.0040),
 }
+
+
+def _provider_label(model: str) -> str:
+    """Etiqueta del proveedor derivada del nombre del modelo. El adapter
+    OpenAI-compat sirve a OpenAI, Anthropic y Moonshot/Kimi con la misma clase y
+    no recibe un identificador de proveedor, así que se deriva del modelo."""
+    m = (model or "").lower()
+    if m.startswith(("kimi", "moonshot")):
+        return "kimi"
+    if m.startswith("claude"):
+        return "anthropic"
+    if m.startswith(("gpt", "o1", "o3", "o4", "chatgpt")):
+        return "openai"
+    return "openai_compat"
 
 
 def _normalize_tool_calls(raw: list[dict] | None) -> list[dict]:
@@ -116,7 +133,7 @@ class OpenAICompatProvider:
         return CompletionResponse(
             content=message.get("content", "") or "",
             model=model,
-            provider="openai_compat",
+            provider=_provider_label(model),
             usage={"input_tokens": input_tokens, "output_tokens": output_tokens},
             latency_ms=latency_ms,
             cost=cost,
