@@ -8,10 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Documentation
+- Provider docs: documented the **Moonshot / Kimi** model family on the Provider Configuration page — `openai_compat` setup against the Moonshot endpoint, thinking-model `reasoning_content` handling across tool-call turns, a per-model **Model Pricing & Cost Estimation** table (incl. `kimi-k2.5` / `kimi-k2.6` and cached-input rates), the **cache-aware pricing** formula that discounts `cached_tokens` and surfaces `cache_read_input_tokens`, and the model-derived **provider label** table (`kimi` / `anthropic` / `openai` / `openai_compat`) used in cost reports and metrics (`docs-site/src/content/docs/configuration/providers.md`)
 - Documentation site: added dedicated sections for four previously-undocumented ecosystem projects — **Cortex** (desktop IDE & control plane), **Nexus** (multi-tenant Kubernetes control plane), **Astromesh OS** (immutable `mkosi` appliance), and **Leia** (natural-language Claude Code plugin) — 4 pages each, plus accent-themed `ProductShowcase` landing components (`docs-site/src/content/docs/{cortex,nexus,os,leia}/`, `docs-site/src/components/{Product,Cortex,Nexus,Os,Leia}Showcase.astro`)
 - Rewrote the Ecosystem page (6 → 10 components) with a **Forge vs Cortex** comparison clarifying the two coexist (Forge = node-embedded web SPA, Cortex = desktop IDE), and added a note clarifying that **Astromesh Node** is a native OS-service deployment, not a container (`docs-site/src/content/docs/getting-started/ecosystem.md`, `node/introduction.mdx`)
 - Repurposed the legacy `deployment/astromesh-os` redirect to point at the new Astromesh OS section, and refreshed component versions across the site (core 0.28.5, ADK 0.1.8, CLI 0.1.1, Node 0.1.1, Orbit 0.2.0, Forge 0.23.0, Cortex 0.12.0, Nexus 0.3.0, Leia 0.1.0, OS phase 2b); registered all new sections in the sidebar (`docs-site/astro.config.mjs`)
 - Documentation site is now dark-only by design: overrode Starlight's `ThemeProvider` to force `data-theme="dark"` before paint (removing the system-preference / stored-theme fallback to light) alongside the already-hidden theme toggle (`docs-site/src/components/ThemeProvider.astro`, `custom.css`)
+
+## [v0.28.9] - 2026-07-01
+
+### Added
+- Cache-aware pricing for Moonshot/Kimi's context cache. `OpenAICompatProvider.estimated_cost()` now takes an optional `cached_tokens` argument and splits input cost — cached tokens are billed at the model's cached-input rate (`CACHE_INPUT_PRICING`: `kimi-k2.5` $0.0001/1K, `kimi-k2.6` $0.00016/1K), uncached tokens at the normal input rate, output at the full rate. `cached` is clamped to `[0, input_tokens]`, and a model with no cache-price entry falls back to its input rate (no discount, no double-count). `complete()` reads `cached_tokens` from the response `usage` and surfaces it on the response as `usage["cache_read_input_tokens"]` (`astromesh/providers/openai_compat.py`)
+
+## [v0.28.8] - 2026-07-01
+
+### Added
+- Kimi pricing + model-derived provider label. Added Moonshot/Kimi cache-miss rates to the `PRICING` table (`kimi-k2.5` $0.0006/$0.0025 per 1K, `kimi-k2.6` $0.00095/$0.0040 per 1K). Introduced `_provider_label(model)` so the shared `openai_compat` adapter attributes traffic correctly: models starting with `kimi`/`moonshot` → `kimi`, `claude` → `anthropic`, `gpt`/`o1`/`o3`/`o4`/`chatgpt` → `openai`, else `openai_compat`. `CompletionResponse.provider` now uses this label instead of the hardcoded `"openai_compat"`, so `by_provider` cost breakdowns and the Prometheus `provider` label separate Kimi from OpenAI (`astromesh/providers/openai_compat.py`)
 
 ## [v0.28.7] - 2026-06-16
 

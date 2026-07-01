@@ -143,6 +143,47 @@ openai:
 
 The `api_key_env` field is the name of the environment variable — not the key itself. The runtime reads the key from `os.environ["OPENAI_API_KEY"]` at startup. For Azure OpenAI, point the endpoint to your Azure deployment URL.
 
+### Moonshot / Kimi
+
+Moonshot's Kimi models (`kimi-k2.5`, `kimi-k2.6`) are served through the same `openai_compat` provider type — the Moonshot API implements the OpenAI chat-completions interface. No dedicated provider type is needed; you only change the endpoint, API key, and model names.
+
+**Setup:**
+
+```bash
+# Set your Moonshot API key
+export MOONSHOT_API_KEY="sk-..."
+```
+
+**Configuration:**
+
+```yaml
+kimi:
+  type: openai_compat
+  endpoint: "https://api.moonshot.ai/v1"
+  api_key_env: MOONSHOT_API_KEY
+  models:
+    - "kimi-k2.5"
+    - "kimi-k2.6"
+```
+
+Kimi models are labelled `kimi` (rather than `openai_compat`) in cost reports and metrics — the provider label is derived from the model name, so `by_provider` breakdowns and the `provider` Prometheus label separate Kimi traffic from OpenAI traffic automatically. See [Provider Labels](#provider-labels) below.
+
+#### Thinking Models (`reasoning_content`)
+
+Kimi k2.5 / k2.6 are **thinking models**: when reasoning is enabled they return a `reasoning_content` field alongside `tool_calls`, and the API **requires** that field to be echoed back on the assistant tool-call message in the next turn. If it is dropped, the API rejects the follow-up request with:
+
+```
+400 Bad Request — thinking is enabled but reasoning_content is missing in assistant tool call message
+```
+
+Astromesh handles this transparently:
+
+- `CompletionResponse` carries a `reasoning_content` field, populated by `OpenAICompatProvider.complete()` from the response.
+- The `ReActPattern` echoes `reasoning_content` back on the assistant message when it is present, so multi-turn tool calls against a thinking model work out of the box.
+- For non-thinking models the field is absent and is simply omitted, so their behaviour is unchanged.
+
+No configuration is required — this is automatic for any model that returns `reasoning_content`.
+
 ### vLLM
 
 vLLM is a high-throughput LLM serving engine with continuous batching. Best for production workloads that need to serve many concurrent requests.
@@ -320,3 +361,59 @@ spec:
 ```
 
 The agent's `endpoint` field can override the provider-level endpoint if needed (e.g., when an agent connects to a different Ollama instance).
+
+## Model Pricing & Cost Estimation
+
+The `openai_compat` provider ships a built-in per-model price table (USD per 1 000 tokens) used by `estimated_cost()` and the [cost tracker](/astromesh/advanced/observability/#cost-tracking). Every completion returns a `cost` computed from the response's token usage.
+
+| Model | Input / 1K | Output / 1K | Cached input / 1K |
+|-------|-----------|-------------|-------------------|
+| `gpt-4o` | $0.0025 | $0.0100 | — |
+| `gpt-4o-mini` | $0.000150 | $0.000600 | — |
+| `gpt-4-turbo` | $0.0100 | $0.0300 | — |
+| `gpt-4` | $0.0300 | $0.0600 | — |
+| `gpt-3.5-turbo` | $0.0005 | $0.0015 | — |
+| `kimi-k2.5` | $0.0006 | $0.0025 | $0.0001 |
+| `kimi-k2.6` | $0.00095 | $0.0040 | $0.00016 |
+
+Models not in the table estimate to `$0.00` — cost tracking only reflects models with known pricing. Kimi rates are cache-miss list prices; confirm them against your Moonshot account before relying on them for billing.
+
+### Cache-Aware Pricing (Kimi context cache)
+
+Moonshot's context cache bills tokens that hit the cache at a steep discount. When a response reports `cached_tokens` in its `usage` block, Astromesh splits the input cost:
+
+- **Cached tokens** are priced at the model's cached-input rate (the `Cached input / 1K` column above).
+- **Uncached tokens** (`input_tokens − cached_tokens`) are priced at the normal input rate.
+- Output tokens are always billed at the full output rate.
+
+```text
+cost = (input_tokens − cached) / 1000 × input_price
+     + cached                / 1000 × cache_price
+     + output_tokens         / 1000 × output_price
+```
+
+`cached` is clamped to `[0, input_tokens]` (cached tokens are a subset of input). A model with no entry in the cache-price table falls back to its normal input rate, so there is no discount and no double-counting.
+
+The cached-token count is also surfaced on the response so downstream consumers can see cache efficiency:
+
+```python
+response.usage
+# {
+#     "input_tokens": 12000,
+#     "output_tokens": 800,
+#     "cache_read_input_tokens": 9500   # tokens served from the context cache
+# }
+```
+
+### Provider Labels
+
+The `openai_compat` adapter serves OpenAI, Anthropic-compatible, and Moonshot/Kimi endpoints through a single class, but it does not receive an explicit provider identifier. Astromesh derives a stable **provider label** from the model name so cost reports and metrics can attribute traffic correctly:
+
+| Model prefix | Provider label |
+|--------------|----------------|
+| `kimi…`, `moonshot…` | `kimi` |
+| `claude…` | `anthropic` |
+| `gpt…`, `o1…`, `o3…`, `o4…`, `chatgpt…` | `openai` |
+| anything else | `openai_compat` |
+
+This label is what appears in the `by_provider` cost breakdown and in the `provider` label on Prometheus metrics.
