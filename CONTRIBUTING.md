@@ -116,9 +116,17 @@ We use:
 Run before submitting:
 
 ``` bash
-ruff check .
-ruff format .
+ruff check astromesh/ tests/
+ruff format astromesh/ tests/
 ```
+
+Optionally install the git hooks so this runs automatically on every commit:
+
+``` bash
+uv run pre-commit install
+```
+
+CI enforces `ruff check astromesh/ tests/`, so linting must pass before a PR can merge.
 
 ------------------------------------------------------------------------
 

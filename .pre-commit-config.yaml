@@ -1,0 +1,18 @@
+# Pre-commit hooks for Astromesh.
+#
+# Enable once per clone:  uv run pre-commit install
+# Run against everything:  uv run pre-commit run --all-files
+#
+# These mirror the CI lint gate (.github/workflows/ci.yml): `ruff check astromesh/ tests/`.
+# Pinned to the ruff version in the project's dev dependency group.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.21
+    hooks:
+      - id: ruff
+        name: ruff check
+        args: [--fix]
+        files: ^(astromesh|tests)/
+      - id: ruff-format
+        name: ruff format
+        files: ^(astromesh|tests)/

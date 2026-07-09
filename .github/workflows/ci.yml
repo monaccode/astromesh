@@ -36,7 +36,7 @@ jobs:
         run: uv sync --extra all
 
       - name: Lint
-        run: uv run ruff check astromesh/
+        run: uv run ruff check astromesh/ tests/
 
       - name: Tests
         run: uv run pytest -v
