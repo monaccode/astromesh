@@ -15,6 +15,7 @@ class _FakeInstr:
 
 def _mgr_with_fakes(sink):
     from astromesh.observability import metrics_export as mx
+
     m = mx.MetricsManager(enabled=False)  # disabled -> setup() creates no real instruments
     m.setup()
     # inject capturing fakes (matches the private-attr style of test_agent_egress_metric.py)
@@ -30,12 +31,16 @@ def _mgr_with_fakes(sink):
 
 def _build_ctx():
     from astromesh.observability.tracing import TracingContext, SpanStatus
+
     ctx = TracingContext(agent_name="rec-agent", session_id="s1")
     root = ctx.start_span("agent.run", {"agent": "rec-agent", "session": "s1"})
     llm = ctx.start_span("llm.complete")
-    llm.set_attribute("model", "m"); llm.set_attribute("provider", "p")
-    llm.set_attribute("latency_ms", 1500.0); llm.set_attribute("cost", 0.02)
-    llm.set_attribute("input_tokens", 10); llm.set_attribute("output_tokens", 5)
+    llm.set_attribute("model", "m")
+    llm.set_attribute("provider", "p")
+    llm.set_attribute("latency_ms", 1500.0)
+    llm.set_attribute("cost", 0.02)
+    llm.set_attribute("input_tokens", 10)
+    llm.set_attribute("output_tokens", 5)
     ctx.finish_span(llm, status=SpanStatus.OK)
     tool = ctx.start_span("tool.call", {"tool": "search"})
     ctx.finish_span(tool, status=SpanStatus.OK)
@@ -50,8 +55,10 @@ def test_record_run_derives_full_metric_set():
 
     # agent.run -> runs counter + latency histogram
     assert ("runs", "add", 1, {"agent": "rec-agent", "status": "ok"}) in sink
-    assert any(n == "latency" and op == "record" and v > 0 and a == {"agent": "rec-agent"}
-               for (n, op, v, a) in sink)
+    assert any(
+        n == "latency" and op == "record" and v > 0 and a == {"agent": "rec-agent"}
+        for (n, op, v, a) in sink
+    )
     # llm.complete -> llm.calls + llm.latency + tokens(in/out) + cost
     assert ("llm_calls", "add", 1, {"provider": "p", "model": "m", "status": "ok"}) in sink
     assert any(n == "llm_latency" and abs(v - 1.5) < 1e-6 for (n, op, v, a) in sink)
@@ -64,6 +71,7 @@ def test_record_run_derives_full_metric_set():
 
 def test_record_run_is_best_effort_when_disabled():
     from astromesh.observability import metrics_export as mx
+
     m = mx.MetricsManager(enabled=False)
     m.setup()  # instruments stay None
     # must not raise even with no instruments and an empty/None ctx
@@ -72,6 +80,7 @@ def test_record_run_is_best_effort_when_disabled():
     class _Empty:
         spans = []
         agent_name = "x"
+
     m.record_run(_Empty())
 
 
@@ -95,7 +104,8 @@ async def test_engine_calls_record_run(tmp_path):
 
     mx.set_manager(CapMgr())
 
-    agents_dir = tmp_path / "agents"; agents_dir.mkdir()
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir()
     (agents_dir / "a.agent.yaml").write_text(
         """
 apiVersion: astromesh/v1
@@ -108,12 +118,18 @@ spec:
   orchestration: {pattern: react, max_iterations: 1}
 """
     )
-    rt = AgentRuntime(config_dir=str(tmp_path)); await rt.bootstrap()
+    rt = AgentRuntime(config_dir=str(tmp_path))
+    await rt.bootstrap()
     agent = rt._agents["rec-agent"]
 
     class Resp:
-        model = "m"; provider = "p"; content = "hi"; tool_calls = None
-        usage = {"input_tokens": 3, "output_tokens": 2}; latency_ms = 1.0; cost = 0.0
+        model = "m"
+        provider = "p"
+        content = "hi"
+        tool_calls = None
+        usage = {"input_tokens": 3, "output_tokens": 2}
+        latency_ms = 1.0
+        cost = 0.0
 
     async def fake_route(messages, tools=None, **kw):
         return Resp()

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
+from fastapi.testclient import TestClient
+
+from astromesh.api.routes.agent_channels import router, set_runtime
+from astromesh.channels.event_bus import channel_event_bus, ChannelEvent as BusEvent
 from astromesh.channels.resolver import resolve_env_vars, get_channel_adapter
 
 
@@ -48,11 +51,6 @@ def test_get_channel_adapter_whatsapp(monkeypatch):
 def test_get_channel_adapter_unknown_type():
     adapter = get_channel_adapter({"type": "slack", "config": {}})
     assert adapter is None
-
-
-from unittest.mock import AsyncMock, patch, MagicMock
-from fastapi.testclient import TestClient
-from astromesh.api.routes.agent_channels import router, set_runtime
 
 
 @pytest.fixture
@@ -130,8 +128,6 @@ def test_webhook_verify_unknown_agent(client):
 
 # ── SSE endpoint tests ─────────────────────────────────────────────────────
 
-from astromesh.channels.event_bus import channel_event_bus, ChannelEvent as BusEvent
-
 
 @pytest.fixture(autouse=False)
 def clean_bus():
@@ -152,12 +148,18 @@ def test_sse_endpoint_exists_and_returns_event_stream(client, clean_bus):
 
 def test_sse_replays_buffered_events(client, clean_bus):
     """Events in the buffer should be replayed immediately on SSE connect."""
-    channel_event_bus.emit(BusEvent.create(
-        agent="test-agent", channel="whatsapp", direction="in",
-        sender="+1", text="buffered",
-    ))
+    channel_event_bus.emit(
+        BusEvent.create(
+            agent="test-agent",
+            channel="whatsapp",
+            direction="in",
+            sender="+1",
+            text="buffered",
+        )
+    )
 
     import json
+
     with client.stream("GET", "/v1/channels/events") as resp:
         for line in resp.iter_lines():
             if line.startswith("data:"):
@@ -168,14 +170,27 @@ def test_sse_replays_buffered_events(client, clean_bus):
 
 def test_sse_agent_filter(client, clean_bus):
     """?agent= filter should only replay matching events."""
-    channel_event_bus.emit(BusEvent.create(
-        agent="bot-a", channel="whatsapp", direction="in", sender="+1", text="a",
-    ))
-    channel_event_bus.emit(BusEvent.create(
-        agent="bot-b", channel="whatsapp", direction="in", sender="+2", text="b",
-    ))
+    channel_event_bus.emit(
+        BusEvent.create(
+            agent="bot-a",
+            channel="whatsapp",
+            direction="in",
+            sender="+1",
+            text="a",
+        )
+    )
+    channel_event_bus.emit(
+        BusEvent.create(
+            agent="bot-b",
+            channel="whatsapp",
+            direction="in",
+            sender="+2",
+            text="b",
+        )
+    )
 
     import json
+
     lines_seen = []
     with client.stream("GET", "/v1/channels/events?agent=bot-a") as resp:
         for line in resp.iter_lines():
@@ -188,8 +203,6 @@ def test_sse_agent_filter(client, clean_bus):
 
 
 # ── Two-phase dispatcher tests ─────────────────────────────────────────────
-
-from unittest.mock import AsyncMock
 
 
 def test_contact_name_extracted_and_set_on_message(client, mock_runtime, mocker):
@@ -208,22 +221,30 @@ def test_contact_name_extracted_and_set_on_message(client, mock_runtime, mocker)
 
     payload = {
         "object": "whatsapp_business_account",
-        "entry": [{
-            "changes": [{
-                "field": "messages",
-                "value": {
-                    "messaging_product": "whatsapp",
-                    "contacts": [{"profile": {"name": "Juan Pérez"}, "wa_id": "573001234567"}],
-                    "messages": [{
-                        "from": "573001234567",
-                        "id": "wamid.test123",
-                        "timestamp": "1712500000",
-                        "type": "text",
-                        "text": {"body": "hola"},
-                    }],
-                },
-            }],
-        }],
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "field": "messages",
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "contacts": [
+                                {"profile": {"name": "Juan Pérez"}, "wa_id": "573001234567"}
+                            ],
+                            "messages": [
+                                {
+                                    "from": "573001234567",
+                                    "id": "wamid.test123",
+                                    "timestamp": "1712500000",
+                                    "type": "text",
+                                    "text": {"body": "hola"},
+                                }
+                            ],
+                        },
+                    }
+                ],
+            }
+        ],
     }
     resp = client.post(
         "/v1/agents/test-agent/channels/whatsapp/webhook",
@@ -243,16 +264,24 @@ def test_status_update_dispatched_not_sent_to_agent(client, mock_runtime, mocker
     )
     payload = {
         "object": "whatsapp_business_account",
-        "entry": [{
-            "changes": [{
-                "field": "messages",
-                "value": {
-                    "statuses": [
-                        {"status": "delivered", "recipient_id": "573001234567", "id": "wamid.abc"}
-                    ],
-                },
-            }],
-        }],
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "field": "messages",
+                        "value": {
+                            "statuses": [
+                                {
+                                    "status": "delivered",
+                                    "recipient_id": "573001234567",
+                                    "id": "wamid.abc",
+                                }
+                            ],
+                        },
+                    }
+                ],
+            }
+        ],
     }
     resp = client.post(
         "/v1/agents/test-agent/channels/whatsapp/webhook",
@@ -276,7 +305,9 @@ def test_unknown_field_dispatched(client, mock_runtime, mocker):
     )
     payload = {
         "object": "whatsapp_business_account",
-        "entry": [{"changes": [{"field": "account_update", "value": {"event": "VERIFIED_ACCOUNT"}}]}],
+        "entry": [
+            {"changes": [{"field": "account_update", "value": {"event": "VERIFIED_ACCOUNT"}}]}
+        ],
     }
     resp = client.post(
         "/v1/agents/test-agent/channels/whatsapp/webhook",

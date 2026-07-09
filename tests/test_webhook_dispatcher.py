@@ -1,7 +1,17 @@
 """Tests for the webhook event dispatcher and contact name enrichment."""
+
 from __future__ import annotations
 
+import pytest
+from unittest.mock import AsyncMock
+
 from astromesh.channels.base import ChannelMessage
+from astromesh.channels.webhook_dispatcher import (
+    WebhookEventDispatcher,
+    DefaultWebhookEventHandler,
+    StatusUpdateHandler,
+)
+from astromesh.channels.whatsapp import WhatsAppClient
 
 
 def test_channel_message_contact_name_defaults_to_none():
@@ -31,16 +41,6 @@ def test_channel_message_accepts_contact_name():
     assert msg.contact_name == "Juan Pérez"
 
 
-import pytest
-from unittest.mock import AsyncMock, patch
-
-from astromesh.channels.webhook_dispatcher import (
-    WebhookEventDispatcher,
-    DefaultWebhookEventHandler,
-    StatusUpdateHandler,
-)
-
-
 @pytest.mark.asyncio
 async def test_dispatcher_uses_default_for_unknown_field():
     dispatcher = WebhookEventDispatcher()
@@ -62,14 +62,10 @@ async def test_dispatcher_uses_registered_handler():
 @pytest.mark.asyncio
 async def test_status_update_handler_emits_system_event(monkeypatch):
     mock_emit = AsyncMock()
-    monkeypatch.setattr(
-        "astromesh.channels.webhook_dispatcher.channel_event_bus.emit", mock_emit
-    )
+    monkeypatch.setattr("astromesh.channels.webhook_dispatcher.channel_event_bus.emit", mock_emit)
     handler = StatusUpdateHandler()
     value = {
-        "statuses": [
-            {"status": "delivered", "recipient_id": "573001234567", "id": "wamid.abc"}
-        ]
+        "statuses": [{"status": "delivered", "recipient_id": "573001234567", "id": "wamid.abc"}]
     }
     await handler.handle("statuses", value, "my-agent")
     mock_emit.assert_called_once()
@@ -81,9 +77,7 @@ async def test_status_update_handler_emits_system_event(monkeypatch):
 @pytest.mark.asyncio
 async def test_default_handler_emits_system_event(monkeypatch):
     mock_emit = AsyncMock()
-    monkeypatch.setattr(
-        "astromesh.channels.webhook_dispatcher.channel_event_bus.emit", mock_emit
-    )
+    monkeypatch.setattr("astromesh.channels.webhook_dispatcher.channel_event_bus.emit", mock_emit)
     handler = DefaultWebhookEventHandler()
     await handler.handle("account_update", {}, "my-agent")
     mock_emit.assert_called_once()
@@ -99,21 +93,20 @@ async def test_dispatcher_has_status_handler_preregistered():
     assert isinstance(dispatcher._handlers["statuses"], StatusUpdateHandler)
 
 
-from astromesh.channels.whatsapp import WhatsAppClient
-
-
 async def test_parse_incoming_accepts_value_dict():
     """parse_incoming receives change["value"], not the full payload."""
     client = WhatsAppClient()
     value = {
         "messaging_product": "whatsapp",
-        "messages": [{
-            "from": "573001234567",
-            "id": "wamid.test1",
-            "timestamp": "1712500000",
-            "type": "text",
-            "text": {"body": "hola"},
-        }],
+        "messages": [
+            {
+                "from": "573001234567",
+                "id": "wamid.test1",
+                "timestamp": "1712500000",
+                "type": "text",
+                "text": {"body": "hola"},
+            }
+        ],
     }
     messages = await client.parse_incoming(value)
     assert len(messages) == 1

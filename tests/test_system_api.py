@@ -2,7 +2,6 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
 async def test_system_status_no_runtime(client):
     resp = await client.get("/v1/system/status")

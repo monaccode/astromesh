@@ -3,7 +3,10 @@
 
 def test_metrics_manager_record_and_global():
     from astromesh.observability import metrics_export as mx
-    m = mx.MetricsManager(endpoint="http://127.0.0.1:4317", enabled=False)  # disabled -> no exporter
+
+    m = mx.MetricsManager(
+        endpoint="http://127.0.0.1:4317", enabled=False
+    )  # disabled -> no exporter
     m.setup()
     m.record("agent-a", "model-x", 123)  # must not raise even when disabled
     m.flush()
@@ -26,7 +29,8 @@ async def test_engine_records_agent_egress(tmp_path):
 
     mx.set_manager(FakeMgr())
 
-    agents_dir = tmp_path / "agents"; agents_dir.mkdir()
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir()
     (agents_dir / "a.agent.yaml").write_text(
         """
 apiVersion: astromesh/v1
@@ -39,7 +43,8 @@ spec:
   orchestration: {pattern: react, max_iterations: 1}
 """
     )
-    rt = AgentRuntime(config_dir=str(tmp_path)); await rt.bootstrap()
+    rt = AgentRuntime(config_dir=str(tmp_path))
+    await rt.bootstrap()
     agent = rt._agents["rec-agent"]
 
     class Resp:

@@ -1,5 +1,3 @@
-import pytest
-
 from astromesh.tools import ToolLoader
 from astromesh.tools.base import BuiltinTool
 from astromesh.tools.builtin import ALL_TOOLS
