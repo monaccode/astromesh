@@ -429,6 +429,8 @@ git commit -m "feat(runtime): source-aware candidate provider builder"
 
 ### Task 3: Normalize schema → per-role `ModelRouter` dict
 
+> **MERGED WITH TASK 4** (per pre-flight review): implement Task 3 and Task 4 as one atomic change with a **single** final commit. SKIP Task 3 Step 4 (the premature `_build_agent` rewire) and Task 3 Step 6 (the intermediate commit); do the `_build_agent` rewire together with the `Agent(routers=...)` signature change and delete `_register_model_providers` in the same change, then run the full regression and commit once. This keeps every task's suite green.
+
 **Files:**
 - Modify: `astromesh/runtime/engine.py` (replace `_register_model_providers` usage in `_build_agent`; add `_normalize_model_spec` + `_build_role_routers`)
 - Test: `tests/test_engine_role_routers.py` (append)
