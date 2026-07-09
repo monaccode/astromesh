@@ -32,6 +32,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
 
       - name: Install dependencies
         run: uv sync --extra all
@@ -57,6 +59,8 @@ jobs:
           python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
       - name: Run tests
         working-directory: astromesh-node
         run: |
@@ -75,6 +79,8 @@ jobs:
           python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
       - name: Run tests
         working-directory: astromesh-cli
         run: |
