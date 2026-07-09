@@ -32,8 +32,9 @@ observability = [
 ]
 mcp = ["mcp>=1.0.0"]
 mesh = ["psutil>=5.9.0"]
+litellm = ["litellm>=1.50.0"]
 all = [
-    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh]",
+    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh,litellm]",
 ]
 [dependency-groups]
 dev = [

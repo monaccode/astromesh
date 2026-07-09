@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+- LiteLLM-backed provider for 100+ cloud models (optional `litellm` extra).
+
 ### Documentation
 - Provider docs: documented the **Moonshot / Kimi** model family on the Provider Configuration page — `openai_compat` setup against the Moonshot endpoint, thinking-model `reasoning_content` handling across tool-call turns, a per-model **Model Pricing & Cost Estimation** table (incl. `kimi-k2.5` / `kimi-k2.6` and cached-input rates), the **cache-aware pricing** formula that discounts `cached_tokens` and surfaces `cache_read_input_tokens`, and the model-derived **provider label** table (`kimi` / `anthropic` / `openai` / `openai_compat`) used in cost reports and metrics (`docs-site/src/content/docs/configuration/providers.md`)
 - Documentation site: added dedicated sections for four previously-undocumented ecosystem projects — **Cortex** (desktop IDE & control plane), **Nexus** (multi-tenant Kubernetes control plane), **Astromesh OS** (immutable `mkosi` appliance), and **Leia** (natural-language Claude Code plugin) — 4 pages each, plus accent-themed `ProductShowcase` landing components (`docs-site/src/content/docs/{cortex,nexus,os,leia}/`, `docs-site/src/components/{Product,Cortex,Nexus,Os,Leia}Showcase.astro`)
