@@ -12,8 +12,8 @@ from astromesh.channels.media import build_multimodal_query
 # MediaAttachment tests
 # ---------------------------------------------------------------------------
 
-class TestMediaAttachment:
 
+class TestMediaAttachment:
     def test_create_image_attachment(self):
         att = MediaAttachment(
             media_type="image",
@@ -43,8 +43,8 @@ class TestMediaAttachment:
 # ChannelMessage tests
 # ---------------------------------------------------------------------------
 
-class TestChannelMessage:
 
+class TestChannelMessage:
     def test_text_only_message(self):
         msg = ChannelMessage(
             sender_id="user123",
@@ -99,6 +99,7 @@ class TestChannelMessage:
 # build_multimodal_query tests
 # ---------------------------------------------------------------------------
 
+
 def _make_adapter() -> ChannelAdapter:
     """Create a mock ChannelAdapter."""
     adapter = AsyncMock(spec=ChannelAdapter)
@@ -120,7 +121,6 @@ def _make_message(
 
 
 class TestBuildMultimodalQuery:
-
     async def test_text_only_returns_string(self):
         msg = _make_message(text="Hello world")
         result = await build_multimodal_query(msg, _make_adapter())
@@ -238,12 +238,16 @@ class TestBuildMultimodalQuery:
 
     async def test_mixed_image_and_audio(self):
         img = MediaAttachment(
-            media_type="image", mime_type="image/jpeg",
-            content=b"\xff\xd8", source_id="m1",
+            media_type="image",
+            mime_type="image/jpeg",
+            content=b"\xff\xd8",
+            source_id="m1",
         )
         aud = MediaAttachment(
-            media_type="audio", mime_type="audio/ogg",
-            content=b"\x00" * 50, source_id="m2",
+            media_type="audio",
+            mime_type="audio/ogg",
+            content=b"\x00" * 50,
+            source_id="m2",
         )
         msg = _make_message(text="Check these", media=[img, aud])
 

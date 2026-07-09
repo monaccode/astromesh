@@ -1,4 +1,5 @@
 """Tests for native rate limiter."""
+
 import pytest
 
 
@@ -7,6 +8,7 @@ class TestRateLimiter:
         """Test that calls within the limit are allowed."""
         try:
             from astromesh._native import RustRateLimiter
+
             rl = RustRateLimiter()
             for _ in range(5):
                 assert rl.check("tool1", 60.0, 10) is True
@@ -17,6 +19,7 @@ class TestRateLimiter:
         """Test that calls exceeding the limit are blocked."""
         try:
             from astromesh._native import RustRateLimiter
+
             rl = RustRateLimiter()
             for _ in range(10):
                 rl.check("tool1", 60.0, 10)
@@ -28,6 +31,7 @@ class TestRateLimiter:
         """Test that different tools have independent limits."""
         try:
             from astromesh._native import RustRateLimiter
+
             rl = RustRateLimiter()
             for _ in range(10):
                 rl.check("tool1", 60.0, 10)

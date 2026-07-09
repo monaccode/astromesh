@@ -25,11 +25,13 @@ async def list_builtin_tools():
     tools = []
     for name in loader.list_available():
         tool_cls = loader.get(name)
-        tools.append({
-            "name": tool_cls.name,
-            "description": tool_cls.description,
-            "parameters": tool_cls.parameters,
-        })
+        tools.append(
+            {
+                "name": tool_cls.name,
+                "description": tool_cls.description,
+                "parameters": tool_cls.parameters,
+            }
+        )
 
     return {"tools": tools, "count": len(tools)}
 

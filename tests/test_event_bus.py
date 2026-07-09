@@ -1,4 +1,5 @@
 """Tests for ChannelEventBus."""
+
 from __future__ import annotations
 
 import asyncio
@@ -18,8 +19,12 @@ def _evt(agent: str = "bot", direction: str = "in") -> ChannelEvent:
 
 def test_event_create_has_required_fields():
     evt = ChannelEvent.create(
-        agent="mybot", channel="whatsapp", direction="out",
-        sender="+9876543210", text="Hi!", media={"type": "image", "url": "http://x"},
+        agent="mybot",
+        channel="whatsapp",
+        direction="out",
+        sender="+9876543210",
+        text="Hi!",
+        media={"type": "image", "url": "http://x"},
     )
     assert evt.agent == "mybot"
     assert evt.direction == "out"

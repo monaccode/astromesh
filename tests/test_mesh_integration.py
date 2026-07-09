@@ -15,6 +15,7 @@ from astromesh.runtime.services import ServiceManager
 def _skip_runtime_lifespan(monkeypatch):
     monkeypatch.setenv("ASTROMESH_SKIP_RUNTIME", "1")
 
+
 AGENT_YAML = """
 apiVersion: astromesh/v1
 kind: Agent

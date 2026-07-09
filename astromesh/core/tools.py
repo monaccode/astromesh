@@ -145,11 +145,7 @@ class ToolRegistry:
                         lambda m: f" '{m.group(1)}':",
                         tool.context_transform,
                     )
-                    tpl_str = (
-                        "{% set result = "
-                        + fixed_transform
-                        + " %}{{ result | tojson }}"
-                    )
+                    tpl_str = "{% set result = " + fixed_transform + " %}{{ result | tojson }}"
                     template = env.from_string(tpl_str)
                     rendered = template.render(data=_DotDict(arguments))
                     transform_ctx = json_mod.loads(rendered)

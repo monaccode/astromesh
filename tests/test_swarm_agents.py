@@ -20,18 +20,14 @@ class TestSwarmWithAgentTools:
     @pytest.mark.asyncio
     async def test_swarm_handoff_via_tool_fn(self):
         """Swarm handoff should invoke the target agent via tool_fn."""
-        handoff_json = json.dumps(
-            {"handoff": "specialist", "context": "Need expert analysis"}
-        )
+        handoff_json = json.dumps({"handoff": "specialist", "context": "Need expert analysis"})
         model_fn = AsyncMock(
             side_effect=[
                 make_response(handoff_json),
                 make_response("Expert analysis complete."),
             ]
         )
-        tool_fn = AsyncMock(
-            return_value={"answer": "Specialist context loaded", "steps": []}
-        )
+        tool_fn = AsyncMock(return_value={"answer": "Specialist context loaded", "steps": []})
 
         pattern = SwarmPattern(agent_configs={"specialist": "specialist-agent"})
         result = await pattern.execute(
@@ -42,9 +38,7 @@ class TestSwarmWithAgentTools:
             tools=[],
         )
 
-        tool_fn.assert_called_once_with(
-            "specialist", {"query": "Need expert analysis"}
-        )
+        tool_fn.assert_called_once_with("specialist", {"query": "Need expert analysis"})
         assert result["answer"] == "Expert analysis complete."
 
     @pytest.mark.asyncio
@@ -70,12 +64,8 @@ class TestSwarmWithAgentTools:
         """Chain of handoffs: A -> B -> C -> final answer."""
         model_fn = AsyncMock(
             side_effect=[
-                make_response(
-                    json.dumps({"handoff": "agent-b", "context": "step 1"})
-                ),
-                make_response(
-                    json.dumps({"handoff": "agent-c", "context": "step 2"})
-                ),
+                make_response(json.dumps({"handoff": "agent-b", "context": "step 1"})),
+                make_response(json.dumps({"handoff": "agent-c", "context": "step 2"})),
                 make_response("Final from agent-c."),
             ]
         )
@@ -86,9 +76,7 @@ class TestSwarmWithAgentTools:
             ]
         )
 
-        pattern = SwarmPattern(
-            agent_configs={"agent-b": "agent-b", "agent-c": "agent-c"}
-        )
+        pattern = SwarmPattern(agent_configs={"agent-b": "agent-b", "agent-c": "agent-c"})
         result = await pattern.execute(
             query="Multi-step task",
             context={},

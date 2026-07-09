@@ -1,4 +1,5 @@
 """Benchmarks for chunking strategies."""
+
 import os
 import pytest
 
@@ -19,12 +20,14 @@ class TestFixedChunkerBenchmark:
     def test_native(self, benchmark, text):
         os.environ.pop("ASTROMESH_FORCE_PYTHON", None)
         from astromesh.rag.chunking.fixed import FixedChunker
+
         chunker = FixedChunker(chunk_size=500, overlap=50)
         benchmark(chunker.chunk, text, {"source": "bench"})
 
     def test_python(self, benchmark, text):
         os.environ["ASTROMESH_FORCE_PYTHON"] = "1"
         from astromesh.rag.chunking.fixed import FixedChunker
+
         chunker = FixedChunker(chunk_size=500, overlap=50)
         benchmark(chunker.chunk, text, {"source": "bench"})
 
@@ -38,11 +41,13 @@ class TestSentenceChunkerBenchmark:
     def test_native(self, benchmark, text):
         os.environ.pop("ASTROMESH_FORCE_PYTHON", None)
         from astromesh.rag.chunking.sentence import SentenceChunker
+
         chunker = SentenceChunker(chunk_size=500)
         benchmark(chunker.chunk, text, {"source": "bench"})
 
     def test_python(self, benchmark, text):
         os.environ["ASTROMESH_FORCE_PYTHON"] = "1"
         from astromesh.rag.chunking.sentence import SentenceChunker
+
         chunker = SentenceChunker(chunk_size=500)
         benchmark(chunker.chunk, text, {"source": "bench"})

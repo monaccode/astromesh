@@ -12,7 +12,12 @@ from astromesh.providers.hf_tgi_provider import HFTGIProvider
 from astromesh.providers.llamacpp_provider import LlamaCppProvider
 from astromesh.providers.ollama_provider import OllamaProvider
 from astromesh.providers.onnx_provider import ONNXProvider
-from astromesh.providers.openai_compat import CACHE_INPUT_PRICING, OpenAICompatProvider, _normalize_tool_calls, _provider_label
+from astromesh.providers.openai_compat import (
+    CACHE_INPUT_PRICING,
+    OpenAICompatProvider,
+    _normalize_tool_calls,
+    _provider_label,
+)
 from astromesh.providers.vllm_provider import VLLMProvider
 
 # ---------------------------------------------------------------------------
@@ -75,9 +80,7 @@ async def test_ollama_health_check_healthy():
 
 @respx.mock
 async def test_ollama_health_check_unhealthy():
-    respx.get("http://localhost:11434/api/tags").mock(
-        return_value=httpx.Response(500)
-    )
+    respx.get("http://localhost:11434/api/tags").mock(return_value=httpx.Response(500))
 
     provider = OllamaProvider({"base_url": "http://localhost:11434"})
     assert await provider.health_check() is False

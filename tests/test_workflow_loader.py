@@ -22,7 +22,10 @@ class TestWorkflowLoader:
         assert workflows == {}
 
     def test_load_basic_workflow(self, workflows_dir):
-        _write_workflow(workflows_dir, "test", """
+        _write_workflow(
+            workflows_dir,
+            "test",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -35,7 +38,8 @@ spec:
     - name: greet
       agent: greeter
       input: "{{ trigger.query }}"
-""")
+""",
+        )
         loader = WorkflowLoader(str(workflows_dir))
         workflows = loader.load_all()
         assert "test-wf" in workflows
@@ -47,7 +51,10 @@ spec:
         assert wf.steps[0].step_type == StepType.AGENT
 
     def test_load_workflow_with_tool_step(self, workflows_dir):
-        _write_workflow(workflows_dir, "tool-wf", """
+        _write_workflow(
+            workflows_dir,
+            "tool-wf",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -59,7 +66,8 @@ spec:
       arguments:
         key: "test-key"
         value: "test-value"
-""")
+""",
+        )
         loader = WorkflowLoader(str(workflows_dir))
         workflows = loader.load_all()
         wf = workflows["tool-wf"]
@@ -67,7 +75,10 @@ spec:
         assert wf.steps[0].arguments["key"] == "test-key"
 
     def test_load_workflow_with_switch_step(self, workflows_dir):
-        _write_workflow(workflows_dir, "switch-wf", """
+        _write_workflow(
+            workflows_dir,
+            "switch-wf",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -89,7 +100,8 @@ spec:
     - name: low
       agent: low-handler
       input: "low path"
-""")
+""",
+        )
         loader = WorkflowLoader(str(workflows_dir))
         workflows = loader.load_all()
         wf = workflows["switch-wf"]
@@ -97,7 +109,10 @@ spec:
         assert len(wf.steps[1].switch) == 2
 
     def test_load_workflow_with_retry(self, workflows_dir):
-        _write_workflow(workflows_dir, "retry-wf", """
+        _write_workflow(
+            workflows_dir,
+            "retry-wf",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -116,7 +131,8 @@ spec:
     - name: fallback
       agent: fallback-agent
       input: "error occurred"
-""")
+""",
+        )
         loader = WorkflowLoader(str(workflows_dir))
         workflows = loader.load_all()
         wf = workflows["retry-wf"]
@@ -127,7 +143,10 @@ spec:
         assert step.on_error == "fallback"
 
     def test_invalid_kind_skipped(self, workflows_dir):
-        _write_workflow(workflows_dir, "agent", """
+        _write_workflow(
+            workflows_dir,
+            "agent",
+            """
 apiVersion: astromesh/v1
 kind: Agent
 metadata:
@@ -135,7 +154,8 @@ metadata:
 spec:
   identity:
     description: "This is an agent, not a workflow"
-""")
+""",
+        )
         loader = WorkflowLoader(str(workflows_dir))
         workflows = loader.load_all()
         assert workflows == {}
@@ -146,7 +166,10 @@ spec:
         assert workflows == {}
 
     def test_load_single_workflow(self, workflows_dir):
-        _write_workflow(workflows_dir, "single", """
+        _write_workflow(
+            workflows_dir,
+            "single",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -156,7 +179,8 @@ spec:
     - name: do-thing
       agent: doer
       input: "{{ trigger.query }}"
-""")
+""",
+        )
         loader = WorkflowLoader(str(workflows_dir))
         wf = loader.load_file(workflows_dir / "single.workflow.yaml")
         assert wf.name == "single-wf"

@@ -1,4 +1,5 @@
 """Benchmarks for rate limiter."""
+
 import pytest
 
 
@@ -14,7 +15,9 @@ class TestRateLimiterBenchmark:
         except ImportError:
             pytest.skip("Native module not available")
         rl = RustRateLimiter()
+
         def run():
             for i in range(n_calls):
                 rl.check(f"tool_{i % 10}", 3600.0, n_calls)
+
         benchmark(run)

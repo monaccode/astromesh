@@ -1,4 +1,5 @@
 """Benchmarks for token budget strategy."""
+
 import os
 from datetime import datetime, timezone
 
@@ -10,8 +11,10 @@ def make_history(n_turns):
     now = datetime.now(timezone.utc)
     return [
         ConversationTurn(
-            role="user", content=f"Message number {i} with some content here",
-            timestamp=now, token_count=10
+            role="user",
+            content=f"Message number {i} with some content here",
+            timestamp=now,
+            token_count=10,
         )
         for i in range(n_turns)
     ]
@@ -26,11 +29,13 @@ class TestTokenBudgetBenchmark:
     def test_native(self, benchmark, history):
         os.environ.pop("ASTROMESH_FORCE_PYTHON", None)
         from astromesh.memory.strategies.token_budget import TokenBudgetStrategy
+
         strategy = TokenBudgetStrategy()
         benchmark(strategy.apply, history, 500)
 
     def test_python(self, benchmark, history):
         os.environ["ASTROMESH_FORCE_PYTHON"] = "1"
         from astromesh.memory.strategies.token_budget import TokenBudgetStrategy
+
         strategy = TokenBudgetStrategy()
         benchmark(strategy.apply, history, 500)

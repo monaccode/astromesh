@@ -24,7 +24,9 @@ class TestTracesAPI:
     async def test_list_traces(self, collector):
         c, trace_id = collector
         async with LifespanManager(app):
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/v1/traces/", params={"agent": "test-agent"})
         assert resp.status_code == 200
         data = resp.json()
@@ -34,7 +36,9 @@ class TestTracesAPI:
     async def test_get_trace(self, collector):
         c, trace_id = collector
         async with LifespanManager(app):
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get(f"/v1/traces/{trace_id}")
         assert resp.status_code == 200
         data = resp.json()
@@ -42,6 +46,8 @@ class TestTracesAPI:
 
     async def test_get_trace_not_found(self, collector):
         async with LifespanManager(app):
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/v1/traces/nonexistent")
         assert resp.status_code == 404

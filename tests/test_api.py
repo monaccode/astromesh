@@ -5,6 +5,7 @@ async def test_health(client):
     assert data["status"] == "ok"
     assert "version" in data
 
+
 async def test_list_agents_includes_bundled_config(client):
     resp = await client.get("/v1/agents")
     assert resp.status_code == 200

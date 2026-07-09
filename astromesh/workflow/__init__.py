@@ -28,9 +28,7 @@ class WorkflowEngine:
     async def bootstrap(self):
         loader = WorkflowLoader(self._workflows_dir)
         self._workflows = loader.load_all()
-        self._executor = StepExecutor(
-            runtime=self._runtime, tool_registry=self._tool_registry
-        )
+        self._executor = StepExecutor(runtime=self._runtime, tool_registry=self._tool_registry)
 
     def list_workflows(self) -> list[str]:
         return list(self._workflows.keys())
@@ -38,9 +36,7 @@ class WorkflowEngine:
     def get_workflow(self, name: str) -> WorkflowSpec | None:
         return self._workflows.get(name)
 
-    async def run(
-        self, workflow_name: str, trigger: dict[str, Any]
-    ) -> WorkflowRunResult:
+    async def run(self, workflow_name: str, trigger: dict[str, Any]) -> WorkflowRunResult:
         wf = self._workflows.get(workflow_name)
         if not wf:
             raise ValueError(f"Workflow '{workflow_name}' not found")
@@ -100,18 +96,14 @@ class WorkflowEngine:
                             {"step_type": goto_step.step_type.value},
                             parent_span_id=root_span.span_id,
                         )
-                        goto_result = await self._executor.execute_step(
-                            goto_step, context
-                        )
+                        goto_result = await self._executor.execute_step(goto_step, context)
                         step_results[goto_step.name] = goto_result
                         if goto_result.status == WfStepStatus.ERROR:
                             tracing.finish_span(goto_span, status=SpanStatus.ERROR)
                             status = "failed"
                         else:
                             tracing.finish_span(goto_span)
-                            context["steps"][goto_step.name] = {
-                                "output": goto_result.output
-                            }
+                            context["steps"][goto_step.name] = {"output": goto_result.output}
                         break
 
                 i += 1

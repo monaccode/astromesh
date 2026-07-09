@@ -1,4 +1,5 @@
 """Benchmarks for cost tracker."""
+
 import pytest
 
 
@@ -13,8 +14,15 @@ class TestCostBenchmark:
         idx = RustCostIndex()
         for i in range(request.param):
             idx.record(
-                f"agent_{i % 5}", f"session_{i % 20}", f"model_{i % 3}",
-                f"provider_{i % 4}", 0.001 * i, 100.0, 500, 200, 1000.0 + i
+                f"agent_{i % 5}",
+                f"session_{i % 20}",
+                f"model_{i % 3}",
+                f"provider_{i % 4}",
+                0.001 * i,
+                100.0,
+                500,
+                200,
+                1000.0 + i,
             )
         return idx
 

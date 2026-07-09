@@ -29,14 +29,18 @@ def executor(mock_runtime, mock_tool_registry):
 
 class TestAgentStep:
     async def test_basic_agent_step(self, executor, mock_runtime):
-        step = StepSpec(name="research", agent="web-researcher", input_template="{{ trigger.query }}")
+        step = StepSpec(
+            name="research", agent="web-researcher", input_template="{{ trigger.query }}"
+        )
         ctx = {"trigger": {"query": "Tell me about Acme Corp"}, "steps": {}}
         result = await executor.execute_step(step, ctx)
         assert result.status == StepStatus.SUCCESS
         assert result.output == {"answer": "researched data", "steps": []}
 
     async def test_agent_step_with_step_reference(self, executor, mock_runtime):
-        step = StepSpec(name="qualify", agent="qualifier", input_template="{{ steps.research.output }}")
+        step = StepSpec(
+            name="qualify", agent="qualifier", input_template="{{ steps.research.output }}"
+        )
         ctx = {
             "trigger": {},
             "steps": {"research": {"output": {"answer": "data about Acme"}}},

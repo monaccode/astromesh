@@ -1,4 +1,5 @@
 """Benchmarks for routing helpers."""
+
 import pytest
 
 

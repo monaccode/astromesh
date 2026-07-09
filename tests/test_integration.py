@@ -97,22 +97,27 @@ spec:
     async def calculator(**kwargs):
         return {"result": kwargs.get("a", 0) + kwargs.get("b", 0)}
 
-    agent._tools.register_internal("add", calculator, "Add two numbers",
-        {"a": {"type": "number"}, "b": {"type": "number"}})
+    agent._tools.register_internal(
+        "add", calculator, "Add two numbers", {"a": {"type": "number"}, "b": {"type": "number"}}
+    )
 
     # First call: model returns tool call. Second call: model returns final answer.
     tool_call_response = CompletionResponse(
         content="Let me calculate that.",
-        model="test", provider="ollama",
+        model="test",
+        provider="ollama",
         usage={"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
-        latency_ms=50, cost=0.001,
+        latency_ms=50,
+        cost=0.001,
         tool_calls=[{"id": "tc1", "name": "add", "arguments": {"a": 3, "b": 4}}],
     )
     final_response = CompletionResponse(
         content="The result is 7.",
-        model="test", provider="ollama",
+        model="test",
+        provider="ollama",
         usage={"input_tokens": 15, "output_tokens": 5, "total_tokens": 20},
-        latency_ms=40, cost=0.001,
+        latency_ms=40,
+        cost=0.001,
     )
 
     mock_provider = AsyncMock()

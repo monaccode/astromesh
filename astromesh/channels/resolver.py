@@ -21,9 +21,7 @@ def resolve_env_vars(config: dict[str, str]) -> dict[str, str]:
     resolved = {}
     for key, value in config.items():
         if isinstance(value, str):
-            resolved[key] = _ENV_PATTERN.sub(
-                lambda m: os.environ.get(m.group(1), ""), value
-            )
+            resolved[key] = _ENV_PATTERN.sub(lambda m: os.environ.get(m.group(1), ""), value)
         else:
             resolved[key] = value
     return resolved

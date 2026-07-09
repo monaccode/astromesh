@@ -1,4 +1,5 @@
 """Channel event bus — streams real-time in/out events to SSE subscribers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -60,7 +61,9 @@ class ChannelEventBus:
                 try:
                     q.put_nowait(event)
                 except asyncio.QueueFull:
-                    logger.warning("Subscriber queue full — dropping event for agent=%s", event.agent)
+                    logger.warning(
+                        "Subscriber queue full — dropping event for agent=%s", event.agent
+                    )
 
     def new_subscriber_queue(self) -> asyncio.Queue[ChannelEvent]:
         """Register and return a fresh Queue. Caller MUST call remove_subscriber when done."""

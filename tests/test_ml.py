@@ -7,8 +7,9 @@ from astromesh.ml.training.embeddings import EmbeddingTrainer, EmbeddingTrainerC
 
 def test_register_model():
     registry = ModelRegistry()
-    info = registry.register("my-classifier", "1.0", ModelFormat.ONNX,
-                             "/models/classifier.onnx", "classification")
+    info = registry.register(
+        "my-classifier", "1.0", ModelFormat.ONNX, "/models/classifier.onnx", "classification"
+    )
     assert info.name == "my-classifier"
     assert info.status == ModelStatus.REGISTERED
 

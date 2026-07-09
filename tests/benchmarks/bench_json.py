@@ -1,4 +1,5 @@
 """Benchmarks for JSON parsing."""
+
 import json
 import pytest
 

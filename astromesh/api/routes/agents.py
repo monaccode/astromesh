@@ -22,6 +22,7 @@ def _steps_to_dicts(steps: list | None) -> list[dict]:
             out.append({"result": str(item)})
     return out
 
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -104,7 +105,9 @@ async def create_agent(config: dict):
         raise HTTPException(status_code=503, detail="Runtime not initialized")
     try:
         await _runtime.register_agent(config)
-        name = config.get("metadata", {}).get("name") or config.get("spec", {}).get("identity", {}).get("name", "unknown")
+        name = config.get("metadata", {}).get("name") or config.get("spec", {}).get(
+            "identity", {}
+        ).get("name", "unknown")
         return {"name": name, "status": "registered"}
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))

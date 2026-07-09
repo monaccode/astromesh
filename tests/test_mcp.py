@@ -41,9 +41,9 @@ async def test_mcp_server_tools_list():
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.post("/mcp", json={
-            "jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}
-        })
+        resp = await client.post(
+            "/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["result"]["tools"]) == 1
@@ -54,7 +54,9 @@ async def test_tool_registry_register_mcp():
     registry = ToolRegistry()
     mock_client = MagicMock()
     mock_client.get_tools.return_value = [
-        MCPToolInfo(name="mcp_tool", description="An MCP tool", parameters={"x": {"type": "number"}})
+        MCPToolInfo(
+            name="mcp_tool", description="An MCP tool", parameters={"x": {"type": "number"}}
+        )
     ]
     count = await registry.register_mcp_server("test-server", mock_client)
     assert count == 1

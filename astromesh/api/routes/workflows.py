@@ -42,10 +42,7 @@ async def get_workflow(name: str):
         "description": wf.description,
         "trigger": wf.trigger,
         "timeout_seconds": wf.timeout_seconds,
-        "steps": [
-            {"name": s.name, "type": s.step_type.value}
-            for s in wf.steps
-        ],
+        "steps": [{"name": s.name, "type": s.step_type.value} for s in wf.steps],
     }
 
 

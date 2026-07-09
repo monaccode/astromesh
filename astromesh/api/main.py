@@ -41,6 +41,7 @@ def _resolve_config_dir() -> str:
         return str(cwd_config.resolve())
     try:
         import astromesh as _astromesh
+
         pkg_dir = Path(_astromesh.__file__).resolve().parent
         # Wheel install: config force-included under the package
         bundled = pkg_dir / "_bundled" / "config"

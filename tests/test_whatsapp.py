@@ -13,6 +13,7 @@ from astromesh.channels.base import ChannelMessage, MediaAttachment
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def _skip_runtime_lifespan(monkeypatch):
     monkeypatch.setenv("ASTROMESH_SKIP_RUNTIME", "1")
@@ -22,22 +23,28 @@ def _make_webhook_payload(phone="5511999999999", text="Hola", msg_id="wamid.abc1
     """Build a minimal Meta Cloud API webhook payload."""
     return {
         "object": "whatsapp_business_account",
-        "entry": [{
-            "id": "BIZ_ID",
-            "changes": [{
-                "value": {
-                    "messaging_product": "whatsapp",
-                    "messages": [{
-                        "from": phone,
-                        "id": msg_id,
-                        "timestamp": "1700000000",
-                        "type": "text",
-                        "text": {"body": text},
-                    }],
-                },
-                "field": "messages",
-            }],
-        }],
+        "entry": [
+            {
+                "id": "BIZ_ID",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "messages": [
+                                {
+                                    "from": phone,
+                                    "id": msg_id,
+                                    "timestamp": "1700000000",
+                                    "type": "text",
+                                    "text": {"body": text},
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
     }
 
 
@@ -45,8 +52,8 @@ def _make_webhook_payload(phone="5511999999999", text="Hola", msg_id="wamid.abc1
 # WhatsAppClient unit tests
 # ---------------------------------------------------------------------------
 
-class TestWhatsAppClient:
 
+class TestWhatsAppClient:
     def test_verify_webhook_valid(self, monkeypatch):
         monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "my-token")
         client = WhatsAppClient()
@@ -67,9 +74,7 @@ class TestWhatsAppClient:
         monkeypatch.setenv("WHATSAPP_APP_SECRET", "secret123")
         client = WhatsAppClient()
         payload = b'{"test": true}'
-        expected_sig = "sha256=" + hmac.new(
-            b"secret123", payload, hashlib.sha256
-        ).hexdigest()
+        expected_sig = "sha256=" + hmac.new(b"secret123", payload, hashlib.sha256).hexdigest()
         assert client.verify_request(payload, expected_sig) is True
 
     def test_verify_request_invalid(self, monkeypatch):
@@ -86,13 +91,15 @@ class TestWhatsAppClient:
         client = WhatsAppClient()
         value = {
             "messaging_product": "whatsapp",
-            "messages": [{
-                "from": "5511888888888",
-                "id": "wamid.abc123",
-                "timestamp": "1700000000",
-                "type": "text",
-                "text": {"body": "Hello"},
-            }],
+            "messages": [
+                {
+                    "from": "5511888888888",
+                    "id": "wamid.abc123",
+                    "timestamp": "1700000000",
+                    "type": "text",
+                    "text": {"body": "Hello"},
+                }
+            ],
         }
         messages = await client.parse_incoming(value)
         assert len(messages) == 1
@@ -103,13 +110,17 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_image_message(self):
         client = WhatsAppClient()
-        value = {"messages": [
-            {
-                "from": "123", "id": "m1", "timestamp": "1700000000",
-                "type": "image",
-                "image": {"id": "img_123", "mime_type": "image/jpeg"},
-            },
-        ]}
+        value = {
+            "messages": [
+                {
+                    "from": "123",
+                    "id": "m1",
+                    "timestamp": "1700000000",
+                    "type": "image",
+                    "image": {"id": "img_123", "mime_type": "image/jpeg"},
+                },
+            ]
+        }
         messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].text is None
@@ -120,16 +131,21 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_image_with_caption(self):
         client = WhatsAppClient()
-        value = {"messages": [
-            {
-                "from": "123", "id": "m1", "timestamp": "1700000000",
-                "type": "image",
-                "image": {
-                    "id": "img_123", "mime_type": "image/jpeg",
-                    "caption": "What is this?",
+        value = {
+            "messages": [
+                {
+                    "from": "123",
+                    "id": "m1",
+                    "timestamp": "1700000000",
+                    "type": "image",
+                    "image": {
+                        "id": "img_123",
+                        "mime_type": "image/jpeg",
+                        "caption": "What is this?",
+                    },
                 },
-            },
-        ]}
+            ]
+        }
         messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].text == "What is this?"
@@ -137,13 +153,17 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_audio_message(self):
         client = WhatsAppClient()
-        value = {"messages": [
-            {
-                "from": "123", "id": "m1", "timestamp": "1700000000",
-                "type": "audio",
-                "audio": {"id": "aud_1", "mime_type": "audio/ogg"},
-            },
-        ]}
+        value = {
+            "messages": [
+                {
+                    "from": "123",
+                    "id": "m1",
+                    "timestamp": "1700000000",
+                    "type": "audio",
+                    "audio": {"id": "aud_1", "mime_type": "audio/ogg"},
+                },
+            ]
+        }
         messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].media[0].media_type == "audio"
@@ -151,16 +171,21 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_document_with_filename(self):
         client = WhatsAppClient()
-        value = {"messages": [
-            {
-                "from": "123", "id": "m1", "timestamp": "1700000000",
-                "type": "document",
-                "document": {
-                    "id": "doc_1", "mime_type": "application/pdf",
-                    "filename": "report.pdf",
+        value = {
+            "messages": [
+                {
+                    "from": "123",
+                    "id": "m1",
+                    "timestamp": "1700000000",
+                    "type": "document",
+                    "document": {
+                        "id": "doc_1",
+                        "mime_type": "application/pdf",
+                        "filename": "report.pdf",
+                    },
                 },
-            },
-        ]}
+            ]
+        }
         messages = await client.parse_incoming(value)
         assert len(messages) == 1
         assert messages[0].media[0].media_type == "document"
@@ -168,9 +193,11 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_ignores_unsupported_types(self):
         client = WhatsAppClient()
-        value = {"messages": [
-            {"from": "123", "id": "m1", "type": "sticker", "sticker": {}},
-        ]}
+        value = {
+            "messages": [
+                {"from": "123", "id": "m1", "type": "sticker", "sticker": {}},
+            ]
+        }
         messages = await client.parse_incoming(value)
         assert messages == []
 
@@ -181,10 +208,24 @@ class TestWhatsAppClient:
 
     async def test_parse_incoming_multiple_messages(self):
         client = WhatsAppClient()
-        value = {"messages": [
-            {"from": "111", "id": "m1", "timestamp": "1", "type": "text", "text": {"body": "A"}},
-            {"from": "222", "id": "m2", "timestamp": "2", "type": "text", "text": {"body": "B"}},
-        ]}
+        value = {
+            "messages": [
+                {
+                    "from": "111",
+                    "id": "m1",
+                    "timestamp": "1",
+                    "type": "text",
+                    "text": {"body": "A"},
+                },
+                {
+                    "from": "222",
+                    "id": "m2",
+                    "timestamp": "2",
+                    "type": "text",
+                    "text": {"body": "B"},
+                },
+            ]
+        }
         messages = await client.parse_incoming(value)
         assert len(messages) == 2
         assert messages[0].sender_id == "111"
@@ -195,25 +236,30 @@ class TestWhatsAppClient:
 # Webhook route tests (GET verification)
 # ---------------------------------------------------------------------------
 
+
 async def test_webhook_verify_success(client, monkeypatch):
-    monkeypatch.setattr(
-        "astromesh.api.routes.whatsapp._whatsapp.verify_token", "test-token"
+    monkeypatch.setattr("astromesh.api.routes.whatsapp._whatsapp.verify_token", "test-token")
+    resp = await client.get(
+        "/v1/channels/whatsapp/webhook",
+        params={
+            "hub.mode": "subscribe",
+            "hub.verify_token": "test-token",
+            "hub.challenge": "challenge_abc",
+        },
     )
-    resp = await client.get("/v1/channels/whatsapp/webhook", params={
-        "hub.mode": "subscribe",
-        "hub.verify_token": "test-token",
-        "hub.challenge": "challenge_abc",
-    })
     assert resp.status_code == 200
     assert resp.text == "challenge_abc"
 
 
 async def test_webhook_verify_failure(client):
-    resp = await client.get("/v1/channels/whatsapp/webhook", params={
-        "hub.mode": "subscribe",
-        "hub.verify_token": "wrong-token",
-        "hub.challenge": "challenge_abc",
-    })
+    resp = await client.get(
+        "/v1/channels/whatsapp/webhook",
+        params={
+            "hub.mode": "subscribe",
+            "hub.verify_token": "wrong-token",
+            "hub.challenge": "challenge_abc",
+        },
+    )
     assert resp.status_code == 403
 
 
@@ -226,11 +272,10 @@ async def test_webhook_verify_missing_params(client):
 # Webhook route tests (POST incoming messages)
 # ---------------------------------------------------------------------------
 
+
 async def test_webhook_post_valid_message(client, monkeypatch):
     """POST with valid payload returns 200 and schedules background task."""
-    monkeypatch.setattr(
-        "astromesh.api.routes.whatsapp._whatsapp.app_secret", ""
-    )
+    monkeypatch.setattr("astromesh.api.routes.whatsapp._whatsapp.app_secret", "")
     payload = _make_webhook_payload()
     resp = await client.post(
         "/v1/channels/whatsapp/webhook",
@@ -241,9 +286,7 @@ async def test_webhook_post_valid_message(client, monkeypatch):
 
 
 async def test_webhook_post_invalid_signature(client, monkeypatch):
-    monkeypatch.setattr(
-        "astromesh.api.routes.whatsapp._whatsapp.app_secret", "real-secret"
-    )
+    monkeypatch.setattr("astromesh.api.routes.whatsapp._whatsapp.app_secret", "real-secret")
     payload = _make_webhook_payload()
     resp = await client.post(
         "/v1/channels/whatsapp/webhook",
@@ -254,9 +297,7 @@ async def test_webhook_post_invalid_signature(client, monkeypatch):
 
 
 async def test_webhook_post_valid_signature(client, monkeypatch):
-    monkeypatch.setattr(
-        "astromesh.api.routes.whatsapp._whatsapp.app_secret", "my-secret"
-    )
+    monkeypatch.setattr("astromesh.api.routes.whatsapp._whatsapp.app_secret", "my-secret")
     payload = _make_webhook_payload()
     body = json.dumps(payload).encode()
     sig = "sha256=" + hmac.new(b"my-secret", body, hashlib.sha256).hexdigest()
@@ -272,9 +313,7 @@ async def test_webhook_post_valid_signature(client, monkeypatch):
 
 
 async def test_webhook_post_empty_messages(client, monkeypatch):
-    monkeypatch.setattr(
-        "astromesh.api.routes.whatsapp._whatsapp.app_secret", ""
-    )
+    monkeypatch.setattr("astromesh.api.routes.whatsapp._whatsapp.app_secret", "")
     resp = await client.post(
         "/v1/channels/whatsapp/webhook",
         json={"entry": []},
@@ -286,6 +325,7 @@ async def test_webhook_post_empty_messages(client, monkeypatch):
 # ---------------------------------------------------------------------------
 # Background processing tests
 # ---------------------------------------------------------------------------
+
 
 async def test_process_message_calls_runtime_and_sends_reply():
     from astromesh.api.routes import whatsapp as whatsapp_routes
@@ -360,6 +400,7 @@ async def test_process_message_sends_error_on_runtime_failure():
 # WhatsAppClient.send_text tests
 # ---------------------------------------------------------------------------
 
+
 async def test_send_text_calls_graph_api(monkeypatch):
     client = WhatsAppClient()
     client.access_token = "token123"
@@ -392,6 +433,7 @@ async def test_send_text_calls_graph_api(monkeypatch):
 # ---------------------------------------------------------------------------
 # WhatsAppClient.download_media tests
 # ---------------------------------------------------------------------------
+
 
 async def test_download_media_two_step_fetch():
     client = WhatsAppClient()

@@ -12,6 +12,7 @@ from astromesh.core.memory import ConversationTurn
 # without the real packages installed.
 # ---------------------------------------------------------------------------
 
+
 def _ensure_fake_module(name, attrs=None):
     """Insert a fake module into sys.modules if not already present."""
     if name not in sys.modules:
@@ -42,6 +43,7 @@ _fake_asyncpg.create_pool = AsyncMock()
 
 
 # ===================== Redis conversation backend tests =====================
+
 
 @pytest.mark.asyncio
 async def test_redis_conv_save_and_get():
@@ -75,13 +77,15 @@ async def test_redis_conv_clear():
 @pytest.mark.asyncio
 async def test_redis_conv_get_history():
     now = datetime.now()
-    turn_data = json.dumps({
-        "role": "user",
-        "content": "hello",
-        "timestamp": now.isoformat(),
-        "metadata": {},
-        "token_count": 5,
-    })
+    turn_data = json.dumps(
+        {
+            "role": "user",
+            "content": "hello",
+            "timestamp": now.isoformat(),
+            "metadata": {},
+            "token_count": 5,
+        }
+    )
     mock_redis = AsyncMock()
     mock_redis.lrange.return_value = [turn_data.encode()]
     _fake_aioredis.from_url = MagicMock(return_value=mock_redis)
@@ -115,6 +119,7 @@ async def test_redis_conv_summary():
 
 # ===================== SQLite conversation backend tests =====================
 
+
 @pytest.fixture
 def _inject_aiosqlite():
     """Try to use real aiosqlite; skip if not installed."""
@@ -125,6 +130,7 @@ def _inject_aiosqlite():
 @pytest.mark.usefixtures("_inject_aiosqlite")
 async def test_sqlite_conv_save_and_get():
     from astromesh.memory.backends.sqlite_conv import SQLiteConversationBackend
+
     backend = SQLiteConversationBackend(":memory:")
     await backend.initialize()
     turn = ConversationTurn(role="user", content="hello", timestamp=datetime.now(), token_count=5)
@@ -138,6 +144,7 @@ async def test_sqlite_conv_save_and_get():
 @pytest.mark.usefixtures("_inject_aiosqlite")
 async def test_sqlite_conv_clear():
     from astromesh.memory.backends.sqlite_conv import SQLiteConversationBackend
+
     backend = SQLiteConversationBackend(":memory:")
     await backend.initialize()
     turn = ConversationTurn(role="user", content="hi", timestamp=datetime.now())
@@ -151,6 +158,7 @@ async def test_sqlite_conv_clear():
 @pytest.mark.usefixtures("_inject_aiosqlite")
 async def test_sqlite_conv_summary():
     from astromesh.memory.backends.sqlite_conv import SQLiteConversationBackend
+
     backend = SQLiteConversationBackend(":memory:")
     await backend.initialize()
     await backend.save_summary("s1", "this is a summary")
@@ -159,6 +167,7 @@ async def test_sqlite_conv_summary():
 
 
 # ===================== PostgreSQL conversation backend tests =====================
+
 
 def _make_pg_mock_pool(mock_conn):
     """Create a mock asyncpg pool where acquire() returns an async context manager."""
@@ -205,6 +214,7 @@ async def test_pg_conv_get_history():
 
 # ===================== FAISS semantic backend tests =====================
 
+
 @pytest.fixture
 def _inject_faiss():
     """Skip if numpy/faiss not installed."""
@@ -217,6 +227,7 @@ def test_faiss_store_and_search():
     # Re-import to get the real module
     sys.modules.pop("astromesh.memory.backends.faiss_sem", None)
     from astromesh.memory.backends.faiss_sem import FAISSSemanticBackend
+
     backend = FAISSSemanticBackend(dimension=4)
     import asyncio
 
@@ -232,8 +243,10 @@ def test_faiss_store_and_search():
 
 # ===================== Memory strategies tests =====================
 
+
 def test_sliding_window():
     from astromesh.memory.strategies.sliding_window import SlidingWindowStrategy
+
     turns = [
         ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
         for i in range(20)
@@ -248,9 +261,9 @@ def test_sliding_window():
 
 def test_sliding_window_under_limit():
     from astromesh.memory.strategies.sliding_window import SlidingWindowStrategy
+
     turns = [
-        ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
-        for i in range(3)
+        ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now()) for i in range(3)
     ]
     strategy = SlidingWindowStrategy()
     result = strategy.apply(turns, max_turns=5)
@@ -259,6 +272,7 @@ def test_sliding_window_under_limit():
 
 def test_token_budget():
     from astromesh.memory.strategies.token_budget import TokenBudgetStrategy
+
     turns = [
         ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now(), token_count=100)
         for i in range(10)
@@ -272,6 +286,7 @@ def test_token_budget():
 
 def test_token_budget_empty():
     from astromesh.memory.strategies.token_budget import TokenBudgetStrategy
+
     strategy = TokenBudgetStrategy()
     result = strategy.apply([], budget=1000)
     assert len(result) == 0
@@ -279,6 +294,7 @@ def test_token_budget_empty():
 
 def test_summary_strategy():
     from astromesh.memory.strategies.summary import SummaryStrategy
+
     turns = [
         ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
         for i in range(10)
@@ -295,9 +311,9 @@ def test_summary_strategy():
 
 def test_summary_strategy_short_history():
     from astromesh.memory.strategies.summary import SummaryStrategy
+
     turns = [
-        ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
-        for i in range(2)
+        ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now()) for i in range(2)
     ]
     strategy = SummaryStrategy()
     result = strategy.apply(turns, summary_fn=lambda x: "unused", recent_count=5)

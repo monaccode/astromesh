@@ -20,11 +20,14 @@ Your task is {{ task }}.
 {% for item in items %}
 - {{ item }}
 {% endfor %}"""
-    result = engine.render(template, {
-        "role": "an assistant",
-        "task": "helping users",
-        "items": ["search", "answer", "summarize"],
-    })
+    result = engine.render(
+        template,
+        {
+            "role": "an assistant",
+            "task": "helping users",
+            "items": ["search", "answer", "summarize"],
+        },
+    )
     assert "an assistant" in result
     assert "helping users" in result
     assert "- search" in result

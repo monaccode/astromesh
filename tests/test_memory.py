@@ -11,9 +11,7 @@ from astromesh.core.memory import (
 
 
 def test_conversation_turn():
-    turn = ConversationTurn(
-        role="user", content="Hello", timestamp=datetime(2026, 1, 1)
-    )
+    turn = ConversationTurn(role="user", content="Hello", timestamp=datetime(2026, 1, 1))
     assert turn.role == "user"
     assert turn.content == "Hello"
     assert turn.metadata == {}
@@ -21,9 +19,7 @@ def test_conversation_turn():
 
 
 def test_semantic_memory():
-    mem = SemanticMemory(
-        content="Some fact", embedding=[0.1, 0.2], metadata={"source": "doc"}
-    )
+    mem = SemanticMemory(content="Some fact", embedding=[0.1, 0.2], metadata={"source": "doc"})
     assert mem.content == "Some fact"
     assert mem.embedding == [0.1, 0.2]
     assert mem.similarity == 0.0
@@ -64,9 +60,7 @@ async def test_memory_manager_build_context():
     conversation.get_history = AsyncMock(return_value=turns)
 
     config = {"conversational": {"strategy": "sliding_window"}}
-    manager = MemoryManager(
-        agent_id="agent-1", config=config, conversation=conversation
-    )
+    manager = MemoryManager(agent_id="agent-1", config=config, conversation=conversation)
 
     context = await manager.build_context(session_id="sess-1", current_query="test")
 
@@ -86,9 +80,7 @@ async def test_memory_manager_persist_turn():
     conversation.get_history = AsyncMock(return_value=[turn])
 
     config = {"conversational": {"max_turns": 50}}
-    manager = MemoryManager(
-        agent_id="agent-1", config=config, conversation=conversation
-    )
+    manager = MemoryManager(agent_id="agent-1", config=config, conversation=conversation)
 
     await manager.persist_turn(session_id="sess-1", turn=turn)
 

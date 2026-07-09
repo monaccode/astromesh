@@ -1,4 +1,5 @@
 """Per-agent channel webhook endpoints + SSE channel event stream."""
+
 from __future__ import annotations
 
 import asyncio
@@ -27,6 +28,7 @@ def set_runtime(runtime):
 
 # ── Webhook verification ────────────────────────────────────────────────────
 
+
 @router.get("/agents/{agent_name}/channels/{channel_type}/webhook")
 async def verify_agent_webhook(
     agent_name: str,
@@ -51,6 +53,7 @@ async def verify_agent_webhook(
 
 # ── Incoming message handler ────────────────────────────────────────────────
 
+
 async def _process_agent_message(agent_name: str, channel_type: str, message) -> None:
     """Process incoming channel message in background, send reply, emit out-event."""
     adapter = None
@@ -72,17 +75,21 @@ async def _process_agent_message(agent_name: str, channel_type: str, message) ->
         await adapter.send_text(message.sender_id, answer)
 
         # Emit outgoing event
-        channel_event_bus.emit(ChannelEvent.create(
-            agent=agent_name,
-            channel=channel_type,
-            direction="out",
-            sender=message.sender_id,
-            text=answer,
-        ))
+        channel_event_bus.emit(
+            ChannelEvent.create(
+                agent=agent_name,
+                channel=channel_type,
+                direction="out",
+                sender=message.sender_id,
+                text=answer,
+            )
+        )
     except Exception:
         logger.exception(
             "Failed to process %s message for agent %s from %s",
-            channel_type, agent_name, message.sender_id,
+            channel_type,
+            agent_name,
+            message.sender_id,
         )
         if adapter is not None:
             try:
@@ -177,6 +184,7 @@ async def receive_agent_message(
 
 # ── SSE channel event stream ────────────────────────────────────────────────
 
+
 @router.get("/channels/events")
 async def stream_channel_events(request: Request, agent: str | None = Query(None)):
     """SSE stream of channel in/out events.
@@ -207,6 +215,7 @@ async def stream_channel_events(request: Request, agent: str | None = Query(None
             # buffer preserves all events, so no data is lost.
             # Tune via env vars for production vs. test environments.
             import os
+
             POLL_INTERVAL = float(os.getenv("ASTROMESH_SSE_POLL_INTERVAL", "1.0"))
             KEEPALIVE_EVERY = int(os.getenv("ASTROMESH_SSE_KEEPALIVE_EVERY", "15"))
             IDLE_EXIT_AFTER = int(os.getenv("ASTROMESH_SSE_IDLE_EXIT_AFTER", "30"))

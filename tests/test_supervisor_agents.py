@@ -77,12 +77,8 @@ class TestSupervisorWithAgentTools:
         """Supervisor can delegate to multiple agent tools in sequence."""
         model_fn = AsyncMock(
             side_effect=[
-                make_response(
-                    json.dumps({"delegate": "researcher", "task": "Research X"})
-                ),
-                make_response(
-                    json.dumps({"delegate": "writer", "task": "Write about X"})
-                ),
+                make_response(json.dumps({"delegate": "researcher", "task": "Research X"})),
+                make_response(json.dumps({"delegate": "writer", "task": "Write about X"})),
                 make_response(json.dumps({"final_answer": "Here is the report"})),
             ]
         )

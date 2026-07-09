@@ -99,9 +99,7 @@ class TestExecuteAgentTool:
     @pytest.fixture
     def runtime_mock(self):
         runtime = AsyncMock()
-        runtime.run = AsyncMock(
-            return_value={"answer": "Lead is qualified", "steps": []}
-        )
+        runtime.run = AsyncMock(return_value={"answer": "Lead is qualified", "steps": []})
         return runtime
 
     @pytest.fixture

@@ -33,7 +33,10 @@ def mock_tool_registry():
 
 class TestWorkflowEngine:
     async def test_bootstrap_loads_workflows(self, workflows_dir, mock_runtime, mock_tool_registry):
-        _write_workflow(workflows_dir, "test", """
+        _write_workflow(
+            workflows_dir,
+            "test",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -43,7 +46,8 @@ spec:
     - name: s1
       agent: a1
       input: "hello"
-""")
+""",
+        )
         engine = WorkflowEngine(
             workflows_dir=str(workflows_dir),
             runtime=mock_runtime,
@@ -53,7 +57,10 @@ spec:
         assert "test-wf" in engine.list_workflows()
 
     async def test_list_workflows(self, workflows_dir, mock_runtime, mock_tool_registry):
-        _write_workflow(workflows_dir, "wf1", """
+        _write_workflow(
+            workflows_dir,
+            "wf1",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -63,8 +70,12 @@ spec:
     - name: s1
       agent: a1
       input: "hi"
-""")
-        _write_workflow(workflows_dir, "wf2", """
+""",
+        )
+        _write_workflow(
+            workflows_dir,
+            "wf2",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -74,7 +85,8 @@ spec:
     - name: s1
       agent: a2
       input: "hi"
-""")
+""",
+        )
         engine = WorkflowEngine(
             workflows_dir=str(workflows_dir),
             runtime=mock_runtime,
@@ -85,7 +97,10 @@ spec:
         assert set(names) == {"wf-alpha", "wf-beta"}
 
     async def test_run_sequential_steps(self, workflows_dir, mock_runtime, mock_tool_registry):
-        _write_workflow(workflows_dir, "seq", """
+        _write_workflow(
+            workflows_dir,
+            "seq",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -98,7 +113,8 @@ spec:
     - name: step2
       agent: agent2
       input: "{{ steps.step1.output }}"
-""")
+""",
+        )
         engine = WorkflowEngine(
             workflows_dir=str(workflows_dir),
             runtime=mock_runtime,
@@ -116,7 +132,10 @@ spec:
         mock_runtime.run = AsyncMock(
             return_value={"answer": "ok", "data": {"score": 9}, "steps": []}
         )
-        _write_workflow(workflows_dir, "switch", """
+        _write_workflow(
+            workflows_dir,
+            "switch",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -138,7 +157,8 @@ spec:
     - name: low
       agent: low-handler
       input: "low path"
-""")
+""",
+        )
         engine = WorkflowEngine(
             workflows_dir=str(workflows_dir),
             runtime=mock_runtime,
@@ -174,7 +194,10 @@ spec:
             return {"answer": "fallback ok", "steps": []}
 
         mock_runtime.run = conditional_run
-        _write_workflow(workflows_dir, "error", """
+        _write_workflow(
+            workflows_dir,
+            "error",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -188,7 +211,8 @@ spec:
     - name: fallback
       agent: safe-agent
       input: "recover"
-""")
+""",
+        )
         engine = WorkflowEngine(
             workflows_dir=str(workflows_dir),
             runtime=mock_runtime,
@@ -201,7 +225,10 @@ spec:
         assert result.steps["fallback"].status.value == "success"
 
     async def test_run_produces_trace(self, workflows_dir, mock_runtime, mock_tool_registry):
-        _write_workflow(workflows_dir, "traced", """
+        _write_workflow(
+            workflows_dir,
+            "traced",
+            """
 apiVersion: astromesh/v1
 kind: Workflow
 metadata:
@@ -211,7 +238,8 @@ spec:
     - name: s1
       agent: a1
       input: "hello"
-""")
+""",
+        )
         engine = WorkflowEngine(
             workflows_dir=str(workflows_dir),
             runtime=mock_runtime,

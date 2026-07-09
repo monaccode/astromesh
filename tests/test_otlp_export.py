@@ -15,7 +15,9 @@ def test_endpoint_from_env(monkeypatch):
 
 def test_endpoint_dict_overrides_default(monkeypatch):
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
-    cfg = TelemetryConfig.from_env_and_dict({"otlp": {"endpoint": "http://x:4317", "enabled": True}})
+    cfg = TelemetryConfig.from_env_and_dict(
+        {"otlp": {"endpoint": "http://x:4317", "enabled": True}}
+    )
     assert cfg.otlp_endpoint == "http://x:4317"
     assert cfg.enabled is True
 

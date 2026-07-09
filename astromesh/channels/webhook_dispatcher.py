@@ -18,6 +18,7 @@ Adding a handler for a new Meta webhook field::
 
 Register handlers at application startup, before the first webhook arrives.
 """
+
 from __future__ import annotations
 
 import logging

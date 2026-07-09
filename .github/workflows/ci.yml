@@ -38,6 +38,9 @@ jobs:
       - name: Lint
         run: uv run ruff check astromesh/ tests/
 
+      - name: Format check
+        run: uv run ruff format --check astromesh/ tests/
+
       - name: Tests
         run: uv run pytest -v
 

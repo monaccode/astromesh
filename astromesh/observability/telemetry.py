@@ -57,6 +57,7 @@ class TelemetryManager:
             # not exported (the runtime keeps working). Warn loudly so it's not a silent no-op.
             self._tracer = None
             import logging
+
             logging.getLogger("astromeshd").warning(
                 "OTLP exporter unavailable, traces will not be exported: %r", e
             )

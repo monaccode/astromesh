@@ -37,9 +37,15 @@ def test_metrics_disabled():
 def test_cost_tracker_record():
     tracker = CostTracker()
     record = UsageRecord(
-        agent_name="test", session_id="s1", model="llama3",
-        provider="ollama", input_tokens=100, output_tokens=50,
-        cost_usd=0.01, latency_ms=100, pattern="react",
+        agent_name="test",
+        session_id="s1",
+        model="llama3",
+        provider="ollama",
+        input_tokens=100,
+        output_tokens=50,
+        cost_usd=0.01,
+        latency_ms=100,
+        pattern="react",
     )
     tracker.record(record)
     assert tracker.get_total_cost() == 0.01
@@ -48,11 +54,19 @@ def test_cost_tracker_record():
 def test_cost_tracker_budget():
     tracker = CostTracker()
     tracker.set_budget("test", 1.0)
-    tracker.record(UsageRecord(
-        agent_name="test", session_id="s1", model="m", provider="p",
-        input_tokens=100, output_tokens=50, cost_usd=0.5,
-        latency_ms=100, pattern="react",
-    ))
+    tracker.record(
+        UsageRecord(
+            agent_name="test",
+            session_id="s1",
+            model="m",
+            provider="p",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.5,
+            latency_ms=100,
+            pattern="react",
+        )
+    )
     budget = tracker.check_budget("test")
     assert budget["spent"] == 0.5
     assert budget["remaining"] == 0.5
@@ -62,22 +76,50 @@ def test_cost_tracker_budget():
 def test_cost_tracker_exceeded():
     tracker = CostTracker()
     tracker.set_budget("test", 0.01)
-    tracker.record(UsageRecord(
-        agent_name="test", session_id="s1", model="m", provider="p",
-        input_tokens=100, output_tokens=50, cost_usd=0.02,
-        latency_ms=100, pattern="react",
-    ))
+    tracker.record(
+        UsageRecord(
+            agent_name="test",
+            session_id="s1",
+            model="m",
+            provider="p",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.02,
+            latency_ms=100,
+            pattern="react",
+        )
+    )
     assert tracker.check_budget("test")["exceeded"]
 
 
 def test_cost_tracker_summary():
     tracker = CostTracker()
-    tracker.record(UsageRecord(agent_name="a", session_id="s1", model="m1",
-        provider="p1", input_tokens=100, output_tokens=50, cost_usd=0.01,
-        latency_ms=100, pattern="react"))
-    tracker.record(UsageRecord(agent_name="a", session_id="s2", model="m2",
-        provider="p2", input_tokens=200, output_tokens=100, cost_usd=0.02,
-        latency_ms=200, pattern="react"))
+    tracker.record(
+        UsageRecord(
+            agent_name="a",
+            session_id="s1",
+            model="m1",
+            provider="p1",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.01,
+            latency_ms=100,
+            pattern="react",
+        )
+    )
+    tracker.record(
+        UsageRecord(
+            agent_name="a",
+            session_id="s2",
+            model="m2",
+            provider="p2",
+            input_tokens=200,
+            output_tokens=100,
+            cost_usd=0.02,
+            latency_ms=200,
+            pattern="react",
+        )
+    )
     summary = tracker.get_usage_summary("a")
     assert summary["total_cost"] == 0.03
     assert summary["num_calls"] == 2
@@ -87,10 +129,30 @@ def test_cost_tracker_summary():
 
 def test_cost_tracker_filter_by_session():
     tracker = CostTracker()
-    tracker.record(UsageRecord(agent_name="a", session_id="s1", model="m",
-        provider="p", input_tokens=100, output_tokens=50, cost_usd=0.01,
-        latency_ms=100, pattern="react"))
-    tracker.record(UsageRecord(agent_name="a", session_id="s2", model="m",
-        provider="p", input_tokens=200, output_tokens=100, cost_usd=0.02,
-        latency_ms=200, pattern="react"))
+    tracker.record(
+        UsageRecord(
+            agent_name="a",
+            session_id="s1",
+            model="m",
+            provider="p",
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.01,
+            latency_ms=100,
+            pattern="react",
+        )
+    )
+    tracker.record(
+        UsageRecord(
+            agent_name="a",
+            session_id="s2",
+            model="m",
+            provider="p",
+            input_tokens=200,
+            output_tokens=100,
+            cost_usd=0.02,
+            latency_ms=200,
+            pattern="react",
+        )
+    )
     assert tracker.get_total_cost(session_id="s1") == 0.01

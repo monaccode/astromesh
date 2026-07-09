@@ -3,6 +3,7 @@
 App-side (the engine knows which agent makes each provider call), reusing the same OTLP endpoint as the
 traces (4.3). Off by default; enabled only when observability.otlp.enabled.
 """
+
 import os
 from dataclasses import dataclass
 
@@ -28,8 +29,8 @@ class MetricsManager:
         self._endpoint = endpoint
         self._enabled = enabled
         self._provider = None
-        self._counter = None          # 4.4c: astromesh.agent.egress.bytes
-        self._runs = None             # 4.3b: engine-derived instruments
+        self._counter = None  # 4.4c: astromesh.agent.egress.bytes
+        self._runs = None  # 4.3b: engine-derived instruments
         self._latency = None
         self._llm_calls = None
         self._llm_latency = None
@@ -64,6 +65,7 @@ class MetricsManager:
             self._tools = meter.create_counter("astromesh.tool.executions", unit="1")
         except Exception:
             import logging
+
             logging.getLogger("astromeshd").warning("agent metrics unavailable", exc_info=True)
             self._counter = None
             self._runs = self._latency = self._llm_calls = self._llm_latency = None
@@ -96,10 +98,14 @@ class MetricsManager:
                     provider = attrs.get("provider", "unknown")
                     model = attrs.get("model", "unknown")
                     if self._llm_calls is not None:
-                        self._llm_calls.add(1, {"provider": provider, "model": model, "status": status})
+                        self._llm_calls.add(
+                            1, {"provider": provider, "model": model, "status": status}
+                        )
                     lat = attrs.get("latency_ms")
                     if lat is not None and self._llm_latency is not None:
-                        self._llm_latency.record(float(lat) / 1000.0, {"provider": provider, "model": model})
+                        self._llm_latency.record(
+                            float(lat) / 1000.0, {"provider": provider, "model": model}
+                        )
                     it = int(attrs.get("input_tokens", 0) or 0)
                     ot = int(attrs.get("output_tokens", 0) or 0)
                     if self._tokens is not None:

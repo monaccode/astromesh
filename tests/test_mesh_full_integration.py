@@ -21,21 +21,48 @@ from astromesh.runtime.services import ServiceManager
 def three_node_mesh():
     """Create a 3-node mesh: gateway, worker, inference."""
     gw_config = MeshConfig(enabled=True, node_name="gateway")
-    gw_sm = ServiceManager({"api": True, "channels": True, "observability": True,
-                            "agents": False, "inference": False, "memory": False,
-                            "tools": False, "rag": False})
+    gw_sm = ServiceManager(
+        {
+            "api": True,
+            "channels": True,
+            "observability": True,
+            "agents": False,
+            "inference": False,
+            "memory": False,
+            "tools": False,
+            "rag": False,
+        }
+    )
     gw_mesh = MeshManager(gw_config, gw_sm)
 
     wk_config = MeshConfig(enabled=True, node_name="worker")
-    wk_sm = ServiceManager({"api": True, "agents": True, "tools": True, "memory": True,
-                            "rag": True, "observability": True,
-                            "inference": False, "channels": False})
+    wk_sm = ServiceManager(
+        {
+            "api": True,
+            "agents": True,
+            "tools": True,
+            "memory": True,
+            "rag": True,
+            "observability": True,
+            "inference": False,
+            "channels": False,
+        }
+    )
     wk_mesh = MeshManager(wk_config, wk_sm)
 
     inf_config = MeshConfig(enabled=True, node_name="inference")
-    inf_sm = ServiceManager({"api": True, "inference": True, "observability": True,
-                             "agents": False, "tools": False, "memory": False,
-                             "channels": False, "rag": False})
+    inf_sm = ServiceManager(
+        {
+            "api": True,
+            "inference": True,
+            "observability": True,
+            "agents": False,
+            "tools": False,
+            "memory": False,
+            "channels": False,
+            "rag": False,
+        }
+    )
     inf_mesh = MeshManager(inf_config, inf_sm)
 
     # Worker has agents loaded
