@@ -54,7 +54,7 @@ spec:
     async def fake_route(messages, tools=None, **kw):
         return Resp()
 
-    agent._router.route = fake_route
+    agent._routers["default"].route = fake_route
 
     try:
         await rt.run("rec-agent", "hello there", "s1")

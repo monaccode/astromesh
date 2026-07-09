@@ -213,101 +213,80 @@ class AgentRuntime:
             if color[node] == WHITE:
                 dfs(node, [node])
 
-    def _register_model_providers(self, router: ModelRouter, model_spec: dict) -> None:
-        """Wire provider blocks from the agent YAML into the router.
+    def _normalize_model_spec(self, model_spec: dict) -> dict[str, dict]:
+        """Normalize legacy and new model schemas into {role: {candidates, strategy}}.
 
-        Accepts three sources, registered in this order:
-          - `primary:`    — conventional top-slot block
-          - `fallback:`   — conventional fallback block
-          - `extra:`      — optional map of {name: block} for N additional providers
-        Each provider is registered under its slot/name; `ModelRouter.route()`
-        ranks them all together using the configured strategy.
+        Always returns a 'default' role. Legacy primary/fallback/extra/routing
+        collapse into 'default'; the new schema uses model.default + model.roles.
         """
-        from astromesh.providers.ollama_provider import OllamaProvider
-        from astromesh.providers.openai_compat import OpenAICompatProvider
+        roles: dict[str, dict] = {}
 
-        def build_provider(block: dict) -> object | None:
-            ptype = (block.get("provider") or "").strip().lower()
-            if not ptype:
-                return None
-            if ptype == "ollama":
-                base = (block.get("endpoint") or "http://localhost:11434").rstrip("/")
-                return OllamaProvider(
-                    config={
-                        "base_url": base,
-                        "model": block.get("model", "llama3"),
-                        "timeout": float(block.get("timeout", 120)),
-                    }
-                )
-            if ptype in ("openai_compat", "openai", "azure_openai"):
-                base = (block.get("endpoint") or "https://api.openai.com/v1").rstrip("/")
-                return OpenAICompatProvider(
-                    config={
-                        "base_url": base,
-                        "model": block.get("model", "gpt-4o-mini"),
-                        "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
-                        "api_key": block.get("api_key"),
-                    }
-                )
-            return None
+        # New schema
+        if "default" in model_spec or "roles" in model_spec:
+            default_block = model_spec.get("default") or {}
+            roles["default"] = {
+                "candidates": list(default_block.get("candidates", [])),
+                "strategy": default_block.get("strategy", "cost_optimized"),
+            }
+            for name, block in (model_spec.get("roles") or {}).items():
+                if name == "default":
+                    continue
+                roles[str(name)] = {
+                    "candidates": list((block or {}).get("candidates", [])),
+                    "strategy": (block or {}).get("strategy", "cost_optimized"),
+                }
+            return roles
 
-        def register(slot: str, block: dict) -> bool:
-            ptype = (block.get("provider") or "").strip().lower()
-            if not ptype:
-                return False
-            try:
-                prov = build_provider(block)
-            except Exception:
-                logger.exception("Failed to register %s provider %r", slot, ptype)
-                return False
-            if prov is None:
-                logger.warning(
-                    "Unknown model provider %r in %s; add wiring in engine._register_model_providers",
-                    ptype,
-                    slot,
-                )
-                return False
-            router.register_provider(slot, prov)
-            return True
-
-        registered = 0
+        # Legacy schema → single 'default' role
+        candidates: list[dict] = []
         for slot in ("primary", "fallback"):
             block = model_spec.get(slot)
-            if isinstance(block, dict) and register(slot, block):
-                registered += 1
-
+            if isinstance(block, dict) and (block.get("provider") or block.get("source")):
+                candidates.append(block)
         extras = model_spec.get("extra")
-        if extras is not None:
-            if not isinstance(extras, dict):
-                logger.warning(
-                    "spec.model.extra must be a mapping of {name: provider block}; got %s",
-                    type(extras).__name__,
-                )
-            else:
-                for name, block in extras.items():
-                    if name in ("primary", "fallback"):
-                        logger.warning(
-                            "spec.model.extra.%s conflicts with the reserved slot name; skipping",
-                            name,
-                        )
-                        continue
-                    if not isinstance(block, dict):
-                        logger.warning("spec.model.extra.%s must be a mapping; skipping", name)
-                        continue
-                    if register(str(name), block):
-                        registered += 1
+        if isinstance(extras, dict):
+            for block in extras.values():
+                if isinstance(block, dict) and (block.get("provider") or block.get("source")):
+                    candidates.append(block)
+        strategy = (model_spec.get("routing") or {}).get("strategy", "cost_optimized")
+        roles["default"] = {"candidates": candidates, "strategy": strategy}
+        return roles
 
-        if registered == 0:
-            logger.warning(
-                "No LLM providers registered from model spec (check primary/fallback/extra provider types)"
-            )
+    def _build_role_routers(self, model_spec: dict) -> dict[str, "ModelRouter"]:
+        """Build one ModelRouter per role from the normalized spec."""
+        roles = self._normalize_model_spec(model_spec)
+        routers: dict[str, ModelRouter] = {}
+        for role_name, cfg in roles.items():
+            router = ModelRouter({"strategy": cfg.get("strategy", "cost_optimized")})
+            registered = 0
+            for i, block in enumerate(cfg.get("candidates", [])):
+                try:
+                    prov = build_candidate_provider(block)
+                except Exception:
+                    logger.exception("role %s candidate %d failed to build", role_name, i)
+                    continue
+                if prov is None:
+                    logger.warning(
+                        "role %s candidate %d: unknown source %r; skipping",
+                        role_name,
+                        i,
+                        block.get("source") or block.get("provider"),
+                    )
+                    continue
+                router.register_provider(f"cand{i}", prov)
+                registered += 1
+            if registered == 0:
+                logger.warning("role %s registered 0 providers", role_name)
+            routers[role_name] = router
+        if "default" not in routers:
+            routers["default"] = ModelRouter({"strategy": "cost_optimized"})
+        return routers
 
     def _build_agent(self, config):
         spec = config["spec"]
         metadata = config["metadata"]
         model_spec = spec.get("model", {})
-        router = ModelRouter(model_spec.get("routing", {"strategy": "cost_optimized"}))
-        self._register_model_providers(router, model_spec)
+        routers = self._build_role_routers(model_spec)
         memory = MemoryManager(agent_id=metadata["name"], config=spec.get("memory", {}))
         tools = ToolRegistry()
         from astromesh.tools import ToolLoader
@@ -357,7 +336,7 @@ class AgentRuntime:
             version=metadata.get("version", "0.1.0"),
             namespace=metadata.get("namespace", "default"),
             description=spec.get("identity", {}).get("description", ""),
-            router=router,
+            routers=routers,
             memory=memory,
             tools=tools,
             pattern=pattern,
@@ -484,7 +463,7 @@ class Agent:
         version,
         namespace,
         description,
-        router,
+        routers,
         memory,
         tools,
         pattern,
@@ -498,7 +477,8 @@ class Agent:
         self.version = version
         self.namespace = namespace
         self.description = description
-        self._router = router
+        self._routers = routers
+        self._role_map = (orchestration_config or {}).get("role_map", {}) or {}
         self._memory = memory
         self._tools = tools
         self._pattern = pattern
@@ -560,11 +540,15 @@ class Agent:
                 override_provider = create_provider(override_name, api_key=override_key)
                 route_kwargs["provider_override"] = (override_name, override_provider)
 
-            async def model_fn(messages, tools):
+            async def model_fn(messages, tools, role=None):
                 llm_span = tracing.start_span("llm.complete", parent_span_id=root_span.span_id)
                 full_messages = [{"role": "system", "content": rendered_prompt}] + messages
+                resolved_role = self._role_map.get(role, role) if role else "default"
+                router = self._routers.get(resolved_role) or self._routers["default"]
+                llm_span.set_attribute("role", role or "default")
+                llm_span.set_attribute("resolved_role", resolved_role or "default")
                 try:
-                    response = await self._router.route(full_messages, tools=tools, **route_kwargs)
+                    response = await router.route(full_messages, tools=tools, **route_kwargs)
                     # Fase 4.4c: attribute the outbound provider-request bytes to this agent.
                     try:
                         import json as _json

@@ -60,3 +60,108 @@ def test_litellm_missing_dependency_skips_candidate(monkeypatch):
         build_candidate_provider({"source": "litellm", "model": "anthropic/claude-opus-4-8"})
         is None
     )
+
+
+from astromesh.core.model_router import ModelRouter
+from astromesh.runtime.engine import AgentRuntime
+
+
+def _runtime():
+    return AgentRuntime(config_dir="./config")
+
+
+def test_legacy_schema_normalizes_to_default_role():
+    rt = _runtime()
+    legacy = {
+        "primary": {"provider": "ollama", "model": "llama3.1:8b"},
+        "fallback": {"provider": "openai", "model": "gpt-4o-mini"},
+        "routing": {"strategy": "latency_optimized"},
+    }
+    roles = rt._normalize_model_spec(legacy)
+    assert set(roles.keys()) == {"default"}
+    assert roles["default"]["strategy"] == "latency_optimized"
+    assert len(roles["default"]["candidates"]) == 2
+    assert roles["default"]["candidates"][0]["model"] == "llama3.1:8b"
+
+
+def test_new_schema_parses_default_and_roles():
+    rt = _runtime()
+    spec = {
+        "default": {"candidates": [{"source": "ollama", "model": "llama3.1:8b"}]},
+        "roles": {
+            "planner": {
+                "candidates": [{"source": "litellm", "model": "anthropic/claude-opus-4-8"}],
+                "strategy": "quality_first",
+            }
+        },
+    }
+    roles = rt._normalize_model_spec(spec)
+    assert set(roles.keys()) == {"default", "planner"}
+    assert roles["planner"]["strategy"] == "quality_first"
+
+
+def test_build_role_routers_returns_router_per_role():
+    rt = _runtime()
+    spec = {
+        "default": {"candidates": [{"source": "ollama", "model": "llama3.1:8b"}]},
+        "roles": {"planner": {"candidates": [{"source": "ollama", "model": "llama3.1:70b"}]}},
+    }
+    routers = rt._build_role_routers(spec)
+    assert set(routers.keys()) == {"default", "planner"}
+    assert isinstance(routers["default"], ModelRouter)
+    assert isinstance(routers["planner"], ModelRouter)
+
+
+from unittest.mock import AsyncMock
+
+from astromesh.core.memory import MemoryManager
+from astromesh.core.prompt_engine import PromptEngine
+from astromesh.core.tools import ToolRegistry
+from astromesh.orchestration.patterns import ReActPattern
+from astromesh.providers.base import CompletionResponse
+from astromesh.runtime.engine import Agent
+
+
+def _make_router_returning(tag):
+    router = ModelRouter({"strategy": "cost_optimized"})
+    resp = CompletionResponse(
+        content=tag, model="m", provider="p", usage={}, latency_ms=1.0, cost=0.0
+    )
+    router.route = AsyncMock(return_value=resp)
+    return router
+
+
+def _agent_with(routers, role_map=None):
+    return Agent(
+        name="t", version="0.1.0", namespace="default", description="",
+        routers=routers, memory=MemoryManager(agent_id="t", config={}),
+        tools=ToolRegistry(), pattern=ReActPattern(), system_prompt="sys",
+        prompt_engine=PromptEngine(), guardrails={}, permissions={},
+        orchestration_config={"role_map": role_map or {}},
+    )
+
+
+async def test_model_fn_routes_by_role():
+    routers = {"default": _make_router_returning("D"), "planner": _make_router_returning("P")}
+    agent = _agent_with(routers)
+    out = await agent.run("hi", session_id="s")
+    # ReAct requests role=None -> default; assert default router was used
+    routers["default"].route.assert_awaited()
+    routers["planner"].route.assert_not_awaited()
+    assert out["answer"] == "D"
+
+
+async def test_role_map_remaps_role(monkeypatch):
+    routers = {"default": _make_router_returning("D"), "planner": _make_router_returning("P")}
+    agent = _agent_with(routers, role_map={"reasoner": "planner"})
+    # patch ReAct to request the 'reasoner' role
+    from astromesh.orchestration import patterns as pmod
+    orig = pmod.ReActPattern.execute
+
+    async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
+        r = await model_fn([{"role": "user", "content": query}], tools, role="reasoner")
+        return {"answer": r.content, "steps": []}
+
+    monkeypatch.setattr(pmod.ReActPattern, "execute", execute)
+    out = await agent.run("hi", session_id="s")
+    assert out["answer"] == "P"  # reasoner -> planner via role_map

@@ -94,8 +94,11 @@ async def system_doctor():
 
     providers_checked = set()
     for agent in _runtime._agents.values():
-        if hasattr(agent, "_router") and hasattr(agent._router, "_providers"):
-            for name, provider in agent._router._providers.items():
+        routers = getattr(agent, "_routers", None) or {}
+        for router in routers.values():
+            if not hasattr(router, "_providers"):
+                continue
+            for name, provider in router._providers.items():
                 if name not in providers_checked:
                     providers_checked.add(name)
                     try:

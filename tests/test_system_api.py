@@ -51,7 +51,9 @@ async def test_system_doctor_with_runtime(client):
 
     mock_provider = AsyncMock()
     mock_provider.health_check = AsyncMock(return_value=True)
-    mock_runtime._agents["a1"]._router._providers = {"ollama": mock_provider}
+    mock_router = MagicMock()
+    mock_router._providers = {"ollama": mock_provider}
+    mock_runtime._agents["a1"]._routers = {"default": mock_router}
 
     system.set_runtime(mock_runtime)
 

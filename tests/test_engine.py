@@ -44,7 +44,7 @@ async def test_runtime_agent_properties(config_dir):
     assert agent.name == "test-agent"
     assert agent.version == "0.1.0"
     assert agent.namespace == "test"
-    assert "primary" in agent._router._providers
+    assert "cand0" in agent._routers["default"]._providers
 
 
 async def test_runtime_missing_agent(config_dir):
@@ -116,9 +116,12 @@ async def test_runtime_registers_extra_providers(multi_provider_config_dir):
     runtime = AgentRuntime(config_dir=multi_provider_config_dir)
     await runtime.bootstrap()
     agent = runtime._agents["multi-agent"]
-    providers = agent._router._providers
-    # primary + fallback + two valid extras; the `primary` key inside extra is rejected
-    assert set(providers.keys()) == {"primary", "fallback", "cloud_claude", "azure_primary"}
+    providers = agent._routers["default"]._providers
+    # Legacy schema normalizes into the 'default' role; candidates are registered
+    # positionally as cand0..candN (primary, fallback, then extra.values() in order —
+    # the extra key named 'primary' no longer collides with a reserved slot name,
+    # since role-router candidates aren't keyed by their original slot/extra name).
+    assert set(providers.keys()) == {"cand0", "cand1", "cand2", "cand3", "cand4"}
 
 
 async def test_runtime_extra_with_no_primary(tmp_path):
@@ -150,4 +153,4 @@ spec:
     runtime = AgentRuntime(config_dir=str(tmp_path))
     await runtime.bootstrap()
     agent = runtime._agents["extra-only"]
-    assert list(agent._router._providers.keys()) == ["local_ollama"]
+    assert list(agent._routers["default"]._providers.keys()) == ["cand0"]
