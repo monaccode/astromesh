@@ -165,3 +165,13 @@ async def test_role_map_remaps_role(monkeypatch):
     monkeypatch.setattr(pmod.ReActPattern, "execute", execute)
     out = await agent.run("hi", session_id="s")
     assert out["answer"] == "P"  # reasoner -> planner via role_map
+
+
+def test_demo_agent_builds_role_routers():
+    import yaml
+    from pathlib import Path
+
+    cfg = yaml.safe_load(Path("config/agents/role-router-demo.agent.yaml").read_text())
+    rt = _runtime()
+    routers = rt._build_role_routers(cfg["spec"]["model"])
+    assert set(routers.keys()) == {"default", "planner", "worker"}

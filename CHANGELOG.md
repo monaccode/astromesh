@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Source-aware candidate provider builder (`source: litellm|ollama|openai_compat|...`) with graceful skip when an optional provider dep is absent.
 - Per-role model routing: agents build one `ModelRouter` per role; `model_fn(role=...)` selects it, undefined roles fall back to `default`; legacy `primary/fallback/extra` normalized into `default`.
 - Orchestration patterns request per-role models: ReAct→`reasoner`; PlanAndExecute/ParallelFanOut→`planner`/`worker`/`synthesizer`; Pipeline→`stage:<name>`; Supervisor→`supervisor`; Swarm→`reasoner`.
+- Example agent `config/agents/role-router-demo.agent.yaml` demonstrating per-role models across sources (strong `planner` via LiteLLM, cheap `worker`/`default` via Ollama).
+
+### Changed
+- Model providers are now declared as per-role `candidates` (positional). The previous reserved-name collision check for `model.extra.primary`/`fallback` no longer applies; legacy `primary/fallback/extra` keys continue to work (normalized into the `default` role).
 
 ### Documentation
 - Provider docs: documented the **Moonshot / Kimi** model family on the Provider Configuration page — `openai_compat` setup against the Moonshot endpoint, thinking-model `reasoning_content` handling across tool-call turns, a per-model **Model Pricing & Cost Estimation** table (incl. `kimi-k2.5` / `kimi-k2.6` and cached-input rates), the **cache-aware pricing** formula that discounts `cached_tokens` and surfaces `cache_read_input_tokens`, and the model-derived **provider label** table (`kimi` / `anthropic` / `openai` / `openai_compat`) used in cost reports and metrics (`docs-site/src/content/docs/configuration/providers.md`)

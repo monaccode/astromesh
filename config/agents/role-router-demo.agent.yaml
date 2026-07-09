@@ -1,0 +1,34 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: role-router-demo
+  version: "0.1.0"
+  namespace: demo
+
+spec:
+  identity:
+    display_name: "Role Router Demo"
+    description: "Demonstrates per-role models across sources"
+
+  model:
+    default:
+      candidates:
+        - {source: ollama, model: "llama3.1:8b", endpoint: "http://localhost:11434"}
+      strategy: cost_optimized
+    roles:
+      planner:
+        candidates:
+          - {source: litellm, model: "anthropic/claude-opus-4-8", api_key_env: ANTHROPIC_API_KEY}
+        strategy: quality_first
+      worker:
+        candidates:
+          - {source: ollama, model: "llama3.1:8b"}
+        strategy: cost_optimized
+
+  prompts:
+    system: |
+      You are a demo agent. Plan with the strong model, execute with the cheap one.
+
+  orchestration:
+    pattern: plan_and_execute
+    max_iterations: 6
