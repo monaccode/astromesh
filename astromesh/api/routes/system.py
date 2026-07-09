@@ -95,20 +95,21 @@ async def system_doctor():
     providers_checked = set()
     for agent in _runtime._agents.values():
         routers = getattr(agent, "_routers", None) or {}
-        for router in routers.values():
+        for role_name, router in routers.items():
             if not hasattr(router, "_providers"):
                 continue
             for name, provider in router._providers.items():
-                if name not in providers_checked:
-                    providers_checked.add(name)
+                key = f"{role_name}:{name}"
+                if key not in providers_checked:
+                    providers_checked.add(key)
                     try:
                         healthy = await provider.health_check()
-                        checks[f"provider:{name}"] = CheckResult(
+                        checks[f"provider:{key}"] = CheckResult(
                             status="ok" if healthy else "degraded",
                             message=f"Provider {name} health check",
                         )
                     except Exception as e:
-                        checks[f"provider:{name}"] = CheckResult(status="error", message=str(e))
+                        checks[f"provider:{key}"] = CheckResult(status="error", message=str(e))
 
     # Check peers
     if hasattr(_runtime, "peer_client") and _runtime.peer_client:

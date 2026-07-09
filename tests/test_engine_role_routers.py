@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
+from astromesh.core.memory import MemoryManager
+from astromesh.core.model_router import ModelRouter
+from astromesh.core.prompt_engine import PromptEngine
+from astromesh.core.tools import ToolRegistry
+from astromesh.orchestration.patterns import ReActPattern
+from astromesh.providers.base import CompletionResponse
 from astromesh.providers.litellm_provider import LiteLLMProvider
 from astromesh.providers.ollama_provider import OllamaProvider
 from astromesh.providers.openai_compat import OpenAICompatProvider
-from astromesh.runtime.engine import build_candidate_provider
+from astromesh.runtime.engine import Agent, AgentRuntime, build_candidate_provider
 
 
 def test_builds_ollama_from_source():
@@ -62,10 +70,6 @@ def test_litellm_missing_dependency_skips_candidate(monkeypatch):
     )
 
 
-from astromesh.core.model_router import ModelRouter
-from astromesh.runtime.engine import AgentRuntime
-
-
 def _runtime():
     return AgentRuntime(config_dir="./config")
 
@@ -112,14 +116,23 @@ def test_build_role_routers_returns_router_per_role():
     assert isinstance(routers["planner"], ModelRouter)
 
 
-from unittest.mock import AsyncMock
+def test_emptied_role_is_omitted_and_falls_back(monkeypatch):
+    from astromesh.providers import litellm_provider as _llm
 
-from astromesh.core.memory import MemoryManager
-from astromesh.core.prompt_engine import PromptEngine
-from astromesh.core.tools import ToolRegistry
-from astromesh.orchestration.patterns import ReActPattern
-from astromesh.providers.base import CompletionResponse
-from astromesh.runtime.engine import Agent
+    def boom():
+        raise ImportError("litellm not installed")
+
+    monkeypatch.setattr(_llm, "_import_litellm", boom)
+    rt = _runtime()
+    spec = {
+        "default": {"candidates": [{"source": "ollama", "model": "llama3.1:8b"}]},
+        "roles": {
+            "planner": {"candidates": [{"source": "litellm", "model": "anthropic/claude-opus-4-8"}]}
+        },
+    }
+    routers = rt._build_role_routers(spec)
+    assert "planner" not in routers  # emptied role omitted -> model_fn falls back to 'default'
+    assert "default" in routers
 
 
 def _make_router_returning(tag):
@@ -133,10 +146,18 @@ def _make_router_returning(tag):
 
 def _agent_with(routers, role_map=None):
     return Agent(
-        name="t", version="0.1.0", namespace="default", description="",
-        routers=routers, memory=MemoryManager(agent_id="t", config={}),
-        tools=ToolRegistry(), pattern=ReActPattern(), system_prompt="sys",
-        prompt_engine=PromptEngine(), guardrails={}, permissions={},
+        name="t",
+        version="0.1.0",
+        namespace="default",
+        description="",
+        routers=routers,
+        memory=MemoryManager(agent_id="t", config={}),
+        tools=ToolRegistry(),
+        pattern=ReActPattern(),
+        system_prompt="sys",
+        prompt_engine=PromptEngine(),
+        guardrails={},
+        permissions={},
         orchestration_config={"role_map": role_map or {}},
     )
 
@@ -156,7 +177,6 @@ async def test_role_map_remaps_role(monkeypatch):
     agent = _agent_with(routers, role_map={"reasoner": "planner"})
     # patch ReAct to request the 'reasoner' role
     from astromesh.orchestration import patterns as pmod
-    orig = pmod.ReActPattern.execute
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         r = await model_fn([{"role": "user", "content": query}], tools, role="reasoner")
@@ -167,10 +187,13 @@ async def test_role_map_remaps_role(monkeypatch):
     assert out["answer"] == "P"  # reasoner -> planner via role_map
 
 
-def test_demo_agent_builds_role_routers():
+def test_demo_agent_builds_role_routers(monkeypatch):
     import yaml
     from pathlib import Path
 
+    from astromesh.providers import litellm_provider as _llm
+
+    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())  # pretend litellm is installed
     cfg = yaml.safe_load(Path("config/agents/role-router-demo.agent.yaml").read_text())
     rt = _runtime()
     routers = rt._build_role_routers(cfg["spec"]["model"])

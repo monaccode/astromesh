@@ -299,7 +299,7 @@ spec:
           - {source: litellm, model: "anthropic/claude-opus-4-8", api_key_env: ANTHROPIC_API_KEY}
 ```
 
-**Model-prefix convention:** the `model` string's prefix selects which cloud backend LiteLLM talks to:
+**Model-prefix convention:** the `model` string's prefix selects which cloud backend LiteLLM talks to. This table is illustrative and non-exhaustive — any prefix LiteLLM itself supports works here; Astromesh does not validate or restrict the list, it only uses the prefix to derive a human-readable provider label:
 
 | Prefix | Backend |
 |--------|---------|
@@ -309,6 +309,8 @@ spec:
 | `bedrock/…` | AWS Bedrock |
 | `mistral/…` | Mistral |
 | `azure/…` | Azure OpenAI (via LiteLLM) |
+
+Note that `azure/…` here is a LiteLLM model prefix (routes through LiteLLM), distinct from the `openai_compat` source's `azure_openai` alias, which reaches Azure directly without going through LiteLLM.
 
 If a candidate omits `source`, Astromesh infers `litellm` whenever `model` contains a `/` (e.g. `anthropic/claude-opus-4-8`); a bare model name like `gpt-4o-mini` infers `openai_compat` instead.
 

@@ -267,7 +267,7 @@ class AgentRuntime:
                     continue
                 if prov is None:
                     logger.warning(
-                        "role %s candidate %d: unknown source %r; skipping",
+                        "role %s candidate %d (source %r) not registered; skipping",
                         role_name,
                         i,
                         block.get("source") or block.get("provider"),
@@ -275,6 +275,12 @@ class AgentRuntime:
                     continue
                 router.register_provider(f"cand{i}", prov)
                 registered += 1
+            if registered == 0 and role_name != "default":
+                logger.warning(
+                    "role %s registered 0 providers; requests to it will fall back to 'default'",
+                    role_name,
+                )
+                continue
             if registered == 0:
                 logger.warning("role %s registered 0 providers", role_name)
             routers[role_name] = router

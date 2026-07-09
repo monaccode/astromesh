@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Model providers are now declared as per-role `candidates` (positional). The previous reserved-name collision check for `model.extra.primary`/`fallback` no longer applies; legacy `primary/fallback/extra` keys continue to work (normalized into the `default` role).
 
+### Fixed
+- A model role whose candidates all fail to register (e.g. a `litellm`-only role without the `litellm` extra installed) now falls back to the `default` role instead of erroring; `/v1/system/doctor` health-checks providers across all roles (previously deduped by slot name across roles).
+
 ### Documentation
 - Provider docs: documented the **Moonshot / Kimi** model family on the Provider Configuration page — `openai_compat` setup against the Moonshot endpoint, thinking-model `reasoning_content` handling across tool-call turns, a per-model **Model Pricing & Cost Estimation** table (incl. `kimi-k2.5` / `kimi-k2.6` and cached-input rates), the **cache-aware pricing** formula that discounts `cached_tokens` and surfaces `cache_read_input_tokens`, and the model-derived **provider label** table (`kimi` / `anthropic` / `openai` / `openai_compat`) used in cost reports and metrics (`docs-site/src/content/docs/configuration/providers.md`)
 - Documentation site: added dedicated sections for four previously-undocumented ecosystem projects — **Cortex** (desktop IDE & control plane), **Nexus** (multi-tenant Kubernetes control plane), **Astromesh OS** (immutable `mkosi` appliance), and **Leia** (natural-language Claude Code plugin) — 4 pages each, plus accent-themed `ProductShowcase` landing components (`docs-site/src/content/docs/{cortex,nexus,os,leia}/`, `docs-site/src/components/{Product,Cortex,Nexus,Os,Leia}Showcase.astro`)
