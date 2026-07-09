@@ -177,6 +177,80 @@ spec:
       - search_crm
 ```
 
+## Per-role Models
+
+Beyond a single `primary`/`fallback` pair, an agent can declare a distinct model — or list of candidate models — for each orchestration role. This lets you pair a cheap local model for routine tool loops with a frontier cloud model for planning, all within one agent:
+
+```yaml
+spec:
+  model:
+    default:
+      candidates:
+        - {source: ollama, model: "llama3.1:8b", endpoint: "http://localhost:11434"}
+      strategy: cost_optimized
+    roles:
+      planner:
+        candidates:
+          - {source: litellm, model: "anthropic/claude-opus-4-8", api_key_env: ANTHROPIC_API_KEY}
+        strategy: quality_first
+      worker:
+        candidates:
+          - {source: ollama, model: "llama3.1:8b"}
+        strategy: cost_optimized
+
+  orchestration:
+    pattern: plan_and_execute
+    max_iterations: 6
+```
+
+`default` is required whenever this schema is used — it is the router every unrecognized or unconfigured role falls back to. `roles` is a map from role name to its own candidate list and strategy; each role becomes its own independent `ModelRouter`, with its own circuit breaker (see [Model Router](/astromesh/reference/core/model-router/#per-role-routers)). See `config/agents/role-router-demo.agent.yaml` for the complete worked example above.
+
+### Candidate fields
+
+Each entry in a `candidates` array is an object with:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `source` | No | Provider family: `litellm` (cloud multi-provider, see [Providers](/astromesh/configuration/providers/#litellm-source-cloud-multi-provider)), `ollama`, or `openai_compat` (aliases `openai`, `azure_openai`). If omitted, it is inferred from `model`: a name containing `/` (e.g. `anthropic/claude-opus-4-8`) infers `litellm`; otherwise it infers `openai_compat`. |
+| `model` | Yes | Model name or path. Format depends on `source` (e.g. `"llama3.1:8b"` for Ollama, `"anthropic/claude-opus-4-8"` for LiteLLM). |
+| `endpoint` | No | Override endpoint URL. Defaults vary by `source` (e.g. `http://localhost:11434` for Ollama). |
+| `api_key_env` | No | Name of the environment variable containing the API key. |
+| `api_key` | No | Inline API key. Prefer `api_key_env` so secrets stay out of YAML. |
+| `parameters` | No | Sampling parameters (`temperature`, `top_p`, `max_tokens`, etc.), passed through to the provider. |
+
+A role (or `default`) can list multiple `candidates`; its `ModelRouter` selects and falls back between them according to its `strategy`, exactly like the legacy `primary`/`fallback` pair.
+
+### Role vocabulary
+
+Each orchestration pattern requests one or more named roles at its decision points. Any role your agent hasn't defined under `roles` falls back to `default`:
+
+| Pattern | Roles requested |
+|---------|------------------|
+| ReAct | `reasoner` |
+| Plan and Execute | `planner`, `worker`, `synthesizer` |
+| Parallel Fan-Out | `planner`, `worker`, `synthesizer` |
+| Pipeline | `stage:<name>` for each configured stage (default stages: `analyze`, `process`, `synthesize`) |
+| Supervisor | `supervisor` |
+| Swarm | `reasoner` |
+
+### Remapping roles with `orchestration.role_map`
+
+`role_map` points a pattern's built-in role request at one of your own role names, without renaming the role in your agent's `roles` map:
+
+```yaml
+spec:
+  orchestration:
+    pattern: react
+    role_map:
+      reasoner: planner   # ReAct's "reasoner" requests route to the "planner" role's router
+```
+
+Resolution order for a requested role: `role_map[role]` (if the role is remapped) → the resolved name looked up in `spec.model.roles` → `default` if no router is registered under the resolved name.
+
+### Backward compatibility
+
+The legacy `primary` / `fallback` / `extra` / `routing.strategy` shape shown in [Full Agent Reference](#full-agent-reference) still works unchanged. Internally it is normalized into a single `default` role — there is no need to migrate existing agents. Adopt `default`/`roles` only where you want per-role model selection.
+
 ## Field Reference
 
 ### `metadata`

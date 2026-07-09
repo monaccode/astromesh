@@ -275,6 +275,47 @@ onnx:
 
 No `endpoint` is needed — the model file is loaded directly by the runtime. The `models` list contains paths to `.onnx` files relative to the config directory.
 
+### LiteLLM source (cloud multi-provider)
+
+Cloud providers — Anthropic, Google Gemini, Groq, AWS Bedrock, Mistral, Azure — are reached through LiteLLM, a unified completion client, rather than through `config/providers.yaml`. LiteLLM is declared per-candidate inside an agent's `spec.model` block (see [Per-role Models](/astromesh/configuration/agent-yaml/#per-role-models)), not as a `providers.yaml` provider type.
+
+**Install:**
+
+```bash
+uv sync --extra litellm      # just the LiteLLM extra
+uv sync --extra all          # everything, including LiteLLM
+```
+
+LiteLLM is an **optional** dependency — the base install does not pull it in.
+
+**Configuration:**
+
+```yaml
+spec:
+  model:
+    roles:
+      planner:
+        candidates:
+          - {source: litellm, model: "anthropic/claude-opus-4-8", api_key_env: ANTHROPIC_API_KEY}
+```
+
+**Model-prefix convention:** the `model` string's prefix selects which cloud backend LiteLLM talks to:
+
+| Prefix | Backend |
+|--------|---------|
+| `anthropic/…` | Anthropic (Claude) |
+| `gemini/…` | Google Gemini |
+| `groq/…` | Groq |
+| `bedrock/…` | AWS Bedrock |
+| `mistral/…` | Mistral |
+| `azure/…` | Azure OpenAI (via LiteLLM) |
+
+If a candidate omits `source`, Astromesh infers `litellm` whenever `model` contains a `/` (e.g. `anthropic/claude-opus-4-8`); a bare model name like `gpt-4o-mini` infers `openai_compat` instead.
+
+**Auth:** `api_key_env` names the environment variable holding the API key (e.g. `ANTHROPIC_API_KEY`) — the key itself is never written to YAML.
+
+**Skip-on-missing-install:** if a `source: litellm` candidate is configured but the `litellm` package is not importable, Astromesh logs a warning and skips *only that candidate*. Agent startup does not fail — other candidates in the same role, and every other role, still register normally.
+
 ## Provider Types Table
 
 | Type | Description | Endpoint Format |

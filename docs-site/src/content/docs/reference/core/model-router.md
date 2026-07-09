@@ -100,6 +100,24 @@ Each provider has an independent circuit breaker that prevents cascading failure
 | `failure_threshold` | `3` | Consecutive failures before circuit opens |
 | `cooldown_seconds` | `60` | Seconds to wait before half-open probe |
 
+## Per-role Routers
+
+An agent is not limited to a single `ModelRouter`. When `spec.model` declares `default`/`roles` (see [Per-role Models](/astromesh/configuration/agent-yaml/#per-role-models)), the runtime builds one independent `ModelRouter` instance per role — each with its own strategy, its own registered providers, and its own circuit breaker state. A failure streak against the `worker` role's provider does not affect the `planner` role's circuit breaker; the two are fully isolated.
+
+Orchestration patterns select which router to use by requesting a named `role` on every model call:
+
+```python
+response = await model_fn(messages, tools, role="planner")
+```
+
+`model_fn` resolves the role to a router in this order:
+
+1. `role_map[role]` — if `spec.orchestration.role_map` remaps the requested role, use the mapped name.
+2. Look up the resolved name in the agent's role routers (built from `spec.model.roles`).
+3. Fall back to the `default` router if no router is registered under the resolved name.
+
+Agents that only define legacy `primary`/`fallback` (or omit `role` entirely) get a single `default` router — the multi-router behavior is purely additive and does not change existing agents.
+
 ## ProviderProtocol
 
 All LLM providers implement this runtime-checkable Protocol defined in `astromesh/providers/base.py`. The Model Router interacts with providers exclusively through this interface.
