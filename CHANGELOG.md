@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - A model role whose candidates all fail to register (e.g. a `litellm`-only role without the `litellm` extra installed) now falls back to the `default` role instead of erroring; `/v1/system/doctor` health-checks providers across all roles (previously deduped by slot name across roles).
 
+### CI / Tooling
+- CI now runs on pushes to `develop` (previously only `main` and PRs) and enforces both `ruff check` and `ruff format --check` on `astromesh/` **and** `tests/` (previously lint-only, `astromesh/`-only). Cleared the pre-existing lint/format debt in `tests/` in the same pass.
+- Added a pinned `.pre-commit-config.yaml` (ruff check + ruff format, scoped to `astromesh/` and `tests/`) and the `pre-commit` dev dependency; run `uv run pre-commit install` to enable the hooks locally.
+- Bumped deprecated GitHub Actions off Node.js 20 across all workflows: `actions/checkout` v4→v7, `actions/setup-python` v5→v6, and `astral-sh/setup-uv` v3→v7 (v8 publishes no moving major tag). Disabled setup-uv's default caching to avoid cache-reserve warnings on matrix jobs.
+
 ### Documentation
 - Provider docs: documented the **Moonshot / Kimi** model family on the Provider Configuration page — `openai_compat` setup against the Moonshot endpoint, thinking-model `reasoning_content` handling across tool-call turns, a per-model **Model Pricing & Cost Estimation** table (incl. `kimi-k2.5` / `kimi-k2.6` and cached-input rates), the **cache-aware pricing** formula that discounts `cached_tokens` and surfaces `cache_read_input_tokens`, and the model-derived **provider label** table (`kimi` / `anthropic` / `openai` / `openai_compat`) used in cost reports and metrics (`docs-site/src/content/docs/configuration/providers.md`)
 - Documentation site: added dedicated sections for four previously-undocumented ecosystem projects — **Cortex** (desktop IDE & control plane), **Nexus** (multi-tenant Kubernetes control plane), **Astromesh OS** (immutable `mkosi` appliance), and **Leia** (natural-language Claude Code plugin) — 4 pages each, plus accent-themed `ProductShowcase` landing components (`docs-site/src/content/docs/{cortex,nexus,os,leia}/`, `docs-site/src/components/{Product,Cortex,Nexus,Os,Leia}Showcase.astro`)
