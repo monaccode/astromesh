@@ -73,9 +73,7 @@ async def test_react_with_tool_call():
 async def test_react_max_iterations():
     """Always returns tool_calls -> hits max iterations."""
     tool_call = {"id": "tc_loop", "name": "search", "arguments": {"q": "info"}}
-    model_fn = AsyncMock(
-        return_value=make_response("Thinking...", tool_calls=[tool_call])
-    )
+    model_fn = AsyncMock(return_value=make_response("Thinking...", tool_calls=[tool_call]))
     tool_fn = AsyncMock(return_value={"result": "partial"})
 
     pattern = ReActPattern()
@@ -96,7 +94,10 @@ async def test_react_max_iterations():
 @pytest.mark.asyncio
 async def test_plan_execute_pattern():
     from astromesh.orchestration.patterns import PlanAndExecutePattern
-    plan_response = make_response('{"steps": [{"step": 1, "description": "Search", "tool": null, "depends_on": []}]}')
+
+    plan_response = make_response(
+        '{"steps": [{"step": 1, "description": "Search", "tool": null, "depends_on": []}]}'
+    )
     step_response = make_response("Step 1 result")
     final_response = make_response("Final synthesized answer")
     model_fn = AsyncMock(side_effect=[plan_response, step_response, final_response])
@@ -109,6 +110,7 @@ async def test_plan_execute_pattern():
 @pytest.mark.asyncio
 async def test_parallel_fan_out():
     from astromesh.orchestration.patterns import ParallelFanOutPattern
+
     decompose = make_response('["subtask 1", "subtask 2"]')
     sub1 = make_response("result 1")
     sub2 = make_response("result 2")
@@ -122,6 +124,7 @@ async def test_parallel_fan_out():
 @pytest.mark.asyncio
 async def test_pipeline_pattern():
     from astromesh.orchestration.patterns import PipelinePattern
+
     r1 = make_response("analyzed")
     r2 = make_response("processed")
     r3 = make_response("synthesized")
@@ -134,6 +137,7 @@ async def test_pipeline_pattern():
 @pytest.mark.asyncio
 async def test_supervisor_pattern():
     from astromesh.orchestration.supervisor import SupervisorPattern
+
     resp = make_response('{"final_answer": "done"}')
     model_fn = AsyncMock(return_value=resp)
     pattern = SupervisorPattern()
@@ -144,6 +148,7 @@ async def test_supervisor_pattern():
 @pytest.mark.asyncio
 async def test_swarm_pattern():
     from astromesh.orchestration.swarm import SwarmPattern
+
     resp = make_response("The answer is 42")
     model_fn = AsyncMock(return_value=resp)
     pattern = SwarmPattern()
@@ -163,16 +168,18 @@ async def test_react_echoes_tool_call_in_openai_format():
 
     captured = []
 
-    async def capturing_model_fn(messages, tools):
+    async def capturing_model_fn(messages, tools, role=None):
         captured.append([dict(m) for m in messages])
         if len(captured) == 1:
             return make_response(
                 "I'll call calc_roi",
-                tool_calls=[{
-                    "id": "tc_1",
-                    "name": "calc_roi",
-                    "arguments": {"monthly_volume": 100, "minutes_saved_per_unit": 5},
-                }],
+                tool_calls=[
+                    {
+                        "id": "tc_1",
+                        "name": "calc_roi",
+                        "arguments": {"monthly_volume": 100, "minutes_saved_per_unit": 5},
+                    }
+                ],
             )
         return make_response("ROI is positive")
 
@@ -180,16 +187,18 @@ async def test_react_echoes_tool_call_in_openai_format():
 
     pattern = ReActPattern()
     await pattern.execute(
-        query="What's the ROI?", context={}, model_fn=capturing_model_fn,
-        tool_fn=tool_fn, tools=[],
+        query="What's the ROI?",
+        context={},
+        model_fn=capturing_model_fn,
+        tool_fn=tool_fn,
+        tools=[],
     )
 
     # Second model call: the assistant message echoing the tool call must
     # use the nested OpenAI format, not the normalized internal shape.
     second_call_messages = captured[1]
     assistant_msg = next(
-        m for m in second_call_messages
-        if m.get("role") == "assistant" and m.get("tool_calls")
+        m for m in second_call_messages if m.get("role") == "assistant" and m.get("tool_calls")
     )
     tc = assistant_msg["tool_calls"][0]
     assert tc.get("type") == "function", f"tool_call missing type:function — got {tc}"
@@ -223,7 +232,7 @@ async def test_react_echoes_reasoning_content_for_thinking_models():
     message'. ReAct must carry response.reasoning_content through."""
     captured = []
 
-    async def capturing_model_fn(messages, tools):
+    async def capturing_model_fn(messages, tools, role=None):
         captured.append([dict(m) for m in messages])
         if len(captured) == 1:
             return ThinkingResponse(
@@ -236,7 +245,11 @@ async def test_react_echoes_reasoning_content_for_thinking_models():
     tool_fn = AsyncMock(return_value={"roi": 30})
     pattern = ReActPattern()
     await pattern.execute(
-        query="ROI?", context={}, model_fn=capturing_model_fn, tool_fn=tool_fn, tools=[],
+        query="ROI?",
+        context={},
+        model_fn=capturing_model_fn,
+        tool_fn=tool_fn,
+        tools=[],
     )
 
     assistant_msg = next(
@@ -251,7 +264,7 @@ async def test_react_omits_reasoning_content_when_absent():
     message must not carry the key (sending it empty/null can itself be rejected)."""
     captured = []
 
-    async def capturing_model_fn(messages, tools):
+    async def capturing_model_fn(messages, tools, role=None):
         captured.append([dict(m) for m in messages])
         if len(captured) == 1:
             return make_response(
@@ -263,7 +276,11 @@ async def test_react_omits_reasoning_content_when_absent():
     tool_fn = AsyncMock(return_value={"roi": 30})
     pattern = ReActPattern()
     await pattern.execute(
-        query="ROI?", context={}, model_fn=capturing_model_fn, tool_fn=tool_fn, tools=[],
+        query="ROI?",
+        context={},
+        model_fn=capturing_model_fn,
+        tool_fn=tool_fn,
+        tools=[],
     )
 
     assistant_msg = next(

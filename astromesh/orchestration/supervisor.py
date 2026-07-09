@@ -22,7 +22,7 @@ class SupervisorPattern(OrchestrationPattern):
             )
 
             response = await model_fn(
-                [{"role": "user", "content": supervisor_prompt}], tools
+                [{"role": "user", "content": supervisor_prompt}], tools, role="supervisor"
             )
 
             try:

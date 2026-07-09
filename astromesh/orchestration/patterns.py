@@ -39,7 +39,7 @@ class ReActPattern(OrchestrationPattern):
         messages = [{"role": "user", "content": query}]
         steps: list[AgentStep] = []
         for _ in range(max_iterations):
-            response = await model_fn(messages, tools)
+            response = await model_fn(messages, tools, role="reasoner")
             if response.tool_calls:
                 for tc in response.tool_calls:
                     observation = await tool_fn(tc["name"], tc["arguments"])
@@ -98,7 +98,9 @@ class PlanAndExecutePattern(OrchestrationPattern):
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         # Step 1: Ask model to create a plan
         plan_prompt = f'Create a step-by-step plan to answer: {query}\nReturn JSON: {{"steps": [{{"step": 1, "description": "...", "tool": null, "depends_on": []}}]}}'
-        plan_response = await model_fn([{"role": "user", "content": plan_prompt}], tools)
+        plan_response = await model_fn(
+            [{"role": "user", "content": plan_prompt}], tools, role="planner"
+        )
 
         try:
             plan = _loads(plan_response.content)
@@ -111,7 +113,9 @@ class PlanAndExecutePattern(OrchestrationPattern):
         results = []
         for step_info in steps_plan:
             step_query = f"Execute step {step_info['step']}: {step_info['description']}\nPrevious results: {results}"
-            step_response = await model_fn([{"role": "user", "content": step_query}], tools)
+            step_response = await model_fn(
+                [{"role": "user", "content": step_query}], tools, role="worker"
+            )
 
             if step_response.tool_calls:
                 for tc in step_response.tool_calls:
@@ -133,7 +137,9 @@ class PlanAndExecutePattern(OrchestrationPattern):
         synthesis_prompt = (
             f"Synthesize a final answer from these results: {results}\nOriginal question: {query}"
         )
-        final = await model_fn([{"role": "user", "content": synthesis_prompt}], [])
+        final = await model_fn(
+            [{"role": "user", "content": synthesis_prompt}], [], role="synthesizer"
+        )
         steps.append(AgentStep(result=final.content))
 
         return {"answer": final.content, "steps": steps, "plan": steps_plan}
@@ -147,7 +153,9 @@ class ParallelFanOutPattern(OrchestrationPattern):
         decompose_prompt = (
             f"Decompose this into 2-4 independent subtasks (JSON list of strings): {query}"
         )
-        decompose_resp = await model_fn([{"role": "user", "content": decompose_prompt}], [])
+        decompose_resp = await model_fn(
+            [{"role": "user", "content": decompose_prompt}], [], role="planner"
+        )
 
         try:
             subtasks = _loads(decompose_resp.content)
@@ -158,14 +166,14 @@ class ParallelFanOutPattern(OrchestrationPattern):
 
         # Execute subtasks in parallel
         async def run_subtask(subtask):
-            resp = await model_fn([{"role": "user", "content": subtask}], tools)
+            resp = await model_fn([{"role": "user", "content": subtask}], tools, role="worker")
             return {"subtask": subtask, "result": resp.content}
 
         results = await aio.gather(*[run_subtask(st) for st in subtasks])
 
         # Aggregate
         agg_prompt = f"Aggregate these results into a final answer:\n{json_mod.dumps(list(results))}\nOriginal question: {query}"
-        final = await model_fn([{"role": "user", "content": agg_prompt}], [])
+        final = await model_fn([{"role": "user", "content": agg_prompt}], [], role="synthesizer")
 
         steps = [AgentStep(thought=f"Subtask: {r['subtask']}", result=r["result"]) for r in results]
         steps.append(AgentStep(result=final.content))
@@ -185,7 +193,9 @@ class PipelinePattern(OrchestrationPattern):
 
         for stage in self._stages:
             prompt = f"Stage '{stage}': Process the following input and produce output for the next stage.\nInput: {current_input}"
-            response = await model_fn([{"role": "user", "content": prompt}], tools)
+            response = await model_fn(
+                [{"role": "user", "content": prompt}], tools, role=f"stage:{stage}"
+            )
 
             if response.tool_calls:
                 for tc in response.tool_calls:

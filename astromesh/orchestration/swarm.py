@@ -18,12 +18,12 @@ class SwarmPattern(OrchestrationPattern):
                 f"You are agent '{current_agent}'. "
                 f"Available agents to hand off to: "
                 f"{list(self._agents.keys()) or ['default']}\n"
-                'Respond with your answer, or hand off with JSON '
+                "Respond with your answer, or hand off with JSON "
                 '{"handoff": "agent_name", "context": "..."}'
             )
 
             full_messages = [{"role": "system", "content": agent_prompt}] + messages
-            response = await model_fn(full_messages, tools)
+            response = await model_fn(full_messages, tools, role="reasoner")
 
             try:
                 parsed = json_mod.loads(response.content)
@@ -40,9 +40,7 @@ class SwarmPattern(OrchestrationPattern):
                     if target in self._agents:
                         await tool_fn(target, {"query": handoff_context})
                     current_agent = target
-                    messages.append(
-                        {"role": "assistant", "content": response.content}
-                    )
+                    messages.append({"role": "assistant", "content": response.content})
                     continue
             except (json_mod.JSONDecodeError, KeyError):
                 pass
