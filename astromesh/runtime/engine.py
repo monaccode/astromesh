@@ -88,6 +88,65 @@ def _normalize_tool_calls(raw_calls: list) -> list[dict]:
     return normalized
 
 
+def build_candidate_provider(block: dict):
+    """Build a provider instance from a candidate/legacy block.
+
+    Accepts `source` (new) or `provider` (legacy) to select the adapter. When
+    neither is set, infers `litellm` for prefixed models (contain '/') and
+    `openai_compat` otherwise. Returns None for unknown sources, and also for
+    `litellm` when the optional `litellm` dependency is not installed (probed
+    eagerly here so registration fails loudly instead of only at `complete()`).
+    """
+    from astromesh.providers.ollama_provider import OllamaProvider
+    from astromesh.providers.openai_compat import OpenAICompatProvider
+
+    source = (block.get("source") or block.get("provider") or "").strip().lower()
+    model = block.get("model", "")
+    if not source:
+        source = "litellm" if "/" in model else "openai_compat"
+
+    if source == "ollama":
+        base = (block.get("endpoint") or "http://localhost:11434").rstrip("/")
+        return OllamaProvider(
+            config={
+                "base_url": base,
+                "model": model or "llama3",
+                "timeout": float(block.get("timeout", 120)),
+            }
+        )
+    if source in ("openai_compat", "openai", "azure_openai"):
+        base = (block.get("endpoint") or "https://api.openai.com/v1").rstrip("/")
+        return OpenAICompatProvider(
+            config={
+                "base_url": base,
+                "model": model or "gpt-4o-mini",
+                "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
+                "api_key": block.get("api_key"),
+            }
+        )
+    if source == "litellm":
+        from astromesh.providers import litellm_provider as _llm
+
+        try:
+            _llm._import_litellm()
+        except Exception:
+            logger.warning(
+                "litellm not installed; skipping candidate model %r (install the 'litellm' extra)",
+                model,
+            )
+            return None
+        return _llm.LiteLLMProvider(
+            config={
+                "model": model or "gpt-4o",
+                "api_key": block.get("api_key"),
+                "api_key_env": block.get("api_key_env"),
+                "parameters": block.get("parameters"),
+                "timeout": float(block.get("timeout", 120)),
+            }
+        )
+    return None
+
+
 class AgentRuntime:
     def __init__(self, config_dir="./config", service_manager=None, peer_client=None):
         self._config_dir = Path(config_dir)
@@ -204,7 +263,8 @@ class AgentRuntime:
             if prov is None:
                 logger.warning(
                     "Unknown model provider %r in %s; add wiring in engine._register_model_providers",
-                    ptype, slot,
+                    ptype,
+                    slot,
                 )
                 return False
             router.register_provider(slot, prov)
@@ -219,11 +279,17 @@ class AgentRuntime:
         extras = model_spec.get("extra")
         if extras is not None:
             if not isinstance(extras, dict):
-                logger.warning("spec.model.extra must be a mapping of {name: provider block}; got %s", type(extras).__name__)
+                logger.warning(
+                    "spec.model.extra must be a mapping of {name: provider block}; got %s",
+                    type(extras).__name__,
+                )
             else:
                 for name, block in extras.items():
                     if name in ("primary", "fallback"):
-                        logger.warning("spec.model.extra.%s conflicts with the reserved slot name; skipping", name)
+                        logger.warning(
+                            "spec.model.extra.%s conflicts with the reserved slot name; skipping",
+                            name,
+                        )
                         continue
                     if not isinstance(block, dict):
                         logger.warning("spec.model.extra.%s must be a mapping; skipping", name)
@@ -503,6 +569,7 @@ class Agent:
                     try:
                         import json as _json
                         from astromesh.observability.metrics_export import get_manager as _gm
+
                         _m = _gm()
                         if _m is not None:
                             _req_bytes = len(_json.dumps(full_messages, default=str))
@@ -531,7 +598,11 @@ class Agent:
                         llm_span.set_attribute(
                             "input_messages",
                             _truncate(
-                                "\n".join(m.get("content", "") for m in user_msgs if isinstance(m.get("content"), str)),
+                                "\n".join(
+                                    m.get("content", "")
+                                    for m in user_msgs
+                                    if isinstance(m.get("content"), str)
+                                ),
                                 10_000,
                             ),
                         )
@@ -647,9 +718,10 @@ class Agent:
             # Fase 4.4c: flush the per-agent egress metric (cold gRPC needs a waited flush, like traces).
             try:
                 from astromesh.observability.metrics_export import get_manager as _gm2
+
                 _m2 = _gm2()
                 if _m2 is not None:
-                    _m2.record_run(tracing)   # Fase 4.3b: derive engine metrics from the span tree
+                    _m2.record_run(tracing)  # Fase 4.3b: derive engine metrics from the span tree
                     _m2.flush()
             except Exception:
                 logger.debug("agent-egress flush failed", exc_info=True)
