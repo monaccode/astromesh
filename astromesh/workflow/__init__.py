@@ -233,3 +233,22 @@ class WorkflowEngine:
             duration_ms=elapsed,
             run_id=run.run_id,
         )
+
+    async def sweep_expired(self, now: str) -> int:
+        n = 0
+        for run in await self._store.list_by_status("suspended"):
+            if run.expires_at and run.expires_at < now:
+                run.status = "expired"
+                run.error = "wait timed out"
+                await self._store.save(run)
+                n += 1
+        return n
+
+    async def mark_orphaned_failed(self) -> int:
+        n = 0
+        for run in await self._store.list_by_status("running"):
+            run.status = "failed"
+            run.error = "orphaned: process died mid-run"
+            await self._store.save(run)
+            n += 1
+        return n
