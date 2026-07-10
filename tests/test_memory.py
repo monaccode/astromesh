@@ -3,6 +3,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock
 
 from astromesh.core.memory import (
+    ConversationBackend,
     ConversationTurn,
     SemanticMemory,
     EpisodicMemory,
@@ -65,7 +66,40 @@ async def test_memory_manager_build_context():
     context = await manager.build_context(session_id="sess-1", current_query="test")
 
     assert context["conversation"] == turns
-    conversation.get_history.assert_called_once_with("sess-1")
+    conversation.get_history.assert_called_once_with("sess-1", limit=50)
+
+
+class _RecordingBackend(ConversationBackend):
+    def __init__(self):
+        self.get_history_calls = []
+
+    async def save_turn(self, session_id, turn):
+        pass
+
+    async def get_history(self, session_id, limit=50):
+        self.get_history_calls.append(limit)
+        return []
+
+    async def clear(self, session_id):
+        pass
+
+    async def get_summary(self, session_id):
+        return None
+
+    async def save_summary(self, session_id, summary):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_build_context_sliding_window_uses_max_turns_limit():
+    backend = _RecordingBackend()
+    mgr = MemoryManager(
+        agent_id="a",
+        config={"conversational": {"strategy": "sliding_window", "max_turns": 20}},
+        conversation=backend,
+    )
+    await mgr.build_context("s1", "q")
+    assert backend.get_history_calls == [20]
 
 
 @pytest.mark.asyncio

@@ -72,6 +72,7 @@ class ADKRuntime:
 
     def __init__(self, provider_factory: Any = resolve_provider) -> None:
         self._provider_factory = provider_factory
+        self._memory_cache: dict[int, Any] = {}
 
     def _adk_tools_to_specs(self, tools: list | None) -> list[dict]:
         specs = []
@@ -199,6 +200,25 @@ class ADKRuntime:
         ctx._complete_fn = _complete
         return ctx
 
+    def _get_memory(self, agent: Any):
+        conv = (getattr(agent, "memory_config", {}) or {}).get("conversational")
+        if not conv or not conv.get("backend"):
+            return None
+        key = id(agent)
+        mgr = self._memory_cache.get(key)
+        if mgr is None:
+            from astromesh.memory.factory import build_conversation_backend
+            from astromesh.core.memory import MemoryManager
+
+            backend = build_conversation_backend(conv)
+            if backend is None:
+                return None
+            mgr = MemoryManager(
+                agent_id=agent.name, config=agent.memory_config, conversation=backend
+            )
+            self._memory_cache[key] = mgr
+        return mgr
+
     @staticmethod
     def _steps_to_dicts(steps: list) -> list[dict]:
         out = []
@@ -217,6 +237,17 @@ class ADKRuntime:
         tctx = TracingContext(agent_wrapper.name, session_id)
         root = tctx.start_span("agent.run", {"agent": agent_wrapper.name})
         try:
+            memory = self._get_memory(agent_wrapper)
+            run_ctx = dict(context or {})
+            if memory is not None:
+                mctx = await memory.build_context(session_id, query)
+                history_msgs = [
+                    {"role": t.role, "content": t.content}
+                    for t in mctx.get("conversation", [])
+                ]
+                if history_msgs:
+                    run_ctx["_history_messages"] = history_msgs
+
             ctx = self._build_context(agent_wrapper, query, session_id, context)
             handler_out = await agent_wrapper._handler(ctx)
             if isinstance(handler_out, str):
@@ -230,7 +261,7 @@ class ADKRuntime:
                 pattern = pattern_cls()
                 result = await pattern.execute(
                     query,
-                    context or {},
+                    run_ctx,
                     model_fn,
                     tool_fn,
                     getattr(agent_wrapper, "tools", []),
@@ -238,6 +269,19 @@ class ADKRuntime:
                 )
                 answer = result.get("answer", "")
                 steps = result.get("steps", [])
+
+            if memory is not None:
+                from astromesh.core.memory import ConversationTurn
+                from datetime import datetime, timezone
+
+                now = datetime.now(timezone.utc)
+                await memory.persist_turn(
+                    session_id, ConversationTurn(role="user", content=query, timestamp=now)
+                )
+                await memory.persist_turn(
+                    session_id, ConversationTurn(role="assistant", content=answer, timestamp=now)
+                )
+
             tctx.finish_span(root, SpanStatus.OK)
         except Exception:
             tctx.finish_span(root, SpanStatus.ERROR)

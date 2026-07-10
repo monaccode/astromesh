@@ -97,7 +97,8 @@ class MemoryManager:
         if self._conversation:
             strategy = self.config.get("conversational", {}).get("strategy", "sliding_window")
             if strategy == "sliding_window":
-                turns = await self._conversation.get_history(session_id)
+                max_turns = self.config.get("conversational", {}).get("max_turns", 50)
+                turns = await self._conversation.get_history(session_id, limit=max_turns)
                 context["conversation"] = turns
                 token_budget -= sum(t.token_count for t in turns)
             elif strategy == "summary":
