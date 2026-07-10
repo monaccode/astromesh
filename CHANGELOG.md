@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.29.0] - 2026-07-10
+
 ### Added (Backend)
 - LiteLLM-backed provider for 100+ cloud models (optional `litellm` extra).
 - Source-aware candidate provider builder (`source: litellm|ollama|openai_compat|...`) with graceful skip when an optional provider dep is absent.
