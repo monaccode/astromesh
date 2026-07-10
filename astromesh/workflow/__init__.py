@@ -41,6 +41,11 @@ class WorkflowEngine:
         self._workflows = loader.load_all()
         self._executor = StepExecutor(runtime=self._runtime, tool_registry=self._tool_registry)
 
+        if hasattr(self._store, "initialize"):
+            await self._store.initialize()
+        await self.mark_orphaned_failed()
+        await self.sweep_expired(now=datetime.now(UTC).isoformat())
+
     def list_workflows(self) -> list[str]:
         return list(self._workflows.keys())
 

@@ -46,3 +46,16 @@ async def test_run_with_wait_suspends_and_persists():
     assert saved.status == "suspended"
     assert saved.current_index == 2          # posterior al wait (índice de "b")
     assert saved.context["steps"]["a"]["output"] == {"ok": "a"}
+
+
+async def test_bootstrap_runs_orphan_sweep(tmp_path, monkeypatch):
+    from astromesh.workflow import WorkflowEngine
+    from astromesh.workflow.models import WorkflowRun
+    from astromesh.workflow.store import InMemoryRunStore
+
+    store = InMemoryRunStore()
+    await store.create(WorkflowRun(run_id="orphan", workflow_name="w", status="running",
+                                   current_index=0, context={}))
+    eng = WorkflowEngine(workflows_dir=str(tmp_path), runtime=None, tool_registry=None, store=store)
+    await eng.bootstrap()
+    assert (await store.load("orphan")).status == "failed"
