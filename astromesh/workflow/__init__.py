@@ -70,6 +70,30 @@ class WorkflowEngine:
         await self._store.create(run)
         return await self._drive(wf, run)
 
+    async def resume(self, run_id: str, payload: dict[str, Any]) -> WorkflowRunResult:
+        """Resumes a suspended run: injects `payload` as the wait step's output,
+        marks the run "running" again, and drives it to completion (or the next
+        suspend). Raises ValueError if the run doesn't exist or isn't suspended.
+        """
+        run = await self._store.load(run_id)
+        if run is None:
+            raise ValueError(f"Run '{run_id}' not found")
+        if run.status != "suspended":
+            raise ValueError(f"Run '{run_id}' is not suspended (status={run.status})")
+
+        wf = self._workflows.get(run.workflow_name)
+        if not wf:
+            raise ValueError(f"Workflow '{run.workflow_name}' not found")
+
+        # el step wait está en current_index-1; inyectar el payload como su output
+        wait_idx = run.current_index - 1
+        if 0 <= wait_idx < len(wf.steps):
+            run.context["steps"][wf.steps[wait_idx].name] = {"output": payload}
+        run.context["resume"] = payload
+        run.status = "running"
+        await self._store.save(run)
+        return await self._drive(wf, run)
+
     async def _drive(self, wf: WorkflowSpec, run: WorkflowRun) -> WorkflowRunResult:
         """Executes wf from run.current_index; checkpoints the run after each step;
         stops and persists as "suspended" if a step returns SUSPENDED (a WAIT step).
