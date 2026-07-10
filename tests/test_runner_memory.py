@@ -83,6 +83,31 @@ async def test_runner_persists_and_injects_history(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_runner_survives_persist_failure(monkeypatch):
+    class FailingBackend(MemBackend):
+        async def save_turn(self, session_id, turn):
+            raise RuntimeError("redis down")
+
+    backend = FailingBackend()
+    monkeypatch.setattr(
+        "astromesh.memory.factory.build_conversation_backend", lambda cfg: backend
+    )
+    seen = []
+
+    rt = ADKRuntime(provider_factory=lambda pname, mname, cfg: StubProvider(seen))
+
+    @agent(
+        name="astro", model="claude-haiku-4-5", pattern="react",
+        memory={"conversational": {"backend": "redis", "connection": {"url": "redis://x"}}},
+    )
+    async def astro(ctx):
+        return None
+
+    result = await rt.run_agent(astro, "hola", session_id="o:u")
+    assert result.answer == "respuesta"
+
+
+@pytest.mark.asyncio
 async def test_runner_without_memory_config_no_persist(monkeypatch):
     rt = ADKRuntime(provider_factory=lambda pname, mname, cfg: StubProvider([]))
 

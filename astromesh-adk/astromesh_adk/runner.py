@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import logging
+import weakref
 from typing import TYPE_CHECKING, Any
 
 from astromesh_adk.providers import parse_model_string, resolve_provider
@@ -34,6 +36,8 @@ _PATTERNS = {
 }
 
 _default_runtime: ADKRuntime | None = None
+
+logger = logging.getLogger(__name__)
 
 
 def _provider_and_model(model: str) -> tuple[str, str]:
@@ -72,7 +76,7 @@ class ADKRuntime:
 
     def __init__(self, provider_factory: Any = resolve_provider) -> None:
         self._provider_factory = provider_factory
-        self._memory_cache: dict[int, Any] = {}
+        self._memory_cache: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
 
     def _adk_tools_to_specs(self, tools: list | None) -> list[dict]:
         specs = []
@@ -204,8 +208,7 @@ class ADKRuntime:
         conv = (getattr(agent, "memory_config", {}) or {}).get("conversational")
         if not conv or not conv.get("backend"):
             return None
-        key = id(agent)
-        mgr = self._memory_cache.get(key)
+        mgr = self._memory_cache.get(agent)
         if mgr is None:
             from astromesh.memory.factory import build_conversation_backend
             from astromesh.core.memory import MemoryManager
@@ -216,7 +219,7 @@ class ADKRuntime:
             mgr = MemoryManager(
                 agent_id=agent.name, config=agent.memory_config, conversation=backend
             )
-            self._memory_cache[key] = mgr
+            self._memory_cache[agent] = mgr
         return mgr
 
     @staticmethod
@@ -240,7 +243,17 @@ class ADKRuntime:
             memory = self._get_memory(agent_wrapper)
             run_ctx = dict(context or {})
             if memory is not None:
-                mctx = await memory.build_context(session_id, query)
+                try:
+                    mctx = await memory.build_context(session_id, query)
+                except Exception:  # noqa: BLE001 — memory is best-effort
+                    logger.warning(
+                        "memory.build_context failed for agent=%s session=%s; "
+                        "proceeding without injected history",
+                        agent_wrapper.name,
+                        session_id,
+                        exc_info=True,
+                    )
+                    mctx = {}
                 history_msgs = [
                     {"role": t.role, "content": t.content}
                     for t in mctx.get("conversation", [])
@@ -275,12 +288,22 @@ class ADKRuntime:
                 from datetime import datetime, timezone
 
                 now = datetime.now(timezone.utc)
-                await memory.persist_turn(
-                    session_id, ConversationTurn(role="user", content=query, timestamp=now)
-                )
-                await memory.persist_turn(
-                    session_id, ConversationTurn(role="assistant", content=answer, timestamp=now)
-                )
+                try:
+                    await memory.persist_turn(
+                        session_id, ConversationTurn(role="user", content=query, timestamp=now)
+                    )
+                    await memory.persist_turn(
+                        session_id,
+                        ConversationTurn(role="assistant", content=answer, timestamp=now),
+                    )
+                except Exception:  # noqa: BLE001 — memory is best-effort
+                    logger.warning(
+                        "memory.persist_turn failed for agent=%s session=%s; "
+                        "returning answer without persisting this turn",
+                        agent_wrapper.name,
+                        session_id,
+                        exc_info=True,
+                    )
 
             tctx.finish_span(root, SpanStatus.OK)
         except Exception:
