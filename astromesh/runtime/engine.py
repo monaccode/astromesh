@@ -547,9 +547,14 @@ class Agent:
             )
             tracing.finish_span(mem_span)
 
+            rag_span = tracing.start_span("rag_build")
+            knowledge_context = await self._rag.build_context(query_text) if self._rag else ""
+            tracing.finish_span(rag_span)
+
             prompt_span = tracing.start_span("prompt_render")
             rendered_prompt = self._prompt_engine.render(
-                self._system_prompt, {**(context or {}), "memory": memory_context}
+                self._system_prompt,
+                {**(context or {}), "memory": memory_context, "knowledge": knowledge_context},
             )
             tracing.finish_span(prompt_span)
 
