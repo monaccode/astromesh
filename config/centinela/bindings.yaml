@@ -1,0 +1,9 @@
+apiVersion: astromesh/v1
+kind: CentinelaBindings
+metadata:
+  name: default
+spec:
+  bindings:
+    - model: centinela-sentiment
+      alias: prod
+      endpoint: "https://REPLACE_WITH_REAL_HF_ENDPOINT.endpoints.huggingface.cloud"
