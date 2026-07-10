@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import yaml
 
 from astromesh_node.cli.commands import centinela
@@ -44,6 +46,20 @@ def test_reconcile_command_writes_provider_config(tmp_path, monkeypatch):
     assert entry["type"] == "centinela"
     assert entry["endpoint"] == "https://ep.example.cloud"
     assert entry["contract"]["labels"] == ["positivo", "neutral", "negativo"]
+
+
+def test_reconcile_command_end_to_end_with_shipped_lock(tmp_path):
+    # No monkeypatch: exercises real _load_lock() reading nebula's shipped catalog.lock.json,
+    # plus the real seed bindings. Proves nebula is importable in astromesh-node's env.
+    repo_root = Path(__file__).resolve().parents[2]
+    seed_bindings = repo_root / "config" / "centinela" / "bindings.yaml"
+    out_path = tmp_path / "providers.centinela.yaml"
+
+    centinela.reconcile_command(bindings=str(seed_bindings), out=str(out_path))
+
+    doc = yaml.safe_load(out_path.read_text())
+    assert "centinela-sentiment" in doc["spec"]["providers"]
+    assert doc["spec"]["providers"]["centinela-sentiment"]["type"] == "centinela"
 
 
 def test_plugin_registers_centinela():
