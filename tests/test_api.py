@@ -79,10 +79,9 @@ async def test_list_tools(client):
     assert resp.json()["tools"] == []
 
 
-async def test_rag_query(client):
-    resp = await client.post("/v1/rag/query", json={"query": "test"})
-    assert resp.status_code == 200
-    assert resp.json()["results"] == []
+async def test_rag_query_unknown_pipeline(client):
+    resp = await client.post("/v1/rag/query", json={"pipeline": "unknown-pipeline", "query": "test"})
+    assert resp.status_code == 404
 
 
 async def test_memory_history(client):
