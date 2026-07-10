@@ -3,6 +3,10 @@ from dataclasses import dataclass
 from unittest.mock import AsyncMock
 
 from astromesh.orchestration.patterns import ReActPattern
+# Aliased to avoid clashing with the local `CompletionResponse` test double
+# defined below (module-level class statement would otherwise shadow this
+# import for every other test in the file).
+from astromesh.providers.base import CompletionResponse as _ProviderCompletionResponse
 
 
 @dataclass
@@ -287,3 +291,50 @@ async def test_react_omits_reasoning_content_when_absent():
         m for m in captured[1] if m.get("role") == "assistant" and m.get("tool_calls")
     )
     assert "reasoning_content" not in assistant_msg
+
+
+def _resp(content):
+    return _ProviderCompletionResponse(
+        content=content, model="m", provider="p", usage={}, latency_ms=0.0,
+        cost=0.0, tool_calls=[],
+    )
+
+
+@pytest.mark.asyncio
+async def test_react_seeds_messages_from_context_history():
+    seen = {}
+
+    async def model_fn(messages, tools, role=None):
+        seen["messages"] = list(messages)
+        return _resp("final answer")
+
+    async def tool_fn(name, args):
+        raise AssertionError("no tool expected")
+
+    ctx = {
+        "_history_messages": [
+            {"role": "user", "content": "hola"},
+            {"role": "assistant", "content": "buenas"},
+        ]
+    }
+    result = await ReActPattern().execute("nueva pregunta", ctx, model_fn, tool_fn, [], max_iterations=3)
+
+    assert result["answer"] == "final answer"
+    assert seen["messages"][0] == {"role": "user", "content": "hola"}
+    assert seen["messages"][1] == {"role": "assistant", "content": "buenas"}
+    assert seen["messages"][-1] == {"role": "user", "content": "nueva pregunta"}
+
+
+@pytest.mark.asyncio
+async def test_react_without_history_unchanged():
+    seen = {}
+
+    async def model_fn(messages, tools, role=None):
+        seen["messages"] = list(messages)
+        return _resp("ok")
+
+    async def tool_fn(name, args):
+        raise AssertionError("no tool expected")
+
+    await ReActPattern().execute("q", {}, model_fn, tool_fn, [], max_iterations=3)
+    assert seen["messages"] == [{"role": "user", "content": "q"}]
