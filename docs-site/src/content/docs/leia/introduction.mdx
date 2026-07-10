@@ -51,7 +51,7 @@ Leia lives inside Claude Code and drives a Nexus cluster. Its components — com
 | **Commands** | The 10 `/leia ...` slash commands — your entry points for create, deploy, status, logs, test, and cluster lifecycle. |
 | **Agents (subagents)** | 5 specialized subagents (interpreter, architect, operator, tester, doctor) that natural language routes to. |
 | **Templates** | 6 complete `astromesh/v1` business-vertical agent manifests you can deploy as-is or customize. |
-| **Schemas** | Bundled references — the `astromesh/v1` agent spec, orchestration patterns, WhatsApp config, and the Nexus API. |
+| **Schemas** | Bundled references — the `astromesh/v1` agent spec (including **per-role models** on core `0.29.0+`: assign a different model/source per orchestration role such as `planner`/`worker`/`synthesizer`), orchestration patterns, WhatsApp config, and the Nexus API. |
 | **Nexus API** | The control plane Leia calls over REST + `kubectl` to provision tenants and sync agents. |
 | **astromesh-nodes** | The per-tenant runtimes where agents actually execute and connect to WhatsApp, Ollama, and cloud LLMs. |
 
