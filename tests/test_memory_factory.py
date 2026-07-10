@@ -1,6 +1,5 @@
 import pytest
 from astromesh.memory.factory import build_conversation_backend
-from astromesh.memory.backends.redis_conv import RedisConversationBackend
 
 
 def test_returns_none_when_no_backend():
@@ -12,7 +11,11 @@ def test_builds_redis_backend_lazily():
     be = build_conversation_backend(
         {"backend": "redis", "connection": {"url": "redis://localhost:6379/0"}, "ttl": 100}
     )
-    assert isinstance(be, RedisConversationBackend)
+    # Check by class name, not isinstance: test_memory_backends.py pops and
+    # re-imports astromesh.memory.backends.redis_conv with a fake aioredis,
+    # leaving a distinct RedisConversationBackend class object in sys.modules,
+    # so identity-based isinstance is fragile under full-suite ordering.
+    assert type(be).__name__ == "RedisConversationBackend"
     assert be._ttl == 100  # aioredis.from_url is lazy; no live server needed
 
 
