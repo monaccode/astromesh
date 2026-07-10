@@ -10,6 +10,7 @@ class StepType(str, Enum):
     AGENT = "agent"
     TOOL = "tool"
     SWITCH = "switch"
+    WAIT = "wait"
 
 
 class StepStatus(str, Enum):
@@ -18,6 +19,7 @@ class StepStatus(str, Enum):
     SUCCESS = "success"
     SKIPPED = "skipped"
     ERROR = "error"
+    SUSPENDED = "suspended"
 
 
 @dataclass
@@ -33,6 +35,7 @@ class StepSpec:
     agent: str | None = None
     tool: str | None = None
     switch: list[dict] | None = None
+    wait: list[dict] | dict | None = None
     input_template: str | None = None
     arguments: dict[str, Any] | None = None
     context_transform: str | None = None
@@ -45,7 +48,9 @@ class StepSpec:
         if isinstance(self.retry, dict):
             self.retry = RetryConfig(**self.retry)
         # Validate exactly one step type
-        type_count = sum(1 for x in [self.agent, self.tool, self.switch] if x is not None)
+        type_count = sum(
+            1 for x in [self.agent, self.tool, self.switch, self.wait] if x is not None
+        )
         if type_count != 1:
             raise ValueError(
                 f"Step '{self.name}' must have exactly one of: agent, tool, switch "
@@ -58,6 +63,8 @@ class StepSpec:
             return StepType.AGENT
         if self.tool is not None:
             return StepType.TOOL
+        if self.wait is not None:
+            return StepType.WAIT
         return StepType.SWITCH
 
 
@@ -102,3 +109,18 @@ class WorkflowRunResult:
     output: Any = None
     trace: dict | None = None
     duration_ms: float | None = None
+    run_id: str | None = None
+
+
+@dataclass
+class WorkflowRun:
+    run_id: str
+    workflow_name: str
+    status: str  # running | suspended | completed | failed | timed_out | expired
+    current_index: int
+    context: dict = field(default_factory=dict)
+    resume_key: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    expires_at: str | None = None
+    error: str | None = None
