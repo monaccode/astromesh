@@ -40,7 +40,8 @@
             "provider": { "enum": ["ollama", "hf", "sentence_transformer"] },
             "model": { "type": "string" },
             "endpoint": { "type": "string" },
-            "dimension": { "type": "integer" }
+            "dimension": { "type": "integer" },
+            "api_key": { "type": "string" }
           }
         },
         "vector_store": {
@@ -53,7 +54,10 @@
             "connection": { "type": "object" },
             "url": { "type": "string" },
             "host": { "type": "string" },
-            "port": { "type": "integer" }
+            "port": { "type": "integer" },
+            "api_key": { "type": "string" },
+            "dsn": { "type": "string" },
+            "persist_directory": { "type": "string" }
           }
         },
         "reranking": {
@@ -63,7 +67,8 @@
             "enabled": { "type": "boolean" },
             "provider": { "enum": ["cross_encoder", "cohere"] },
             "model": { "type": "string" },
-            "top_k": { "type": "integer" }
+            "top_k": { "type": "integer" },
+            "api_key": { "type": "string" }
           }
         },
         "retrieval": {
