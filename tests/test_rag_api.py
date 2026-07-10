@@ -28,3 +28,12 @@ async def test_query_unknown_pipeline_404(client, monkeypatch):
     monkeypatch.setattr(rag_route, "resolve_pipeline", lambda name: None)
     r = await client.post("/v1/rag/query", json={"pipeline": "nope", "query": "x"})
     assert r.status_code == 404
+
+
+def test_resolve_pipeline_memoizes_by_name():
+    rag_route._PIPELINE_CACHE.clear()
+    p1 = rag_route.resolve_pipeline("product-knowledge")
+    p2 = rag_route.resolve_pipeline("product-knowledge")
+    assert p1 is p2
+    assert p1 is not None
+    assert rag_route.resolve_pipeline("nope-unknown") is None

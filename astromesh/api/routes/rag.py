@@ -9,11 +9,23 @@ router = APIRouter()
 
 _CONFIG_RAG_DIR = "./config/rag"
 
+_PIPELINE_CACHE: dict[str, RAGPipeline] = {}
+
 
 def resolve_pipeline(name: str) -> RAGPipeline | None:
-    """Resolve a RAGPipeline by name from config/rag. Overridable in tests."""
+    """Resolve a RAGPipeline by name from config/rag. Overridable in tests.
+
+    Memoized per name so ingest/query requests share the same pipeline
+    instance (in-memory backends like faiss lose data otherwise).
+    """
+    if name in _PIPELINE_CACHE:
+        return _PIPELINE_CACHE[name]
     spec = RAGPipelineLoader(_CONFIG_RAG_DIR).load_all().get(name)
-    return build_pipeline(spec) if spec else None
+    if spec is None:
+        return None
+    pipeline = build_pipeline(spec)
+    _PIPELINE_CACHE[name] = pipeline
+    return pipeline
 
 
 class RAGIngestRequest(BaseModel):
