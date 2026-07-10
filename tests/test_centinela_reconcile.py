@@ -30,6 +30,16 @@ def _lock() -> dict:
                 "aliases": {"prod": "v1"},
                 "revisions": {"v1": {"version": "v1", "sha": "c0ffee", "gate": "passed"}},
             },
+            {
+                "name": "centinela-topic",
+                "kind": "classifier",
+                "task": "text-classification",
+                "vertical": "finanzas",
+                "hf_repo": "astromesh/Centinela-Topic",
+                "contract": {"labels": ["gasto", "ingreso"]},
+                "aliases": {"prod": "v1"},
+                "revisions": {"v1": {"version": "v1", "sha": "t0p1c", "gate": "passed"}},
+            },
         ],
     }
 
@@ -85,11 +95,17 @@ def test_reconcile_instruct_kind_raises():
 
 
 def test_reconcile_is_sorted():
-    bindings = _bindings()
-    bindings["spec"]["bindings"].insert(
-        0, {"model": "centinela-sentiment", "alias": "prod", "endpoint": "https://ep.example.cloud"}
-    )
+    bindings = {
+        "spec": {
+            "bindings": [
+                {"model": "centinela-topic", "alias": "prod", "endpoint": "https://b.example.cloud"},
+                {"model": "centinela-sentiment", "alias": "prod", "endpoint": "https://a.example.cloud"},
+            ]
+        }
+    }
     out = reconcile(_lock(), bindings)
+    # input order is [topic, sentiment]; output must be sorted -> [sentiment, topic]
+    assert list(out.keys()) == ["centinela-sentiment", "centinela-topic"]
     assert list(out.keys()) == sorted(out.keys())
 
 
