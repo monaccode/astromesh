@@ -33,3 +33,21 @@ async def test_list_by_status():
     await store.create(_run("r3", "running"))
     running = await store.list_by_status("running")
     assert {r.run_id for r in running} == {"r1", "r3"}
+
+
+async def test_sqlite_store_roundtrip(tmp_path):
+    from astromesh.workflow.store import SqliteRunStore
+
+    store = SqliteRunStore(str(tmp_path / "runs.db"))
+    await store.initialize()
+    await store.create(WorkflowRun(run_id="r1", workflow_name="w", status="running",
+                                   current_index=0, context={"steps": {"a": {"output": 1}}}))
+    loaded = await store.load("r1")
+    assert loaded.context["steps"]["a"]["output"] == 1
+    loaded.status = "suspended"
+    loaded.current_index = 2
+    await store.save(loaded)
+    assert (await store.load("r1")).current_index == 2
+    await store.create(WorkflowRun(run_id="r2", workflow_name="w", status="suspended",
+                                   current_index=0, context={}))
+    assert {r.run_id for r in await store.list_by_status("suspended")} == {"r1", "r2"}
