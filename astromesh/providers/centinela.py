@@ -24,12 +24,15 @@ select Centinela (estimated_cost approx 0 -> preferred under cost_optimized).
 
 from __future__ import annotations
 
-from typing import Any
+import time
+from typing import Any, AsyncIterator
 
 import httpx
 from pydantic import BaseModel
 
 from nebula.validation import constrain_label
+
+from .base import CompletionChunk, CompletionResponse
 
 
 class SentimentResult(BaseModel):
@@ -100,3 +103,60 @@ class _CentinelaEndpointClient:
             return resp.status_code == 200
         except Exception:
             return False
+
+
+class CentinelaProvider:
+    """Routable ProviderProtocol shim over the Centinela typed capability.
+
+    Structural implementation (does not inherit ProviderProtocol). `estimated_cost`
+    reports ~0 so the model_router prefers Centinela under the cost_optimized strategy.
+    """
+
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self._client = _CentinelaEndpointClient(config)
+        self.model = self._client.model
+
+    async def complete(self, messages: list[dict], **kwargs: Any) -> CompletionResponse:
+        model = kwargs.pop("model", self.model)
+        text = ""
+        for m in reversed(messages):
+            if m.get("role") == "user":
+                text = m.get("content", "") or ""
+                break
+
+        start = time.perf_counter()
+        result = await self._client.classify(text)
+        latency_ms = (time.perf_counter() - start) * 1000
+
+        return CompletionResponse(
+            content=result.label or "",
+            model=model,
+            provider="centinela",
+            usage={"input_tokens": 0, "output_tokens": 0},
+            latency_ms=latency_ms,
+            cost=0.0,
+            metadata={
+                "label": result.label,
+                "valid": result.valid,
+                "raw": result.raw,
+                "score": result.score,
+            },
+        )
+
+    async def stream(self, messages: list[dict], **kwargs: Any) -> AsyncIterator[CompletionChunk]:
+        resp = await self.complete(messages, **kwargs)
+        yield CompletionChunk(
+            content=resp.content, model=resp.model, provider="centinela", done=True
+        )
+
+    async def health_check(self) -> bool:
+        return await self._client.health_check()
+
+    def supports_tools(self) -> bool:
+        return False
+
+    def supports_vision(self) -> bool:
+        return False
+
+    def estimated_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
+        return 0.0

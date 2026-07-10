@@ -3,7 +3,8 @@ from __future__ import annotations
 import httpx
 import respx
 
-from astromesh.providers.centinela import SentimentResult, _CentinelaEndpointClient
+from astromesh.providers.base import CompletionResponse
+from astromesh.providers.centinela import CentinelaProvider, SentimentResult, _CentinelaEndpointClient
 
 CONTRACT = {"labels": ["positivo", "neutral", "negativo"]}
 
@@ -64,3 +65,44 @@ async def test_health_check_healthy_and_unhealthy():
 
     respx.get("http://ep.test/health").mock(return_value=httpx.Response(503))
     assert await client.health_check() is False
+
+
+@respx.mock
+async def test_provider_complete_maps_label_to_content():
+    respx.post("http://ep.test/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=_chat_response("negativo"))
+    )
+    provider = CentinelaProvider(
+        {"endpoint": "http://ep.test", "model": "centinela-sentiment", "contract": CONTRACT}
+    )
+    result = await provider.complete([{"role": "user", "content": "la empresa entró en default"}])
+
+    assert isinstance(result, CompletionResponse)
+    assert result.provider == "centinela"
+    assert result.content == "negativo"
+    assert result.model == "centinela-sentiment"
+    assert result.metadata["label"] == "negativo"
+    assert result.metadata["valid"] is True
+    assert result.usage == {"input_tokens": 0, "output_tokens": 0}
+    assert result.cost == 0.0
+
+
+@respx.mock
+async def test_provider_stream_yields_single_done_chunk():
+    respx.post("http://ep.test/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=_chat_response("neutral"))
+    )
+    provider = CentinelaProvider({"endpoint": "http://ep.test", "contract": CONTRACT})
+    chunks = [c async for c in provider.stream([{"role": "user", "content": "sin cambios"}])]
+
+    assert len(chunks) == 1
+    assert chunks[0].content == "neutral"
+    assert chunks[0].done is True
+    assert chunks[0].provider == "centinela"
+
+
+def test_provider_capabilities_and_cost():
+    provider = CentinelaProvider({"endpoint": "http://ep.test", "contract": CONTRACT})
+    assert provider.supports_tools() is False
+    assert provider.supports_vision() is False
+    assert provider.estimated_cost("centinela", 1000, 1000) == 0.0
