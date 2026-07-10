@@ -36,13 +36,14 @@ def _validate_agent_filesystem_name(name: str) -> None:
         raise ValueError("Invalid agent name")
 
 
-def _make_builtin_handler(tool_instance, agent_name):
+def _make_builtin_handler(tool_instance, agent_name, rag_pipeline=None):
     """Create an async handler closure for a builtin tool instance."""
 
     async def _handler(**arguments):
         from astromesh.tools.base import ToolContext
 
         ctx = ToolContext(agent_name=agent_name, session_id="", trace_span=None)
+        ctx.rag_pipeline = rag_pipeline
         result = await tool_instance.execute(arguments, ctx)
         return result.to_dict()
 
@@ -150,6 +151,7 @@ def build_candidate_provider(block: dict):
 class AgentRuntime:
     def __init__(self, config_dir="./config", service_manager=None, peer_client=None):
         self._config_dir = Path(config_dir)
+        self._rag_specs = {}
         self._agents: dict[str, "Agent"] = {}
         self._agent_status: dict[str, str] = {}
         self._agent_configs: dict[str, dict] = {}
@@ -164,6 +166,9 @@ class AgentRuntime:
         agents_dir = self._config_dir / "agents"
         if not agents_dir.exists():
             return
+        from astromesh.rag.loader import RAGPipelineLoader
+
+        self._rag_specs = RAGPipelineLoader(str(self._config_dir / "rag")).load_all()
         configs = []
         for f in agents_dir.glob("*.agent.yaml"):
             configs.append(yaml.safe_load(f.read_text()))
@@ -288,12 +293,33 @@ class AgentRuntime:
             routers["default"] = ModelRouter({"strategy": "cost_optimized"})
         return routers
 
+    def _resolve_rag(self, spec: dict):
+        from astromesh.rag.agent_rag import AgentRAG
+        from astromesh.rag.factory import build_pipeline
+
+        knowledge = spec.get("knowledge") or {}
+        name = knowledge.get("pipeline")
+        if not name:
+            return None
+        rag_spec = self._rag_specs.get(name)
+        if rag_spec is None:
+            logger.warning("agent references unknown RAGPipeline '%s'; skipping KB", name)
+            return None
+        try:
+            pipeline = build_pipeline(rag_spec)
+        except Exception:
+            logger.warning("failed to build RAGPipeline '%s'; skipping KB", name, exc_info=True)
+            return None
+        top_k = knowledge.get("top_k", rag_spec.retrieval.get("top_k", 5))
+        return AgentRAG(pipeline, top_k=top_k)
+
     def _build_agent(self, config):
         spec = config["spec"]
         metadata = config["metadata"]
         model_spec = spec.get("model", {})
         routers = self._build_role_routers(model_spec)
         memory = MemoryManager(agent_id=metadata["name"], config=spec.get("memory", {}))
+        rag = self._resolve_rag(spec)
         tools = ToolRegistry()
         from astromesh.tools import ToolLoader
 
@@ -303,7 +329,9 @@ class AgentRuntime:
             tool_type = tool_def.get("type", "internal")
             if tool_type == "builtin":
                 instance = loader.create(tool_def["name"], config=tool_def.get("config"))
-                handler = _make_builtin_handler(instance, metadata["name"])
+                handler = _make_builtin_handler(
+                    instance, metadata["name"], rag_pipeline=(rag.pipeline if rag else None)
+                )
                 tools.register_internal(
                     name=tool_def["name"],
                     handler=handler,
@@ -351,6 +379,7 @@ class AgentRuntime:
             guardrails=spec.get("guardrails", {}),
             permissions=spec.get("permissions", {}),
             orchestration_config=spec.get("orchestration", {}),
+            rag=rag,
         )
 
     async def run(self, agent_name, query, session_id, context=None, parent_trace_id=None):
@@ -478,6 +507,7 @@ class Agent:
         guardrails,
         permissions,
         orchestration_config,
+        rag=None,
     ):
         self.name = name
         self.version = version
@@ -486,6 +516,7 @@ class Agent:
         self._routers = routers
         self._role_map = (orchestration_config or {}).get("role_map", {}) or {}
         self._memory = memory
+        self._rag = rag
         self._tools = tools
         self._pattern = pattern
         self._system_prompt = system_prompt
@@ -519,9 +550,14 @@ class Agent:
             )
             tracing.finish_span(mem_span)
 
+            rag_span = tracing.start_span("rag_build")
+            knowledge_context = await self._rag.build_context(query_text) if self._rag else ""
+            tracing.finish_span(rag_span)
+
             prompt_span = tracing.start_span("prompt_render")
             rendered_prompt = self._prompt_engine.render(
-                self._system_prompt, {**(context or {}), "memory": memory_context}
+                self._system_prompt,
+                {**(context or {}), "memory": memory_context, "knowledge": knowledge_context},
             )
             tracing.finish_span(prompt_span)
 

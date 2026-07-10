@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "astromesh RAGPipeline",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": { "const": "astromesh/v1" },
+    "kind": { "const": "RAGPipeline" },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string" },
+        "chunking": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strategy": { "enum": ["recursive", "fixed", "sentence", "semantic"] },
+            "chunk_size": { "type": "integer" },
+            "overlap": { "type": "integer" },
+            "similarity_threshold": { "type": "number" },
+            "separators": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "embeddings": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "provider": { "enum": ["ollama", "hf", "sentence_transformer"] },
+            "model": { "type": "string" },
+            "endpoint": { "type": "string" },
+            "dimension": { "type": "integer" },
+            "api_key": { "type": "string" }
+          }
+        },
+        "vector_store": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "backend": { "enum": ["pgvector", "qdrant", "chroma", "faiss"] },
+            "collection": { "type": "string" },
+            "dimensions": { "type": "integer" },
+            "connection": { "type": "object" },
+            "url": { "type": "string" },
+            "host": { "type": "string" },
+            "port": { "type": "integer" },
+            "api_key": { "type": "string" },
+            "dsn": { "type": "string" },
+            "persist_directory": { "type": "string" }
+          }
+        },
+        "reranking": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "provider": { "enum": ["cross_encoder", "cohere"] },
+            "model": { "type": "string" },
+            "top_k": { "type": "integer" },
+            "api_key": { "type": "string" }
+          }
+        },
+        "retrieval": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "top_k": { "type": "integer" },
+            "similarity_threshold": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

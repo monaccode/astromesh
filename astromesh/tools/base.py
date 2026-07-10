@@ -31,6 +31,7 @@ class ToolContext:
     cache: dict = field(default_factory=dict)
     secrets: dict = field(default_factory=dict)
     model_fn: Any | None = None
+    rag_pipeline: Any | None = None
 
 
 class BuiltinTool(ABC):

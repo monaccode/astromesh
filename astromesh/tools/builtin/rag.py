@@ -24,8 +24,10 @@ class RagQueryTool(BuiltinTool):
                 success=False, data=None, error="RAG pipeline not available in context"
             )
         try:
-            results = await pipeline.query(arguments["query"], top_k=arguments.get("top_k", 5))
-            return ToolResult(success=True, data={"results": results}, metadata={})
+            from astromesh.rag.pipeline import result_to_list
+
+            raw = await pipeline.query(arguments["query"], top_k=arguments.get("top_k", 5))
+            return ToolResult(success=True, data={"results": result_to_list(raw)}, metadata={})
         except Exception as e:
             return ToolResult(success=False, data=None, error=str(e))
 

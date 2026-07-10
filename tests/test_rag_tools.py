@@ -58,6 +58,31 @@ class TestRagQueryTool:
         assert "pipeline error" in result.error
 
 
+class TestRagQueryToolNormalizes:
+    async def test_query_returns_normalized_list_from_ragresult(self):
+        from unittest.mock import AsyncMock, MagicMock
+
+        from astromesh.rag.pipeline import RAGResult
+        from astromesh.tools.base import ToolContext
+        from astromesh.tools.builtin.rag import RagQueryTool
+
+        mock_pipeline = MagicMock()
+        mock_pipeline.query = AsyncMock(return_value=RAGResult(chunks=[{"content": "doc"}]))
+        ctx = ToolContext(agent_name="t", session_id="s1")
+        ctx.rag_pipeline = mock_pipeline
+
+        result = await RagQueryTool().execute({"query": "q"}, ctx)
+        assert result.success is True
+        assert result.data["results"] == [{"content": "doc"}]
+
+
+def test_tool_context_has_rag_pipeline_field():
+    from astromesh.tools.base import ToolContext
+
+    ctx = ToolContext(agent_name="t", session_id="s")
+    assert ctx.rag_pipeline is None
+
+
 class TestRagIngestTool:
     async def test_ingest_without_pipeline(self):
         from astromesh.tools.builtin.rag import RagIngestTool

@@ -48,3 +48,10 @@ class RAGPipeline:
         else:
             results = results[:top_k]
         return RAGResult(chunks=results, query=query)
+
+
+def result_to_list(result) -> list[dict]:
+    """Normalize a RAGPipeline.query() return (RAGResult) or a raw list to list[dict]."""
+    if isinstance(result, RAGResult):
+        return result.chunks
+    return list(result or [])
