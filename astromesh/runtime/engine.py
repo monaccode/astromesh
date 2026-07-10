@@ -36,13 +36,14 @@ def _validate_agent_filesystem_name(name: str) -> None:
         raise ValueError("Invalid agent name")
 
 
-def _make_builtin_handler(tool_instance, agent_name):
+def _make_builtin_handler(tool_instance, agent_name, rag_pipeline=None):
     """Create an async handler closure for a builtin tool instance."""
 
     async def _handler(**arguments):
         from astromesh.tools.base import ToolContext
 
         ctx = ToolContext(agent_name=agent_name, session_id="", trace_span=None)
+        ctx.rag_pipeline = rag_pipeline
         result = await tool_instance.execute(arguments, ctx)
         return result.to_dict()
 
@@ -328,7 +329,9 @@ class AgentRuntime:
             tool_type = tool_def.get("type", "internal")
             if tool_type == "builtin":
                 instance = loader.create(tool_def["name"], config=tool_def.get("config"))
-                handler = _make_builtin_handler(instance, metadata["name"])
+                handler = _make_builtin_handler(
+                    instance, metadata["name"], rag_pipeline=(rag.pipeline if rag else None)
+                )
                 tools.register_internal(
                     name=tool_def["name"],
                     handler=handler,
