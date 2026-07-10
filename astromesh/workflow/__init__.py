@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import time
+import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from astromesh.observability.tracing import TracingContext, SpanStatus
@@ -10,20 +12,29 @@ from astromesh.workflow.loader import WorkflowLoader
 from astromesh.workflow.models import (
     StepStatus as WfStepStatus,
     StepType,
+    WorkflowRun,
     WorkflowRunResult,
     WorkflowSpec,
 )
+from astromesh.workflow.store import InMemoryRunStore, WorkflowRunStore
 
 
 class WorkflowEngine:
     """Loads workflow YAML specs and orchestrates multi-step execution."""
 
-    def __init__(self, workflows_dir: str, runtime, tool_registry):
+    def __init__(
+        self,
+        workflows_dir: str,
+        runtime,
+        tool_registry,
+        store: WorkflowRunStore | None = None,
+    ):
         self._workflows_dir = workflows_dir
         self._runtime = runtime
         self._tool_registry = tool_registry
         self._workflows: dict[str, WorkflowSpec] = {}
         self._executor: StepExecutor | None = None
+        self._store: WorkflowRunStore = store if store is not None else InMemoryRunStore()
 
     async def bootstrap(self):
         loader = WorkflowLoader(self._workflows_dir)
@@ -37,24 +48,46 @@ class WorkflowEngine:
         return self._workflows.get(name)
 
     async def run(self, workflow_name: str, trigger: dict[str, Any]) -> WorkflowRunResult:
+        """Starts a new durable run: creates a WorkflowRun in the store, then drives it.
+
+        Synchronous façade: a workflow with no WAIT step returns the full
+        WorkflowRunResult (status "completed"/"failed") as before. A workflow that
+        hits a WAIT step returns early with status "suspended" and a run_id that
+        can be used to resume later.
+        """
         wf = self._workflows.get(workflow_name)
         if not wf:
             raise ValueError(f"Workflow '{workflow_name}' not found")
 
-        tracing = TracingContext(agent_name=f"workflow:{workflow_name}", session_id="")
+        run = WorkflowRun(
+            run_id=str(uuid.uuid4()),
+            workflow_name=workflow_name,
+            status="running",
+            current_index=0,
+            context={"trigger": trigger, "steps": {}},
+            created_at=datetime.now(UTC).isoformat(),
+        )
+        await self._store.create(run)
+        return await self._drive(wf, run)
+
+    async def _drive(self, wf: WorkflowSpec, run: WorkflowRun) -> WorkflowRunResult:
+        """Executes wf from run.current_index; checkpoints the run after each step;
+        stops and persists as "suspended" if a step returns SUSPENDED (a WAIT step).
+        """
+        tracing = TracingContext(agent_name=f"workflow:{run.workflow_name}", session_id="")
         root_span = tracing.start_span(
-            "workflow.run", {"workflow": workflow_name, "trigger_type": wf.trigger}
+            "workflow.run", {"workflow": run.workflow_name, "trigger_type": wf.trigger}
         )
 
         start = time.time()
         step_results: dict[str, Any] = {}
-        context: dict[str, Any] = {"trigger": trigger, "steps": {}}
+        context = run.context
         status = "completed"
 
         try:
             # Build step index for goto lookups
             step_index = {s.name: i for i, s in enumerate(wf.steps)}
-            i = 0
+            i = run.current_index
 
             while i < len(wf.steps):
                 step = wf.steps[i]
@@ -67,6 +100,29 @@ class WorkflowEngine:
                 result = await self._executor.execute_step(step, context)
                 step_results[step.name] = result
 
+                if result.status == WfStepStatus.SUSPENDED:
+                    tracing.finish_span(step_span)
+                    run.status = "suspended"
+                    run.current_index = i + 1  # resume after the wait
+                    run.resume_key = (result.output or {}).get("resume_key")
+                    timeout = (result.output or {}).get("timeout_seconds")
+                    if timeout:
+                        run.expires_at = (
+                            datetime.now(UTC) + timedelta(seconds=timeout)
+                        ).isoformat()
+                    run.updated_at = datetime.now(UTC).isoformat()
+                    await self._store.save(run)
+                    tracing.finish_span(root_span)
+                    elapsed = (time.time() - start) * 1000
+                    return WorkflowRunResult(
+                        workflow_name=run.workflow_name,
+                        status="suspended",
+                        steps=step_results,
+                        trace=tracing.to_dict(),
+                        duration_ms=elapsed,
+                        run_id=run.run_id,
+                    )
+
                 if result.status == WfStepStatus.ERROR:
                     tracing.finish_span(step_span, status=SpanStatus.ERROR)
                     if step.on_error and step.on_error != "fail":
@@ -77,8 +133,12 @@ class WorkflowEngine:
                         }
                         if step.on_error in step_index:
                             i = step_index[step.on_error]
+                            run.current_index = i
+                            run.updated_at = datetime.now(UTC).isoformat()
+                            await self._store.save(run)
                             continue
                     status = "failed"
+                    run.error = result.error
                     break
                 else:
                     tracing.finish_span(step_span)
@@ -101,24 +161,37 @@ class WorkflowEngine:
                         if goto_result.status == WfStepStatus.ERROR:
                             tracing.finish_span(goto_span, status=SpanStatus.ERROR)
                             status = "failed"
+                            run.error = goto_result.error
                         else:
                             tracing.finish_span(goto_span)
                             context["steps"][goto_step.name] = {"output": goto_result.output}
+                        run.current_index = step_index[goto_step.name] + 1
                         break
 
+                run.current_index = i + 1
+                run.updated_at = datetime.now(UTC).isoformat()
+                await self._store.save(run)
                 i += 1
 
         except Exception:
             status = "failed"
+            run.status = status
+            run.updated_at = datetime.now(UTC).isoformat()
+            await self._store.save(run)
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
             elapsed = (time.time() - start) * 1000
             return WorkflowRunResult(
-                workflow_name=workflow_name,
+                workflow_name=run.workflow_name,
                 status=status,
                 steps=step_results,
                 trace=tracing.to_dict(),
                 duration_ms=elapsed,
+                run_id=run.run_id,
             )
+
+        run.status = status
+        run.updated_at = datetime.now(UTC).isoformat()
+        await self._store.save(run)
 
         tracing.finish_span(root_span)
         elapsed = (time.time() - start) * 1000
@@ -128,10 +201,11 @@ class WorkflowEngine:
         output = step_results[last_step_name].output if last_step_name else None
 
         return WorkflowRunResult(
-            workflow_name=workflow_name,
+            workflow_name=run.workflow_name,
             status=status,
             steps=step_results,
             output=output,
             trace=tracing.to_dict(),
             duration_ms=elapsed,
+            run_id=run.run_id,
         )
