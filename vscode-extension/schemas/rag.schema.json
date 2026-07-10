@@ -3,12 +3,14 @@
   "title": "astromesh RAGPipeline",
   "type": "object",
   "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
   "properties": {
     "apiVersion": { "const": "astromesh/v1" },
     "kind": { "const": "RAGPipeline" },
     "metadata": {
       "type": "object",
       "required": ["name"],
+      "additionalProperties": false,
       "properties": {
         "name": { "type": "string" },
         "version": { "type": "string" },
@@ -17,10 +19,12 @@
     },
     "spec": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "description": { "type": "string" },
         "chunking": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "strategy": { "enum": ["recursive", "fixed", "sentence", "semantic"] },
             "chunk_size": { "type": "integer" },
@@ -31,6 +35,7 @@
         },
         "embeddings": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "provider": { "enum": ["ollama", "hf", "sentence_transformer"] },
             "model": { "type": "string" },
@@ -40,6 +45,7 @@
         },
         "vector_store": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "backend": { "enum": ["pgvector", "qdrant", "chroma", "faiss"] },
             "collection": { "type": "string" },
@@ -52,6 +58,7 @@
         },
         "reranking": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "enabled": { "type": "boolean" },
             "provider": { "enum": ["cross_encoder", "cohere"] },
@@ -61,6 +68,7 @@
         },
         "retrieval": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "top_k": { "type": "integer" },
             "similarity_threshold": { "type": "number" }
