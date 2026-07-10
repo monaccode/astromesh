@@ -273,6 +273,24 @@
             }
           }
         },
+        "knowledge": {
+          "type": "object",
+          "description": "RAG knowledge-base configuration: the agent retrieves from a RAGPipeline at run time.",
+          "additionalProperties": false,
+          "required": [
+            "pipeline"
+          ],
+          "properties": {
+            "pipeline": {
+              "type": "string",
+              "description": "metadata.name of a RAGPipeline resource to retrieve from."
+            },
+            "top_k": {
+              "type": "integer",
+              "description": "Number of chunks to retrieve per run (defaults to the pipeline's retrieval.top_k)."
+            }
+          }
+        },
         "guardrails": {
           "type": "object",
           "description": "Input and output guardrails.",
