@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- RAGPipeline resource CRUD REST API (`/v1/rag/pipelines`): list/get/create/update/delete, in-memory store seeded from `config/rag/*.rag.yaml`, validated via `RAGPipelineLoader.spec_from_raw`. Enables external tools (e.g. Cortex) to author RAGPipeline resources the way `/v1/agents` authors agents. Distinct from the existing `/v1/rag/ingest` and `/v1/rag/query` operation endpoints (`astromesh/api/routes/rag_resources.py`).
+
 ## [v0.29.0] - 2026-07-10
 
 ### Added (Backend)

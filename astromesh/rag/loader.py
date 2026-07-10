@@ -16,6 +16,24 @@ class RAGPipelineSpec:
     retrieval: dict = field(default_factory=dict)
 
 
+def spec_from_raw(raw: dict) -> RAGPipelineSpec:
+    """Build a RAGPipelineSpec from a raw config dict. Validates kind + name."""
+    if raw.get("kind") != "RAGPipeline":
+        raise ValueError(f"Expected kind: RAGPipeline, got: {raw.get('kind')}")
+    metadata = raw.get("metadata", {})
+    if not metadata.get("name"):
+        raise ValueError("RAGPipeline missing metadata.name")
+    spec = raw.get("spec", {})
+    return RAGPipelineSpec(
+        name=metadata["name"],
+        chunking=spec.get("chunking", {}),
+        embeddings=spec.get("embeddings", {}),
+        vector_store=spec.get("vector_store", {}),
+        reranking=spec.get("reranking", {}),
+        retrieval=spec.get("retrieval", {}),
+    )
+
+
 class RAGPipelineLoader:
     """Loads *.rag.yaml files into RAGPipelineSpec instances. Mirrors WorkflowLoader."""
 
@@ -36,17 +54,4 @@ class RAGPipelineLoader:
 
     def load_file(self, path: Path) -> RAGPipelineSpec:
         raw = yaml.safe_load(path.read_text())
-        if raw.get("kind") != "RAGPipeline":
-            raise ValueError(f"Expected kind: RAGPipeline, got: {raw.get('kind')}")
-        metadata = raw.get("metadata", {})
-        spec = raw.get("spec", {})
-        if not metadata.get("name"):
-            raise ValueError("RAGPipeline missing metadata.name")
-        return RAGPipelineSpec(
-            name=metadata["name"],
-            chunking=spec.get("chunking", {}),
-            embeddings=spec.get("embeddings", {}),
-            vector_store=spec.get("vector_store", {}),
-            reranking=spec.get("reranking", {}),
-            retrieval=spec.get("retrieval", {}),
-        )
+        return spec_from_raw(raw)
