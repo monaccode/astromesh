@@ -81,7 +81,9 @@ class ADKRuntime:
                     "type": "function",
                     "function": {
                         "name": getattr(t, "tool_name", getattr(t, "name", "tool")),
-                        "description": getattr(t, "tool_description", getattr(t, "description", "")),
+                        "description": getattr(
+                            t, "tool_description", getattr(t, "description", "")
+                        ),
                         "parameters": getattr(t, "parameters_schema", {}) or {},
                     },
                 }
@@ -101,7 +103,12 @@ class ADKRuntime:
             provider = self._provider_factory(pname, mname, model_config)
             router.register_provider(m, provider)
 
-        async def model_fn(messages: list[dict], tools: list | None = None) -> CompletionResponse:
+        async def model_fn(
+            messages: list[dict], tools: list | None = None, role: str | None = None
+        ) -> CompletionResponse:
+            # Core orchestration patterns (astromesh >=0.29.0) request a per-role model via
+            # `role=`. The ADK binds a single ModelRouter per agent, so we accept the role for
+            # signature compatibility and route through that one router regardless.
             full = list(messages)
             if system_prompt and not (full and full[0].get("role") == "system"):
                 full = [{"role": "system", "content": system_prompt}] + full
@@ -112,9 +119,7 @@ class ADKRuntime:
                 kwargs: dict = {}
                 if specs:
                     kwargs["tools"] = specs
-                resp = await router.route(
-                    full, requirements={"tools": bool(specs)}, **kwargs
-                )
+                resp = await router.route(full, requirements={"tools": bool(specs)}, **kwargs)
             except Exception:
                 tctx.finish_span(span, SpanStatus.ERROR)
                 raise
@@ -128,7 +133,9 @@ class ADKRuntime:
 
         return model_fn
 
-    def _make_tool_fn(self, tools: list | None, tctx: "TracingContext | None" = None, callbacks=None):
+    def _make_tool_fn(
+        self, tools: list | None, tctx: "TracingContext | None" = None, callbacks=None
+    ):
         index = {}
         for t in tools or []:
             name = getattr(t, "tool_name", getattr(t, "name", None))
@@ -169,8 +176,7 @@ class ADKRuntime:
         self, agent: Any, query: str, session_id: str, context: dict | None = None
     ) -> RunContext:
         tool_names = [
-            getattr(t, "tool_name", getattr(t, "name", "tool"))
-            for t in getattr(agent, "tools", [])
+            getattr(t, "tool_name", getattr(t, "name", "tool")) for t in getattr(agent, "tools", [])
         ]
         ctx = RunContext.from_run_params(
             query=query,
@@ -253,7 +259,9 @@ class ADKRuntime:
             return await self.run_team(member, query, session_id, context, callbacks)
         return await self.run_agent(member, query, session_id, context, callbacks)
 
-    def _aggregate(self, name: str, session_id: str, children: list[tuple[str, RunResult]]) -> RunResult:
+    def _aggregate(
+        self, name: str, session_id: str, children: list[tuple[str, RunResult]]
+    ) -> RunResult:
         spans: list = []
         steps: list = []
         cost = 0.0
@@ -272,8 +280,13 @@ class ADKRuntime:
         return RunResult(
             answer="\n\n".join(parts),
             steps=steps,
-            trace={"trace_id": session_id, "agent": name, "session_id": session_id,
-                   "is_sampled": True, "spans": spans},
+            trace={
+                "trace_id": session_id,
+                "agent": name,
+                "session_id": session_id,
+                "is_sampled": True,
+                "spans": spans,
+            },
             cost=cost,
             tokens={"input": tin, "output": tout},
             latency_ms=latency,
@@ -338,8 +351,12 @@ class ADKRuntime:
         pattern = SupervisorPattern(team._build_workers_dict())
         try:
             result = await pattern.execute(
-                query, context or {}, model_fn, delegating_tool_fn,
-                [], max_iterations=getattr(supervisor, "max_iterations", 10),
+                query,
+                context or {},
+                model_fn,
+                delegating_tool_fn,
+                [],
+                max_iterations=getattr(supervisor, "max_iterations", 10),
             )
             tctx.finish_span(root, SpanStatus.OK)
         except Exception:
@@ -371,7 +388,11 @@ class ADKRuntime:
         pattern = SwarmPattern(team._build_agent_configs())
         try:
             result = await pattern.execute(
-                query, context or {}, model_fn, handoff_tool_fn, [],
+                query,
+                context or {},
+                model_fn,
+                handoff_tool_fn,
+                [],
                 max_iterations=getattr(entry, "max_iterations", 10),
             )
             tctx.finish_span(root, SpanStatus.OK)
@@ -387,8 +408,13 @@ class ADKRuntime:
         )
 
     async def stream_agent(
-        self, agent_wrapper, query, session_id="default",
-        context=None, stream_steps=False, callbacks=None,
+        self,
+        agent_wrapper,
+        query,
+        session_id="default",
+        context=None,
+        stream_steps=False,
+        callbacks=None,
     ):
         result = await self.run_agent(agent_wrapper, query, session_id, context, callbacks)
         if stream_steps:
@@ -397,11 +423,17 @@ class ADKRuntime:
         yield StreamEvent(type="done", result=result)
 
     async def run_class_agent(
-        self, agent_instance, query, session_id="default", context=None, callbacks=None,
+        self,
+        agent_instance,
+        query,
+        session_id="default",
+        context=None,
+        callbacks=None,
     ) -> RunResult:
         ctx = self._build_context(agent_instance, query, session_id, context)
         await agent_instance.on_before_run(ctx)
         if not hasattr(agent_instance, "_handler"):
+
             async def _noop(c):
                 return None
 
@@ -411,8 +443,13 @@ class ADKRuntime:
         return result
 
     async def stream_class_agent(
-        self, agent_instance, query, session_id="default",
-        context=None, stream_steps=False, callbacks=None,
+        self,
+        agent_instance,
+        query,
+        session_id="default",
+        context=None,
+        stream_steps=False,
+        callbacks=None,
     ):
         result = await self.run_class_agent(agent_instance, query, session_id, context, callbacks)
         if stream_steps:

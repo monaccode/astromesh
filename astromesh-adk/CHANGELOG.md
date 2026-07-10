@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-07-10
+
 ### Added
 - `@tool` decorator now supports a single Pydantic `BaseModel` parameter (e.g. `def fn(input: MyModel)`): the auto-generated JSON schema is `MyModel.model_json_schema()` instead of degrading to `"string"`, and the wrapper accepts the model's field names as kwargs (constructing the model before calling the function) — matches how LLMs naturally call tools whose params are typed as Pydantic models. Previously a Pydantic param degraded silently and the function received a string at runtime, raising `'str' object has no attribute …` on field access (`astromesh_adk/tools.py`)
+
+### Changed
+- Raised the `astromesh` floor to `>=0.29.0`. `ADKRuntime` bridges to the core `ModelRouter`, so ADK runs now transitively gain **per-role model routing** (patterns request `reasoner`/`planner`/`worker`/`synthesizer`/`supervisor` roles, undefined roles fall back to `default`) and the **LiteLLM** multi-source provider (optional `litellm` extra) (`pyproject.toml`)
+
+### Fixed
+- `ADKRuntime._make_model_fn` now accepts the `role` keyword that core orchestration patterns pass as of astromesh 0.29.0 (`model_fn(messages, tools, role=...)`). Without it, every `run_team`/`stream`/class-agent path raised `TypeError: model_fn() got an unexpected keyword argument 'role'` against the new core. The ADK binds a single `ModelRouter` per agent, so the role is accepted for signature compatibility and routed through that one router (`astromesh_adk/runner.py`)
 
 ## [0.1.8] - 2026-05-22
 
