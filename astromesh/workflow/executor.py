@@ -64,6 +64,8 @@ class StepExecutor:
             return await self._run_tool(step, context, start)
         elif step.step_type == StepType.SWITCH:
             return await self._run_switch(step, context, start)
+        elif step.step_type == StepType.WAIT:
+            return self._run_wait(step)
         raise ValueError(f"Unknown step type for step '{step.name}'")
 
     async def _run_agent(self, step: StepSpec, ctx: dict, start: float) -> StepResult:
@@ -102,6 +104,17 @@ class StepExecutor:
         elapsed = (time.time() - start) * 1000
         return StepResult(
             name=step.name, status=StepStatus.SUCCESS, output={"goto": goto}, duration_ms=elapsed
+        )
+
+    def _run_wait(self, step: StepSpec) -> StepResult:
+        wait = step.wait or {}
+        return StepResult(
+            name=step.name,
+            status=StepStatus.SUSPENDED,
+            output={
+                "resume_key": wait.get("resume_key"),
+                "timeout_seconds": wait.get("timeout_seconds"),
+            },
         )
 
     def _render(self, template_str: str, context: dict) -> str:
