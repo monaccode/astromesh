@@ -22,5 +22,9 @@ def create_provider(provider_name: str, api_key: str):
 
         # OllamaProvider does not use an API key; pass through for future use.
         return OllamaProvider(config={})
+    elif provider_name == "centinela":
+        from astromesh.providers.centinela import CentinelaProvider
+
+        return CentinelaProvider(config={})
     else:
         raise ValueError(f"Unknown provider: {provider_name}")

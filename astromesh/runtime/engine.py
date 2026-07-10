@@ -145,6 +145,19 @@ def build_candidate_provider(block: dict):
                 "timeout": float(block.get("timeout", 120)),
             }
         )
+    if source == "centinela":
+        from astromesh.providers.centinela import CentinelaProvider
+
+        base = (block.get("endpoint") or "http://localhost:8080").rstrip("/")
+        return CentinelaProvider(
+            config={
+                "endpoint": base,
+                "model": model or "centinela",
+                "contract": block.get("contract") or {},
+                "invalid_policy": block.get("invalid_policy", "mark"),
+                "max_retries": int(block.get("max_retries", 1)),
+            }
+        )
     return None
 
 
