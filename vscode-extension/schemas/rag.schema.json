@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "astromesh RAGPipeline",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": { "const": "astromesh/v1" },
+    "kind": { "const": "RAGPipeline" },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "namespace": { "type": "string" }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "chunking": {
+          "type": "object",
+          "properties": {
+            "strategy": { "enum": ["recursive", "fixed", "sentence", "semantic"] },
+            "chunk_size": { "type": "integer" },
+            "overlap": { "type": "integer" },
+            "similarity_threshold": { "type": "number" },
+            "separators": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "embeddings": {
+          "type": "object",
+          "properties": {
+            "provider": { "enum": ["ollama", "hf", "sentence_transformer"] },
+            "model": { "type": "string" },
+            "endpoint": { "type": "string" },
+            "dimension": { "type": "integer" }
+          }
+        },
+        "vector_store": {
+          "type": "object",
+          "properties": {
+            "backend": { "enum": ["pgvector", "qdrant", "chroma", "faiss"] },
+            "collection": { "type": "string" },
+            "dimensions": { "type": "integer" },
+            "connection": { "type": "object" },
+            "url": { "type": "string" },
+            "host": { "type": "string" },
+            "port": { "type": "integer" }
+          }
+        },
+        "reranking": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "provider": { "enum": ["cross_encoder", "cohere"] },
+            "model": { "type": "string" },
+            "top_k": { "type": "integer" }
+          }
+        },
+        "retrieval": {
+          "type": "object",
+          "properties": {
+            "top_k": { "type": "integer" },
+            "similarity_threshold": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}
