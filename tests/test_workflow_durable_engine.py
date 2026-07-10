@@ -48,6 +48,35 @@ async def test_run_with_wait_suspends_and_persists():
     assert saved.context["steps"]["a"]["output"] == {"ok": "a"}
 
 
+async def test_switch_goto_to_wait_suspends():
+    """A switch step whose branch goto's a wait step must suspend the run,
+    not silently complete it (the wait's output would otherwise be stored
+    as an ordinary step output and the run marked COMPLETED)."""
+
+    class _SwitchStubExecutor(_StubExecutor):
+        """Como _StubExecutor pero también delega switch al StepExecutor real,
+        para que el goto se resuelva de verdad y apunte al step wait."""
+        async def execute_step(self, step, context):
+            if step.step_type.value in ("wait", "switch"):
+                return await self._real.execute_step(step, context)
+            return await super().execute_step(step, context)
+
+    store = InMemoryRunStore()
+    eng = _engine(
+        [StepSpec(name="s", switch=[{"default": True, "goto": "w"}]),
+         StepSpec(name="w", wait={"resume_key": "k"}),
+         StepSpec(name="b", tool="t")],
+        store)
+    eng._executor = _SwitchStubExecutor()
+
+    result = await eng.run("wf", trigger={})
+
+    assert result.status == "suspended"
+    assert result.run_id is not None
+    saved = await store.load(result.run_id)
+    assert saved.status == "suspended"
+
+
 async def test_bootstrap_runs_orphan_sweep(tmp_path, monkeypatch):
     from astromesh.workflow import WorkflowEngine
     from astromesh.workflow.models import WorkflowRun

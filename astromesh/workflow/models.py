@@ -35,7 +35,7 @@ class StepSpec:
     agent: str | None = None
     tool: str | None = None
     switch: list[dict] | None = None
-    wait: list[dict] | dict | None = None
+    wait: dict | None = None
     input_template: str | None = None
     arguments: dict[str, Any] | None = None
     context_transform: str | None = None
@@ -53,7 +53,7 @@ class StepSpec:
         )
         if type_count != 1:
             raise ValueError(
-                f"Step '{self.name}' must have exactly one of: agent, tool, switch "
+                f"Step '{self.name}' must have exactly one of: agent, tool, switch, wait "
                 f"(got {type_count})"
             )
 

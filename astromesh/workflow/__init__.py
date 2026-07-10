@@ -187,6 +187,28 @@ class WorkflowEngine:
                         )
                         goto_result = await self._executor.execute_step(goto_step, context)
                         step_results[goto_step.name] = goto_result
+                        if goto_result.status == WfStepStatus.SUSPENDED:
+                            tracing.finish_span(goto_span)
+                            run.status = "suspended"
+                            run.current_index = step_index[goto_step.name] + 1  # resume after the wait
+                            run.resume_key = (goto_result.output or {}).get("resume_key")
+                            timeout = (goto_result.output or {}).get("timeout_seconds")
+                            if timeout:
+                                run.expires_at = (
+                                    datetime.now(UTC) + timedelta(seconds=timeout)
+                                ).isoformat()
+                            run.updated_at = datetime.now(UTC).isoformat()
+                            await self._store.save(run)
+                            tracing.finish_span(root_span)
+                            elapsed = (time.time() - start) * 1000
+                            return WorkflowRunResult(
+                                workflow_name=run.workflow_name,
+                                status="suspended",
+                                steps=step_results,
+                                trace=tracing.to_dict(),
+                                duration_ms=elapsed,
+                                run_id=run.run_id,
+                            )
                         if goto_result.status == WfStepStatus.ERROR:
                             tracing.finish_span(goto_span, status=SpanStatus.ERROR)
                             status = "failed"
