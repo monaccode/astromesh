@@ -11,6 +11,7 @@ class StepType(str, Enum):
     TOOL = "tool"
     SWITCH = "switch"
     WAIT = "wait"
+    APPROVAL = "approval"
 
 
 class StepStatus(str, Enum):
@@ -36,6 +37,7 @@ class StepSpec:
     tool: str | None = None
     switch: list[dict] | None = None
     wait: dict | None = None
+    approval: dict | None = None
     input_template: str | None = None
     arguments: dict[str, Any] | None = None
     context_transform: str | None = None
@@ -49,12 +51,14 @@ class StepSpec:
             self.retry = RetryConfig(**self.retry)
         # Validate exactly one step type
         type_count = sum(
-            1 for x in [self.agent, self.tool, self.switch, self.wait] if x is not None
+            1
+            for x in [self.agent, self.tool, self.switch, self.wait, self.approval]
+            if x is not None
         )
         if type_count != 1:
             raise ValueError(
-                f"Step '{self.name}' must have exactly one of: agent, tool, switch, wait "
-                f"(got {type_count})"
+                f"Step '{self.name}' must have exactly one of: agent, tool, switch, wait, "
+                f"approval (got {type_count})"
             )
 
     @property
@@ -65,6 +69,8 @@ class StepSpec:
             return StepType.TOOL
         if self.wait is not None:
             return StepType.WAIT
+        if self.approval is not None:
+            return StepType.APPROVAL
         return StepType.SWITCH
 
 
@@ -124,3 +130,4 @@ class WorkflowRun:
     updated_at: str | None = None
     expires_at: str | None = None
     error: str | None = None
+    pending_approval: dict | None = None
