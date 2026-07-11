@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "sync:catalog": "node scripts/sync-catalog.mjs",
+    "test": "node --test scripts/"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.34",
