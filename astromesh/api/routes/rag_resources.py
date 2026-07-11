@@ -75,9 +75,20 @@ async def update_pipeline(name: str, config: dict):
     if name not in _pipelines:
         raise HTTPException(status_code=404, detail=f"RAGPipeline not found: {name}")
     try:
-        spec_from_raw(config)
+        spec = spec_from_raw(config)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    # The URL path is the resource identity. Renaming via PUT would store the doc
+    # under the old key with a new inner name, so the list would advertise a name
+    # that GET/DELETE-by-name can't resolve. Forbid it: rename = delete + create.
+    if spec.name != name:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"metadata.name ({spec.name!r}) must match the URL path ({name!r}); "
+                "renaming a RAGPipeline requires delete + create"
+            ),
+        )
     _pipelines[name] = config
     return {"name": name, "status": "updated"}
 

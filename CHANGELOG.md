@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- RAGPipeline resource CRUD REST API (`/v1/rag/pipelines`): list/get/create/update/delete, in-memory store seeded from `config/rag/*.rag.yaml`, validated via `RAGPipelineLoader.spec_from_raw`. Enables external tools (e.g. Cortex) to author RAGPipeline resources the way `/v1/agents` authors agents. Distinct from the existing `/v1/rag/ingest` and `/v1/rag/query` operation endpoints (`astromesh/api/routes/rag_resources.py`).
+- RAGPipeline resource CRUD REST API (`/v1/rag/pipelines`): list/get/create/update/delete, in-memory store seeded from `config/rag/*.rag.yaml`, validated via `RAGPipelineLoader.spec_from_raw`. Enables external tools (e.g. Cortex) to author RAGPipeline resources the way `/v1/agents` authors agents. Distinct from the existing `/v1/rag/ingest` and `/v1/rag/query` operation endpoints (`astromesh/api/routes/rag_resources.py`). `spec_from_raw` type-checks every structural node (metadata, spec, each spec section) so a malformed-but-plausible body returns 422 and is never stored — one bad document can't 500 the list endpoint. PUT rejects a `metadata.name` that differs from the URL path (400) so the resource identity stays consistent.
 
 ## [v0.29.0] - 2026-07-10
 
