@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Python package manager is `uv`. Run tests with `uv run pytest`.
-- CI runs **all three** and every one must be green before a task is done: `uv run pytest`, `uv run ruff check`, `uv run mypy src/`. (mypy is part of CI — do not skip it.)
+- CI runs **all three** and every one must be green before a task is done: `uv run pytest`, `uv run ruff check astromesh/ tests/`, `uv run ruff format --check astromesh/ tests/`. (astromesh CI does NOT run mypy and there is no `src/` dir — the package is top-level `astromesh/`. Do not add mypy.)
 - Run status is a plain `str` on `WorkflowRun` (existing convention: `"running"`, `"suspended"`, `"completed"`, `"failed"`, `"expired"`). The new terminal status is the string `"rejected"` — **do not** introduce a status enum.
 - `approver` in any request body is **recorded, not verified**. Never add auth/identity checks.
 - The workflows router has `prefix="/workflows"` and is mounted under `/v1`, so full paths are `/v1/workflows/...`. New routes that use a fixed first segment (`/approvals`, `/runs/...`) MUST be declared **before** the `/{name}` catch-all route in `astromesh/api/routes/workflows.py`.
@@ -161,8 +161,8 @@ Expected: PASS (4 tests).
 
 - [ ] **Step 5: Run the full gate**
 
-Run: `uv run pytest tests/test_workflow_models.py tests/test_workflow_loader.py -q && uv run ruff check && uv run mypy src/`
-Expected: PASS (no regressions in existing model/loader tests; mypy clean).
+Run: `uv run pytest tests/test_workflow_models.py tests/test_workflow_loader.py -q && uv run ruff check && uv run ruff format --check astromesh/ tests/`
+Expected: PASS (no regressions in existing model/loader tests).
 
 - [ ] **Step 6: Commit**
 
@@ -264,7 +264,7 @@ Expected: PASS (2 tests).
 
 - [ ] **Step 5: Run the full gate**
 
-Run: `uv run pytest tests/test_workflow_executor.py tests/test_workflow_wait_loader_exec.py -q && uv run ruff check && uv run mypy src/`
+Run: `uv run pytest tests/test_workflow_executor.py tests/test_workflow_wait_loader_exec.py -q && uv run ruff check && uv run ruff format --check astromesh/ tests/`
 Expected: PASS (no regressions).
 
 - [ ] **Step 6: Commit**
@@ -378,7 +378,7 @@ Expected: PASS (2 new tests).
 
 - [ ] **Step 5: Run the full gate**
 
-Run: `uv run pytest tests/test_workflow_run_store.py -q && uv run ruff check && uv run mypy src/`
+Run: `uv run pytest tests/test_workflow_run_store.py -q && uv run ruff check && uv run ruff format --check astromesh/ tests/`
 Expected: PASS (existing store tests unaffected — new column has a default and existing rows read `None`).
 
 - [ ] **Step 6: Commit**
@@ -484,7 +484,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Run the full gate**
 
-Run: `uv run pytest tests/test_workflow_durable_engine.py tests/test_workflow_resume.py -q && uv run ruff check && uv run mypy src/`
+Run: `uv run pytest tests/test_workflow_durable_engine.py tests/test_workflow_resume.py -q && uv run ruff check && uv run ruff format --check astromesh/ tests/`
 Expected: PASS (wait/resume behavior unchanged — `pending_approval` is `None` for waits).
 
 - [ ] **Step 6: Commit**
@@ -673,7 +673,7 @@ Expected: PASS (all approval-engine tests).
 
 - [ ] **Step 5: Run the full gate**
 
-Run: `uv run pytest tests/test_workflow_durable_engine.py tests/test_workflow_resume.py -q && uv run ruff check && uv run mypy src/`
+Run: `uv run pytest tests/test_workflow_durable_engine.py tests/test_workflow_resume.py -q && uv run ruff check && uv run ruff format --check astromesh/ tests/`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -810,7 +810,7 @@ Expected: PASS (4 tests).
 
 - [ ] **Step 5: Run the full gate**
 
-Run: `uv run pytest tests/test_workflow_sweeps.py -q && uv run ruff check && uv run mypy src/`
+Run: `uv run pytest tests/test_workflow_sweeps.py -q && uv run ruff check && uv run ruff format --check astromesh/ tests/`
 Expected: PASS (non-approval sweep behavior unchanged).
 
 - [ ] **Step 6: Commit**
@@ -993,7 +993,7 @@ Expected: PASS (6 tests).
 
 - [ ] **Step 5: Run the full gate**
 
-Run: `uv run pytest tests/test_workflow_api.py tests/test_workflow_durable_api.py -q && uv run ruff check && uv run mypy src/`
+Run: `uv run pytest tests/test_workflow_api.py tests/test_workflow_durable_api.py -q && uv run ruff check && uv run ruff format --check astromesh/ tests/`
 Expected: PASS (existing workflow API unaffected; `/approvals` and `/runs/...` resolve before `/{name}`).
 
 - [ ] **Step 6: Commit**
@@ -1012,7 +1012,7 @@ git commit -m "feat(api): approvals queue + approve/reject endpoints (record-onl
 
 - [ ] **Step 1: Run the entire test suite + linters + types**
 
-Run: `uv run pytest -q && uv run ruff check && uv run mypy src/`
+Run: `uv run pytest -q && uv run ruff check && uv run ruff format --check astromesh/ tests/`
 Expected: all green. If any pre-existing unrelated failures appear, note them but do not fix out of scope.
 
 - [ ] **Step 2: Sanity-check the end-to-end approval path manually (optional)**
@@ -1037,7 +1037,7 @@ git add -A && git commit -m "chore: HITL approval slice complete (Slice 2 parte 
 - Reject: `on_reject` jump vs terminal `rejected` → Task 5. ✓
 - Timeout = auto-reject reusing reject path; no-timeout = never swept; plain wait still `expired` → Task 6. ✓
 - API `GET /approvals`, `POST approve|reject`, 404/409/503 mapping, declared before `/{name}` → Task 7. ✓
-- mypy in CI → every task's Step 5 runs `uv run mypy src/`. ✓
+- Gate per task = pytest + ruff check + ruff format --check (astromesh CI; no mypy). Every task Step 5 runs it. ✓
 
 **Placeholder scan:** No TBD/TODO; every code step shows complete code. ✓
 
