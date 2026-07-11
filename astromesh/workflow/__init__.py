@@ -134,6 +134,7 @@ class WorkflowEngine:
                     run.status = "suspended"
                     run.current_index = i + 1  # resume after the wait
                     run.resume_key = (result.output or {}).get("resume_key")
+                    run.pending_approval = (result.output or {}).get("pending_approval")
                     timeout = (result.output or {}).get("timeout_seconds")
                     if timeout:
                         run.expires_at = (
@@ -190,8 +191,13 @@ class WorkflowEngine:
                         if goto_result.status == WfStepStatus.SUSPENDED:
                             tracing.finish_span(goto_span)
                             run.status = "suspended"
-                            run.current_index = step_index[goto_step.name] + 1  # resume after the wait
+                            run.current_index = (
+                                step_index[goto_step.name] + 1
+                            )  # resume after the wait
                             run.resume_key = (goto_result.output or {}).get("resume_key")
+                            run.pending_approval = (goto_result.output or {}).get(
+                                "pending_approval"
+                            )
                             timeout = (goto_result.output or {}).get("timeout_seconds")
                             if timeout:
                                 run.expires_at = (
