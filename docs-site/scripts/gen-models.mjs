@@ -211,3 +211,30 @@ export function renderModels(lock) {
   const models = Array.isArray(lock.models) ? lock.models : [];
   return { cards: models.map(renderCard), index: renderIndex(models) };
 }
+
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const DOCS_SITE = join(HERE, '..');
+const DEFAULT_LOCK = join(DOCS_SITE, 'src', 'data', 'catalog.lock.json');
+const DEFAULT_OUT = join(DOCS_SITE, 'src', 'content', 'docs', 'models');
+
+/** Read the vendored lock, render, and (re)write the models content directory. */
+export function generate({ lockPath = DEFAULT_LOCK, outDir = DEFAULT_OUT } = {}) {
+  const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+  const { cards, index } = renderModels(lock);
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, 'index.mdx'), index.mdx);
+  for (const card of cards) {
+    writeFileSync(join(outDir, `${card.slug}.mdx`), card.mdx);
+  }
+  return { count: cards.length };
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  const { count } = generate();
+  console.log(`gen-models: wrote ${count} model card(s)`);
+}

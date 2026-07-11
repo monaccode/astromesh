@@ -98,3 +98,27 @@ test('alias pointing at an unknown revision throws', () => {
   const m = model({ aliases: { prod: 'v9.9' } });
   assert.throws(() => renderModels(lock([m])), /unknown revision 'v9\.9'/);
 });
+
+import { generate } from './gen-models.mjs';
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+test('generate() writes index + one card per model and is idempotent', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'genmodels-'));
+  const lockPath = join(dir, 'lock.json');
+  const outDir = join(dir, 'models');
+  writeFileSync(lockPath, JSON.stringify(lock([model()])));
+
+  const first = generate({ lockPath, outDir });
+  assert.equal(first.count, 1);
+  assert.ok(existsSync(join(outDir, 'index.mdx')));
+  assert.ok(existsSync(join(outDir, 'centinela-sentiment.mdx')));
+  assert.match(readFileSync(join(outDir, 'centinela-sentiment.mdx'), 'utf8'), /title: centinela-sentiment/);
+
+  // A stale file from a previous run must be cleaned.
+  writeFileSync(join(outDir, 'stale.mdx'), 'stale');
+  generate({ lockPath, outDir });
+  assert.ok(!existsSync(join(outDir, 'stale.mdx')));
+  assert.deepEqual(readdirSync(outDir).sort(), ['centinela-sentiment.mdx', 'index.mdx']);
+});
