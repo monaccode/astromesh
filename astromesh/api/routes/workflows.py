@@ -1,6 +1,7 @@
 # astromesh/api/routes/workflows.py
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -23,6 +24,11 @@ class WorkflowRunRequest(BaseModel):
 
 class ResumeRequest(BaseModel):
     payload: dict[str, Any] = {}
+
+
+class DecisionRequest(BaseModel):
+    approver: str
+    comment: str | None = None
 
 
 @router.get("/")
@@ -70,6 +76,52 @@ async def resume_run(run_id: str, request: ResumeRequest):
             for k, v in result.steps.items()
         },
     }
+
+
+@router.get("/approvals")
+async def list_approvals(approver: str | None = None):
+    if not _engine:
+        raise HTTPException(status_code=503, detail="Workflow engine not initialized")
+    runs = await _engine.list_pending_approvals(approver)
+    return {
+        "approvals": [
+            {
+                "run_id": r.run_id,
+                "workflow_name": r.workflow_name,
+                "step_name": (r.pending_approval or {}).get("step_name"),
+                "approver": (r.pending_approval or {}).get("approver"),
+                "prompt": (r.pending_approval or {}).get("prompt"),
+                "created_at": r.created_at,
+                "expires_at": r.expires_at,
+            }
+            for r in runs
+        ]
+    }
+
+
+async def _decide_endpoint(run_id: str, request: "DecisionRequest", approved: bool):
+    if not _engine:
+        raise HTTPException(status_code=503, detail="Workflow engine not initialized")
+    decided_at = datetime.now(UTC).isoformat()
+    fn = _engine.approve if approved else _engine.reject
+    try:
+        result = await fn(run_id, request.approver, request.comment, decided_at)
+    except ValueError as e:
+        msg = str(e)
+        if "not found" in msg:
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=409, detail=msg)
+    return {"run_id": result.run_id, "status": result.status}
+
+
+@router.post("/runs/{run_id}/approve")
+async def approve_run(run_id: str, request: DecisionRequest):
+    return await _decide_endpoint(run_id, request, approved=True)
+
+
+@router.post("/runs/{run_id}/reject")
+async def reject_run(run_id: str, request: DecisionRequest):
+    return await _decide_endpoint(run_id, request, approved=False)
 
 
 @router.get("/{name}")
