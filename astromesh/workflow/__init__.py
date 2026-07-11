@@ -337,11 +337,17 @@ class WorkflowEngine:
     async def sweep_expired(self, now: str) -> int:
         n = 0
         for run in await self._store.list_by_status("suspended"):
-            if run.expires_at and run.expires_at < now:
+            if not (run.expires_at and run.expires_at < now):
+                continue
+            if run.pending_approval:
+                await self.reject(
+                    run.run_id, approver="system:timeout", comment=None, decided_at=now
+                )
+            else:
                 run.status = "expired"
                 run.error = "wait timed out"
                 await self._store.save(run)
-                n += 1
+            n += 1
         return n
 
     async def mark_orphaned_failed(self) -> int:
