@@ -22,5 +22,13 @@ def create_provider(provider_name: str, api_key: str):
 
         # OllamaProvider does not use an API key; pass through for future use.
         return OllamaProvider(config={})
+    elif provider_name == "centinela":
+        from astromesh.providers.centinela import CentinelaProvider
+
+        # BYOK stub: without an endpoint + contract (labels) this instance cannot emit
+        # a valid label (constrain_label against an empty set always returns None). The
+        # functional path is build_candidate_provider() in runtime/engine.py, which
+        # threads endpoint/contract from the agent spec.model block.
+        return CentinelaProvider(config={})
     else:
         raise ValueError(f"Unknown provider: {provider_name}")
