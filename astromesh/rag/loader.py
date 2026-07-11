@@ -16,6 +16,43 @@ class RAGPipelineSpec:
     retrieval: dict = field(default_factory=dict)
 
 
+_SPEC_SECTIONS = ("chunking", "embeddings", "vector_store", "reranking", "retrieval")
+
+
+def spec_from_raw(raw: dict) -> RAGPipelineSpec:
+    """Build a RAGPipelineSpec from a raw config dict. Validates kind + name.
+
+    Every structural node (metadata, spec, and each spec section) is type-checked
+    to be a mapping. Without this, a structurally-plausible-but-malformed body
+    (e.g. ``spec.vector_store: "faiss"`` as a scalar) would pass validation, get
+    stored, and then raise AttributeError inside the summary serializer — turning
+    one bad document into a 500 for the entire list endpoint.
+    """
+    if not isinstance(raw, dict):
+        raise ValueError("RAGPipeline body must be a mapping")
+    if raw.get("kind") != "RAGPipeline":
+        raise ValueError(f"Expected kind: RAGPipeline, got: {raw.get('kind')}")
+    metadata = raw.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise ValueError("RAGPipeline metadata must be a mapping")
+    if not metadata.get("name"):
+        raise ValueError("RAGPipeline missing metadata.name")
+    spec = raw.get("spec", {})
+    if not isinstance(spec, dict):
+        raise ValueError("RAGPipeline spec must be a mapping")
+    for section in _SPEC_SECTIONS:
+        if section in spec and not isinstance(spec[section], dict):
+            raise ValueError(f"RAGPipeline spec.{section} must be a mapping")
+    return RAGPipelineSpec(
+        name=metadata["name"],
+        chunking=spec.get("chunking", {}),
+        embeddings=spec.get("embeddings", {}),
+        vector_store=spec.get("vector_store", {}),
+        reranking=spec.get("reranking", {}),
+        retrieval=spec.get("retrieval", {}),
+    )
+
+
 class RAGPipelineLoader:
     """Loads *.rag.yaml files into RAGPipelineSpec instances. Mirrors WorkflowLoader."""
 
@@ -36,17 +73,4 @@ class RAGPipelineLoader:
 
     def load_file(self, path: Path) -> RAGPipelineSpec:
         raw = yaml.safe_load(path.read_text())
-        if raw.get("kind") != "RAGPipeline":
-            raise ValueError(f"Expected kind: RAGPipeline, got: {raw.get('kind')}")
-        metadata = raw.get("metadata", {})
-        spec = raw.get("spec", {})
-        if not metadata.get("name"):
-            raise ValueError("RAGPipeline missing metadata.name")
-        return RAGPipelineSpec(
-            name=metadata["name"],
-            chunking=spec.get("chunking", {}),
-            embeddings=spec.get("embeddings", {}),
-            vector_store=spec.get("vector_store", {}),
-            reranking=spec.get("reranking", {}),
-            retrieval=spec.get("retrieval", {}),
-        )
+        return spec_from_raw(raw)

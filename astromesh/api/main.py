@@ -16,6 +16,7 @@ from astromesh.api.routes import (
     memory,
     tools,
     rag,
+    rag_resources,
     whatsapp,
     system,
     mesh,
@@ -135,6 +136,7 @@ app.include_router(agents.router, prefix="/v1")
 app.include_router(memory.router, prefix="/v1")
 app.include_router(tools.router, prefix="/v1")
 app.include_router(rag.router, prefix="/v1")
+app.include_router(rag_resources.router, prefix="/v1")
 app.include_router(ws.router, prefix="/v1")
 app.include_router(whatsapp.router, prefix="/v1")
 app.include_router(agent_channels.router, prefix="/v1")
