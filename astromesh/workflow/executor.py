@@ -66,6 +66,8 @@ class StepExecutor:
             return await self._run_switch(step, context, start)
         elif step.step_type == StepType.WAIT:
             return self._run_wait(step)
+        elif step.step_type == StepType.APPROVAL:
+            return self._run_approval(step)
         raise ValueError(f"Unknown step type for step '{step.name}'")
 
     async def _run_agent(self, step: StepSpec, ctx: dict, start: float) -> StepResult:
@@ -114,6 +116,25 @@ class StepExecutor:
             output={
                 "resume_key": wait.get("resume_key"),
                 "timeout_seconds": wait.get("timeout_seconds"),
+            },
+        )
+
+    def _run_approval(self, step: StepSpec) -> StepResult:
+        ap = step.approval or {}
+        return StepResult(
+            name=step.name,
+            status=StepStatus.SUSPENDED,
+            output={
+                "resume_key": ap.get("resume_key"),
+                "timeout_seconds": ap.get("timeout_seconds"),
+                "approver": ap.get("approver"),
+                "prompt": ap.get("prompt"),
+                "on_reject": ap.get("on_reject"),
+                "pending_approval": {
+                    "step_name": step.name,
+                    "approver": ap.get("approver"),
+                    "prompt": ap.get("prompt"),
+                },
             },
         )
 
