@@ -148,10 +148,12 @@ def build_candidate_provider(block: dict):
     if source == "centinela":
         from astromesh.providers.centinela import CentinelaProvider
 
-        base = (block.get("endpoint") or "http://localhost:8080").rstrip("/")
         return CentinelaProvider(
             config={
-                "endpoint": base,
+                "endpoint": block.get("endpoint"),
+                "endpoint_name": block.get("endpoint_name"),
+                "api_key": block.get("api_key"),
+                "api_key_env": block.get("api_key_env"),
                 "model": model or "centinela",
                 "contract": block.get("contract") or {},
                 "invalid_policy": block.get("invalid_policy", "mark"),
