@@ -80,6 +80,11 @@ def test_load_skips_non_mapping_keeps_sibling(tmp_path):
 
 
 def test_resolve_typeless_entry_is_skippable():
+    from astromesh.runtime.engine import build_candidate_provider
+
     reg = {"m": {"endpoint": "https://entry", "models": ["m"]}}  # no "type"
     out = resolve_block({"providerRef": "m"}, reg)
+    # a typeless entry must NOT silently mis-dispatch (source=None -> openai_compat default);
+    # it resolves to the skip sentinel so build_candidate_provider returns None (warn + skip)
     assert out.get("source") not in ("centinela", "openai_compat", "openai", "ollama", "litellm")
+    assert build_candidate_provider(out) is None
