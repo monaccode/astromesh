@@ -27,6 +27,9 @@ def load_provider_registry(config_dir) -> dict[str, dict]:
         except (OSError, yaml.YAMLError):
             logger.warning("provider registry: could not parse %s; skipping", path)
             continue
+        if not isinstance(doc, dict):
+            logger.warning("provider registry: %s is not a mapping; skipping", path)
+            continue
         providers = (doc.get("spec") or {}).get("providers") or {}
         if not isinstance(providers, dict):
             logger.warning("provider registry: %s has no spec.providers mapping; skipping", path)
@@ -53,9 +56,10 @@ def resolve_block(block: dict, registry: dict) -> dict:
         return block
 
     entry = registry.get(ref)
-    if entry is None:
+    if entry is None or not entry.get("type"):
         logger.warning(
-            "provider registry: providerRef %r not found; candidate will be skipped", ref)
+            "provider registry: providerRef %r unresolved or has no type; candidate will be "
+            "skipped", ref)
         return {"source": _UNRESOLVED_SOURCE, "providerRef": ref}
 
     models = entry.get("models") or []

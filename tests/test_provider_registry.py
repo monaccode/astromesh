@@ -69,3 +69,17 @@ def test_resolve_block_without_ref_is_unchanged():
 def test_resolve_unknown_ref_yields_skippable_block():
     out = resolve_block({"providerRef": "missing"}, {})
     assert out.get("source") not in ("centinela", "openai_compat", "openai", "ollama", "litellm")
+
+
+def test_load_skips_non_mapping_keeps_sibling(tmp_path):
+    # a bare list, not a mapping
+    (tmp_path / "providers.list.yaml").write_text(yaml.safe_dump([1, 2, 3]))
+    _write(tmp_path, "providers.centinela.yaml", _pc({"m": {"type": "centinela"}}))
+    reg = load_provider_registry(tmp_path)
+    assert "m" in reg  # sibling still loads; no AttributeError
+
+
+def test_resolve_typeless_entry_is_skippable():
+    reg = {"m": {"endpoint": "https://entry", "models": ["m"]}}  # no "type"
+    out = resolve_block({"providerRef": "m"}, reg)
+    assert out.get("source") not in ("centinela", "openai_compat", "openai", "ollama", "litellm")
