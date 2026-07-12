@@ -46,7 +46,7 @@ def reconcile(lock: dict, bindings: dict) -> dict:
 
         out[name] = {
             "type": "centinela",
-            "endpoint": b["endpoint"],
+            "endpoint": b.get("endpoint"),
             "models": [name],
             "kind": model["kind"],
             "contract": model["contract"],
