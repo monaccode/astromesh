@@ -1,9 +1,16 @@
 import pytest
 
 from astromesh.centinela.promote import (
+    AliasMove,
+    Blocked,
     MissingBinding,
     PromoteError,
+    PromotionPlan,
+    bump_nebula_pin,
     plan_promotion,
+    pr_labels,
+    render_pr_body,
+    stub_binding,
 )
 
 
@@ -96,3 +103,46 @@ def test_unsupported_schema_version_raises():
     new = {"schema_version": "2", "models": []}
     with pytest.raises(PromoteError):
         plan_promotion(_lock([]), new, _bindings([]))
+
+
+def _move(alias="staging", frm="v0.1", to="v0.2", f1_from=0.90, f1_to=0.93):
+    return AliasMove("centinela-sentiment", alias, frm, to,
+                     {"macro_f1": f1_from, "invalid_rate": 0.02},
+                     {"macro_f1": f1_to, "invalid_rate": 0.01})
+
+
+def test_pr_labels_prod_when_prod_alias_moved():
+    plan = PromotionPlan(alias_moves=[_move(alias="prod")])
+    assert "centinela:prod" in pr_labels(plan)
+    assert "centinela:staging" not in pr_labels(plan)
+
+
+def test_pr_labels_staging_default_and_blocked_marker():
+    plan = PromotionPlan(alias_moves=[_move(alias="staging")],
+                         blocked=[Blocked("m", "staging", "bad")])
+    labels = pr_labels(plan)
+    assert "centinela:staging" in labels
+    assert "centinela:blocked" in labels
+
+
+def test_stub_binding_shape():
+    b = stub_binding("centinela-sentiment", "prod")
+    assert b["model"] == "centinela-sentiment"
+    assert b["alias"] == "prod"
+    assert b["endpoint"].startswith("https://REPLACE_WITH_REAL_HF_ENDPOINT")
+
+
+def test_render_pr_body_has_eval_delta_and_checklist():
+    plan = PromotionPlan(alias_moves=[_move()],
+                         missing_bindings=[MissingBinding("centinela-sentiment", "staging")])
+    body = render_pr_body(plan, "0.2.0")
+    assert "0.9 → 0.93" in body
+    assert "- [ ]" in body           # a checklist item for the missing binding
+    assert "centinela-sentiment" in body
+
+
+def test_bump_nebula_pin_rewrites_version():
+    assert bump_nebula_pin('centinela = ["astromesh-nebula>=0.1.0"]', "0.2.0") == \
+        'centinela = ["astromesh-nebula>=0.2.0"]'
+    assert bump_nebula_pin('    "astromesh-nebula>=0.1.0",', "0.3.1") == \
+        '    "astromesh-nebula>=0.3.1",'
