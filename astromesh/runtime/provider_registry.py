@@ -39,7 +39,8 @@ def load_provider_registry(config_dir) -> dict[str, dict]:
                 continue
             if name in registry:
                 logger.warning(
-                    "provider registry: entry %r in %s overrides an earlier definition", name, path)
+                    "provider registry: entry %r in %s overrides an earlier definition", name, path
+                )
             registry[name] = entry
     return registry
 
@@ -59,7 +60,9 @@ def resolve_block(block: dict, registry: dict) -> dict:
     if entry is None or not entry.get("type"):
         logger.warning(
             "provider registry: providerRef %r unresolved or has no type; candidate will be "
-            "skipped", ref)
+            "skipped",
+            ref,
+        )
         return {"source": _UNRESOLVED_SOURCE, "providerRef": ref}
 
     models = entry.get("models") or []

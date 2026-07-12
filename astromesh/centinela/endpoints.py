@@ -45,8 +45,8 @@ class DesiredEndpoint:
 
 @dataclass(frozen=True)
 class EndpointAction:
-    kind: str          # "create" | "update" | "noop"
-    fields: dict       # changed fields for "update"; empty otherwise
+    kind: str  # "create" | "update" | "noop"
+    fields: dict  # changed fields for "update"; empty otherwise
 
 
 def endpoint_name(model: str, alias: str) -> str:
@@ -68,7 +68,8 @@ def plan_endpoints(lock: dict, bindings: dict) -> list[DesiredEndpoint]:
             raise EndpointPlanError(f"binding references unknown model '{name}'")
         if model["kind"] not in _SERVED_KINDS:
             raise EndpointPlanError(
-                f"{name} kind '{model['kind']}' is not served by Centinela endpoints")
+                f"{name} kind '{model['kind']}' is not served by Centinela endpoints"
+            )
 
         version = model["aliases"].get(alias)
         if version is None:
@@ -76,30 +77,33 @@ def plan_endpoints(lock: dict, bindings: dict) -> list[DesiredEndpoint]:
         rev = model["revisions"][version]
         if rev["gate"] != "passed":
             raise EndpointPlanError(
-                f"{name}:{version} has gate '{rev['gate']}', only 'passed' may be served")
+                f"{name}:{version} has gate '{rev['gate']}', only 'passed' may be served"
+            )
 
         serving = b.get("serving") or {}
         sha = rev["sha"]
-        out.append(DesiredEndpoint(
-            name=b.get("endpoint_name") or endpoint_name(name, alias),
-            model=name,
-            alias=alias,
-            repository=model["hf_repo"],
-            revision=sha,
-            framework="pytorch",
-            task="text-generation",
-            type="protected",
-            vendor=serving.get("vendor", "aws"),
-            region=serving.get("region", "us-east-1"),
-            accelerator=serving.get("accelerator", "gpu"),
-            instance_type=serving.get("instance_type", "nvidia-a10g"),
-            instance_size=serving.get("instance_size", "x1"),
-            scale_to_zero=bool(serving.get("scale_to_zero", True)),
-            min_replica=int(serving.get("min_replica", 0)),
-            max_replica=int(serving.get("max_replica", 1)),
-            api_key_env=serving.get("api_key_env", "HF_TOKEN"),
-            ready=bool(_REAL_SHA.match(sha)),
-        ))
+        out.append(
+            DesiredEndpoint(
+                name=b.get("endpoint_name") or endpoint_name(name, alias),
+                model=name,
+                alias=alias,
+                repository=model["hf_repo"],
+                revision=sha,
+                framework="pytorch",
+                task="text-generation",
+                type="protected",
+                vendor=serving.get("vendor", "aws"),
+                region=serving.get("region", "us-east-1"),
+                accelerator=serving.get("accelerator", "gpu"),
+                instance_type=serving.get("instance_type", "nvidia-a10g"),
+                instance_size=serving.get("instance_size", "x1"),
+                scale_to_zero=bool(serving.get("scale_to_zero", True)),
+                min_replica=int(serving.get("min_replica", 0)),
+                max_replica=int(serving.get("max_replica", 1)),
+                api_key_env=serving.get("api_key_env", "HF_TOKEN"),
+                ready=bool(_REAL_SHA.match(sha)),
+            )
+        )
     return out
 
 

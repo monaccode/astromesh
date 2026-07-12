@@ -70,10 +70,7 @@ def plan_promotion(old_lock: dict, new_lock: dict, bindings: dict) -> PromotionP
 
     old_models = {m["name"]: m for m in old_lock.get("models", [])}
     new_models = {m["name"]: m for m in new_lock.get("models", [])}
-    bound = {
-        (b["model"], b["alias"])
-        for b in bindings.get("spec", {}).get("bindings", [])
-    }
+    bound = {(b["model"], b["alias"]) for b in bindings.get("spec", {}).get("bindings", [])}
 
     moves: list[AliasMove] = []
     missing: list[MissingBinding] = []
@@ -92,10 +89,13 @@ def plan_promotion(old_lock: dict, new_lock: dict, bindings: dict) -> PromotionP
 
             if rev is None:
                 if is_bound:
-                    blocked.append(Blocked(
-                        name, alias,
-                        f"alias '{alias}' points at '{target}', absent from the new lock",
-                    ))
+                    blocked.append(
+                        Blocked(
+                            name,
+                            alias,
+                            f"alias '{alias}' points at '{target}', absent from the new lock",
+                        )
+                    )
                 continue
 
             if old_target == target:
@@ -103,17 +103,26 @@ def plan_promotion(old_lock: dict, new_lock: dict, bindings: dict) -> PromotionP
 
             if rev.get("gate") != "passed":
                 if is_bound:
-                    blocked.append(Blocked(
-                        name, alias,
-                        f"{name}:{target} has gate '{rev.get('gate')}', "
-                        "only 'passed' may be served",
-                    ))
+                    blocked.append(
+                        Blocked(
+                            name,
+                            alias,
+                            f"{name}:{target} has gate '{rev.get('gate')}', "
+                            "only 'passed' may be served",
+                        )
+                    )
                 continue  # unbound + bad gate: not servable, no action
 
-            moves.append(AliasMove(
-                name, alias, old_target, target,
-                _eval_of(old_model, old_target), _eval_of(model, target),
-            ))
+            moves.append(
+                AliasMove(
+                    name,
+                    alias,
+                    old_target,
+                    target,
+                    _eval_of(old_model, old_target),
+                    _eval_of(model, target),
+                )
+            )
             if served and not is_bound:
                 missing.append(MissingBinding(name, alias))
 
@@ -122,9 +131,13 @@ def plan_promotion(old_lock: dict, new_lock: dict, bindings: dict) -> PromotionP
         if new_model is None:
             blocked.append(Blocked(name, alias, f"model '{name}' removed from the new lock"))
         elif alias not in new_model.get("aliases", {}):
-            blocked.append(Blocked(
-                name, alias, f"alias '{alias}' removed from model '{name}' in the new lock",
-            ))
+            blocked.append(
+                Blocked(
+                    name,
+                    alias,
+                    f"alias '{alias}' removed from model '{name}' in the new lock",
+                )
+            )
 
     return PromotionPlan(moves, missing, blocked)
 
@@ -135,8 +148,9 @@ _PIN_RE = re.compile(r"astromesh-nebula>=[^\"']*")
 
 def pr_labels(plan: PromotionPlan) -> list[str]:
     """Label the PR: prod if a prod alias is involved, else staging; mark blocked."""
-    prod = any(m.alias == "prod" for m in plan.alias_moves) or \
-        any(b.alias == "prod" for b in plan.blocked)
+    prod = any(m.alias == "prod" for m in plan.alias_moves) or any(
+        b.alias == "prod" for b in plan.blocked
+    )
     labels = ["centinela:prod"] if prod else ["centinela:staging"]
     if plan.blocked:
         labels.append("centinela:blocked")
@@ -165,19 +179,28 @@ def render_pr_body(plan: PromotionPlan, version: str) -> str:
     lines += [f"Nebula catalog version: `{version}`", ""]
 
     if plan.alias_moves:
-        lines += ["## Alias moves", "",
-                  "| model | alias | from | to | macro_f1 | invalid_rate |",
-                  "|-------|-------|------|----|----------|--------------|"]
+        lines += [
+            "## Alias moves",
+            "",
+            "| model | alias | from | to | macro_f1 | invalid_rate |",
+            "|-------|-------|------|----|----------|--------------|",
+        ]
         for m in plan.alias_moves:
             f1 = _fmt_delta(m.from_eval, m.to_eval, "macro_f1")
             inv = _fmt_delta(m.from_eval, m.to_eval, "invalid_rate")
-            lines.append(f"| {m.model} | {m.alias} | {m.from_rev or '—'} | {m.to_rev} | {f1} | {inv} |")
+            lines.append(
+                f"| {m.model} | {m.alias} | {m.from_rev or '—'} | {m.to_rev} | {f1} | {inv} |"
+            )
         lines.append("")
 
     if plan.missing_bindings:
-        lines += ["## ⚠️ Missing endpoint bindings", "",
-                  "A stub was added to `config/centinela/bindings.yaml`. "
-                  "Provide the live endpoint URL before merge:", ""]
+        lines += [
+            "## ⚠️ Missing endpoint bindings",
+            "",
+            "A stub was added to `config/centinela/bindings.yaml`. "
+            "Provide the live endpoint URL before merge:",
+            "",
+        ]
         for mb in plan.missing_bindings:
             lines.append(f"- [ ] set the endpoint for `{mb.model}` / `{mb.alias}`")
         lines.append("")

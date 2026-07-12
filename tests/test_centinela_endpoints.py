@@ -12,16 +12,25 @@ REAL_SHA = "a" * 40
 
 
 def _rev(rev, sha=REAL_SHA, gate="passed"):
-    return {"version": rev, "sha": sha, "gate": gate,
-            "eval": {"macro_f1": 0.9, "invalid_rate": 0.01}}
+    return {
+        "version": rev,
+        "sha": sha,
+        "gate": gate,
+        "eval": {"macro_f1": 0.9, "invalid_rate": 0.01},
+    }
 
 
 def _model(name="centinela-sentiment", kind="classifier", aliases=None, revisions=None):
-    return {"name": name, "kind": kind, "task": "text-classification", "vertical": "finanzas",
-            "hf_repo": "astromesh/Centinela-Qwen3-4B",
-            "contract": {"labels": ["positivo", "neutral", "negativo"]},
-            "aliases": aliases if aliases is not None else {"prod": "v0.1"},
-            "revisions": revisions if revisions is not None else {"v0.1": _rev("v0.1")}}
+    return {
+        "name": name,
+        "kind": kind,
+        "task": "text-classification",
+        "vertical": "finanzas",
+        "hf_repo": "astromesh/Centinela-Qwen3-4B",
+        "contract": {"labels": ["positivo", "neutral", "negativo"]},
+        "aliases": aliases if aliases is not None else {"prod": "v0.1"},
+        "revisions": revisions if revisions is not None else {"v0.1": _rev("v0.1")},
+    }
 
 
 def _lock(models):
@@ -29,8 +38,12 @@ def _lock(models):
 
 
 def _bindings(entries):
-    return {"apiVersion": "astromesh/v1", "kind": "CentinelaBindings",
-            "metadata": {"name": "default"}, "spec": {"bindings": entries}}
+    return {
+        "apiVersion": "astromesh/v1",
+        "kind": "CentinelaBindings",
+        "metadata": {"name": "default"},
+        "spec": {"bindings": entries},
+    }
 
 
 def _binding(alias="prod", serving=None):
@@ -45,9 +58,22 @@ def test_endpoint_name_is_deterministic():
 
 
 def test_plan_served_binding_real_sha_is_ready():
-    plan = plan_endpoints(_lock([_model()]), _bindings([_binding(serving={
-        "vendor": "aws", "region": "us-east-1", "accelerator": "gpu",
-        "instance_type": "nvidia-a10g", "instance_size": "x1"})]))
+    plan = plan_endpoints(
+        _lock([_model()]),
+        _bindings(
+            [
+                _binding(
+                    serving={
+                        "vendor": "aws",
+                        "region": "us-east-1",
+                        "accelerator": "gpu",
+                        "instance_type": "nvidia-a10g",
+                        "instance_size": "x1",
+                    }
+                )
+            ]
+        ),
+    )
     assert len(plan) == 1
     d = plan[0]
     assert d.name == "centinela-sentiment-prod"
@@ -76,8 +102,9 @@ def test_plan_unknown_model_raises():
 
 
 def test_plan_non_served_kind_raises():
-    m = _model(name="centinela-chat", kind="instruct", aliases={"prod": "v1"},
-               revisions={"v1": _rev("v1")})
+    m = _model(
+        name="centinela-chat", kind="instruct", aliases={"prod": "v1"}, revisions={"v1": _rev("v1")}
+    )
     with pytest.raises(EndpointPlanError):
         plan_endpoints(_lock([m]), _bindings([{"model": "centinela-chat", "alias": "prod"}]))
 
@@ -95,16 +122,36 @@ def test_diff_create_when_absent():
 
 def test_diff_update_on_revision_change():
     d = plan_endpoints(_lock([_model()]), _bindings([_binding()]))[0]
-    actual = {"revision": "b" * 40, "accelerator": "gpu",
-              "instance_type": "nvidia-a10g", "instance_size": "x1"}
+    actual = {
+        "revision": "b" * 40,
+        "accelerator": "gpu",
+        "instance_type": "nvidia-a10g",
+        "instance_size": "x1",
+    }
     action = diff_endpoint(d, actual)
     assert action.kind == "update"
     assert action.fields == {"revision": REAL_SHA}
 
 
 def test_diff_noop_when_identical():
-    d = plan_endpoints(_lock([_model()]), _bindings([_binding(serving={
-        "instance_type": "nvidia-a10g", "instance_size": "x1", "accelerator": "gpu"})]))[0]
-    actual = {"revision": REAL_SHA, "accelerator": "gpu",
-              "instance_type": "nvidia-a10g", "instance_size": "x1"}
+    d = plan_endpoints(
+        _lock([_model()]),
+        _bindings(
+            [
+                _binding(
+                    serving={
+                        "instance_type": "nvidia-a10g",
+                        "instance_size": "x1",
+                        "accelerator": "gpu",
+                    }
+                )
+            ]
+        ),
+    )[0]
+    actual = {
+        "revision": REAL_SHA,
+        "accelerator": "gpu",
+        "instance_type": "nvidia-a10g",
+        "instance_size": "x1",
+    }
     assert diff_endpoint(d, actual) == EndpointAction("noop", {})

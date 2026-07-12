@@ -62,7 +62,8 @@ class _CentinelaEndpointClient:
         self.endpoint_name: str | None = config.get("endpoint_name")
         api_key_env = config.get("api_key_env")
         self.api_key: str | None = config.get("api_key") or (
-            os.environ.get(api_key_env) if api_key_env else None)
+            os.environ.get(api_key_env) if api_key_env else None
+        )
         self.model: str = config.get("model", "centinela")
         self.timeout: float = float(config.get("timeout", 30.0))
         contract = config.get("contract") or {}
@@ -78,7 +79,8 @@ class _CentinelaEndpointClient:
             from astromesh.centinela import hf_endpoints
 
             url = hf_endpoints.resolve_url(
-                self.endpoint_name, namespace=os.environ.get("HF_ORG"), token=self.api_key)
+                self.endpoint_name, namespace=os.environ.get("HF_ORG"), token=self.api_key
+            )
             if url:
                 return url.rstrip("/")
         return "http://localhost:8080"

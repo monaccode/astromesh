@@ -8,15 +8,25 @@ def _write(directory, name, doc):
 
 
 def _pc(providers):
-    return {"apiVersion": "astromesh/v1", "kind": "ProviderConfig",
-            "metadata": {"name": "x"}, "spec": {"providers": providers}}
+    return {
+        "apiVersion": "astromesh/v1",
+        "kind": "ProviderConfig",
+        "metadata": {"name": "x"},
+        "spec": {"providers": providers},
+    }
 
 
 def test_load_merges_multiple_files(tmp_path):
-    _write(tmp_path, "providers.yaml",
-           _pc({"openai": {"type": "openai_compat", "endpoint": "https://o"}}))
-    _write(tmp_path, "providers.centinela.yaml",
-           _pc({"centinela-sentiment": {"type": "centinela", "endpoint": "https://c"}}))
+    _write(
+        tmp_path,
+        "providers.yaml",
+        _pc({"openai": {"type": "openai_compat", "endpoint": "https://o"}}),
+    )
+    _write(
+        tmp_path,
+        "providers.centinela.yaml",
+        _pc({"centinela-sentiment": {"type": "centinela", "endpoint": "https://c"}}),
+    )
     reg = load_provider_registry(tmp_path)
     assert set(reg) == {"openai", "centinela-sentiment"}
     assert reg["centinela-sentiment"]["type"] == "centinela"
@@ -41,11 +51,16 @@ def test_load_duplicate_name_later_file_wins(tmp_path):
 
 
 def test_resolve_centinela_ref_fills_source_and_fields():
-    reg = {"centinela-sentiment": {"type": "centinela", "endpoint": "https://ep",
-                                   "endpoint_name": "centinela-sentiment-prod",
-                                   "api_key_env": "HF_TOKEN",
-                                   "contract": {"labels": ["pos", "neg"]},
-                                   "models": ["centinela-sentiment"]}}
+    reg = {
+        "centinela-sentiment": {
+            "type": "centinela",
+            "endpoint": "https://ep",
+            "endpoint_name": "centinela-sentiment-prod",
+            "api_key_env": "HF_TOKEN",
+            "contract": {"labels": ["pos", "neg"]},
+            "models": ["centinela-sentiment"],
+        }
+    }
     out = resolve_block({"providerRef": "centinela-sentiment"}, reg)
     assert out["source"] == "centinela"
     assert out["endpoint"] == "https://ep"
