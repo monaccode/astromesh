@@ -53,6 +53,9 @@ test('rich card renders every section', () => {
   assert.match(mdx, /## How to use/);
   assert.match(mdx, /apiVersion: astromesh\/v1/);
   assert.match(mdx, /model: centinela-sentiment/);
+  // the binding must reference the alias NAME (prod), never the revision (v0.1)
+  assert.match(mdx, /alias: prod/);
+  assert.doesNotMatch(mdx, /alias: v0\.1/);
 });
 
 test('released status when gate passed and sha is a real hash', () => {

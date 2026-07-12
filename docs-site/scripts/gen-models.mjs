@@ -96,7 +96,10 @@ function renderCard(model) {
       ? '\n<Aside type="caution" title="Preliminary">\nThis model is defined in the catalog but not yet published. The revision SHA and eval\nmetrics below are placeholders until the first release.\n</Aside>\n'
       : '';
 
-  const aliasTarget = model.aliases?.prod ?? (revKeys.length === 1 ? revKeys[0] : 'prod');
+  // bindings.yaml `alias:` must hold an alias NAME (a key of model.aliases), not a
+  // revision — the reconciler rejects anything that isn't a declared alias.
+  const aliasNames = Object.keys(model.aliases ?? {});
+  const aliasTarget = aliasNames.includes('prod') ? 'prod' : (aliasNames[0] ?? 'prod');
 
   const mdx = `---
 title: ${model.name}
