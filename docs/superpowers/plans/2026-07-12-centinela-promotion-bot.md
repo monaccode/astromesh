@@ -740,8 +740,10 @@ MSG
 - Test: `tests/test_workflow_yaml.py` (create — parses the workflow so a syntax error fails CI)
 
 **Interfaces:**
-- Consumes: the `plan-promotion` CLI (Task 3); repo variable `NEBULA_REPO` (e.g. `monaccode/astromesh-nebula`); secret `GH_PIPELINE_TOKEN`.
+- Consumes: the `plan_promotion_command` function from Task 3 (`astromesh_node.cli.commands.centinela`); repo variable `NEBULA_REPO` (e.g. `monaccode/astromesh-nebula`); secret `GH_PIPELINE_TOKEN`.
 - Produces: a PR on branch `bot/centinela-sync`.
+
+**Env note (important — the plan-promotion command is NOT reachable via the `astromeshctl` binary in CI).** `astromeshctl` is defined in the separate `astromesh-cli` project, which depends only on `astromesh` — it does **not** compose the `centinela` plugin (registered by `astromesh-node`'s entry-point) or `astromesh-nebula`. There is no env in this repo where `astromeshctl centinela plan-promotion` runs. So the workflow invokes the command **as a Python function from the `astromesh-node` project's env** (which has `astromesh`, `astromesh-nebula`, `typer`, and the command itself), exactly as the unit tests do. It runs in `astromesh-node/` and passes repo-root-relative (`../…`) paths.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -760,7 +762,8 @@ def test_centinela_sync_workflow_parses():
     on = wf.get("on", wf.get(True))
     assert "catalog-lock-updated" in on["repository_dispatch"]["types"]
     steps = wf["jobs"]["sync"]["steps"]
-    assert any("plan-promotion" in str(s.get("run", "")) for s in steps)
+    # the command is invoked as a Python function (astromeshctl can't compose the plugin in CI)
+    assert any("plan_promotion_command" in str(s.get("run", "")) for s in steps)
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -786,8 +789,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra centinela --group dev
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
 
       - name: Fetch new catalog lock from nebula
         env:
@@ -803,19 +808,32 @@ jobs:
 
       - name: Plan promotion
         id: plan
+        working-directory: astromesh-node
         env:
           VERSION: ${{ github.event.client_payload.version }}
         run: |
+          uv sync --extra test
           set +e
-          uv run astromeshctl centinela plan-promotion \
-            --new-lock new_lock.json \
-            --version "$VERSION" \
-            --pr-body pr-body.md \
-            --labels-out pr-labels.txt \
-            --pyproject pyproject.toml \
-            --pyproject astromesh-node/pyproject.toml
-          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          uv run python -c '
+          import os, sys, typer
+          from astromesh_node.cli.commands.centinela import plan_promotion_command
+          try:
+              plan_promotion_command(
+                  new_lock="../new_lock.json",
+                  version=os.environ["VERSION"],
+                  bindings="../config/centinela/bindings.yaml",
+                  vendored_lock="../docs-site/src/data/catalog.lock.json",
+                  pr_body="../pr-body.md",
+                  labels_out="../pr-labels.txt",
+                  pyproject=["../pyproject.toml", "../astromesh-node/pyproject.toml"],
+              )
+          except typer.Exit as exc:
+              sys.exit(exc.exit_code or 0)
+          '
+          code=$?
           set -e
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          cd ..
           if [ -f pr-labels.txt ]; then
             echo "labels=$(cat pr-labels.txt)" >> "$GITHUB_OUTPUT"
           else
