@@ -6,4 +6,13 @@ spec:
   bindings:
     - model: centinela-sentiment
       alias: prod
-      endpoint: "https://REPLACE_WITH_REAL_HF_ENDPOINT.endpoints.huggingface.cloud"
+      serving:
+        vendor: aws            # aws | azure | gcp
+        region: us-east-1
+        accelerator: gpu
+        instance_type: nvidia-a10g
+        instance_size: x1
+        scale_to_zero: true    # cost lever; adds cold-start latency
+        min_replica: 0
+        max_replica: 1
+      # endpoint_name: optional override; default = "<model>-<alias>"

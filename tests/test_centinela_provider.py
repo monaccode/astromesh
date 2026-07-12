@@ -115,3 +115,36 @@ def test_provider_capabilities_and_cost():
     assert provider.supports_tools() is False
     assert provider.supports_vision() is False
     assert provider.estimated_cost("centinela", 1000, 1000) == 0.0
+
+
+@respx.mock
+async def test_classify_sends_bearer_auth():
+    route = respx.post("http://ep.test/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=_chat_response("positivo")))
+    client = _CentinelaEndpointClient(
+        {"endpoint": "http://ep.test", "contract": CONTRACT, "api_key": "secret-token"})
+    await client.classify("subieron las ganancias")
+    assert route.calls.last.request.headers["authorization"] == "Bearer secret-token"
+
+
+@respx.mock
+async def test_api_key_env_is_read_from_environment(monkeypatch):
+    monkeypatch.setenv("CENTINELA_TOKEN", "env-token")
+    route = respx.post("http://ep.test/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=_chat_response("neutral")))
+    client = _CentinelaEndpointClient(
+        {"endpoint": "http://ep.test", "contract": CONTRACT, "api_key_env": "CENTINELA_TOKEN"})
+    await client.classify("informe estable")
+    assert route.calls.last.request.headers["authorization"] == "Bearer env-token"
+
+
+@respx.mock
+async def test_endpoint_resolved_from_name_when_url_absent(monkeypatch):
+    from astromesh.centinela import hf_endpoints
+    monkeypatch.setattr(hf_endpoints, "resolve_url", lambda *a, **k: "http://resolved.test")
+    respx.post("http://resolved.test/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=_chat_response("positivo")))
+    client = _CentinelaEndpointClient(
+        {"endpoint_name": "centinela-sentiment-prod", "contract": CONTRACT})
+    result = await client.classify("gran resultado")
+    assert result.label == "positivo"

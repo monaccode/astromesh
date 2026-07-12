@@ -24,6 +24,7 @@ select Centinela (estimated_cost approx 0 -> preferred under cost_optimized).
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, AsyncIterator
 
@@ -57,7 +58,11 @@ class _CentinelaEndpointClient:
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         config = config or {}
-        self.endpoint: str = (config.get("endpoint") or "http://localhost:8080").rstrip("/")
+        self.endpoint: str = (config.get("endpoint") or "").rstrip("/")
+        self.endpoint_name: str | None = config.get("endpoint_name")
+        api_key_env = config.get("api_key_env")
+        self.api_key: str | None = config.get("api_key") or (
+            os.environ.get(api_key_env) if api_key_env else None)
         self.model: str = config.get("model", "centinela")
         self.timeout: float = float(config.get("timeout", 30.0))
         contract = config.get("contract") or {}
@@ -66,9 +71,23 @@ class _CentinelaEndpointClient:
         self.max_retries: int = int(config.get("max_retries", 1))
         self._client: httpx.AsyncClient | None = None
 
+    def _resolve_endpoint(self) -> str:
+        if self.endpoint:
+            return self.endpoint
+        if self.endpoint_name:
+            from astromesh.centinela import hf_endpoints
+
+            url = hf_endpoints.resolve_url(
+                self.endpoint_name, namespace=os.environ.get("HF_ORG"), token=self.api_key)
+            if url:
+                return url.rstrip("/")
+        return "http://localhost:8080"
+
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(base_url=self.endpoint, timeout=self.timeout)
+            base = self._resolve_endpoint()
+            headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else None
+            self._client = httpx.AsyncClient(base_url=base, timeout=self.timeout, headers=headers)
         return self._client
 
     async def _raw_label(self, text: str) -> str:

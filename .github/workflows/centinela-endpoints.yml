@@ -1,0 +1,49 @@
+# .github/workflows/centinela-endpoints.yml
+name: centinela-endpoints
+on:
+  push:
+    branches: [develop, main]
+    paths: [config/centinela/bindings.yaml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Apply endpoints
+        working-directory: astromesh-node
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_ORG: ${{ vars.HF_ORG }}
+        run: |
+          uv sync --extra test
+          uv run python -c '
+          from astromesh_node.cli.commands.centinela import apply_endpoints_command
+          apply_endpoints_command(
+              bindings="../config/centinela/bindings.yaml",
+              out="../config/providers.centinela.yaml",
+              namespace=None,
+              dry_run=False,
+              wait_timeout=1800,
+          )
+          '
+
+      - name: Commit generated provider config
+        run: |
+          if [ -f config/providers.centinela.yaml ] && ! git diff --quiet -- config/providers.centinela.yaml; then
+            git config user.name "centinela-bot"
+            git config user.email "bot@astromesh.local"
+            git add config/providers.centinela.yaml
+            git commit -m "chore(centinela): sync live endpoint URLs [skip ci]
+
+          Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+            git push
+          fi

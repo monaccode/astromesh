@@ -121,3 +121,24 @@ def test_to_provider_config_wraps():
     assert doc["apiVersion"] == "astromesh/v1"
     assert doc["kind"] == "ProviderConfig"
     assert doc["spec"]["providers"] == providers
+
+
+def test_reconcile_tolerates_binding_without_endpoint():
+    lock = _lock()
+    bindings = {
+        "apiVersion": "astromesh/v1",
+        "kind": "CentinelaBindings",
+        "metadata": {"name": "default"},
+        "spec": {
+            "bindings": [
+                {
+                    "model": "centinela-sentiment",
+                    "alias": "prod",
+                    "serving": {"instance_type": "nvidia-a10g"},
+                }
+            ]
+        },
+    }
+    out = reconcile(lock, bindings)
+    assert out["centinela-sentiment"]["type"] == "centinela"
+    assert out["centinela-sentiment"]["endpoint"] is None

@@ -1,6 +1,7 @@
 """astromeshctl centinela — reconcile Centinela bindings into provider config."""
 
 import json
+import os
 from importlib.resources import files
 from pathlib import Path
 from typing import Optional
@@ -8,6 +9,8 @@ from typing import Optional
 import typer
 import yaml
 
+from astromesh.centinela import hf_endpoints
+from astromesh.centinela.endpoints import EndpointPlanError, diff_endpoint, plan_endpoints
 from astromesh.centinela.promote import (
     PromoteError,
     bump_nebula_pin,
@@ -110,3 +113,68 @@ def plan_promotion_command(
         f"{len(plan.missing_bindings)} stub(s), {len(plan.blocked)} blocked -> {pr_body}")
     if plan.blocked:
         raise typer.Exit(1)   # blocked: workflow still opens the PR, marks the check failed
+
+
+@app.command("apply-endpoints")
+def apply_endpoints_command(
+    bindings: str = typer.Option(
+        "./config/centinela/bindings.yaml", "--bindings", help="Path to bindings.yaml"),
+    out: str = typer.Option(
+        "./config/providers.centinela.yaml", "--out", help="Output ProviderConfig path"),
+    namespace: str = typer.Option(None, "--namespace", help="HF namespace/org (default $HF_ORG)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Plan only; no HF mutation"),
+    wait_timeout: int = typer.Option(1800, "--wait-timeout", help="Seconds to await running"),
+) -> None:
+    """Provision/update HF Inference Endpoints for served bindings; write provider config."""
+    ns = namespace or os.environ.get("HF_ORG")
+    token = os.environ.get("HF_TOKEN")
+    lock = _load_lock()
+    models = {m["name"]: m for m in lock.get("models", [])}
+    bindings_doc = yaml.safe_load(Path(bindings).read_text()) or {}
+
+    try:
+        desired_list = plan_endpoints(lock, bindings_doc)
+    except EndpointPlanError as exc:
+        print_error(f"Endpoint planning failed: {exc}")
+        raise typer.Exit(2) from exc
+
+    providers: dict = {}
+    for d in desired_list:
+        if not d.ready:
+            console.print(f"[yellow]skip[/yellow] {d.name}: model not published (placeholder sha)")
+            continue
+        actual = hf_endpoints.get_endpoint(d.name, namespace=ns, token=token)
+        action = diff_endpoint(d, actual)
+        if dry_run:
+            console.print(f"[cyan]plan[/cyan] {d.name}: {action.kind} {action.fields or ''}")
+            continue
+        if action.kind == "create":
+            ep = hf_endpoints.create_endpoint(d, namespace=ns, token=token)
+            url = hf_endpoints.wait_url(ep, timeout=wait_timeout)
+        elif action.kind == "update":
+            ep = hf_endpoints.update_endpoint(d.name, action.fields, namespace=ns, token=token)
+            url = hf_endpoints.wait_url(ep, timeout=wait_timeout)
+        else:
+            url = (actual or {}).get("url") or hf_endpoints.resolve_url(
+                d.name, namespace=ns, token=token)
+        model = models[d.model]
+        providers[d.model] = {
+            "type": "centinela",
+            "endpoint": url,
+            "endpoint_name": d.name,
+            "api_key_env": d.api_key_env,
+            "models": [d.model],
+            "kind": model["kind"],
+            "contract": model["contract"],
+            "revision": d.alias,
+            "sha": d.revision,
+        }
+
+    if dry_run:
+        console.print("[green]dry-run complete[/green] — no endpoints changed, no file written")
+        return
+
+    doc = to_provider_config(dict(sorted(providers.items())))
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    Path(out).write_text(yaml.safe_dump(doc, sort_keys=True, allow_unicode=True))
+    console.print(f"[green]Applied[/green] {len(providers)} endpoint(s) -> {out}")
