@@ -60,6 +60,7 @@ class WorkflowLoader:
             tool=raw.get("tool"),
             switch=raw.get("switch"),
             wait=raw.get("wait"),
+            approval=raw.get("approval"),
             input_template=raw.get("input"),
             arguments=raw.get("arguments"),
             context_transform=raw.get("context_transform"),

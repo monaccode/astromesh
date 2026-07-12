@@ -99,6 +99,73 @@ class WorkflowEngine:
         await self._store.save(run)
         return await self._drive(wf, run)
 
+    async def list_pending_approvals(self, approver: str | None = None) -> list[WorkflowRun]:
+        runs = [r for r in await self._store.list_by_status("suspended") if r.pending_approval]
+        if approver is not None:
+            runs = [r for r in runs if (r.pending_approval or {}).get("approver") == approver]
+        return runs
+
+    async def approve(
+        self, run_id: str, approver: str, comment: str | None, decided_at: str
+    ) -> WorkflowRunResult:
+        return await self._decide(run_id, True, approver, comment, decided_at)
+
+    async def reject(
+        self, run_id: str, approver: str, comment: str | None, decided_at: str
+    ) -> WorkflowRunResult:
+        return await self._decide(run_id, False, approver, comment, decided_at)
+
+    async def _decide(
+        self,
+        run_id: str,
+        approved: bool,
+        approver: str,
+        comment: str | None,
+        decided_at: str,
+    ) -> WorkflowRunResult:
+        run = await self._store.load(run_id)
+        if run is None:
+            raise ValueError(f"Run '{run_id}' not found")
+        if run.status != "suspended" or not run.pending_approval:
+            raise ValueError(f"Run '{run_id}' is not awaiting approval (status={run.status})")
+
+        wf = self._workflows.get(run.workflow_name)
+        if not wf:
+            raise ValueError(f"Workflow '{run.workflow_name}' not found")
+
+        approval_idx = run.current_index - 1  # the APPROVAL step sits just before current_index
+        step = wf.steps[approval_idx] if 0 <= approval_idx < len(wf.steps) else None
+        decision = {
+            "approved": approved,
+            "approver": approver,
+            "comment": comment,
+            "decided_at": decided_at,
+        }
+        if step is not None:
+            run.context["steps"][step.name] = {"output": decision}
+        run.pending_approval = None
+
+        if approved:
+            run.status = "running"
+            await self._store.save(run)
+            return await self._drive(wf, run)
+
+        # rejected
+        on_reject = (step.approval or {}).get("on_reject") if step is not None else None
+        step_index = {s.name: i for i, s in enumerate(wf.steps)}
+        if on_reject and on_reject in step_index:
+            run.status = "running"
+            run.current_index = step_index[on_reject]
+            await self._store.save(run)
+            return await self._drive(wf, run)
+
+        run.status = "rejected"
+        run.updated_at = decided_at
+        await self._store.save(run)
+        return WorkflowRunResult(
+            workflow_name=run.workflow_name, status="rejected", run_id=run.run_id
+        )
+
     async def _drive(self, wf: WorkflowSpec, run: WorkflowRun) -> WorkflowRunResult:
         """Executes wf from run.current_index; checkpoints the run after each step;
         stops and persists as "suspended" if a step returns SUSPENDED (a WAIT step).
@@ -134,11 +201,13 @@ class WorkflowEngine:
                     run.status = "suspended"
                     run.current_index = i + 1  # resume after the wait
                     run.resume_key = (result.output or {}).get("resume_key")
+                    run.pending_approval = (result.output or {}).get("pending_approval")
                     timeout = (result.output or {}).get("timeout_seconds")
-                    if timeout:
-                        run.expires_at = (
-                            datetime.now(UTC) + timedelta(seconds=timeout)
-                        ).isoformat()
+                    run.expires_at = (
+                        (datetime.now(UTC) + timedelta(seconds=timeout)).isoformat()
+                        if timeout
+                        else None
+                    )
                     run.updated_at = datetime.now(UTC).isoformat()
                     await self._store.save(run)
                     tracing.finish_span(root_span)
@@ -190,13 +259,19 @@ class WorkflowEngine:
                         if goto_result.status == WfStepStatus.SUSPENDED:
                             tracing.finish_span(goto_span)
                             run.status = "suspended"
-                            run.current_index = step_index[goto_step.name] + 1  # resume after the wait
+                            run.current_index = (
+                                step_index[goto_step.name] + 1
+                            )  # resume after the wait
                             run.resume_key = (goto_result.output or {}).get("resume_key")
+                            run.pending_approval = (goto_result.output or {}).get(
+                                "pending_approval"
+                            )
                             timeout = (goto_result.output or {}).get("timeout_seconds")
-                            if timeout:
-                                run.expires_at = (
-                                    datetime.now(UTC) + timedelta(seconds=timeout)
-                                ).isoformat()
+                            run.expires_at = (
+                                (datetime.now(UTC) + timedelta(seconds=timeout)).isoformat()
+                                if timeout
+                                else None
+                            )
                             run.updated_at = datetime.now(UTC).isoformat()
                             await self._store.save(run)
                             tracing.finish_span(root_span)
@@ -264,11 +339,17 @@ class WorkflowEngine:
     async def sweep_expired(self, now: str) -> int:
         n = 0
         for run in await self._store.list_by_status("suspended"):
-            if run.expires_at and run.expires_at < now:
+            if not (run.expires_at and run.expires_at < now):
+                continue
+            if run.pending_approval:
+                await self.reject(
+                    run.run_id, approver="system:timeout", comment=None, decided_at=now
+                )
+            else:
                 run.status = "expired"
                 run.error = "wait timed out"
                 await self._store.save(run)
-                n += 1
+            n += 1
         return n
 
     async def mark_orphaned_failed(self) -> int:
