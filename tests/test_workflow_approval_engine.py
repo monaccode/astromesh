@@ -145,3 +145,24 @@ async def test_approve_non_approval_run_raises():
     with pytest.raises(ValueError) as exc:
         await eng.approve(run_id, approver="u:jc", comment=None, decided_at="t")
     assert "not found" not in str(exc.value)
+
+
+async def test_approve_plain_wait_run_raises_without_not_found():
+    # suspended at a plain WAIT step (not an approval) → pending_approval is None,
+    # so approve() must still 409 (ValueError without "not found"), not 404.
+    store = InMemoryRunStore()
+    eng = _engine(
+        [
+            StepSpec(name="w", wait={"resume_key": "k"}),
+            StepSpec(name="b", tool="t"),
+        ],
+        store,
+    )
+    run_id = (await eng.run("wf", trigger={})).run_id
+    saved = await store.load(run_id)
+    assert saved.status == "suspended"
+    assert saved.pending_approval is None
+
+    with pytest.raises(ValueError) as exc:
+        await eng.approve(run_id, approver="u:jc", comment=None, decided_at="t")
+    assert "not found" not in str(exc.value)
