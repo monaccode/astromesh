@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.31.0] - 2026-07-12
+
+> Accumulated release off `develop` since 0.30.0. Beyond the itemized entries below, this
+> release also carries the **Centinela** sub-projects merged into `develop` (promotion bot,
+> live endpoint provisioning, model-card generator) — see `git log v0.30.0..v0.31.0` for the
+> full range.
+
 ### Added
+- **PgRunStore** — durable `WorkflowRunStore` backed by Postgres via asyncpg, mirroring `SqliteRunStore` column-for-column (upsert via `ON CONFLICT (run_id) DO UPDATE`, a `status` index for `list_by_status`/sweeps). Lives in a separate module so `asyncpg` stays an optional `postgres` extra (`astromesh/workflow/store_pg.py`).
+- **Durable HITL workflow engine** (accumulated on `develop` since 0.30.0): `StepType.APPROVAL` human-approval gate plus WAIT/SUSPENDED durable suspend/resume — a pending-approval queue with approve/reject REST (record-only: the approver is declarative, not authenticated), optional `on_reject` routing, timeout auto-reject via the sweep, and orphaned-run recovery (`astromesh/workflow/`, `astromesh/api/routes/workflows.py`).
 - RAGPipeline resource CRUD REST API (`/v1/rag/pipelines`): list/get/create/update/delete, in-memory store seeded from `config/rag/*.rag.yaml`, validated via `RAGPipelineLoader.spec_from_raw`. Enables external tools (e.g. Cortex) to author RAGPipeline resources the way `/v1/agents` authors agents. Distinct from the existing `/v1/rag/ingest` and `/v1/rag/query` operation endpoints (`astromesh/api/routes/rag_resources.py`). `spec_from_raw` type-checks every structural node (metadata, spec, each spec section) so a malformed-but-plausible body returns 422 and is never stored — one bad document can't 500 the list endpoint. PUT rejects a `metadata.name` that differs from the URL path (400) so the resource identity stays consistent.
 
 ## [v0.29.0] - 2026-07-10
