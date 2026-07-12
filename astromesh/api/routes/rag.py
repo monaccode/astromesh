@@ -46,7 +46,9 @@ async def ingest_document(request: RAGIngestRequest):
     pipeline = resolve_pipeline(request.pipeline)
     if pipeline is None:
         raise HTTPException(status_code=404, detail=f"RAGPipeline not found: {request.pipeline}")
-    n = await pipeline.ingest(request.document, metadata=request.metadata, doc_id_prefix=request.doc_id_prefix)
+    n = await pipeline.ingest(
+        request.document, metadata=request.metadata, doc_id_prefix=request.doc_id_prefix
+    )
     return {"pipeline": request.pipeline, "chunks": n}
 
 

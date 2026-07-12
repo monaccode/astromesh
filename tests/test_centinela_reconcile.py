@@ -50,9 +50,7 @@ def _bindings(model="centinela-sentiment", alias="prod"):
         "kind": "CentinelaBindings",
         "metadata": {"name": "default"},
         "spec": {
-            "bindings": [
-                {"model": model, "alias": alias, "endpoint": "https://ep.example.cloud"}
-            ]
+            "bindings": [{"model": model, "alias": alias, "endpoint": "https://ep.example.cloud"}]
         },
     }
 
@@ -98,8 +96,16 @@ def test_reconcile_is_sorted():
     bindings = {
         "spec": {
             "bindings": [
-                {"model": "centinela-topic", "alias": "prod", "endpoint": "https://b.example.cloud"},
-                {"model": "centinela-sentiment", "alias": "prod", "endpoint": "https://a.example.cloud"},
+                {
+                    "model": "centinela-topic",
+                    "alias": "prod",
+                    "endpoint": "https://b.example.cloud",
+                },
+                {
+                    "model": "centinela-sentiment",
+                    "alias": "prod",
+                    "endpoint": "https://a.example.cloud",
+                },
             ]
         }
     }

@@ -80,7 +80,9 @@ async def test_list_tools(client):
 
 
 async def test_rag_query_unknown_pipeline(client):
-    resp = await client.post("/v1/rag/query", json={"pipeline": "unknown-pipeline", "query": "test"})
+    resp = await client.post(
+        "/v1/rag/query", json={"pipeline": "unknown-pipeline", "query": "test"}
+    )
     assert resp.status_code == 404
 
 

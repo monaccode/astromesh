@@ -13,11 +13,16 @@ def fake_pipeline(monkeypatch):
 
 
 async def test_ingest_then_query(client, fake_pipeline):
-    r1 = await client.post("/v1/rag/ingest", json={"pipeline": "pk", "document": "reembolsos: 30 días", "metadata": {"id": "d1"}})
+    r1 = await client.post(
+        "/v1/rag/ingest",
+        json={"pipeline": "pk", "document": "reembolsos: 30 días", "metadata": {"id": "d1"}},
+    )
     assert r1.status_code == 200
     assert r1.json()["chunks"] >= 1
 
-    r2 = await client.post("/v1/rag/query", json={"pipeline": "pk", "query": "reembolsos", "top_k": 3})
+    r2 = await client.post(
+        "/v1/rag/query", json={"pipeline": "pk", "query": "reembolsos", "top_k": 3}
+    )
     assert r2.status_code == 200
     body = r2.json()
     assert body["query"] == "reembolsos"

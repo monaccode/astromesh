@@ -14,8 +14,23 @@ def test_build_pipeline_maps_recursive_ollama_pgvector():
     spec = RAGPipelineSpec(
         name="pk",
         chunking={"strategy": "recursive", "chunk_size": 512, "overlap": 40},
-        embeddings={"provider": "ollama", "model": "nomic-embed-text", "endpoint": "http://x:11434", "dimension": 768},
-        vector_store={"backend": "pgvector", "connection": {"host": "db", "port": 5432, "database": "astromesh", "user": "u", "password": "p"}, "collection": "docs"},
+        embeddings={
+            "provider": "ollama",
+            "model": "nomic-embed-text",
+            "endpoint": "http://x:11434",
+            "dimension": 768,
+        },
+        vector_store={
+            "backend": "pgvector",
+            "connection": {
+                "host": "db",
+                "port": 5432,
+                "database": "astromesh",
+                "user": "u",
+                "password": "p",
+            },
+            "collection": "docs",
+        },
         reranking={"enabled": False},
         retrieval={"top_k": 5},
     )
@@ -32,16 +47,24 @@ def test_build_pipeline_maps_recursive_ollama_pgvector():
 
 
 def test_build_pipeline_faiss_backend():
-    spec = RAGPipelineSpec(name="f", vector_store={"backend": "faiss", "dimensions": 8},
-                           embeddings={"provider": "ollama"}, chunking={"strategy": "recursive"})
+    spec = RAGPipelineSpec(
+        name="f",
+        vector_store={"backend": "faiss", "dimensions": 8},
+        embeddings={"provider": "ollama"},
+        chunking={"strategy": "recursive"},
+    )
     p = build_pipeline(spec)
     assert isinstance(p._store, FAISSStore)
     assert p._store.dimensions == 8
 
 
 def test_build_pipeline_unknown_backend_raises():
-    spec = RAGPipelineSpec(name="x", vector_store={"backend": "nope"},
-                           embeddings={"provider": "ollama"}, chunking={"strategy": "recursive"})
+    spec = RAGPipelineSpec(
+        name="x",
+        vector_store={"backend": "nope"},
+        embeddings={"provider": "ollama"},
+        chunking={"strategy": "recursive"},
+    )
     with pytest.raises(ValueError, match="vector_store"):
         build_pipeline(spec)
 

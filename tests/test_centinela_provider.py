@@ -4,7 +4,11 @@ import httpx
 import respx
 
 from astromesh.providers.base import CompletionResponse
-from astromesh.providers.centinela import CentinelaProvider, SentimentResult, _CentinelaEndpointClient
+from astromesh.providers.centinela import (
+    CentinelaProvider,
+    SentimentResult,
+    _CentinelaEndpointClient,
+)
 
 CONTRACT = {"labels": ["positivo", "neutral", "negativo"]}
 
@@ -48,7 +52,12 @@ async def test_classify_retry_policy_reclassifies():
         httpx.Response(200, json=_chat_response("negativo")),
     ]
     client = _CentinelaEndpointClient(
-        {"endpoint": "http://ep.test", "contract": CONTRACT, "invalid_policy": "retry", "max_retries": 2}
+        {
+            "endpoint": "http://ep.test",
+            "contract": CONTRACT,
+            "invalid_policy": "retry",
+            "max_retries": 2,
+        }
     )
     result = await client.classify("la deuda creció")
 

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from unittest.mock import AsyncMock
 
 from astromesh.orchestration.patterns import ReActPattern
+
 # Aliased to avoid clashing with the local `CompletionResponse` test double
 # defined below (module-level class statement would otherwise shadow this
 # import for every other test in the file).
@@ -295,8 +296,13 @@ async def test_react_omits_reasoning_content_when_absent():
 
 def _resp(content):
     return _ProviderCompletionResponse(
-        content=content, model="m", provider="p", usage={}, latency_ms=0.0,
-        cost=0.0, tool_calls=[],
+        content=content,
+        model="m",
+        provider="p",
+        usage={},
+        latency_ms=0.0,
+        cost=0.0,
+        tool_calls=[],
     )
 
 
@@ -317,7 +323,9 @@ async def test_react_seeds_messages_from_context_history():
             {"role": "assistant", "content": "buenas"},
         ]
     }
-    result = await ReActPattern().execute("nueva pregunta", ctx, model_fn, tool_fn, [], max_iterations=3)
+    result = await ReActPattern().execute(
+        "nueva pregunta", ctx, model_fn, tool_fn, [], max_iterations=3
+    )
 
     assert result["answer"] == "final answer"
     assert seen["messages"][0] == {"role": "user", "content": "hola"}

@@ -1,4 +1,5 @@
 """Agent schema accepts the spec.knowledge block that the runtime resolves (RAG wiring)."""
+
 import json
 from pathlib import Path
 

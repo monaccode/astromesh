@@ -1,4 +1,3 @@
-
 from astromesh.rag.agent_rag import AgentRAG, format_knowledge
 from astromesh.rag.pipeline import RAGPipeline
 from tests.rag_fakes import FakeEmbedder, FakeStore

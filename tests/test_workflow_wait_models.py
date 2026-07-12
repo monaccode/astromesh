@@ -2,7 +2,11 @@
 import pytest
 
 from astromesh.workflow.models import (
-    StepSpec, StepStatus, StepType, WorkflowRun, WorkflowRunResult,
+    StepSpec,
+    StepStatus,
+    StepType,
+    WorkflowRun,
+    WorkflowRunResult,
 )
 
 
@@ -28,6 +32,11 @@ def test_run_result_has_run_id():
 
 
 def test_workflow_run_dataclass():
-    run = WorkflowRun(run_id="r1", workflow_name="w", status="running",
-                      current_index=0, context={"trigger": {}, "steps": {}})
+    run = WorkflowRun(
+        run_id="r1",
+        workflow_name="w",
+        status="running",
+        current_index=0,
+        context={"trigger": {}, "steps": {}},
+    )
     assert run.status == "running" and run.resume_key is None and run.error is None

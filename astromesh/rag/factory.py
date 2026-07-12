@@ -69,7 +69,9 @@ def _pg_dsn(cfg: dict) -> str:
 def _build_store(cfg: dict, dimensions: int):
     backend = cfg.get("backend", "faiss")
     if backend == "pgvector":
-        return PGVectorStore(dsn=_pg_dsn(cfg), table=cfg.get("collection", "embeddings"), dimensions=dimensions)
+        return PGVectorStore(
+            dsn=_pg_dsn(cfg), table=cfg.get("collection", "embeddings"), dimensions=dimensions
+        )
     if backend == "qdrant":
         return QdrantStore(
             collection_name=cfg.get("collection", "astromesh"),
@@ -94,9 +96,13 @@ def _build_reranker(cfg: dict):
         return None
     provider = cfg.get("provider", "cross_encoder")
     if provider == "cross_encoder":
-        return CrossEncoderReranker(model_name=cfg.get("model", "cross-encoder/ms-marco-MiniLM-L-6-v2"))
+        return CrossEncoderReranker(
+            model_name=cfg.get("model", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+        )
     if provider == "cohere":
-        return CohereReranker(api_key=cfg.get("api_key", ""), model=cfg.get("model", "rerank-english-v3.0"))
+        return CohereReranker(
+            api_key=cfg.get("api_key", ""), model=cfg.get("model", "rerank-english-v3.0")
+        )
     raise ValueError(f"Unknown reranking.provider: {provider}")
 
 

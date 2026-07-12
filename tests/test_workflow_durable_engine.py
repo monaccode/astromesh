@@ -4,12 +4,15 @@ from astromesh.workflow.store import InMemoryRunStore
 
 class _StubExecutor:
     """Resuelve agent/tool a un output fijo; delega wait a un StepResult SUSPENDED."""
+
     def __init__(self):
         from astromesh.workflow.executor import StepExecutor
+
         self._real = StepExecutor(runtime=None, tool_registry=None)
 
     async def execute_step(self, step, context):
         from astromesh.workflow.models import StepResult
+
         if step.step_type.value == "wait":
             return await self._real.execute_step(step, context)
         return StepResult(name=step.name, status=StepStatus.SUCCESS, output={"ok": step.name})
@@ -17,6 +20,7 @@ class _StubExecutor:
 
 def _engine(steps, store):
     from astromesh.workflow import WorkflowEngine
+
     eng = WorkflowEngine(workflows_dir="", runtime=None, tool_registry=None, store=store)
     eng._workflows = {"wf": WorkflowSpec(name="wf", steps=steps)}
     eng._executor = _StubExecutor()
@@ -36,15 +40,18 @@ async def test_run_without_wait_returns_full_result():
 async def test_run_with_wait_suspends_and_persists():
     store = InMemoryRunStore()
     eng = _engine(
-        [StepSpec(name="a", tool="t"),
-         StepSpec(name="w", wait={"resume_key": "k"}),
-         StepSpec(name="b", tool="t")],
-        store)
+        [
+            StepSpec(name="a", tool="t"),
+            StepSpec(name="w", wait={"resume_key": "k"}),
+            StepSpec(name="b", tool="t"),
+        ],
+        store,
+    )
     result = await eng.run("wf", trigger={})
     assert result.status == "suspended"
     saved = await store.load(result.run_id)
     assert saved.status == "suspended"
-    assert saved.current_index == 2          # posterior al wait (índice de "b")
+    assert saved.current_index == 2  # posterior al wait (índice de "b")
     assert saved.context["steps"]["a"]["output"] == {"ok": "a"}
 
 
@@ -56,6 +63,7 @@ async def test_switch_goto_to_wait_suspends():
     class _SwitchStubExecutor(_StubExecutor):
         """Como _StubExecutor pero también delega switch al StepExecutor real,
         para que el goto se resuelva de verdad y apunte al step wait."""
+
         async def execute_step(self, step, context):
             if step.step_type.value in ("wait", "switch"):
                 return await self._real.execute_step(step, context)
@@ -63,10 +71,13 @@ async def test_switch_goto_to_wait_suspends():
 
     store = InMemoryRunStore()
     eng = _engine(
-        [StepSpec(name="s", switch=[{"default": True, "goto": "w"}]),
-         StepSpec(name="w", wait={"resume_key": "k"}),
-         StepSpec(name="b", tool="t")],
-        store)
+        [
+            StepSpec(name="s", switch=[{"default": True, "goto": "w"}]),
+            StepSpec(name="w", wait={"resume_key": "k"}),
+            StepSpec(name="b", tool="t"),
+        ],
+        store,
+    )
     eng._executor = _SwitchStubExecutor()
 
     result = await eng.run("wf", trigger={})
@@ -83,8 +94,11 @@ async def test_bootstrap_runs_orphan_sweep(tmp_path, monkeypatch):
     from astromesh.workflow.store import InMemoryRunStore
 
     store = InMemoryRunStore()
-    await store.create(WorkflowRun(run_id="orphan", workflow_name="w", status="running",
-                                   current_index=0, context={}))
+    await store.create(
+        WorkflowRun(
+            run_id="orphan", workflow_name="w", status="running", current_index=0, context={}
+        )
+    )
     eng = WorkflowEngine(workflows_dir=str(tmp_path), runtime=None, tool_registry=None, store=store)
     await eng.bootstrap()
     assert (await store.load("orphan")).status == "failed"

@@ -8,10 +8,12 @@ from astromesh.workflow.store import InMemoryRunStore
 class _StubExecutor:
     def __init__(self):
         from astromesh.workflow.executor import StepExecutor
+
         self._real = StepExecutor(runtime=None, tool_registry=None)
 
     async def execute_step(self, step, context):
         from astromesh.workflow.models import StepResult
+
         if step.step_type.value == "wait":
             return await self._real.execute_step(step, context)
         return StepResult(name=step.name, status=StepStatus.SUCCESS, output={"ok": step.name})
@@ -20,10 +22,15 @@ class _StubExecutor:
 @pytest.fixture
 def wired(monkeypatch):
     from astromesh.workflow import WorkflowEngine
+
     store = InMemoryRunStore()
     eng = WorkflowEngine(workflows_dir="", runtime=None, tool_registry=None, store=store)
-    eng._workflows = {"wf": WorkflowSpec(name="wf", steps=[
-        StepSpec(name="w", wait={"resume_key": "k"}), StepSpec(name="b", tool="t")])}
+    eng._workflows = {
+        "wf": WorkflowSpec(
+            name="wf",
+            steps=[StepSpec(name="w", wait={"resume_key": "k"}), StepSpec(name="b", tool="t")],
+        )
+    }
     eng._executor = _StubExecutor()
     wf_route.set_workflow_engine(eng)
     return eng

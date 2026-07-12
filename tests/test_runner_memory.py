@@ -33,8 +33,13 @@ class StubProvider:
     async def complete(self, messages, **kwargs):
         self._sink.append(list(messages))
         return CompletionResponse(
-            content="respuesta", model="stub", provider="stub", usage={},
-            latency_ms=0.0, cost=0.0, tool_calls=[],
+            content="respuesta",
+            model="stub",
+            provider="stub",
+            usage={},
+            latency_ms=0.0,
+            cost=0.0,
+            tool_calls=[],
         )
 
     def estimated_cost(self, model, input_tokens, output_tokens):
@@ -50,17 +55,23 @@ class StubProvider:
 @pytest.mark.asyncio
 async def test_runner_persists_and_injects_history(monkeypatch):
     backend = MemBackend()
-    monkeypatch.setattr(
-        "astromesh.memory.factory.build_conversation_backend", lambda cfg: backend
-    )
+    monkeypatch.setattr("astromesh.memory.factory.build_conversation_backend", lambda cfg: backend)
     seen_messages = []
 
     rt = ADKRuntime(provider_factory=lambda pname, mname, cfg: StubProvider(seen_messages))
 
     @agent(
-        name="astro", model="claude-haiku-4-5", pattern="react",
-        memory={"conversational": {"backend": "redis", "strategy": "sliding_window",
-                                   "max_turns": 20, "connection": {"url": "redis://x"}}},
+        name="astro",
+        model="claude-haiku-4-5",
+        pattern="react",
+        memory={
+            "conversational": {
+                "backend": "redis",
+                "strategy": "sliding_window",
+                "max_turns": 20,
+                "connection": {"url": "redis://x"},
+            }
+        },
     )
     async def astro(ctx):
         return None
@@ -89,15 +100,15 @@ async def test_runner_survives_persist_failure(monkeypatch):
             raise RuntimeError("redis down")
 
     backend = FailingBackend()
-    monkeypatch.setattr(
-        "astromesh.memory.factory.build_conversation_backend", lambda cfg: backend
-    )
+    monkeypatch.setattr("astromesh.memory.factory.build_conversation_backend", lambda cfg: backend)
     seen = []
 
     rt = ADKRuntime(provider_factory=lambda pname, mname, cfg: StubProvider(seen))
 
     @agent(
-        name="astro", model="claude-haiku-4-5", pattern="react",
+        name="astro",
+        model="claude-haiku-4-5",
+        pattern="react",
         memory={"conversational": {"backend": "redis", "connection": {"url": "redis://x"}}},
     )
     async def astro(ctx):

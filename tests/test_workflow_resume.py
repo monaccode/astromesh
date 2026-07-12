@@ -8,24 +8,34 @@ from astromesh.workflow.store import InMemoryRunStore
 class _StubExecutor:
     def __init__(self):
         from astromesh.workflow.executor import StepExecutor
+
         self._real = StepExecutor(runtime=None, tool_registry=None)
 
     async def execute_step(self, step, context):
         from astromesh.workflow.models import StepResult
+
         if step.step_type.value == "wait":
             return await self._real.execute_step(step, context)
         # 'b' expone el payload del resume para poder asertarlo
-        return StepResult(name=step.name, status=StepStatus.SUCCESS,
-                          output={"seen_resume": context.get("resume")})
+        return StepResult(
+            name=step.name, status=StepStatus.SUCCESS, output={"seen_resume": context.get("resume")}
+        )
 
 
 def _engine(store):
     from astromesh.workflow import WorkflowEngine
+
     eng = WorkflowEngine(workflows_dir="", runtime=None, tool_registry=None, store=store)
-    eng._workflows = {"wf": WorkflowSpec(name="wf", steps=[
-        StepSpec(name="a", tool="t"),
-        StepSpec(name="w", wait={"resume_key": "k"}),
-        StepSpec(name="b", tool="t")])}
+    eng._workflows = {
+        "wf": WorkflowSpec(
+            name="wf",
+            steps=[
+                StepSpec(name="a", tool="t"),
+                StepSpec(name="w", wait={"resume_key": "k"}),
+                StepSpec(name="b", tool="t"),
+            ],
+        )
+    }
     eng._executor = _StubExecutor()
     return eng
 
@@ -54,6 +64,6 @@ async def test_resume_non_suspended_raises():
     store = InMemoryRunStore()
     eng = _engine(store)
     r1 = await eng.run("wf", trigger={})
-    await eng.resume(r1.run_id, payload={})           # completa
+    await eng.resume(r1.run_id, payload={})  # completa
     with pytest.raises(ValueError):
-        await eng.resume(r1.run_id, payload={})       # ya no está suspended
+        await eng.resume(r1.run_id, payload={})  # ya no está suspended
