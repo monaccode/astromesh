@@ -203,10 +203,11 @@ class WorkflowEngine:
                     run.resume_key = (result.output or {}).get("resume_key")
                     run.pending_approval = (result.output or {}).get("pending_approval")
                     timeout = (result.output or {}).get("timeout_seconds")
-                    if timeout:
-                        run.expires_at = (
-                            datetime.now(UTC) + timedelta(seconds=timeout)
-                        ).isoformat()
+                    run.expires_at = (
+                        (datetime.now(UTC) + timedelta(seconds=timeout)).isoformat()
+                        if timeout
+                        else None
+                    )
                     run.updated_at = datetime.now(UTC).isoformat()
                     await self._store.save(run)
                     tracing.finish_span(root_span)
@@ -266,10 +267,11 @@ class WorkflowEngine:
                                 "pending_approval"
                             )
                             timeout = (goto_result.output or {}).get("timeout_seconds")
-                            if timeout:
-                                run.expires_at = (
-                                    datetime.now(UTC) + timedelta(seconds=timeout)
-                                ).isoformat()
+                            run.expires_at = (
+                                (datetime.now(UTC) + timedelta(seconds=timeout)).isoformat()
+                                if timeout
+                                else None
+                            )
                             run.updated_at = datetime.now(UTC).isoformat()
                             await self._store.save(run)
                             tracing.finish_span(root_span)

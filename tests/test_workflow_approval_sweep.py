@@ -98,3 +98,31 @@ async def test_expired_plain_wait_still_expires():
     run_id = (await eng.run("wf", trigger={})).run_id
     await eng.sweep_expired(now="2999-01-01T00:00:00")
     assert (await store.load(run_id)).status == "expired"
+
+
+async def test_second_suspend_without_timeout_clears_stale_expires_at():
+    # First approval has a timeout; second does not. Approving #1 must not
+    # leave #1's expires_at deadline hanging over #2's no-timeout suspend.
+    store = InMemoryRunStore()
+    eng = _engine(
+        [
+            StepSpec(
+                name="aprobar1",
+                approval={"approver": "role:mgr", "prompt": "ok?", "timeout_seconds": 1},
+            ),
+            StepSpec(name="aprobar2", approval={"approver": "role:mgr", "prompt": "ok2?"}),
+            StepSpec(name="b", tool="t"),
+        ],
+        store,
+    )
+    run_id = (await eng.run("wf", trigger={})).run_id
+
+    await eng.approve(run_id, approver="u:jc", comment=None, decided_at="2026-07-11T10:00:00")
+    saved = await store.load(run_id)
+    assert saved.status == "suspended"
+    assert saved.expires_at is None
+
+    n = await eng.sweep_expired(now="2999-01-01T00:00:00")
+    assert n == 0
+    saved = await store.load(run_id)
+    assert saved.status == "suspended"
