@@ -13,3 +13,11 @@ def test_centinela_sync_workflow_parses():
     steps = wf["jobs"]["sync"]["steps"]
     # the command is invoked as a Python function (astromeshctl can't compose the plugin in CI)
     assert any("plan_promotion_command" in str(s.get("run", "")) for s in steps)
+
+
+def test_centinela_endpoints_workflow_parses():
+    wf = yaml.safe_load((_ROOT / ".github/workflows/centinela-endpoints.yml").read_text())
+    on = wf.get("on", wf.get(True))
+    assert "config/centinela/bindings.yaml" in on["push"]["paths"]
+    steps = wf["jobs"]["apply"]["steps"]
+    assert any("apply_endpoints_command" in str(s.get("run", "")) for s in steps)
