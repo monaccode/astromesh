@@ -97,6 +97,10 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Models',
+          autogenerate: { directory: 'models' },
+        },
+        {
           label: 'Agent Development Kit',
           items: [
             { label: 'Introduction', slug: 'adk/introduction' },

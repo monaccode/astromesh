@@ -1,0 +1,42 @@
+{
+  "models": [
+    {
+      "aliases": {
+        "prod": "v0.1"
+      },
+      "contract": {
+        "labels": [
+          "positivo",
+          "neutral",
+          "negativo"
+        ],
+        "validation": "constrain_label"
+      },
+      "hf_repo": "astromesh/Centinela-Qwen3-4B",
+      "kind": "classifier",
+      "name": "centinela-sentiment",
+      "revisions": {
+        "v0.1": {
+          "base_model": "Qwen/Qwen3-4B",
+          "dataset": "centinela-sentiment-es@1",
+          "eval": {
+            "invalid_rate": 0,
+            "macro_f1": 0
+          },
+          "formats": [
+            "safetensors",
+            "gguf"
+          ],
+          "gate": "passed",
+          "scout_rationale": "",
+          "sha": "REPLACE_WITH_REAL_HF_REVISION_SHA",
+          "train_config_hash": "sha256:REPLACE_WITH_REAL_TRAIN_CONFIG_HASH",
+          "version": "v0.1"
+        }
+      },
+      "task": "text-classification",
+      "vertical": "finanzas"
+    }
+  ],
+  "schema_version": "1"
+}
