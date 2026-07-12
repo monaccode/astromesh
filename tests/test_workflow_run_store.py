@@ -1,6 +1,8 @@
 import tempfile
 from pathlib import Path
 
+import aiosqlite
+
 from astromesh.workflow.models import WorkflowRun
 from astromesh.workflow.store import InMemoryRunStore, SqliteRunStore
 
@@ -103,3 +105,27 @@ async def test_sqlite_roundtrips_pending_approval():
         )
         r2 = await store.load("r2")
         assert r2.pending_approval is None
+
+
+async def test_sqlite_migrates_pre_slice2_schema_missing_pending_approval():
+    with tempfile.TemporaryDirectory() as d:
+        db_path = str(Path(d) / "runs.db")
+        old_db = await aiosqlite.connect(db_path)
+        await old_db.execute(
+            "CREATE TABLE workflow_runs ("
+            "run_id TEXT PRIMARY KEY, workflow_name TEXT, status TEXT, "
+            "current_index INTEGER, context TEXT, resume_key TEXT, "
+            "created_at TEXT, updated_at TEXT, expires_at TEXT, error TEXT)"
+        )
+        await old_db.commit()
+        await old_db.close()
+
+        store = SqliteRunStore(db_path)
+        await store.initialize()
+        await store.create(_run_with_approval())
+        loaded = await store.load("rap")
+        assert loaded.pending_approval == {
+            "step_name": "aprobar",
+            "approver": "role:mgr",
+            "prompt": "ok?",
+        }

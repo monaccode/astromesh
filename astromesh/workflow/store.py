@@ -72,6 +72,13 @@ class SqliteRunStore(WorkflowRunStore):
             "context TEXT, resume_key TEXT, created_at TEXT, updated_at TEXT, "
             "expires_at TEXT, error TEXT, pending_approval TEXT)"
         )
+        # Idempotent migration: a table created by the earlier async-durable
+        # slice (10 cols, no pending_approval) is a no-op for CREATE TABLE IF
+        # NOT EXISTS above, so backfill the column here if it's missing.
+        cur = await self._db.execute("PRAGMA table_info(workflow_runs)")
+        existing = {row[1] for row in await cur.fetchall()}
+        if "pending_approval" not in existing:
+            await self._db.execute("ALTER TABLE workflow_runs ADD COLUMN pending_approval TEXT")
         await self._db.commit()
 
     def _row(self, run: WorkflowRun) -> tuple:
