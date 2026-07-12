@@ -17,6 +17,7 @@ from astromesh.orchestration.patterns import (
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
+from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +167,7 @@ def build_candidate_provider(block: dict):
 class AgentRuntime:
     def __init__(self, config_dir="./config", service_manager=None, peer_client=None):
         self._config_dir = Path(config_dir)
+        self._provider_registry = load_provider_registry(self._config_dir)
         self._rag_specs = {}
         self._agents: dict[str, "Agent"] = {}
         self._agent_status: dict[str, str] = {}
@@ -280,6 +282,7 @@ class AgentRuntime:
             router = ModelRouter({"strategy": cfg.get("strategy", "cost_optimized")})
             registered = 0
             for i, block in enumerate(cfg.get("candidates", [])):
+                block = resolve_block(block, self._provider_registry)
                 try:
                     prov = build_candidate_provider(block)
                 except Exception:
