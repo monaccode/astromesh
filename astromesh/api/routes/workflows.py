@@ -99,7 +99,7 @@ async def list_approvals(approver: str | None = None):
     }
 
 
-async def _decide_endpoint(run_id: str, request: "DecisionRequest", approved: bool):
+async def _decide_endpoint(run_id: str, request: DecisionRequest, approved: bool):
     if not _engine:
         raise HTTPException(status_code=503, detail="Workflow engine not initialized")
     decided_at = datetime.now(UTC).isoformat()
