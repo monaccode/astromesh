@@ -1,0 +1,86 @@
+name: centinela-sync
+on:
+  repository_dispatch:
+    types: [catalog-lock-updated]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Fetch new catalog lock from nebula
+        env:
+          GH_TOKEN: ${{ secrets.GH_PIPELINE_TOKEN }}
+          REF: ${{ github.event.client_payload.ref }}
+          NEBULA_REPO: ${{ vars.NEBULA_REPO }}
+        run: |
+          curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/$NEBULA_REPO/contents/nebula/catalog.lock.json?ref=$REF" \
+            -o new_lock.json
+
+      - name: Plan promotion
+        id: plan
+        working-directory: astromesh-node
+        env:
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          uv sync --extra test
+          set +e
+          uv run python -c '
+          import os, sys, typer
+          from astromesh_node.cli.commands.centinela import plan_promotion_command
+          try:
+              plan_promotion_command(
+                  new_lock="../new_lock.json",
+                  version=os.environ["VERSION"],
+                  bindings="../config/centinela/bindings.yaml",
+                  vendored_lock="../docs-site/src/data/catalog.lock.json",
+                  pr_body="../pr-body.md",
+                  labels_out="../pr-labels.txt",
+                  pyproject=["../pyproject.toml", "../astromesh-node/pyproject.toml"],
+              )
+          except typer.Exit as exc:
+              sys.exit(exc.exit_code or 0)
+          '
+          code=$?
+          set -e
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          cd ..
+          if [ -f pr-labels.txt ]; then
+            echo "labels=$(cat pr-labels.txt)" >> "$GITHUB_OUTPUT"
+          else
+            echo "labels=centinela:staging" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -s pr-body.md ]; then echo "skip=false" >> "$GITHUB_OUTPUT"; else echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+          rm -f new_lock.json
+
+      - name: Create pull request
+        if: steps.plan.outputs.skip == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/centinela-sync
+          title: "chore(centinela): sync catalog ${{ github.event.client_payload.version }}"
+          body-path: pr-body.md
+          labels: ${{ steps.plan.outputs.labels }}
+          add-paths: |
+            docs-site/src/data/catalog.lock.json
+            config/centinela/bindings.yaml
+            pyproject.toml
+            astromesh-node/pyproject.toml
+
+      - name: Fail the check if blocked
+        if: steps.plan.outputs.exit == '1'
+        run: |
+          echo "::error::Blocked promotion — resolve items in the PR body before merge"
+          exit 1
