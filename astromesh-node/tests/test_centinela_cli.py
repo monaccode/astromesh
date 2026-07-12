@@ -5,6 +5,7 @@ import pytest
 import typer
 import yaml
 
+from astromesh.centinela import hf_endpoints as _hf
 from astromesh.centinela.promote import STUB_ENDPOINT
 from astromesh_node.cli.commands import centinela
 
@@ -177,3 +178,97 @@ def test_plan_promotion_blocked_exits_1_but_still_writes(tmp_path):
             pyproject=[])
     assert exc.value.exit_code == 1
     assert "Blocked" in body.read_text()
+
+
+def _sentiment_lock(sha="a" * 40, gate="passed"):
+    return {"schema_version": "1", "models": [{
+        "name": "centinela-sentiment", "kind": "classifier", "task": "text-classification",
+        "vertical": "finanzas", "hf_repo": "astromesh/Centinela-Qwen3-4B",
+        "contract": {"labels": ["positivo", "neutral", "negativo"]},
+        "aliases": {"prod": "v0.1"},
+        "revisions": {"v0.1": {"version": "v0.1", "sha": sha, "gate": gate,
+                               "eval": {"macro_f1": 0.9, "invalid_rate": 0.01}}}}]}
+
+
+def _serving_bindings():
+    return {"apiVersion": "astromesh/v1", "kind": "CentinelaBindings",
+            "metadata": {"name": "default"},
+            "spec": {"bindings": [{"model": "centinela-sentiment", "alias": "prod",
+                                   "serving": {"instance_type": "nvidia-a10g",
+                                               "instance_size": "x1"}}]}}
+
+
+class _FakeEp:
+    url = "https://ep.aws.endpoints.huggingface.cloud"
+
+    def wait(self, timeout=None):
+        return self
+
+
+def test_apply_endpoints_create_writes_provider_config(tmp_path, monkeypatch):
+    monkeypatch.setattr(centinela, "_load_lock", lambda: _sentiment_lock())
+    monkeypatch.setattr(_hf, "get_endpoint", lambda *a, **k: None)  # absent -> create
+    created = {}
+
+    def _create_endpoint(d, **k):
+        created["name"] = d.name
+        return _FakeEp()
+
+    monkeypatch.setattr(_hf, "create_endpoint", _create_endpoint)
+    monkeypatch.setattr(_hf, "wait_url", lambda ep, **k: ep.url)
+
+    bindings_path = tmp_path / "bindings.yaml"
+    bindings_path.write_text(yaml.safe_dump(_serving_bindings()))
+    out_path = tmp_path / "providers.centinela.yaml"
+
+    centinela.apply_endpoints_command(
+        bindings=str(bindings_path), out=str(out_path), namespace="org",
+        dry_run=False, wait_timeout=5)
+
+    assert created["name"] == "centinela-sentiment-prod"
+    doc = yaml.safe_load(out_path.read_text())
+    entry = doc["spec"]["providers"]["centinela-sentiment"]
+    assert entry["endpoint"] == "https://ep.aws.endpoints.huggingface.cloud"
+    assert entry["endpoint_name"] == "centinela-sentiment-prod"
+    assert entry["api_key_env"] == "HF_TOKEN"
+
+
+def test_apply_endpoints_dry_run_makes_no_mutation(tmp_path, monkeypatch):
+    monkeypatch.setattr(centinela, "_load_lock", lambda: _sentiment_lock())
+    monkeypatch.setattr(_hf, "get_endpoint", lambda *a, **k: None)
+
+    def _boom(*a, **k):
+        raise AssertionError("must not mutate in dry-run")
+
+    monkeypatch.setattr(_hf, "create_endpoint", _boom)
+    monkeypatch.setattr(_hf, "update_endpoint", _boom)
+
+    bindings_path = tmp_path / "bindings.yaml"
+    bindings_path.write_text(yaml.safe_dump(_serving_bindings()))
+    out_path = tmp_path / "providers.centinela.yaml"
+
+    centinela.apply_endpoints_command(
+        bindings=str(bindings_path), out=str(out_path), namespace="org",
+        dry_run=True, wait_timeout=5)
+
+    assert not out_path.exists()
+
+
+def test_apply_endpoints_skips_not_ready(tmp_path, monkeypatch):
+    monkeypatch.setattr(centinela, "_load_lock",
+                        lambda: _sentiment_lock(sha="REPLACE_WITH_REAL_HF_REVISION_SHA"))
+
+    def _boom(*a, **k):
+        raise AssertionError("must not touch HF for a not-ready binding")
+
+    monkeypatch.setattr(_hf, "get_endpoint", _boom)
+    bindings_path = tmp_path / "bindings.yaml"
+    bindings_path.write_text(yaml.safe_dump(_serving_bindings()))
+    out_path = tmp_path / "providers.centinela.yaml"
+
+    centinela.apply_endpoints_command(
+        bindings=str(bindings_path), out=str(out_path), namespace="org",
+        dry_run=False, wait_timeout=5)
+
+    doc = yaml.safe_load(out_path.read_text())
+    assert doc["spec"]["providers"] == {}
