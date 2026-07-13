@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import httpx
+import pytest
 import respx
 
 from astromesh.providers.base import CompletionResponse
@@ -9,6 +10,9 @@ from astromesh.providers.centinela import (
     SentimentResult,
     _CentinelaEndpointClient,
 )
+
+# classify() applies nebula's label contract; skip when the optional sibling repo is absent.
+pytest.importorskip("nebula", reason="astromesh-nebula (optional sibling repo) not installed")
 
 CONTRACT = {"labels": ["positivo", "neutral", "negativo"]}
 

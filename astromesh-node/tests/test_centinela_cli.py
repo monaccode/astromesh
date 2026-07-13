@@ -55,7 +55,9 @@ def test_reconcile_command_writes_provider_config(tmp_path, monkeypatch):
 
 def test_reconcile_command_end_to_end_with_shipped_lock(tmp_path):
     # No monkeypatch: exercises real _load_lock() reading nebula's shipped catalog.lock.json,
-    # plus the real seed bindings. Proves nebula is importable in astromesh-node's env.
+    # plus the real seed bindings. astromesh-nebula is an optional sibling repo, so skip when
+    # it is not installed (the other tests here monkeypatch the lock and need no nebula).
+    pytest.importorskip("nebula", reason="astromesh-nebula (optional sibling repo) not installed")
     repo_root = Path(__file__).resolve().parents[2]
     seed_bindings = repo_root / "config" / "centinela" / "bindings.yaml"
     out_path = tmp_path / "providers.centinela.yaml"

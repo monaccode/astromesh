@@ -10,7 +10,6 @@ requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
     "astromesh>=0.18.0",
-    "astromesh-nebula>=0.1.0",
     "astromesh-cli>=0.1.0",
     "typer>=0.12.0",
     "rich>=13.0.0",
@@ -20,7 +19,6 @@ dependencies = [
 [tool.uv.sources]
 astromesh = { path = "..", editable = true }
 astromesh-cli = { path = "../astromesh-cli", editable = true }
-astromesh-nebula = { path = "../../astromesh-nebula", editable = true }
 
 [project.optional-dependencies]
 systemd = ["sdnotify>=0.3.0"]

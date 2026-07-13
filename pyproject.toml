@@ -33,7 +33,10 @@ observability = [
 mcp = ["mcp>=1.0.0"]
 mesh = ["psutil>=5.9.0"]
 litellm = ["litellm>=1.50.0"]
-centinela = ["astromesh-nebula>=0.1.0", "huggingface_hub>=0.24"]
+# astromesh-nebula is a separate repo (not published); install it manually for local
+# Centinela work: `uv pip install -e ../astromesh-nebula`. Kept out of the dependency
+# graph so the universal lock/CI does not require the sibling checkout.
+centinela = ["huggingface_hub>=0.24"]
 all = [
     "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh,litellm,centinela]",
 ]
@@ -49,12 +52,10 @@ dev = [
     "pytest-mock>=3.15.1",
     "pre-commit>=3.5.0",
     "astromesh-adk",
-    "astromesh-nebula",
 ]
 
 [tool.uv.sources]
 astromesh-adk = { path = "astromesh-adk", editable = true }
-astromesh-nebula = { path = "../astromesh-nebula", editable = true }
 
 [build-system]
 requires = ["hatchling"]

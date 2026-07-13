@@ -31,8 +31,6 @@ from typing import Any, AsyncIterator
 import httpx
 from pydantic import BaseModel
 
-from nebula.validation import constrain_label
-
 from .base import CompletionChunk, CompletionResponse
 
 
@@ -107,6 +105,11 @@ class _CentinelaEndpointClient:
         return (data["choices"][0].get("message", {}).get("content", "") or "").strip()
 
     async def classify(self, text: str) -> SentimentResult:
+        # Imported lazily: astromesh-nebula is a separate, optional repo (the
+        # `centinela` extra). Keeping this out of module scope lets the provider
+        # be imported/instantiated without nebula installed (e.g. in CI).
+        from nebula.validation import constrain_label
+
         attempts = self.max_retries if self.invalid_policy == "retry" else 1
         raw = ""
         label: str | None = None

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- CI was red because the `centinela` extra (and the `dev` group / `astromesh-node`) declared a
+  hard dependency on **astromesh-nebula** via a `path = "../astromesh-nebula"` source. That
+  sibling repo is not present on CI runners, so `uv sync` failed to resolve. Removed
+  `astromesh-nebula` from the dependency graph in both `pyproject.toml` files (it is a separate,
+  unpublished repo — install locally with `uv pip install -e ../astromesh-nebula`), made the
+  `from nebula.validation import constrain_label` import in `CentinelaProvider` lazy so the
+  provider imports/instantiates without nebula, and guarded the nebula-dependent tests with
+  `pytest.importorskip("nebula")` so they skip cleanly when it is absent.
+
+### Changed
+- The `centinela` optional extra no longer bundles `astromesh-nebula` (it now installs only
+  `huggingface_hub`). Centinela's label-contract enforcement requires nebula installed
+  separately; without it the provider still loads but `classify()` raises on first use.
+
 ## [v0.32.0] - 2026-07-13
 
 ### Added
