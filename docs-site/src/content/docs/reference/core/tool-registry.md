@@ -276,31 +276,17 @@ When a tool exceeds its rate limit, the ToolRegistry returns an error message to
 
 ## Tool Execution Flow
 
-```
-LLM returns tool_call
-       │
-       ▼
-┌──────────────────┐
-│ Permission Check │──▶ Denied? Return error to LLM
-└────────┬─────────┘
-         │ Allowed
-         ▼
-┌──────────────────┐
-│ Rate Limit Check │──▶ Exceeded? Return rate limit error to LLM
-└────────┬─────────┘
-         │ Within limits
-         ▼
-┌────────────────────────────────────────────┐
-│ Execute Tool                               │
-│                                            │
-│  internal: call Python function            │
-│  mcp: proxy to MCP server                  │
-│  webhook: HTTP POST to URL                 │
-│  rag: run vector query                     │   
-│  agent: invoke target agent pipeline       │
-└────────┬───────────────────────────────────┘
-         │
-         ▼
-  Return result to LLM
-  (next orchestration iteration)
+```mermaid
+flowchart TB
+    tc["LLM returns tool_call"] --> pc["Permission Check"]
+    pc -- "Denied?" --> pe["Return error to LLM"]
+    pc -- Allowed --> rl["Rate Limit Check"]
+    rl -- "Exceeded?" --> re["Return rate limit error to LLM"]
+    rl -- Within limits --> ex["`**Execute Tool**
+    internal: call Python function
+    mcp: proxy to MCP server
+    webhook: HTTP POST to URL
+    rag: run vector query
+    agent: invoke target agent pipeline`"]
+    ex --> res["Return result to LLM (next orchestration iteration)"]
 ```

@@ -6,33 +6,39 @@
 
 Astromesh is a multi-model, multi-pattern AI agent runtime platform. It follows a 4-layer architecture where each layer has a clear responsibility and communicates with adjacent layers through well-defined interfaces.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    API Layer (FastAPI)                  │
-│         REST endpoints  ·  WebSocket streaming          │
-├─────────────────────────────────────────────────────────┤
-│                    Runtime Engine                       │
-│         YAML loading  ·  Agent lifecycle                │
-├─────────────────────────────────────────────────────────┤
-│                    Core Services                        │
-│  ModelRouter · MemoryManager · ToolRegistry · Guardrails│
-├─────────────────────────────────────────────────────────┤
-│                    Infrastructure                       │
-│  Providers · Backends · Vector Stores · Observability   │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    api["`**API Layer (FastAPI)**
+    REST endpoints · WebSocket streaming`"]
+    runtime["`**Runtime Engine**
+    YAML loading · Agent lifecycle`"]
+    core["`**Core Services**
+    ModelRouter · MemoryManager · ToolRegistry · Guardrails`"]
+    infra["`**Infrastructure**
+    Providers · Backends · Vector Stores · Observability`"]
+    api --- runtime --- core --- infra
 ```
 
 ## Channel Adapters
 
 Channel adapters sit above the API layer, connecting external messaging platforms to the Agent Runtime. Each adapter translates platform-specific webhook events into Astromesh agent requests and formats agent responses back to the platform's expected format.
 
-```
-External Platforms          Channel Adapters              Agent Runtime
-┌───────────┐          ┌──────────────────────┐      ┌──────────────┐
-│ WhatsApp  │─webhook─►│  WhatsApp Adapter    │─────►│              │
-│ Business  │◄──reply──│  (verify, parse,     │◄─────│  AgentRuntime│
-│ Cloud API │          │   send, signatures)  │      │  .run()      │
-└───────────┘          └──────────────────────┘      └──────────────┘
+```mermaid
+flowchart LR
+    subgraph ext["External Platforms"]
+        wa["`**WhatsApp Business Cloud API**`"]
+    end
+    subgraph ca["Channel Adapters"]
+        adapter["`**WhatsApp Adapter**
+        verify, parse, send, signatures`"]
+    end
+    subgraph ar["Agent Runtime"]
+        rt["AgentRuntime.run()"]
+    end
+    wa -- webhook --> adapter
+    adapter -- reply --> wa
+    adapter --> rt
+    rt --> adapter
 ```
 
 - **WhatsApp** — First supported channel. Receives messages via Meta webhook, validates signatures with `app_secret`, and sends replies through the WhatsApp Business Cloud API.
@@ -73,10 +79,17 @@ Bootstraps the system by scanning `config/agents/*.agent.yaml`, parsing each fil
 
 Executes the full agent pipeline for each request:
 
-```
-Query → Guardrails (input) → Memory Context → Prompt Rendering
-  → Orchestration Pattern → Model Routing → Tool Execution
-  → Response → Guardrails (output) → Memory Persistence
+```mermaid
+flowchart LR
+    q[Query] --> gi["Guardrails (input)"]
+    gi --> mc[Memory Context]
+    mc --> pr[Prompt Rendering]
+    pr --> op[Orchestration Pattern]
+    op --> mr[Model Routing]
+    mr --> te[Tool Execution]
+    te --> resp[Response]
+    resp --> go["Guardrails (output)"]
+    go --> mp[Memory Persistence]
 ```
 
 Each agent has:
@@ -94,20 +107,15 @@ Each agent has:
 
 Routes completion requests across multiple providers with intelligent selection.
 
-```
-                    ┌─────────────┐
-    Request ──────► │ ModelRouter │
-                    │             │
-                    │ 1. Rank     │──► Strategy-based ordering
-                    │ 2. Try      │──► Circuit breaker check
-                    │ 3. Fallback │──► Next provider on failure
-                    └──────┬──────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-          ┌───────┐   ┌────────┐   ┌───────┐
-          │Ollama │   │ OpenAI │   │ vLLM  │  ...
-          └───────┘   └────────┘   └───────┘
+```mermaid
+flowchart TB
+    req[Request] --> router["`**ModelRouter**
+    1. Rank → Strategy-based ordering
+    2. Try → Circuit breaker check
+    3. Fallback → Next provider on failure`"]
+    router --> ollama[Ollama]
+    router --> openai[OpenAI]
+    router --> vllm[vLLM]
 ```
 
 **Routing Strategies:**
@@ -130,24 +138,17 @@ Routes completion requests across multiple providers with intelligent selection.
 
 Manages three types of memory with pluggable backends and strategies.
 
-```
-                    ┌──────────────────┐
-                    │  MemoryManager   │
-                    │                  │
-                    │ build_context()  │──► Assemble context from all memory types
-                    │ persist_turn()   │──► Store conversation turns
-                    └──────┬───────────┘
-                           │
-           ┌───────────────┼───────────────┐
-           ▼               ▼               ▼
-    ┌──────────────┐ ┌───────────┐ ┌───────────┐
-    │Conversational│ │ Semantic  │ │ Episodic  │
-    │              │ │           │ │           │
-    │Redis/PG/     │ │pgvector/  │ │PostgreSQL │
-    │SQLite        │ │Chroma/    │ │           │
-    │              │ │Qdrant/    │ │           │
-    │              │ │FAISS      │ │           │
-    └──────────────┘ └───────────┘ └───────────┘
+```mermaid
+flowchart TB
+    mm["`**MemoryManager**
+    build_context() → Assemble context from all memory types
+    persist_turn() → Store conversation turns`"]
+    mm --> conv["`**Conversational**
+    Redis / PG / SQLite`"]
+    mm --> sem["`**Semantic**
+    pgvector / Chroma / Qdrant / FAISS`"]
+    mm --> epi["`**Episodic**
+    PostgreSQL`"]
 ```
 
 **Memory Strategies:**
@@ -221,12 +222,16 @@ Control how agents reason and use tools:
 
 Full retrieval-augmented generation pipeline:
 
-```
-Documents → Chunking → Embedding → Vector Store
-                                        │
-Query → Embedding → Vector Search ──────┘
-                         │
-                    Reranking → Top-K results
+```mermaid
+flowchart LR
+    docs[Documents] --> chunk[Chunking]
+    chunk --> emb1[Embedding]
+    emb1 --> vs[Vector Store]
+    query[Query] --> emb2[Embedding]
+    emb2 --> search[Vector Search]
+    vs --> search
+    search --> rerank[Reranking]
+    rerank --> topk[Top-K results]
 ```
 
 **Components:**
@@ -251,12 +256,16 @@ Query → Embedding → Vector Search ──────┘
 
 ### Observability (`astromesh/observability/`)
 
-```
-Agent Execution ──► TelemetryManager ──► OpenTelemetry Collector ──► Jaeger/Zipkin
-                         │
-                    MetricsCollector ──► Prometheus ──► Grafana
-                         │
-                    CostTracker ──► Usage records + budget alerts
+```mermaid
+flowchart LR
+    ae[Agent Execution] --> tm[TelemetryManager]
+    tm --> otel[OpenTelemetry Collector]
+    otel --> jz[Jaeger/Zipkin]
+    ae --> mcol[MetricsCollector]
+    mcol --> prom[Prometheus]
+    prom --> graf[Grafana]
+    ae --> ct[CostTracker]
+    ct --> ur[Usage records + budget alerts]
 ```
 
 - **Telemetry** — Distributed tracing with OpenTelemetry (with `_NoOpSpan` fallback when OTel is not installed)

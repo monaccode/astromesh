@@ -18,41 +18,29 @@ The daemon wraps `AgentRuntime` with process management concerns:
 
 ## Startup Sequence
 
-```
-astromeshd started
-       │
-       ▼
-┌──────────────────────┐
-│ 1. Find config dir   │  --config flag > /etc/astromesh > ./config/
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 2. Read runtime.yaml │  Global settings: port, log level, providers
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 3. Bootstrap runtime │  Scan agents/, load channels, wire services
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 4. Start API server  │  Uvicorn on configured host:port
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 5. Write PID file    │  /var/run/astromesh/astromeshd.pid
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│ 6. Notify systemd    │  sd_notify(READY=1)
-└──────────────────────┘
-           │
-           ▼
-     Serving requests
+```mermaid
+flowchart TB
+    start["astromeshd started"]
+    s1["`**1. Find config dir**
+    --config flag > /etc/astromesh > ./config/`"]
+    s2["`**2. Read runtime.yaml**
+    Global settings: port, log level, providers`"]
+    s3["`**3. Bootstrap runtime**
+    Scan agents/, load channels, wire services`"]
+    s4["`**4. Start API server**
+    Uvicorn on configured host:port`"]
+    s5["`**5. Write PID file**
+    /var/run/astromesh/astromeshd.pid`"]
+    s6["`**6. Notify systemd**
+    sd_notify(READY=1)`"]
+    serving["Serving requests"]
+    start --> s1
+    s1 --> s2
+    s2 --> s3
+    s3 --> s4
+    s4 --> s5
+    s5 --> s6
+    s6 --> serving
 ```
 
 ## CLI Flags

@@ -80,26 +80,22 @@ The Runtime Engine is the heart of Astromesh -- the control plane that turns dec
 
 When the application starts, `AgentRuntime.bootstrap()` performs the following sequence:
 
-```
-config/agents/*.agent.yaml
-        │
-        ▼
-┌─────────────────────────────────┐
-│  1. Scan config/agents/ dir     │
-│  2. Parse each .agent.yaml      │
-│  3. Validate against schema     │
-│  4. For each agent definition:  │
-│     ├── Build ModelRouter       │──► Wire primary + fallback providers
-│     ├── Build MemoryManager     │──► Configure backends + strategies
-│     ├── Build ToolRegistry      │──► Register tools (internal, MCP, webhook, RAG)
-│     ├── Select Pattern          │──► Instantiate orchestration pattern
-│     ├── Build PromptEngine      │──► Register Jinja2 templates
-│     ├── Build GuardrailsEngine  │──► Configure input/output rules
-│     └── Create Agent instance   │──► Fully wired, ready to execute
-└─────────────────────────────────┘
-        │
-        ▼
-  agents: Dict[str, Agent]   ← Lookup table by agent name
+```mermaid
+flowchart TB
+    cfg["config/agents/*.agent.yaml"] --> boot
+    subgraph boot ["Bootstrap"]
+        b1["1. Scan config/agents/ dir"] --> b2["2. Parse each .agent.yaml"]
+        b2 --> b3["3. Validate against schema"]
+        b3 --> b4["4. For each agent definition:"]
+        b4 --> mr["Build ModelRouter → Wire primary + fallback providers"]
+        mr --> mm["Build MemoryManager → Configure backends + strategies"]
+        mm --> tr["Build ToolRegistry → Register tools (internal, MCP, webhook, RAG)"]
+        tr --> sp["Select Pattern → Instantiate orchestration pattern"]
+        sp --> pe["Build PromptEngine → Register Jinja2 templates"]
+        pe --> ge["Build GuardrailsEngine → Configure input/output rules"]
+        ge --> ci["Create Agent instance → Fully wired, ready to execute"]
+    end
+    boot --> out["agents: Dict[str, Agent] — Lookup table by agent name"]
 ```
 
 The bootstrap process reads all YAML files, validates them, and assembles fully wired `Agent` objects. Each agent gets its own set of dependencies (router, memory, tools, etc.) based on its configuration.
@@ -131,20 +127,15 @@ Core Services are the domain-specific building blocks that agents use during exe
 
 The Model Router manages multi-provider LLM inference. Given a completion request, it ranks available providers using the configured routing strategy, checks circuit breaker state, and tries providers in order until one succeeds.
 
-```
-                    ┌─────────────┐
-    Request ──────► │ ModelRouter │
-                    │             │
-                    │ 1. Rank     │──► Strategy-based ordering
-                    │ 2. Try      │──► Circuit breaker check
-                    │ 3. Fallback │──► Next provider on failure
-                    └──────┬──────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-          ┌───────┐   ┌────────┐   ┌───────┐
-          │Ollama │   │ OpenAI │   │ vLLM  │  ...
-          └───────┘   └────────┘   └───────┘
+```mermaid
+flowchart TB
+    req["Request"] --> mr["`**ModelRouter**
+    1. Rank → Strategy-based ordering
+    2. Try → Circuit breaker check
+    3. Fallback → Next provider on failure`"]
+    mr --> ollama["Ollama"]
+    mr --> openai["OpenAI"]
+    mr --> vllm["vLLM"]
 ```
 
 #### Routing Strategies
@@ -173,24 +164,17 @@ When a provider's circuit is open, the router automatically tries the next provi
 
 The Memory Manager handles three distinct types of memory, each with pluggable backends. It provides two key operations: `build_context()` (assemble memory for prompt construction) and `persist_turn()` (store conversation turns after execution).
 
-```
-                    ┌──────────────────┐
-                    │  MemoryManager   │
-                    │                  │
-                    │ build_context()  │──► Assemble context from all memory types
-                    │ persist_turn()   │──► Store conversation turns
-                    └──────┬───────────┘
-                           │
-           ┌───────────────┼───────────────┐
-           ▼               ▼               ▼
-    ┌──────────────┐ ┌───────────┐ ┌───────────┐
-    │Conversational│ │ Semantic  │ │ Episodic  │
-    │              │ │           │ │           │
-    │Redis/PG/     │ │pgvector/  │ │PostgreSQL │
-    │SQLite        │ │Chroma/    │ │           │
-    │              │ │Qdrant/    │ │           │
-    │              │ │FAISS      │ │           │
-    └──────────────┘ └───────────┘ └───────────┘
+```mermaid
+flowchart TB
+    mm["`**MemoryManager**
+    build_context() → Assemble context from all memory types
+    persist_turn() → Store conversation turns`"]
+    mm --> conv["`**Conversational**
+    Redis/PG/SQLite`"]
+    mm --> sem["`**Semantic**
+    pgvector/Chroma/Qdrant/FAISS`"]
+    mm --> epi["`**Episodic**
+    PostgreSQL`"]
 ```
 
 #### Memory Types
@@ -334,12 +318,16 @@ Orchestration patterns control how agents reason and use tools. Each pattern imp
 
 The RAG (Retrieval-Augmented Generation) pipeline connects document ingestion to knowledge-augmented agent responses.
 
-```
-Ingestion Flow:
-Documents → Chunking → Embedding → Vector Store
-
-Query Flow:
-Query → Embedding → Vector Search → Reranking → Top-K results
+```mermaid
+flowchart LR
+    subgraph ingestion ["Ingestion Flow"]
+        direction LR
+        d["Documents"] --> ch["Chunking"] --> em["Embedding"] --> vs["Vector Store"]
+    end
+    subgraph query ["Query Flow"]
+        direction LR
+        q["Query"] --> em2["Embedding"] --> vsearch["Vector Search"] --> rr["Reranking"] --> tk["Top-K results"]
+    end
 ```
 
 Each stage is pluggable:
@@ -391,12 +379,14 @@ The ML Model Registry manages non-LLM machine learning models for tasks like cla
 
 The observability stack provides three pillars of monitoring:
 
-```
-Agent Execution ──► TelemetryManager ──► OpenTelemetry Collector ──► Jaeger/Zipkin
-                         │
-                    MetricsCollector ──► Prometheus ──► Grafana
-                         │
-                    CostTracker ──► Usage records + budget alerts
+```mermaid
+flowchart LR
+    ae["Agent Execution"] --> tm["TelemetryManager"]
+    tm --> otc["OpenTelemetry Collector"] --> jz["Jaeger/Zipkin"]
+    ae --> mc["MetricsCollector"]
+    mc --> prom["Prometheus"] --> graf["Grafana"]
+    ae --> ct["CostTracker"]
+    ct --> ur["Usage records + budget alerts"]
 ```
 
 | Component | Module | Description |

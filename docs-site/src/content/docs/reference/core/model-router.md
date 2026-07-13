@@ -7,39 +7,19 @@ The Model Router selects which LLM provider handles each request based on config
 
 ## Routing Overview
 
-```
-                    Incoming Request
-                         │
-                         ▼
-              ┌──────────────────────┐
-              │   Routing Strategy   │
-              │  (cost / latency /   │
-              │   quality / round    │
-              │   robin / capability)│
-              └──────────┬───────────┘
-                         │
-              ┌──────────▼──────────┐
-              │  Circuit Breaker    │
-              │  State Check        │
-              │  (closed? open?     │
-              │   half-open?)       │
-              └──────────┬──────────┘
-                         │
-            ┌────────────┼────────────┐
-            ▼            ▼            ▼
-     ┌───────────┐ ┌───────────┐ ┌───────────┐
-     │  OpenAI   │ │ Anthropic │ │  Ollama   │
-     │ Provider  │ │ Provider  │ │ Provider  │
-     └───────────┘ └───────────┘ └───────────┘
-            │            │            │
-            └────────────┼────────────┘
-                         │
-                   On failure
-                         │
-                         ▼
-              ┌──────────────────────┐
-              │  Fallback Provider   │
-              └──────────────────────┘
+```mermaid
+flowchart TB
+    req["Incoming Request"] --> rs["`**Routing Strategy**
+    cost / latency / quality / round robin / capability`"]
+    rs --> cb["`**Circuit Breaker State Check**
+    closed? open? half-open?`"]
+    cb --> openai["OpenAI Provider"]
+    cb --> anthropic["Anthropic Provider"]
+    cb --> ollama["Ollama Provider"]
+    openai --> fail["On failure"]
+    anthropic --> fail
+    ollama --> fail
+    fail --> fb["Fallback Provider"]
 ```
 
 ## Routing Strategies
@@ -72,19 +52,14 @@ Each provider has an independent circuit breaker that prevents cascading failure
 
 ### States
 
-```
-          success
-    ┌──────────────┐
-    │              │
-    ▼              │
-┌────────┐   3 failures     ┌────────┐   60s cooldown    ┌────────────┐
-│ Closed │ ──────────────▶ │  Open  │ ───────────────▶  |  Half-Open │
-└────────┘                  └────────┘                   └────────────┘
-    ▲                                                       │
-    │              success                                  │
-    └───────────────────────────────────────────────────────┘
-                                │
-                           failure ──▶ Back to Open
+```mermaid
+stateDiagram-v2
+    state "Half-Open" as HalfOpen
+    Closed --> Closed: success
+    Closed --> Open: 3 failures
+    Open --> HalfOpen: 60s cooldown
+    HalfOpen --> Closed: success
+    HalfOpen --> Open: failure
 ```
 
 | State | Behavior |

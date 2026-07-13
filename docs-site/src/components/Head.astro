@@ -1,0 +1,90 @@
+---
+// Override of Starlight's Head. Renders the default head, then bundles a client
+// script that renders Mermaid diagrams (<pre class="mermaid">) with a theme
+// derived from the site's "Mission Control" tokens (see custom.css): deep-navy
+// nodes, cyan borders with a subtle glow, JetBrains Mono labels. Re-runs on
+// Astro view transitions (astro:page-load).
+import Default from '@astrojs/starlight/components/Head.astro';
+---
+
+<Default><slot /></Default>
+
+<script>
+	import mermaid from 'mermaid';
+
+	const CYAN = '#00d4ff';
+
+	mermaid.initialize({
+		startOnLoad: false,
+		securityLevel: 'strict',
+		theme: 'base',
+		fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+		themeVariables: {
+			darkMode: true,
+			background: 'transparent',
+			fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+			fontSize: '14px',
+			// Nodes
+			primaryColor: '#0a1e2b',
+			primaryBorderColor: CYAN,
+			primaryTextColor: '#d6f2fb',
+			secondaryColor: '#0d2233',
+			secondaryBorderColor: '#3aa8c9',
+			secondaryTextColor: '#cfeef8',
+			tertiaryColor: 'rgba(0, 212, 255, 0.05)',
+			tertiaryBorderColor: 'rgba(0, 212, 255, 0.25)',
+			// Edges / text
+			lineColor: '#4a90a4',
+			textColor: '#c9e6f0',
+			edgeLabelBackground: '#0a1420',
+			// Notes
+			noteBkgColor: '#0d2233',
+			noteBorderColor: '#3aa8c9',
+			noteTextColor: '#cfeef8',
+			// Clusters / subgraphs
+			clusterBkg: 'rgba(0, 212, 255, 0.04)',
+			clusterBorder: 'rgba(0, 212, 255, 0.25)',
+			// Sequence diagrams
+			actorBkg: '#0a1e2b',
+			actorBorder: CYAN,
+			actorTextColor: '#d6f2fb',
+			signalColor: '#c9e6f0',
+			signalTextColor: '#c9e6f0',
+			labelBoxBkgColor: '#0d2233',
+			labelBoxBorderColor: '#3aa8c9',
+			// State diagrams
+			labelColor: '#d6f2fb',
+		},
+		// Signature: the cyan telemetry glow on node borders, matching the hero logo.
+		themeCSS: `
+			.node rect, .node polygon, .node circle, .node ellipse, .node path {
+				filter: drop-shadow(0 0 5px rgba(0, 212, 255, 0.3));
+			}
+			.edgePath .path, .flowchart-link { stroke-width: 1.5px; }
+			.cluster rect { rx: 10px; ry: 10px; }
+			.actor { filter: drop-shadow(0 0 5px rgba(0, 212, 255, 0.25)); }
+			/* Subgraph / composite-state titles: keep them legible on the dark panel. */
+			.cluster-label text, .cluster-label .nodeLabel, .cluster-label span,
+			.cluster-label foreignObject div, .statediagram-cluster .cluster-label text {
+				fill: #7fd1e8 !important;
+				color: #7fd1e8 !important;
+				font-weight: 600;
+				opacity: 1 !important;
+			}
+		`,
+	});
+
+	function render() {
+		const nodes = document.querySelectorAll('pre.mermaid:not([data-processed])');
+		if (nodes.length) mermaid.run({ nodes });
+	}
+
+	// Module scripts are deferred, so the DOM is ready here → render immediately.
+	// Also re-render after client-side navigations (Starlight view transitions).
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', render);
+	} else {
+		render();
+	}
+	document.addEventListener('astro:page-load', render);
+</script>

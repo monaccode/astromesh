@@ -495,39 +495,39 @@ The Astromesh operator follows the standard Kubernetes controller pattern: watch
 
 ### Controller Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Astromesh Operator                       │
-│                                                             │
-│  ┌───────────────────┐  ┌───────────────────┐               │
-│  │  Agent Controller │  │Provider Controller│               │
-│  │                   │  │                   │               │
-│  │ Watch: Agent CRs  │  │ Watch: Provider   │               │
-│  │ Reconcile:        │  │ Reconcile:        │               │
-│  │  - Bootstrap agent│  │  - Health check   │               │
-│  │  - Wire deps      │  │  - Update status  │               │
-│  │  - Update status  │  │  - Circuit breaker│               │
-│  └───────────────────┘  └───────────────────┘               │
-│                                                             │
-│  ┌───────────────────┐ ┌───────────────────┐                │
-│  │Channel Controller │ │  RAG Controller   │                │
-│  │                   │ │                   │                │
-│  │ Watch: Channel CRs│ │ Watch: RAGPipeline│                │
-│  │ Reconcile:        │ │ Reconcile:        │                │
-│  │ - Register        │ │                   │                │
-│  │    webhook        │ │  - Connect store  │                │
-│  │ - Validate creds  │ │  - Run ingestion  │                │
-│  │ - Link agent      │ │  - Update index   │                │
-│  └───────────────────┘ └───────────────────┘                │
-│                                                             │
-│  ┌─────────────────────────────────────────┐                │
-│  │           Shared Components             │                │
-│  │  - AgentRuntime (in-process)            │                │
-│  │  - Metrics exporter (Prometheus)        │                │
-│  │  - Leader election                      │                │
-│  │  - Webhook admission controller         │                │
-│  └─────────────────────────────────────────┘                │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph operator ["Astromesh Operator"]
+        ac["`**Agent Controller**
+        Watch: Agent CRs
+        Reconcile:
+        - Bootstrap agent
+        - Wire deps
+        - Update status`"]
+        pc["`**Provider Controller**
+        Watch: Provider
+        Reconcile:
+        - Health check
+        - Update status
+        - Circuit breaker`"]
+        cc["`**Channel Controller**
+        Watch: Channel CRs
+        Reconcile:
+        - Register webhook
+        - Validate creds
+        - Link agent`"]
+        rc["`**RAG Controller**
+        Watch: RAGPipeline
+        Reconcile:
+        - Connect store
+        - Run ingestion
+        - Update index`"]
+        sc["`**Shared Components**
+        - AgentRuntime (in-process)
+        - Metrics exporter (Prometheus)
+        - Leader election
+        - Webhook admission controller`"]
+    end
 ```
 
 ### Reconciliation Loop
@@ -542,23 +542,22 @@ Each controller follows the same reconciliation pattern:
 
 For example, the Agent Controller reconciliation:
 
-```
-Event: Agent "support-agent" created
-  │
-  ├── Parse spec
-  ├── Resolve provider references → check Provider CRs exist and are Ready
-  ├── Resolve tool references → check Tool configs are valid
-  ├── Bootstrap Agent instance in runtime
-  ├── Run health checks (provider reachable, memory connected, tools registered)
-  └── Update status:
-      ├── phase: Running
-      ├── ready: true
-      └── conditions:
-          ├── ProviderReachable: True
-          ├── MemoryConnected: True
-          ├── ToolsRegistered: True
-          ├── GuardrailsLoaded: True
-          └── Ready: True
+```mermaid
+flowchart TB
+    ev["Event: Agent 'support-agent' created"] --> ps["Parse spec"]
+    ps --> rp["Resolve provider references → check Provider CRs exist and are Ready"]
+    rp --> rt["Resolve tool references → check Tool configs are valid"]
+    rt --> ba["Bootstrap Agent instance in runtime"]
+    ba --> hc["Run health checks (provider reachable, memory connected, tools registered)"]
+    hc --> us["`**Update status**
+    phase: Running
+    ready: true`"]
+    us --> cond["`**conditions**
+    ProviderReachable: True
+    MemoryConnected: True
+    ToolsRegistered: True
+    GuardrailsLoaded: True
+    Ready: True`"]
 ```
 
 ### Webhook Admission Controller
@@ -575,55 +574,44 @@ A validating webhook catches invalid configurations before they are persisted to
 
 The Astromesh architecture separates the control plane (configuration, lifecycle, policy) from the data plane (request processing, inference, storage).
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         CONTROL PLANE                           │
-│                                                                 │
-│  Kubernetes API Server                                          │
-│  ├── Agent CRDs          ← Desired state                        │
-│  ├── Provider CRDs       ← Provider registry                    │
-│  ├── Channel CRDs        ← Channel config                       │
-│  └── RAGPipeline CRDs    ← Knowledge config                     │
-│                                                                 │
-│  Astromesh Operator                                             │
-│  ├── Controllers         ← Watch + reconcile                    │
-│  ├── Admission webhooks  ← Validate before persist              │
-│  └── Leader election     ← HA active-passive                    │
-│                                                                 │
-│  Policies                                                       │
-│  ├── Routing strategies  ← How to select providers              │
-│  ├── Guardrail rules     ← Safety policies                      │
-│  ├── Tool permissions    ← Access control                       │
-│  └── Cost budgets        ← Spending limits                      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                    Reconciliation loop
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                          DATA PLANE                             │
-│                                                                 │
-│  Agent Runtime Pods                                             │
-│  ├── FastAPI server      ← HTTP/WS request handling             │
-│  ├── Agent instances     ← Bootstrapped from CRDs               │
-│  ├── Model Router        ← Provider selection + circuit breaker │
-│  └── Orchestration       ← ReAct / Plan / Supervisor loops      │
-│                                                                 │
-│  Inference Services                                             │
-│  ├── Ollama pods         ← Local LLM inference                  │
-│  ├── vLLM pods           ← High-throughput GPU inference        │
-│  └── Embedding pods      ← Text embedding service               │
-│                                                                 │
-│  Storage Services                                               │
-│  ├── PostgreSQL + pgvector  ← Relational + vector storage       │
-│  ├── Redis                  ← Conversation cache                │
-│  └── Qdrant / ChromaDB     ← Dedicated vector stores            │
-│                                                                 │
-│  Observability                                                  │
-│  ├── OpenTelemetry Collector ← Trace collection                 │
-│  ├── Prometheus              ← Metrics scraping                 │
-│  └── Grafana                 ← Dashboards                       │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph control ["CONTROL PLANE"]
+        kas["`**Kubernetes API Server**
+        Agent CRDs — Desired state
+        Provider CRDs — Provider registry
+        Channel CRDs — Channel config
+        RAGPipeline CRDs — Knowledge config`"]
+        op["`**Astromesh Operator**
+        Controllers — Watch + reconcile
+        Admission webhooks — Validate before persist
+        Leader election — HA active-passive`"]
+        pol["`**Policies**
+        Routing strategies — How to select providers
+        Guardrail rules — Safety policies
+        Tool permissions — Access control
+        Cost budgets — Spending limits`"]
+    end
+    subgraph data ["DATA PLANE"]
+        arp["`**Agent Runtime Pods**
+        FastAPI server — HTTP/WS request handling
+        Agent instances — Bootstrapped from CRDs
+        Model Router — Provider selection + circuit breaker
+        Orchestration — ReAct / Plan / Supervisor loops`"]
+        inf["`**Inference Services**
+        Ollama pods — Local LLM inference
+        vLLM pods — High-throughput GPU inference
+        Embedding pods — Text embedding service`"]
+        sto["`**Storage Services**
+        PostgreSQL + pgvector — Relational + vector storage
+        Redis — Conversation cache
+        Qdrant / ChromaDB — Dedicated vector stores`"]
+        obs["`**Observability**
+        OpenTelemetry Collector — Trace collection
+        Prometheus — Metrics scraping
+        Grafana — Dashboards`"]
+    end
+    control -- Reconciliation loop --> data
 ```
 
 ### Key separation benefits

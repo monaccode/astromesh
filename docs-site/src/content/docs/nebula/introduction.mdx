@@ -46,17 +46,27 @@ Apache-2.0, cheap enough to self-host even on CPU via GGUF.
 Nebula sits **upstream** of everything else: it is the source of the models the runtime routes to.
 The rest of the ecosystem consumes its output — the compiled catalog and the published Hub repos.
 
-```text
-        NEBULA (foundry)                 ASTROMESH (runtime + ops)
-  ┌───────────────────────────┐     ┌────────────────────────────────┐
-  │  base model + dataset     │     │  Core Runtime  ──▶ CentinelaProvider
-  │        │ train/merge      │     │        ▲            (live endpoint / GGUF)
-  │        │ quantize/eval    │     │        │ providerRef                     │
-  │        ▼                  │     │  providers.centinela.yaml               │
-  │  Hugging Face Hub repo    │────▶│        ▲                                │
-  │  catalog.lock.json  ──────┼─────┼──▶ Models docs + bindings ──▶ endpoint │
-  └───────────────────────────┘     └────────────────────────────────┘
-        publish + contract               consume via GitOps
+```mermaid
+flowchart LR
+  subgraph nebula["NEBULA (foundry)"]
+    base["base model + dataset"]
+    hub["Hugging Face Hub repo"]
+    lock["catalog.lock.json"]
+    base -- "train/merge · quantize/eval" --> hub
+  end
+  subgraph astromesh["ASTROMESH (runtime + ops)"]
+    runtime["Core Runtime"]
+    provider["CentinelaProvider (live endpoint / GGUF)"]
+    providers["providers.centinela.yaml"]
+    models["Models docs + bindings"]
+    endpoint["endpoint"]
+    runtime --> provider
+    providers -- providerRef --> runtime
+    models --> providers
+    models --> endpoint
+  end
+  hub --> providers
+  lock --> models
 ```
 
 ## Where to Next

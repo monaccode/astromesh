@@ -14,19 +14,15 @@ With [Astromesh Nodes](ASTROMESH_NODES.md) you can split services across multipl
 
 Astromesh Maia solves this. Nodes join a cluster, gossip with each other to stay informed, detect failures automatically, and route requests to the best available node.
 
-```
-       ┌──────────┐    gossip    ┌──────────┐
-       │ Gateway  │◄────────────►│  Worker  │
-       │ (leader) │              │          │
-       └────┬─────┘              └────┬─────┘
-            │          gossip         │
-            │    ┌──────────────┐     │
-            └───►│  Inference   │◄────┘
-                 │              │
-                 └──────────────┘
-
-     Every node knows about every other node.
-     If one dies, the others notice within seconds.
+```mermaid
+flowchart TB
+    gateway["`**Gateway**
+    (leader)`"]
+    worker["Worker"]
+    inference["Inference"]
+    gateway <-- gossip --> worker
+    gateway -- gossip --> inference
+    worker -- gossip --> inference
 ```
 
 ---
@@ -59,17 +55,13 @@ The **gateway** typically has `seeds: []` because it IS the seed — it's the fi
 
 Every 2 seconds (configurable), each node picks random peers and exchanges state:
 
-```
-Worker                              Inference
-  │                                    │
-  │  POST /v1/mesh/gossip              │
-  │  body: [my state, gateway state]   │
-  │  ──────────────────────────────►   │
-  │                                    │
-  │  response: [inference state]       │
-  │  ◄──────────────────────────────   │
-  │                                    │
-  Both nodes now have the same view of the cluster.
+```mermaid
+sequenceDiagram
+    participant Worker
+    participant Inference
+    Worker->>Inference: POST /v1/mesh/gossip body: [my state, gateway state]
+    Inference->>Worker: response: [inference state]
+    Note over Worker,Inference: Both nodes now have the same view of the cluster.
 ```
 
 This is called **push-pull gossip**: "here's what I know, tell me what you know." After a few rounds, every node has the same information — even if they can't all talk to each other directly.
@@ -276,12 +268,15 @@ You can upgrade from Nodes to Maia incrementally: add `spec.mesh` to one node at
 
 ## How the Pieces Fit Together
 
-```
-Astromesh Node        →  "How to run the daemon and use the CLI"
-    ↓
-Astromesh Nodes       →  "How to split services across multiple daemons"
-    ↓
-Astromesh Maia        →  "How to make those daemons find each other automatically"
+```mermaid
+flowchart TB
+    node["`**Astromesh Node**
+    How to run the daemon and use the CLI`"]
+    nodes["`**Astromesh Nodes**
+    How to split services across multiple daemons`"]
+    maia["`**Astromesh Maia**
+    How to make those daemons find each other automatically`"]
+    node --> nodes --> maia
 ```
 
 Each layer builds on the previous one. You can stop at any level:

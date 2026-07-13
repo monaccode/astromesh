@@ -51,9 +51,9 @@ If a freshly updated slot boots but fails its health check, it is never blessed;
 
 To guarantee agreement, mkosi uses a **fixed `Seed`** so repart-generated UUIDs are reproducible across builds. Without a fixed seed, v1 and v2 would derive *different* UUIDs for `/var`; the new slot's `var.mount` would then wait forever for a by-uuid device that never appears, dropping the system into emergency mode.
 
-```text
-Fixed mkosi Seed  ──►  deterministic /var fs UUID  ──►  same /etc/fstab entry in v1 and v2
-                                                          ──►  shared /var mounts on either slot
+```mermaid
+flowchart LR
+  seed["Fixed mkosi Seed"] --> uuid["deterministic /var fs UUID"] --> fstab["same /etc/fstab entry in v1 and v2"] --> mount["shared /var mounts on either slot"]
 ```
 
 ## Boot path

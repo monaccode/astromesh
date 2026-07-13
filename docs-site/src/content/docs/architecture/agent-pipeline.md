@@ -9,34 +9,30 @@ For the architectural context behind this pipeline, see [Four-Layer Design](/ast
 
 ## Pipeline Overview
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        Agent Execution Pipeline                      │
-│                                                                      │
-│  1. Request Arrives                                                  │
-│     │                                                                │
-│  2. AgentRuntime.run()                                               │
-│     │                                                                │
-│  3. Input Guardrails          ←── block / redact / pass              │
-│     │                                                                │
-│  4. Memory Context            ←── conversational + semantic +        │
-│     │                              episodic                          │
-│  5. Prompt Rendering          ←── Jinja2 system prompt               │
-│     │                                                                │
-│  6. Tool Schema Generation    ←── JSON schemas for function calling  │
-│     │                                                                │
-│  7. Orchestration Pattern     ←── reasoning loop (e.g., ReAct)       │
-│     │   ┌─────────────────────────────────────┐                      │
-│     │   │  8. Model Routing   → LLM call      │                      │
-│     │   │  9. Tool Execution  → if requested   │ ← iterates          │
-│     │   └─────────────────────────────────────┘                      │
-│     │                                                                │
-│ 10. Output Guardrails         ←── filter / redact / block            │
-│     │                                                                │
-│ 11. Memory Persistence        ←── save user + assistant turns        │
-│     │                                                                │
-│ 12. Response                  ←── JSON returned to caller            │
-└──────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    s1["1. Request Arrives"] --> s2["2. AgentRuntime.run()"]
+    s2 --> s3["`**3. Input Guardrails**
+    block / redact / pass`"]
+    s3 --> s4["`**4. Memory Context**
+    conversational + semantic + episodic`"]
+    s4 --> s5["`**5. Prompt Rendering**
+    Jinja2 system prompt`"]
+    s5 --> s6["`**6. Tool Schema Generation**
+    JSON schemas for function calling`"]
+    s6 --> s7["`**7. Orchestration Pattern**
+    reasoning loop (e.g., ReAct)`"]
+    s7 --> s8
+    subgraph loop ["iterates"]
+        s8["8. Model Routing → LLM call"] --> s9["9. Tool Execution → if requested"]
+        s9 -- iterates --> s8
+    end
+    loop --> s10["`**10. Output Guardrails**
+    filter / redact / block`"]
+    s10 --> s11["`**11. Memory Persistence**
+    save user + assistant turns`"]
+    s11 --> s12["`**12. Response**
+    JSON returned to caller`"]
 ```
 
 ---
@@ -290,19 +286,14 @@ The Model Router performs the following sequence:
 
 5. **Update metrics** -- On success, update the provider's latency moving average and reset its failure counter. Record the token usage for cost tracking.
 
-```
-model_fn(messages, tools)
-    │
-    ▼
-ModelRouter.route()
-    │
-    ├── Strategy ranks: [ollama, openai, vllm]
-    │
-    ├── Try ollama ──► circuit OPEN (3 failures) ──► skip
-    ├── Try openai ──► circuit CLOSED ──► call provider
-    │   └── Success! Update latency, reset failures
-    │
-    └── Return CompletionResult
+```mermaid
+flowchart TB
+    mf["model_fn(messages, tools)"] --> route["ModelRouter.route()"]
+    route --> rank["Strategy ranks: [ollama, openai, vllm]"]
+    route --> ollama["Try ollama → circuit OPEN (3 failures) → skip"]
+    route --> openai["Try openai → circuit CLOSED → call provider"]
+    openai --> success["Success! Update latency, reset failures"]
+    route --> ret["Return CompletionResult"]
 ```
 
 If all providers fail, the router raises an error that propagates back through the pipeline.

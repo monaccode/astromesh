@@ -63,55 +63,50 @@ def list_agents() -> list[str]
 
 ## Configuration Loading Flow
 
-```
-config/
-├── agents/
-│   ├── assistant.agent.yaml    ─┐
-│   ├── researcher.agent.yaml    ├── Scanned at bootstrap
-│   └── support.agent.yaml      ─┘
-├── channels.yaml               ── Channel adapters config
-└── runtime.yaml                ── Global runtime settings
-
-         │
-         ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│     Bootstrap                                                        │
-│                                                                      │
-│  1. Read runtime.yaml (global settings)                              │
-│  2. Scan agents/*.agent.yaml                                         │ 
-│  3. For each agent YAML:                                             │  
-│     a. Parse & validate schema                                       │      
-│     b. Create ModelRouter (primary + fallback providers)             │
-│     c. Create MemoryManager (backends per memory type)               │
-│     d. Create ToolRegistry (internal, MCP, webhook, RAG)             │
-│     e. Create PromptEngine (load Jinja2 templates)                   │
-│     f. Create GuardrailsEngine (input + output guards)               │
-│     g. Create OrchestrationPattern (ReAct, PlanAndExecute, etc.)     │
-│     h. Assemble Agent instance                                       │
-│  4. Load channel adapters                                            │      
-│  5. Runtime ready                                                    │ 
-└──────────────────────────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│   Agent Instances                                                       │
-│                                                                         │
-│  assistant  ────── Agent(router, memory, tools, prompts, guards, orch)  │
-│  researcher ────── Agent(router, memory, tools, prompts, guards, orch)  │
-│  support    ────── Agent(router, memory, tools, prompts, guards, orch)  │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph cfg ["config/"]
+        subgraph agents ["agents/ (Scanned at bootstrap)"]
+            a1["assistant.agent.yaml"]
+            a2["researcher.agent.yaml"]
+            a3["support.agent.yaml"]
+        end
+        ch["channels.yaml — Channel adapters config"]
+        rt["runtime.yaml — Global runtime settings"]
+    end
+    cfg --> boot
+    subgraph boot ["Bootstrap"]
+        b1["1. Read runtime.yaml (global settings)"] --> b2["2. Scan agents/*.agent.yaml"]
+        b2 --> b3["3. For each agent YAML:"]
+        b3 --> ba["a. Parse & validate schema"]
+        ba --> bb["b. Create ModelRouter (primary + fallback providers)"]
+        bb --> bc["c. Create MemoryManager (backends per memory type)"]
+        bc --> bd["d. Create ToolRegistry (internal, MCP, webhook, RAG)"]
+        bd --> be["e. Create PromptEngine (load Jinja2 templates)"]
+        be --> bf["f. Create GuardrailsEngine (input + output guards)"]
+        bf --> bg["g. Create OrchestrationPattern (ReAct, PlanAndExecute, etc.)"]
+        bg --> bh["h. Assemble Agent instance"]
+        bh --> b4["4. Load channel adapters"]
+        b4 --> b5["5. Runtime ready"]
+    end
+    boot --> inst
+    subgraph inst ["Agent Instances"]
+        i1["assistant — Agent(router, memory, tools, prompts, guards, orch)"]
+        i2["researcher — Agent(router, memory, tools, prompts, guards, orch)"]
+        i3["support — Agent(router, memory, tools, prompts, guards, orch)"]
+    end
 ```
 
 ## Agent Lifecycle
 
 Each agent transitions through four states:
 
-```
-┌──────┐     ┌───────┐     ┌───────────┐     ┌──────┐
-│ Load │ ──▶ │ Ready │ ──▶ │ Executing │ ──▶ │ Idle │
-└──────┘     └───────┘     └───────────┘     └──────┘
-                 ▲                               │
-                 └───────────────────────────────┘
+```mermaid
+stateDiagram-v2
+    Load --> Ready
+    Ready --> Executing
+    Executing --> Idle
+    Idle --> Ready
 ```
 
 | State | Description |

@@ -28,23 +28,16 @@ Astromesh Node adds two things: the **daemon** (`astromeshd`) and the **CLI** (`
 
 ## How It Works
 
-```
-You (terminal)                    The Server
-     │                                │
-     │  astromeshd                    │
-     │  ─────────►  Reads config/     │
-     │              Loads agents      │
-     │              Starts API        │
-     │              Writes PID file   │
-     │              Tells systemd ✓   │
-     │                                │
-     │  astromeshctl status           │
-     │  ─────────►  GET /v1/system/status
-     │  ◄─────────  uptime, agents, version
-     │                                │
-     │  astromeshctl doctor           │
-     │  ─────────►  GET /v1/system/doctor
-     │  ◄─────────  health checks ✓/✗
+```mermaid
+sequenceDiagram
+    participant You as You (terminal)
+    participant Server as The Server
+    You->>Server: astromeshd
+    Note over Server: Reads config/, Loads agents, Starts API, Writes PID file, Tells systemd
+    You->>Server: astromeshctl status → GET /v1/system/status
+    Server-->>You: uptime, agents, version
+    You->>Server: astromeshctl doctor → GET /v1/system/doctor
+    Server-->>You: health checks
 ```
 
 ### The Daemon — `astromeshd`

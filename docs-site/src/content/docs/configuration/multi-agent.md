@@ -226,12 +226,17 @@ Astromesh prevents infinite loops by detecting circular agent references at boot
 
 The detection builds an adjacency list where each agent points to the agents it references via `type: agent` tools. If the DFS finds a back-edge (a node that is currently being visited), it raises a `ValueError` with the full cycle path.
 
+```mermaid
+flowchart LR
+    a["agent-a"]
+    b["agent-b"]
+    c["agent-c"]
+    a --> b
+    b --> c
+    c -- "cycle!" --> a
 ```
-Example cycle:
 
-  agent-a → agent-b → agent-c → agent-a
-                                  ↑ cycle!
-
+```
 Error: "Circular agent reference detected: agent-a -> agent-b -> agent-c -> agent-a"
 ```
 
@@ -243,12 +248,26 @@ Circular reference detection runs once during `AgentRuntime.bootstrap()`, before
 
 Any directed acyclic graph (DAG) is valid:
 
-```
-Valid:                          Invalid:
-  A → B                          A → B
-  A → C                          B → C
-  B → D                          C → A  (cycle!)
-  C → D  (diamond, OK)
+```mermaid
+flowchart TB
+    subgraph Valid
+        vA["A"]
+        vB["B"]
+        vC["C"]
+        vD["D"]
+        vA --> vB
+        vA --> vC
+        vB --> vD
+        vC -- "diamond, OK" --> vD
+    end
+    subgraph Invalid
+        iA["A"]
+        iB["B"]
+        iC["C"]
+        iA --> iB
+        iB --> iC
+        iC -- "cycle!" --> iA
+    end
 ```
 
 Multiple agents can reference the same target agent (diamond pattern). An agent can be both a standalone agent and a tool for other agents.
@@ -298,23 +317,21 @@ spec:
 5. The supervisor decides the next action -- delegate to another worker, or return a final answer: `{"final_answer": "..."}`
 6. This loop continues until a final answer is produced or `max_iterations` is reached
 
-```
-┌─────────────────────────────────────────────┐
-│              Supervisor Agent               │
-│                                             │
-│  "Research X, then write a report"          │
-│       │                                     │
-│       ├── delegate → researcher             │
-│       │   └── returns findings              │
-│       │                                     │
-│       ├── delegate → writer                 │
-│       │   └── returns draft                 │
-│       │                                     │
-│       ├── delegate → reviewer               │
-│       │   └── returns feedback              │
-│       │                                     │
-│       └── final_answer → compiled report    │
-└─────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    sup["`**Supervisor Agent**
+    Research X, then write a report`"]
+    researcher["researcher"]
+    writer["writer"]
+    reviewer["reviewer"]
+    final["final_answer: compiled report"]
+    sup -- delegate --> researcher
+    researcher -- "returns findings" --> sup
+    sup -- delegate --> writer
+    writer -- "returns draft" --> sup
+    sup -- delegate --> reviewer
+    reviewer -- "returns feedback" --> sup
+    sup --> final
 ```
 
 ### Worker Agents
@@ -365,17 +382,13 @@ spec:
 4. The new agent continues the conversation, and can hand off again if needed
 5. When an agent produces a direct response (no handoff, no tool call), the conversation ends
 
-```
-┌──────────────┐     handoff      ┌──────────────────┐
-│  customer-   │ ──────────────▶ │  billing-        │
-│  support     │                  │  specialist      │
-└──────────────┘                  └────────┬─────────┘
-                                          │ handoff
-                                          ▼
-                                 ┌──────────────────┐
-                                 │  human-          │
-                                 │  escalation      │
-                                 └──────────────────┘
+```mermaid
+flowchart TB
+    cs["customer-support"]
+    bs["billing-specialist"]
+    he["human-escalation"]
+    cs -- handoff --> bs
+    bs -- handoff --> he
 ```
 
 ### Swarm vs. Supervisor

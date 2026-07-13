@@ -15,12 +15,17 @@ the Hub (billed).
 Each stage is a small, single-purpose script in `scripts/`. Pure logic lives in `nebula/` and is
 unit-tested; the scripts are thin CLIs over it.
 
-```text
-  00_scout ─▶ 01_build_dataset ─▶ 02_train ─▶ 03_merge ─▶ 04_quantize ─▶ 05_evaluate ─▶ 06_push_to_hub
-  (rank base)   (data + stats)     (QLoRA)     (LoRA→base)   (GGUF)       (TIER GATE)      (Hub + card + tag)
-                                                                             │
-                                                                    non-zero exit
-                                                                    aborts publish
+```mermaid
+flowchart LR
+  scout["`**00_scout**
+  rank base`"] --> build["`**01_build_dataset**
+  data + stats`"] --> train["`**02_train**
+  QLoRA`"] --> merge["`**03_merge**
+  LoRA→base`"] --> quantize["`**04_quantize**
+  GGUF`"] --> evaluate["`**05_evaluate**
+  TIER GATE`"] --> push["`**06_push_to_hub**
+  Hub + card + tag`"]
+  evaluate --> abort["non-zero exit aborts publish"]
 ```
 
 | # | Stage | What it does |

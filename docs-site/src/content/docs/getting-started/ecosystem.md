@@ -27,19 +27,32 @@ You can use just the core runtime with YAML config files, or combine it with the
 
 Every component orbits the **Core Runtime** — the engine that loads agents, routes to LLM providers, and executes orchestration patterns. The satellites attach at different points in the lifecycle:
 
-```text
-   DEFINE / BUILD            RUN                     DEPLOY / MANAGE
-  ┌──────────────┐     ┌──────────────┐          ┌──────────────────┐
-  │  ADK (Python)│     │  Core Runtime│          │  CLI (astromeshctl)│
-  │  Forge (web) │────▶│   (engine)   │◀────────│  Orbit (GCP IaC)   │
-  │  Cortex (app)│     │              │          │  Nexus (K8s plane) │
-  │  Leia (NL)   │     └──────┬───────┘          └─────────┬────────┘
-  └──────────────┘            │ runs on                    │ provisions
-                       ┌──────┴───────┐            ┌────────┴────────┐
-                       │  Node        │            │  Nexus tenants  │
-                       │  OS appliance│            │  (per-tenant     │
-                       │  Docker / K8s│            │   Node instances)│
-                       └──────────────┘            └─────────────────┘
+```mermaid
+flowchart LR
+    subgraph build["DEFINE / BUILD"]
+        tools["`ADK (Python)
+        Forge (web)
+        Cortex (app)
+        Leia (NL)`"]
+    end
+    subgraph run["RUN"]
+        core["`Core Runtime
+        (engine)`"]
+        infra["`Node
+        OS appliance
+        Docker / K8s`"]
+    end
+    subgraph manage["DEPLOY / MANAGE"]
+        mgmt["`CLI (astromeshctl)
+        Orbit (GCP IaC)
+        Nexus (K8s plane)`"]
+        tenants["`Nexus tenants
+        (per-tenant Node instances)`"]
+    end
+    tools --> core
+    mgmt --> core
+    core -- runs on --> infra
+    mgmt -- provisions --> tenants
 ```
 
 - **ADK** builds agents in Python → generates YAML the **Core Runtime** understands.
@@ -86,20 +99,21 @@ In short: reach for **Forge** when you want an instant, in-node visual builder; 
 
 The ecosystem forms a layered stack. You choose your entry point at each layer:
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ Layer 4: Multi-tenant plane   →  Nexus (Kubernetes operator) │
-│          Infrastructure       →  Orbit (Terraform)           │
-│          System Service       →  Node (deb/rpm/...)          │
-│          Appliance Image      →  OS (immutable mkosi)        │
-│          Containers           →  Docker / Helm               │
-├─────────────────────────────────────────────────────────────┤
-│ Layer 3: Management           →  CLI (astromeshctl) · Leia   │
-├─────────────────────────────────────────────────────────────┤
-│ Layer 2: Agent Runtime        →  Astromesh Core              │
-├─────────────────────────────────────────────────────────────┤
-│ Layer 1: Agent Definition     →  YAML · ADK · Forge · Cortex │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    l4["`**Layer 4**
+    Multi-tenant plane → Nexus (Kubernetes operator)
+    Infrastructure → Orbit (Terraform)
+    System Service → Node (deb/rpm/...)
+    Appliance Image → OS (immutable mkosi)
+    Containers → Docker / Helm`"]
+    l3["`**Layer 3: Management**
+    CLI (astromeshctl) · Leia`"]
+    l2["`**Layer 2: Agent Runtime**
+    Astromesh Core`"]
+    l1["`**Layer 1: Agent Definition**
+    YAML · ADK · Forge · Cortex`"]
+    l4 --- l3 --- l2 --- l1
 ```
 
 **Layer 1** is where you define agents — YAML files, ADK Python decorators, or the Forge/Cortex visual builders. All produce the same agent definitions.

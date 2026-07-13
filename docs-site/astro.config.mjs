@@ -1,9 +1,13 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import remarkMermaid from './src/plugins/remark-mermaid.mjs';
 
 export default defineConfig({
   site: 'https://monaccode.github.io',
   base: '/astromesh',
+  markdown: {
+    remarkPlugins: [remarkMermaid],
+  },
   integrations: [
     starlight({
       title: 'Astromesh',
@@ -21,6 +25,8 @@ export default defineConfig({
         ThemeSelect: './src/components/ThemeSelect.astro',
         ThemeProvider: './src/components/ThemeProvider.astro',
         SocialIcons: './src/components/SocialIcons.astro',
+        // Client-side Mermaid rendering with the Mission Control theme.
+        Head: './src/components/Head.astro',
       },
       sidebar: [
         {

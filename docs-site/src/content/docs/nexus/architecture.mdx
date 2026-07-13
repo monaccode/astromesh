@@ -21,23 +21,25 @@ Nexus is a controller-runtime operator with an embedded REST API. The control pl
 
 Built with Go 1.25, Kubebuilder v4, and controller-runtime. The CRD API group is `nexus.astromesh.io/v1alpha1`.
 
-```text
-                         Kubernetes Cluster
-  ┌───────────────────────────────────────────────────────────┐
-  │  nexus-system namespace                                    │
-  │   ┌─────────────────────────────────────────────────┐     │
-  │   │ Nexus Control Plane                              │     │
-  │   │  REST API (Gin :8080)   NexusTenantReconciler    │     │
-  │   │  SQLite Store           NexusAgentReconciler     │     │
-  │   └─────────────────────────────────────────────────┘     │
-  │                                                            │
-  │  tenant-a namespace          tenant-b namespace            │
-  │   astromesh-node (:8000)      astromesh-node (:8000)       │
-  │   agent-1, agent-2            agent-a                      │
-  └───────────────────────────────────────────────────────────┘
-        ▲
-        │ POST /api/v1/agents  (X-API-Key / Bearer JWT)
-   User / Cortex / Leia
+```mermaid
+flowchart TB
+    user["User / Cortex / Leia"]
+    subgraph cluster["Kubernetes Cluster"]
+        subgraph nexussys["nexus-system namespace"]
+            cp["`**Nexus Control Plane**
+            REST API (Gin :8080) · NexusTenantReconciler
+            SQLite Store · NexusAgentReconciler`"]
+        end
+        subgraph tenanta["tenant-a namespace"]
+            nodea["`astromesh-node (:8000)
+            agent-1, agent-2`"]
+        end
+        subgraph tenantb["tenant-b namespace"]
+            nodeb["`astromesh-node (:8000)
+            agent-a`"]
+        end
+    end
+    user -->|"POST /api/v1/agents  (X-API-Key / Bearer JWT)"| cluster
 ```
 
 ## Reconcilers
@@ -165,20 +167,23 @@ spec:
 
 ### Tenant phases
 
-```text
-  Pending ──> Provisioning ──> Ready
-                  │
-                  └──> Error ──(requeue 30s)──> Provisioning
+```mermaid
+stateDiagram-v2
+    Pending --> Provisioning
+    Provisioning --> Ready
+    Provisioning --> Error
+    Error --> Provisioning: requeue 30s
 ```
 
 ### Agent phases
 
-```text
-  Pending ──> Deploying ──> Running
-                 │
-                 └──> Failed ──(requeue 30s)──> Deploying
-
-  (Stopped is a terminal/manual state)
+```mermaid
+stateDiagram-v2
+    Pending --> Deploying
+    Deploying --> Running
+    Deploying --> Failed
+    Failed --> Deploying: requeue 30s
+    state "Stopped — terminal / manual state" as Stopped
 ```
 
 ## What's Next

@@ -537,21 +537,12 @@ curl "https://api.astromesh.io/api/v1/orgs/my-org/usage?days=7" \
 
 ## Agent Lifecycle State Machine
 
-```
-         POST /agents
-              │
-              ▼
-          [draft]
-              │
-    POST .../deploy
-              │
-              ▼
-         [deployed] ◄────────────────┐
-              │                      │
-   POST .../pause           POST .../deploy
-              │                      │
-              ▼                      │
-          [paused] ──────────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> draft: POST /agents
+    draft --> deployed: POST .../deploy
+    deployed --> paused: POST .../pause
+    paused --> deployed: POST .../deploy
 ```
 
 | Transition | Endpoint | Effect |

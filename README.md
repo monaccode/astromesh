@@ -245,18 +245,17 @@ astromeshctl ask "Why is my agent slow?"
 
 Astromesh follows a layered architecture (see also [`docs/GENERAL_ARCHITECTURE.md`](docs/GENERAL_ARCHITECTURE.md) for the full reference):
 
-```
-API Layer
-REST / WebSocket
-        ↓
-Runtime Engine
-Agent lifecycle and execution
-        ↓
-Core Services
-Model Router · Memory Manager · Tool Registry · Guardrails
-        ↓
-Infrastructure
-LLM Providers · Vector Databases · Observability · Storage Backends
+```mermaid
+flowchart TB
+    api["`**API Layer**
+    REST / WebSocket`"]
+    runtime["`**Runtime Engine**
+    Agent lifecycle and execution`"]
+    core["`**Core Services**
+    Model Router · Memory Manager · Tool Registry · Guardrails`"]
+    infra["`**Infrastructure**
+    LLM Providers · Vector Databases · Observability · Storage Backends`"]
+    api --> runtime --> core --> infra
 ```
 
 ---

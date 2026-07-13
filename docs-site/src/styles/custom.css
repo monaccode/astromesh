@@ -88,3 +88,33 @@ a:hover {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ── Mermaid diagrams (Mission Control theme) ────────────────
+   Rendered client-side (see Head.astro). Framed as a telemetry
+   panel; raw source is hidden until Mermaid marks it processed. */
+pre.mermaid {
+  background:
+    radial-gradient(120% 120% at 50% 0%, rgba(0, 212, 255, 0.05), transparent 60%),
+    var(--am-surface);
+  border: 1px solid var(--am-border);
+  border-radius: var(--am-radius);
+  padding: 1.5rem 1rem;
+  margin-block: 1.5rem;
+  text-align: center;
+  overflow-x: auto;
+  line-height: normal;
+}
+pre.mermaid:not([data-processed]) {
+  color: transparent;
+  min-height: 3rem;
+}
+pre.mermaid[data-processed] {
+  transition: border-color 0.2s ease;
+}
+pre.mermaid[data-processed]:hover {
+  border-color: var(--am-border-hover);
+}
+pre.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}

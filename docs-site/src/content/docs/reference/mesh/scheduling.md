@@ -31,21 +31,18 @@ When multiple nodes can serve a given agent, the router selects the node with th
 
 ### Algorithm
 
-```
-Incoming request for agent "assistant"
-              │
-              ▼
-  Find all nodes serving "assistant"
-  ┌──────────────────────────────────┐
-  │  node-alpha:  12 active requests │
-  │  node-gamma:   3 active requests │
-  └──────────────────────────────────┘
-              │
-              ▼
-  Select node with fewest active: node-gamma
-              │
-              ▼
-  Forward request to node-gamma
+```mermaid
+flowchart TB
+    req["Incoming request for agent 'assistant'"]
+    find["Find all nodes serving 'assistant'"]
+    counts["`node-alpha: 12 active requests
+    node-gamma: 3 active requests`"]
+    select["Select node with fewest active: node-gamma"]
+    forward["Forward request to node-gamma"]
+    req --> find
+    find --> counts
+    counts --> select
+    select --> forward
 ```
 
 **Tie-breaking:** When multiple nodes have equal active request counts, the node with the lower `avg_latency_ms` is preferred.
@@ -84,21 +81,20 @@ Leader: node-gamma (highest id)
 
 ### Election Process
 
-```
-  Trigger event
-  (node join, leader death, startup)
-         │
-         ▼
-  Node sends ELECTION message
-  to all nodes with higher IDs
-         │
-         ├──── No response within timeout
-         │     → This node becomes leader
-         │     → Sends COORDINATOR message to all
-         │
-         └──── Higher node responds with OK
-               → Higher node takes over election
-               → Wait for COORDINATOR message
+```mermaid
+flowchart TB
+    trigger["`**Trigger event**
+    node join, leader death, startup`"]
+    send["Node sends ELECTION message to all nodes with higher IDs"]
+    leader["This node becomes leader"]
+    coord["Sends COORDINATOR message to all"]
+    takeover["Higher node takes over election"]
+    wait["Wait for COORDINATOR message"]
+    trigger --> send
+    send -- "No response within timeout" --> leader
+    leader --> coord
+    send -- "Higher node responds with OK" --> takeover
+    takeover --> wait
 ```
 
 ### Re-Election Triggers
@@ -114,43 +110,27 @@ Leader: node-gamma (highest id)
 
 Complete flow for an incoming API request in mesh mode:
 
-```
-Client request: POST /v1/agents/assistant/run
-                    │
-                    ▼
-           ┌────────────────┐
-           │ Receiving Node │
-           └───────┬────────┘
-                   │
-         ┌─────────▼───────────┐
-         │ Agent loaded        │
-         │ locally?            │
-         └─────────┬───────────┘
-              │          │
-          Yes │          │ No
-              │          │
-              ▼          ▼
-     ┌────────────┐  ┌──────────────────┐
-     │ Check local│  │ Find peers with  │
-     │ load vs    │  │ this agent       │
-     │ remote     │  └────────┬─────────┘
-     └─────┬──────┘           │
-           │                  ▼
-           │         ┌───────────────────┐
-           │         │ Any peers found?  │
-           │         └────────┬──────────┘
-           │              │        │
-           │          Yes │        │ No
-           │              │        │
-           │              ▼        ▼
-           │    ┌─────────────┐  Return 404
-           │    │ Least-conn  │  "Agent not
-           │    │ select peer │  found in
-           │    └──────┬──────┘  cluster"
-           │           │
-           ▼           ▼
-     Execute locally   Forward to
-     or on best node   selected peer
+```mermaid
+flowchart TB
+    client["Client request: POST /v1/agents/assistant/run"]
+    recv["Receiving Node"]
+    loaded{"Agent loaded locally?"}
+    checklocal["Check local load vs remote"]
+    findpeers["Find peers with this agent"]
+    anypeers{"Any peers found?"}
+    leastconn["Least-conn select peer"]
+    notfound["Return 404: Agent not found in cluster"]
+    execlocal["Execute locally or on best node"]
+    forward["Forward to selected peer"]
+    client --> recv
+    recv --> loaded
+    loaded -- Yes --> checklocal
+    loaded -- No --> findpeers
+    findpeers --> anypeers
+    anypeers -- Yes --> leastconn
+    anypeers -- No --> notfound
+    checklocal --> execlocal
+    leastconn --> forward
 ```
 
 ## Future Scheduling Strategies

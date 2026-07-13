@@ -10,78 +10,35 @@ These diagrams are intended to be embedded directly in the project README or doc
 
 Astromesh is designed as an **Agent Runtime Platform** with layered architecture.
 
-```
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                               External Interfaces                             │
-│                                                                               │
-│  REST API          WebSocket API         WhatsApp Channel      Future Channels│
-│  /v1/agents        /v1/ws/agent/*        Meta Cloud API         Slack/Telegram│
-└───────────────────────────────────────────────────────────────────────────────┘
-                                        │
-                                        ▼
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                                API / Channel Layer                            │
-│                                                                               │
-│  FastAPI Routes                  WebSocket Gateway         Channel Adapters   │
-│  - Agents                        - Streaming tokens        - WhatsApp         │
-│  - Memory                        - Live sessions           - Future adapters  │
-│  - Tools                                                                      │
-│  - RAG                                                                        │
-└───────────────────────────────────────────────────────────────────────────────┘
-                                        │
-                                        ▼
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                              Agent Runtime Control Plane                      │
-│                                                                               │
-│  AgentRuntime                                                                 │
-│  - Load YAML definitions                                                      │
-│  - Bootstrap agents                                                           │
-│  - Wire dependencies                                                          │
-│  - Manage lifecycle                                                           │
-│                                                                               │
-│  Agent Execution Pipeline                                                     │
-│  Query → Guardrails → Memory → Prompt Rendering → Orchestration               │
-│        → Model Routing → Tool Calls → Response → Persistence                  │
-└───────────────────────────────────────────────────────────────────────────────┘
-                                        │
-                                        ▼
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                                  Core Services                                │
-│                                                                               │
-│  Model Router        Memory Manager        Tool Registry      Guardrails      │
-│  - Provider select   - Conversational      - Internal tools   - PII detect    │
-│  - Fallback          - Semantic            - MCP tools        - Topic filter  │
-│  - Circuit breaker   - Episodic            - Webhooks         - Cost limits   │
-│  - Capability match  - Context build       - RAG as tool      - Content rules │
-└───────────────────────────────────────────────────────────────────────────────┘
-                                        │
-                                        ▼
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                             Orchestration / Reasoning Layer                   │
-│                                                                               │
-│   ReAct        Plan & Execute        Pipeline        Parallel Fan-Out         │
-│   Supervisor   Swarm                                                          │
-└───────────────────────────────────────────────────────────────────────────────┘
-                                        │
-                                        ▼
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                                   Execution Plane                             │
-│                                                                               │
-│  LLM Providers                Retrieval / Knowledge           ML / Inference  │
-│  - Ollama                     - Chunking                      - ONNX models   │
-│  - OpenAI-compatible          - Embeddings                    - PyTorch       │
-│  - vLLM                       - Vector search                 - Registries    │
-│  - llama.cpp                  - Reranking                                     │
-│  - HuggingFace TGI            - pgvector / Chroma / Qdrant / FAISS            │
-└───────────────────────────────────────────────────────────────────────────────┘
-                                        │
-                                        ▼
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                              Storage / Observability                          │
-│                                                                               │
-│  Redis           PostgreSQL        SQLite         Prometheus   OpenTelemetry  │
-│  pgvector        ChromaDB          Qdrant         Grafana      Cost Tracking  │
-└───────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    ext["`**External Interfaces**
+    REST API /v1/agents
+    WebSocket API /v1/ws/agent/*
+    WhatsApp Channel Meta Cloud API
+    Future Channels Slack/Telegram`"]
+    api["`**API / Channel Layer**
+    FastAPI Routes: Agents, Memory, Tools, RAG
+    WebSocket Gateway: Streaming tokens, Live sessions
+    Channel Adapters: WhatsApp, Future adapters`"]
+    cp["`**Agent Runtime Control Plane**
+    AgentRuntime: Load YAML definitions, Bootstrap agents, Wire dependencies, Manage lifecycle
+    Agent Execution Pipeline: Query → Guardrails → Memory → Prompt Rendering → Orchestration → Model Routing → Tool Calls → Response → Persistence`"]
+    core["`**Core Services**
+    Model Router: Provider select, Fallback, Circuit breaker, Capability match
+    Memory Manager: Conversational, Semantic, Episodic, Context build
+    Tool Registry: Internal tools, MCP tools, Webhooks, RAG as tool
+    Guardrails: PII detect, Topic filter, Cost limits, Content rules`"]
+    orch["`**Orchestration / Reasoning Layer**
+    ReAct, Plan & Execute, Pipeline, Parallel Fan-Out, Supervisor, Swarm`"]
+    plane["`**Execution Plane**
+    LLM Providers: Ollama, OpenAI-compatible, vLLM, llama.cpp, HuggingFace TGI
+    Retrieval / Knowledge: Chunking, Embeddings, Vector search, Reranking, pgvector / Chroma / Qdrant / FAISS
+    ML / Inference: ONNX models, PyTorch, Registries`"]
+    store["`**Storage / Observability**
+    Redis, PostgreSQL, SQLite, Prometheus, OpenTelemetry
+    pgvector, ChromaDB, Qdrant, Grafana, Cost Tracking`"]
+    ext --> api --> cp --> core --> orch --> plane --> store
 ```
 
 ---
@@ -90,56 +47,59 @@ Astromesh is designed as an **Agent Runtime Platform** with layered architecture
 
 This diagram shows how the **runtime behaves similarly to distributed platforms** such as Kubernetes.
 
-```
-                                 ┌────────────────────────────┐
-                                 │   Astromesh Control Plane  │
-                                 │────────────────────────────│
-                                 │ AgentRuntime               │
-                                 │ Config Loader (YAML)       │
-                                 │ Dependency Wiring          │
-                                 │ Routing Policies           │
-                                 │ Guardrails Policies        │
-                                 │ Tool Permissions           │
-                                 │ Agent Lifecycle            │
-                                 └──────────────┬─────────────┘
-                                                │
-                         ┌──────────────────────┼──────────────────────┐
-                         │                      │                      │
-                         ▼                      ▼                      ▼
-             ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
-             │  Agent Worker A  │   │  Agent Worker B  │   │  Agent Worker C  │
-             │──────────────────│   │──────────────────│   │──────────────────│
-             │ ReAct            │   │ Plan & Execute   │   │ Supervisor/Swarm │
-             │ Tool Calls       │   │ Memory Access    │   │ Multi-Agent Flow │
-             │ Prompt Rendering │   │ Model Routing    │   │ Delegation       │
-             └────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘
-                      │                      │                      │
-                      └──────────────┬───────┴──────────────┬───────┘
-                                     │                      │
-                                     ▼                      ▼
-                     ┌──────────────────────────┐   ┌──────────────────────────┐
-                     │     Model Execution      │   │     Tool / Knowledge     │
-                     │──────────────────────────│   │──────────────────────────│
-                     │ Ollama                   │   │ Internal Python tools    │
-                     │ OpenAI-compatible APIs   │   │ MCP tools                │
-                     │ vLLM                     │   │ Webhooks                 │
-                     │ llama.cpp                │   │ RAG pipelines            │
-                     │ HuggingFace TGI          │   │ Vector retrieval         │
-                     │ ONNX Runtime             │   │ Reranking                │
-                     └──────────────┬───────────┘   └──────────────┬───────────┘
-                                    │                              │
-                                    └──────────────┬───────────────┘
-                                                   │
-                                                   ▼
-                              ┌──────────────────────────────────────┐
-                              │     State / Storage / Telemetry      │
-                              │──────────────────────────────────────│
-                              │ Redis                                │
-                              │ PostgreSQL / SQLite                  │
-                              │ pgvector / ChromaDB / Qdrant / FAISS │
-                              │ OpenTelemetry / Prometheus / Grafana │
-                              │ Cost Tracking                        │
-                              └──────────────────────────────────────┘
+```mermaid
+flowchart TB
+    cp["`**Astromesh Control Plane**
+    AgentRuntime
+    Config Loader (YAML)
+    Dependency Wiring
+    Routing Policies
+    Guardrails Policies
+    Tool Permissions
+    Agent Lifecycle`"]
+    wa["`**Agent Worker A**
+    ReAct
+    Tool Calls
+    Prompt Rendering`"]
+    wb["`**Agent Worker B**
+    Plan & Execute
+    Memory Access
+    Model Routing`"]
+    wc["`**Agent Worker C**
+    Supervisor/Swarm
+    Multi-Agent Flow
+    Delegation`"]
+    model["`**Model Execution**
+    Ollama
+    OpenAI-compatible APIs
+    vLLM
+    llama.cpp
+    HuggingFace TGI
+    ONNX Runtime`"]
+    tools["`**Tool / Knowledge**
+    Internal Python tools
+    MCP tools
+    Webhooks
+    RAG pipelines
+    Vector retrieval
+    Reranking`"]
+    state["`**State / Storage / Telemetry**
+    Redis
+    PostgreSQL / SQLite
+    pgvector / ChromaDB / Qdrant / FAISS
+    OpenTelemetry / Prometheus / Grafana
+    Cost Tracking`"]
+    cp --> wa
+    cp --> wb
+    cp --> wc
+    wa --> model
+    wb --> model
+    wc --> model
+    wa --> tools
+    wb --> tools
+    wc --> tools
+    model --> state
+    tools --> state
 ```
 
 ---

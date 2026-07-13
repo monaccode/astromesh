@@ -53,9 +53,18 @@ Each node in the mesh enables a different set of services based on its role:
 
 ### Request flow
 
-```
-Client → Gateway → Worker → Inference → Worker → Gateway → Client
-         (route)   (agent)   (LLM)      (result)  (response)
+```mermaid
+flowchart LR
+    client["Client"]
+    gateway["Gateway"]
+    worker["Worker"]
+    inference["Inference"]
+    client --> gateway
+    gateway -- route --> worker
+    worker -- agent --> inference
+    inference -- LLM --> worker
+    worker -- result --> gateway
+    gateway -- response --> client
 ```
 
 ## Step-by-step Setup

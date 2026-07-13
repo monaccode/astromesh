@@ -31,23 +31,25 @@ External clients call the Nexus REST API; Nexus translates those calls into cust
 
 Nexus is the cloud control plane that the rest of the ecosystem deploys agents to. [Cortex](/astromesh/cortex/introduction/), Forge, and [Leia](/astromesh/leia/introduction/) all target Nexus, which fans agents out to per-tenant nodes. See the [ecosystem overview](/astromesh/getting-started/ecosystem/) for the full picture.
 
-```text
-                         Kubernetes Cluster
-  ┌───────────────────────────────────────────────────────────┐
-  │  nexus-system namespace                                    │
-  │   ┌─────────────────────────────────────────────────┐     │
-  │   │ Nexus Control Plane                              │     │
-  │   │  REST API (Gin :8080)   NexusTenantReconciler    │     │
-  │   │  SQLite Store           NexusAgentReconciler     │     │
-  │   └─────────────────────────────────────────────────┘     │
-  │                                                            │
-  │  tenant-a namespace          tenant-b namespace            │
-  │   astromesh-node (:8000)      astromesh-node (:8000)       │
-  │   agent-1, agent-2            agent-a                      │
-  └───────────────────────────────────────────────────────────┘
-        ▲
-        │ POST /api/v1/agents  (X-API-Key / Bearer JWT)
-   User / Cortex / Leia
+```mermaid
+flowchart TB
+    user["User / Cortex / Leia"]
+    subgraph cluster["Kubernetes Cluster"]
+        subgraph nexussys["nexus-system namespace"]
+            cp["`**Nexus Control Plane**
+            REST API (Gin :8080) · NexusTenantReconciler
+            SQLite Store · NexusAgentReconciler`"]
+        end
+        subgraph tenanta["tenant-a namespace"]
+            nodea["`astromesh-node (:8000)
+            agent-1, agent-2`"]
+        end
+        subgraph tenantb["tenant-b namespace"]
+            nodeb["`astromesh-node (:8000)
+            agent-a`"]
+        end
+    end
+    user -->|"POST /api/v1/agents  (X-API-Key / Bearer JWT)"| cluster
 ```
 
 ## Key Concepts

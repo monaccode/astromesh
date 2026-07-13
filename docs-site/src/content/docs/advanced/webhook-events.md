@@ -17,12 +17,17 @@ Every Meta webhook payload wraps events in a `change["field"]` key that
 identifies the event category. Astromesh inspects this field before any
 parsing:
 
-```
-POST /v1/agents/{agent}/channels/whatsapp/webhook
-  └─ entry[].changes[]
-       ├─ field="messages" + has "messages" key   → agent conversation
-       ├─ field="messages" + has "statuses" key   → delivery/read receipt
-       └─ field=anything else                     → system event
+```mermaid
+flowchart TB
+    post["POST /v1/agents/{agent}/channels/whatsapp/webhook"]
+    changes["entry[].changes[]"]
+    conv["agent conversation"]
+    receipt["delivery/read receipt"]
+    system["system event"]
+    post --> changes
+    changes -->|"field=#quot;messages#quot; + has #quot;messages#quot; key"| conv
+    changes -->|"field=#quot;messages#quot; + has #quot;statuses#quot; key"| receipt
+    changes -->|"field=anything else"| system
 ```
 
 ### User messages → agent conversation

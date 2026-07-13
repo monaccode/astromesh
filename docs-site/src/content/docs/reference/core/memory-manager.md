@@ -7,23 +7,19 @@ The Memory Manager provides agents with persistent context across conversations 
 
 ## Memory Types
 
-```
-┌─────────────────────────────────────────────────────┐
-│                  MemoryManager                      │
-│                                                     │
-│  ┌───────────────┐ ┌──────────────┐ ┌─────────────┐ │
-│  │ Conversational│ │   Semantic   │ │   Episodic  │ │
-│  │               │ │              │ │             │ │
-│  │ Chat history  │ │ Vector       │ │ Event logs  │ │
-│  │ (turns)       │ │ embeddings   │ │ (actions)   │ │
-│  │               │ │ (similarity) │ │             │ │
-│  └───────┬───────┘ └──────┬───────┘ └──────┬──────┘ │
-│          │                │                │        │
-│          ▼                ▼                ▼        │
-│     ┌─────────┐    ┌───────────┐    ┌──────────┐    │
-│     │ Backend │    │  Backend  │    │ Backend  │    │
-│     └─────────┘    └───────────┘    └──────────┘    │
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph mm ["MemoryManager"]
+        conv["`**Conversational**
+        Chat history (turns)`"]
+        sem["`**Semantic**
+        Vector embeddings (similarity)`"]
+        epi["`**Episodic**
+        Event logs (actions)`"]
+    end
+    conv --> cb["Backend"]
+    sem --> sb["Backend"]
+    epi --> eb["Backend"]
 ```
 
 | Memory Type | What It Stores | Access Pattern | Purpose |

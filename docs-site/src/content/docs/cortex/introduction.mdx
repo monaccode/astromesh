@@ -34,27 +34,20 @@ Both Cortex and [Forge](/astromesh/forge/introduction/) let you build agents vis
 
 Cortex is a standard Electron application: a React renderer talks to the main process over an IPC bridge, and the main process hosts the services that drive each runtime target.
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│  Cortex (Electron)                                      │
-│                                                         │
-│  ┌──────────┐  ┌──────────────┐  ┌───────────────────┐ │
-│  │ Renderer │  │ Main Process │  │ Services          │ │
-│  │ (React)  │──│ (IPC Bridge) │──│ · LocalRuntime    │ │
-│  │          │  │              │  │ · Orbit (GCP)     │ │
-│  │ · Editor │  │              │  │ · Nexus (Cloud)   │ │
-│  │ · Console│  │              │  │                   │ │
-│  │ · Deploy │  │              │  │                   │ │
-│  └──────────┘  └──────────────┘  └─────────┬─────────┘ │
-└────────────────────────────────────────────│───────────┘
-                                              │
-                    ┌─────────────────────────┼──────────┐
-                    │                          │          │
-              ┌─────▼─────┐           ┌────────▼────┐  ┌──▼────────┐
-              │ Local     │           │ Nexus       │  │ GCP       │
-              │ Runtime   │           │ (K8s Cloud) │  │ Cloud Run │
-              │ (:8000)   │           │ (:8080)     │  │ (Orbit)   │
-              └───────────┘           └─────────────┘  └───────────┘
+```mermaid
+flowchart TB
+  subgraph cortex["Cortex (Electron)"]
+    renderer["`**Renderer (React)**
+    Editor · Console · Deploy`"]
+    main["Main Process (IPC Bridge)"]
+    services["`**Services**
+    LocalRuntime · Orbit (GCP) · Nexus (Cloud)`"]
+    renderer --- main
+    main --- services
+  end
+  services --> local["Local Runtime (:8000)"]
+  services --> nexus["Nexus (K8s Cloud) (:8080)"]
+  services --> gcp["GCP Cloud Run (Orbit)"]
 ```
 
 ### Component breakdown

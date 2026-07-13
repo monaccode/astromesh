@@ -28,17 +28,13 @@ When a node starts with mesh enabled:
 4. The joining node merges the received cluster state into its local state
 5. On the next gossip round, other nodes learn about the new node
 
-```
-New Node                          Seed Node
-   |                                  |
-   |--- POST /v1/mesh/join ---------> |
-   |    Body: { NodeState }           |
-   |                                  |
-   | <--- 200 OK -------------------- |
-   |    Body: { ClusterState }        |
-   |                                  |
-   |    (node now has full cluster    |
-   |     view and begins gossiping)   |
+```mermaid
+sequenceDiagram
+    participant NewNode as New Node
+    participant SeedNode as Seed Node
+    NewNode->>SeedNode: POST /v1/mesh/join — Body: { NodeState }
+    SeedNode-->>NewNode: 200 OK — Body: { ClusterState }
+    Note over NewNode: node now has full cluster view and begins gossiping
 ```
 
 If no seeds are reachable, the node operates in standalone mode and retries joining periodically.
@@ -52,17 +48,13 @@ Maia uses a **push-pull gossip** protocol. Every `gossip_interval` seconds (defa
 3. Receives the other node's `NodeState` list in the response
 4. Merges both lists: for each `node_id`, keeps the state with the most recent `last_heartbeat` timestamp
 
-```
-Node A                            Node B
-  |                                  |
-  |--- POST /v1/mesh/gossip ------>  |
-  |    Body: { nodes: [A, C, D] }    |
-  |                                  |
-  | <--- 200 OK -------------------- |
-  |    Body: { nodes: [B, C, E] }    |
-  |                                  |
-  |    A now knows: A, B, C, D, E    |
-  |    B now knows: A, B, C, D, E    |
+```mermaid
+sequenceDiagram
+    participant NodeA as Node A
+    participant NodeB as Node B
+    NodeA->>NodeB: POST /v1/mesh/gossip — Body: { nodes: [A, C, D] }
+    NodeB-->>NodeA: 200 OK — Body: { nodes: [B, C, E] }
+    Note over NodeA,NodeB: A now knows A, B, C, D, E — B now knows A, B, C, D, E
 ```
 
 Because each node contacts `gossip_fanout` random peers per round, information spreads exponentially. In a 10-node cluster with fanout of 3, all nodes converge within 3-4 gossip rounds (6-8 seconds at default intervals).
@@ -120,29 +112,22 @@ An election starts when:
 
 ### Election Flow
 
-```
-Node A (id: aaa)          Node B (id: bbb)          Node C (id: ccc)
-     |                         |                         |
-     | (detects leader dead)   |                         |
-     |                         |                         |
-     |-- POST /v1/mesh/election --> B (higher id)        |
-     |-- POST /v1/mesh/election -----------------------> C (higher id)
-     |                         |                         |
-     | <--- "I'm higher" ---- |                          |
-     | <--- "I'm higher" --------------------------------|
-     |                         |                         |
-     | (A backs off)           |                         |
-     |                         |-- POST /v1/mesh/election -> C
-     |                         |                         |
-     |                         | <-- "I'm higher" ------ |
-     |                         |                         |
-     |                         | (B backs off)           |
-     |                         |                         |
-     |                         |         C wins election |
-     |                         |         sets leader=true|
-     |                         |         in its NodeState|
-     |                         |                         |
-     |    (gossip propagates C as leader to all nodes)   |
+```mermaid
+sequenceDiagram
+    participant A as Node A (id: aaa)
+    participant B as Node B (id: bbb)
+    participant C as Node C (id: ccc)
+    Note over A: detects leader dead
+    A->>B: POST /v1/mesh/election (B higher id)
+    A->>C: POST /v1/mesh/election (C higher id)
+    B-->>A: "I'm higher"
+    C-->>A: "I'm higher"
+    Note over A: A backs off
+    B->>C: POST /v1/mesh/election
+    C-->>B: "I'm higher"
+    Note over B: B backs off
+    Note over C: C wins election, sets leader=true in its NodeState
+    Note over A,C: gossip propagates C as leader to all nodes
 ```
 
 A node only sends election messages to nodes with higher IDs. If no higher node responds within a timeout, the node declares itself leader. The new leader sets `leader: true` in its `NodeState`, and this propagates via gossip.
@@ -164,18 +149,19 @@ When a request arrives at a gateway node (or any node that does not run the targ
 
 The scheduler uses a **least-connections** strategy: among all nodes that have the target agent loaded, route to the node with the fewest `active_requests`.
 
-```
-Incoming request for "support-agent"
-         |
-         v
-    Scheduler checks cluster state:
-         |
-         +-- worker-1: has support-agent, active_requests = 3
-         +-- worker-2: has support-agent, active_requests = 7
-         +-- worker-3: does NOT have support-agent
-         |
-         v
-    Route to worker-1 (fewest active connections)
+```mermaid
+flowchart TB
+    req["Incoming request for #quot;support-agent#quot;"]
+    sched["Scheduler checks cluster state"]
+    w1["worker-1: has support-agent, active_requests = 3"]
+    w2["worker-2: has support-agent, active_requests = 7"]
+    w3["worker-3: does NOT have support-agent"]
+    route["Route to worker-1 (fewest active connections)"]
+    req --> sched
+    sched --> w1
+    sched --> w2
+    sched --> w3
+    w1 --> route
 ```
 
 Load information is propagated via heartbeats and gossip, so the scheduler always has a recent (though not real-time) view of each node's load. The `active_requests` count is updated on every heartbeat (default every 5 seconds).

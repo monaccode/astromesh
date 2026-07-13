@@ -30,18 +30,19 @@ Leia is named after a lemon beagle — approachable, loyal, and friendly. That p
 
 Leia lives inside Claude Code and drives a Nexus cluster. Its components — commands, subagents, templates, and schemas — turn your intent into manifests and API calls; Nexus fans those agents out to per-tenant `astromesh-nodes`, which connect to WhatsApp and to local or cloud language models.
 
-```text
-  Claude Code CLI
-   └─ astromesh-leia plugin
-        Commands · Agents (subagents) · Templates · Schemas
-                       │  (curl REST + kubectl)
-                       ▼
-  Kubernetes Cluster (astromesh-nexus)
-        Nexus API ──> Tenant namespaces ──> astromesh-nodes
-                                                  │
-                       ┌──────────────────────────┼─────────────┐
-                       ▼                           ▼             ▼
-                 Meta WhatsApp                  Ollama       Cloud LLMs
+```mermaid
+flowchart TB
+  subgraph cli["Claude Code CLI"]
+    plugin["`**astromesh-leia plugin**
+    Commands · Agents (subagents) · Templates · Schemas`"]
+  end
+  subgraph cluster["Kubernetes Cluster (astromesh-nexus)"]
+    nexus["Nexus API"] --> tenants["Tenant namespaces"] --> nodes["astromesh-nodes"]
+  end
+  plugin -- "curl REST + kubectl" --> nexus
+  nodes --> whatsapp["Meta WhatsApp"]
+  nodes --> ollama["Ollama"]
+  nodes --> cloud["Cloud LLMs"]
 ```
 
 ### Component breakdown

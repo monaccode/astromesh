@@ -11,22 +11,15 @@ Astromesh uses **push-pull gossip**: when two nodes exchange state, both sides s
 
 ### Gossip Exchange Sequence
 
-```
-    Node A                          Node B
-      │                               │
-      │  1. Select random peer        │
-      │──────── push state ─────────▶ │
-      │                               │
-      │                               │  2. Merge received state
-      │                               │     with local state
-      │                               │
-      │◀──────── pull state ──────────│  3. Send own state back
-      │                               │
-      │  4. Merge received state      │
-      │     with local state          │
-      │                               │
-    Both nodes now have the union
-    of both states
+```mermaid
+sequenceDiagram
+    participant A as Node A
+    participant B as Node B
+    A->>B: 1. Select random peer, push state
+    Note over B: 2. Merge received state with local state
+    B->>A: 3. Send own state back (pull state)
+    Note over A: 4. Merge received state with local state
+    Note over A,B: Both nodes now have the union of both states
 ```
 
 Each gossip round:
@@ -61,16 +54,15 @@ Other nodes track the last time they observed a new heartbeat value for each pee
 
 Nodes are classified into three states based on how long since their heartbeat was last seen to change:
 
-```
-        Last heartbeat seen
-              │
-  ┌───────────┼───────────┬───────────┐
-  │  < 15s    │  15-30s   │  > 30s    │
-  │           │           │           │
-  ▼           ▼           ▼           ▼
-┌───────┐  ┌─────────┐  ┌──────┐
-│ Alive │  │ Suspect │  │ Dead │
-└───────┘  └─────────┘  └──────┘
+```mermaid
+flowchart TB
+    seen["Last heartbeat seen"]
+    alive["Alive"]
+    suspect["Suspect"]
+    dead["Dead"]
+    seen -- "< 15s" --> alive
+    seen -- "15-30s" --> suspect
+    seen -- "> 30s" --> dead
 ```
 
 | State | Threshold | Description |

@@ -10,42 +10,30 @@ Astromesh Orbit is a standalone deployment tool that provisions the full Astrome
 
 Orbit sits between your `orbit.yaml` configuration and Terraform. It validates cloud prerequisites, renders provider-specific `.tf` files from templates, and delegates all resource management to Terraform.
 
-```
-                        orbit.yaml
-                            │
-                 ┌──────────▼──────────┐
-                 │    Orbit CLI         │  astromeshctl orbit init / plan / apply / destroy / eject
-                 │    (Python)          │
-                 └──────────┬──────────┘
-                            │
-              ┌─────────────▼─────────────┐
-              │    Provider Plugin         │  GCP (MVP) · AWS (v1.0) · Azure (v1.0)
-              │    validate → generate     │
-              └─────────────┬─────────────┘
-                            │  Jinja2 templates → .tf files
-              ┌─────────────▼─────────────┐
-              │    Terraform Runner        │  Thin subprocess wrapper
-              │    init → plan → apply     │  State stored in cloud bucket (GCS / S3 / Azure Blob)
-              └─────────────┬─────────────┘
-                            │
-         ┌──────────────────▼──────────────────┐
-         │         Cloud Infrastructure         │
-         │                                      │
-         │  ┌────────────┐  ┌───────────────┐   │
-         │  │ Cloud Run   │  │ Cloud SQL     │   │
-         │  │ (runtime,   │  │ (PostgreSQL)  │   │
-         │  │  cloud-api, │  │               │   │
-         │  │  studio)    │  └───────────────┘   │
-         │  └────────────┘                       │
-         │  ┌────────────┐  ┌───────────────┐   │
-         │  │ Memorystore │  │ Secret Manager│   │
-         │  │ (Redis)     │  │               │   │
-         │  └────────────┘  └───────────────┘   │
-         │  ┌────────────┐  ┌───────────────┐   │
-         │  │ VPC         │  │ IAM           │   │
-         │  │ Connector   │  │ (Service Acct)│   │
-         │  └────────────┘  └───────────────┘   │
-         └─────────────────────────────────────┘
+```mermaid
+flowchart TB
+    yaml[orbit.yaml] --> cli["`**Orbit CLI (Python)**
+    astromeshctl orbit init / plan / apply / destroy / eject`"]
+    cli --> plugin["`**Provider Plugin**
+    validate → generate
+    GCP (MVP) · AWS (v1.0) · Azure (v1.0)`"]
+    plugin -- "Jinja2 templates → .tf files" --> runner["`**Terraform Runner**
+    init → plan → apply
+    Thin subprocess wrapper
+    State stored in cloud bucket (GCS / S3 / Azure Blob)`"]
+    runner --> cloud
+    subgraph cloud["Cloud Infrastructure"]
+        cr["`**Cloud Run**
+        runtime, cloud-api, studio`"]
+        sql["`**Cloud SQL**
+        PostgreSQL`"]
+        redis["`**Memorystore**
+        Redis`"]
+        sm["Secret Manager"]
+        vpc["VPC Connector"]
+        iam["`**IAM**
+        Service Acct`"]
+    end
 ```
 
 ---
@@ -161,26 +149,20 @@ astromeshctl orbit eject     Export standalone Terraform files (no Orbit depende
 
 ## Execution Flow
 
-```
-orbit.yaml
-    │
-    ▼
-OrbitProvider.validate()     ← Check credentials, APIs, quotas
-    │
-    ▼
-OrbitProvider.generate()     ← Render .tf.j2 templates → .orbit/generated/*.tf
-    │
-    ▼
-TerraformRunner.init()      ← Initialize Terraform with remote backend
-    │
-    ▼
-TerraformRunner.plan()      ← Preview changes (resources to create/update/destroy)
-    │
-    ▼
-TerraformRunner.apply()     ← Provision infrastructure
-    │
-    ▼
-Post-provisioning            ← Generate orbit.env with connection strings and endpoints
+```mermaid
+flowchart TB
+    yaml[orbit.yaml] --> validate["`**OrbitProvider.validate()**
+    Check credentials, APIs, quotas`"]
+    validate --> generate["`**OrbitProvider.generate()**
+    Render .tf.j2 templates → .orbit/generated/*.tf`"]
+    generate --> init["`**TerraformRunner.init()**
+    Initialize Terraform with remote backend`"]
+    init --> plan["`**TerraformRunner.plan()**
+    Preview changes (resources to create/update/destroy)`"]
+    plan --> apply["`**TerraformRunner.apply()**
+    Provision infrastructure`"]
+    apply --> post["`**Post-provisioning**
+    Generate orbit.env with connection strings and endpoints`"]
 ```
 
 ---

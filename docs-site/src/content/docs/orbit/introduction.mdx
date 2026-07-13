@@ -35,11 +35,16 @@ Deploying Astromesh to production typically means writing Terraform, configuring
 
 Orbit sits between your configuration and Terraform, generating cloud-specific infrastructure code from templates:
 
-```
-orbit.yaml → OrbitProvider.validate()
-           → OrbitProvider.generate()  (.tf files from Jinja2 templates)
-           → terraform init → terraform plan → terraform apply
-           → Post-provisioning (orbit.env with connection strings)
+```mermaid
+flowchart TB
+    cfg["orbit.yaml"]
+    validate["OrbitProvider.validate()"]
+    generate["OrbitProvider.generate()  (.tf files from Jinja2 templates)"]
+    tfinit["terraform init"]
+    tfplan["terraform plan"]
+    tfapply["terraform apply"]
+    post["Post-provisioning (orbit.env with connection strings)"]
+    cfg --> validate --> generate --> tfinit --> tfplan --> tfapply --> post
 ```
 
 The generated Terraform files live in `.orbit/generated/` (gitignored). Only `orbit.yaml` is committed to your repository.

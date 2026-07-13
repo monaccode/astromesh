@@ -27,18 +27,16 @@ sentence, it returns exactly one of three labels:
 
 ## Its journey through the foundry
 
-```text
-  Qwen/Qwen3-4B ─┐
-                 ├─ 02_train (QLoRA) ─▶ 03_merge ─▶ 04_quantize ─▶ export/centinela-4b.Q4_K_M.gguf
-  ES finance ────┘                                        │
-  dataset                                                 ▼
-                                          05_evaluate ── macro_f1 ≥ 0.85 AND beats base?
-                                                 │
-                                    pass ────────┴──────── fail → abort (no publish)
-                                       ▼
-                            06_push_to_hub ──▶ astromesh/Centinela-Qwen3-4B @ v0.1
-                                       │
-                            catalog/*.yaml ──▶ compile ──▶ catalog.lock.json ──▶ Models card
+```mermaid
+flowchart TB
+  base["Qwen/Qwen3-4B"] --> train["02_train (QLoRA)"]
+  dataset["ES finance dataset"] --> train
+  train --> merge["03_merge"] --> quantize["04_quantize"] --> gguf["export/centinela-4b.Q4_K_M.gguf"]
+  gguf --> evaluate["05_evaluate: macro_f1 ≥ 0.85 AND beats base?"]
+  evaluate -- pass --> push["06_push_to_hub"]
+  evaluate -- fail --> abort["abort (no publish)"]
+  push --> repo["astromesh/Centinela-Qwen3-4B @ v0.1"]
+  push --> catalog["catalog/*.yaml"] --> compile["compile"] --> lock["catalog.lock.json"] --> card["Models card"]
 ```
 
 Every step is the real pipeline from [The Foundry Pipeline](/astromesh/nebula/pipeline/); the gate

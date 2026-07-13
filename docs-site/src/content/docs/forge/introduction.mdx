@@ -53,18 +53,16 @@ Deploy agents to three targets:
 
 Forge is a pure client application. It has no backend and no database of its own. All state lives in the Astromesh node, and Forge reads and writes via the existing `/v1/*` API endpoints.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     Astromesh Forge                      │
-│                                                         │
-│  ┌──────────────────────┐       ┌──────────────────────┐│
-│  │   Forge SPA          │─HTTP─>│   Astromesh Node     ││
-│  │   (Vite + React)     │       │   API (/v1/*)        ││
-│  │                      │<JSON──│                      ││
-│  └──────────────────────┘       └──────────────────────┘│
-│                                                         │
-│  No backend. No database. Pure client.                  │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph forge["Astromesh Forge"]
+    spa["`**Forge SPA**
+    (Vite + React)`"]
+    node["`**Astromesh Node**
+    API (/v1/*)`"]
+    spa -- HTTP --> node
+    node -- JSON --> spa
+  end
 ```
 
 ## What Forge is NOT

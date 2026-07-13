@@ -108,20 +108,17 @@ Guardrails are configured per-agent in YAML and execute as part of the agent pip
 
 Astromesh follows a **four-layer architecture** where everything flows through the Runtime Engine:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    API Layer (FastAPI)                  │
-│         REST endpoints  ·  WebSocket streaming          │
-├─────────────────────────────────────────────────────────┤
-│                    Runtime Engine                       │
-│         YAML loading  ·  Agent lifecycle                │
-├─────────────────────────────────────────────────────────┤
-│                    Core Services                        │
-│  ModelRouter · MemoryManager · ToolRegistry · Guardrails│
-├─────────────────────────────────────────────────────────┤
-│                    Infrastructure                       │
-│  Providers · Backends · Vector Stores · Observability   │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    api["`**API Layer (FastAPI)**
+    REST endpoints · WebSocket streaming`"]
+    engine["`**Runtime Engine**
+    YAML loading · Agent lifecycle`"]
+    core["`**Core Services**
+    ModelRouter · MemoryManager · ToolRegistry · Guardrails`"]
+    infra["`**Infrastructure**
+    Providers · Backends · Vector Stores · Observability`"]
+    api --- engine --- core --- infra
 ```
 
 **API Layer** — FastAPI-based REST and WebSocket endpoints. Agents are invoked via `POST /v1/agents/{name}/run` or streamed via `WS /v1/ws/agent/{name}`. Channel adapters (WhatsApp, etc.) also live here.

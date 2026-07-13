@@ -47,8 +47,9 @@ Behind the commands, Leia dispatches **5 specialized subagents**. Natural langua
 
 `leia-doctor` walks a fixed chain and stops at the first failing step, so you get a precise root cause instead of a wall of errors:
 
-```text
-API reachable → auth → tenant → agent CR → node pod → node health → model → webhook
+```mermaid
+flowchart LR
+  api["API reachable"] --> auth["auth"] --> tenant["tenant"] --> cr["agent CR"] --> pod["node pod"] --> health["node health"] --> model["model"] --> webhook["webhook"]
 ```
 
 ## Bundled schemas

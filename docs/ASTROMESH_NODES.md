@@ -16,24 +16,21 @@ A single Astromesh node runs everything: API, agents, inference, memory, tools, 
 
 Astromesh Nodes lets you do this by enabling/disabling services per node and connecting them with peer links.
 
-```
-                    Internet
-                       │
-                ┌──────┴──────┐
-                │   Gateway   │  services: api, channels
-                │  port 8000  │  forwards agent requests →
-                └──────┬──────┘
-                       │
-            ┌──────────┼─────────┐
-            │                    │
-     ┌──────┴──────┐       ┌─────┴───────┐
-     │   Worker    │       │  Inference  │  services: inference
-     │  port 8000  │──────►│  port 8000  │
-     │             │       │             │
-     │ agents,     │       │  GPU models │
-     │ tools,      │       │             │
-     │ memory, rag │       └─────────────┘
-     └─────────────┘
+```mermaid
+flowchart TB
+    internet["Internet"]
+    gateway["`**Gateway** — port 8000
+    services: api, channels
+    forwards agent requests`"]
+    worker["`**Worker** — port 8000
+    agents, tools, memory, rag`"]
+    inference["`**Inference** — port 8000
+    services: inference
+    GPU models`"]
+    internet --> gateway
+    gateway --> worker
+    gateway --> inference
+    worker --> inference
 ```
 
 ---

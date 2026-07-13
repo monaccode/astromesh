@@ -11,20 +11,18 @@ This page offers a high-level map of the system -- its layered architecture, cor
 
 Every component in Astromesh belongs to one of four layers. Each layer has a single responsibility and communicates only with its adjacent layers through well-defined interfaces.
 
-```
-┌───────────────────────────────────────────────────────────┐
-│                    API Layer (FastAPI)                    │
-│         REST endpoints  ·  WebSocket streaming            │
-├───────────────────────────────────────────────────────────┤
-│                    Runtime Engine                         │
-│         YAML loading  ·  Agent lifecycle                  │
-├───────────────────────────────────────────────────────────┤
-│                    Core Services                          │
-│  ModelRouter · MemoryManager · ToolRegistry · Guardrails  │
-├───────────────────────────────────────────────────────────┤
-│                    Infrastructure                         │
-│  Providers · Backends · Vector Stores · Observability     │
-└───────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    api["`**API Layer** · FastAPI
+    REST endpoints · WebSocket streaming`"]
+    runtime["`**Runtime Engine**
+    YAML loading · Agent lifecycle`"]
+    core["`**Core Services**
+    ModelRouter · MemoryManager · ToolRegistry · Guardrails`"]
+    infra["`**Infrastructure**
+    Providers · Backends · Vector Stores · Observability`"]
+
+    api --> runtime --> core --> infra
 ```
 
 **Layer 1 -- API Layer** accepts HTTP and WebSocket requests and routes them to the Runtime Engine. It never contains business logic -- it only translates transport protocols into runtime calls.
@@ -43,13 +41,22 @@ Each layer only talks to its immediate neighbors. The API Layer calls into the R
 
 Channel adapters sit **above** the API Layer, connecting external messaging platforms to the Agent Runtime. Each adapter translates platform-specific webhook events into Astromesh agent requests and formats agent responses back to the platform's expected format.
 
-```
-External Platforms          Channel Adapters              Agent Runtime
-┌───────────┐          ┌──────────────────────┐      ┌──────────────┐
-│ WhatsApp  │─webhook─►│  WhatsApp Adapter    │─────►│              │
-│ Business  │◄──reply──│  (verify, parse,     │◄─────│  AgentRuntime│
-│ Cloud API │          │   send, signatures)  │      │  .run()      │
-└───────────┘          └──────────────────────┘      └──────────────┘
+```mermaid
+flowchart LR
+    subgraph ext["External Platforms"]
+        wa["WhatsApp Business Cloud API"]
+    end
+    subgraph adapters["Channel Adapters"]
+        waa["`WhatsApp Adapter
+        verify · parse · send · signatures`"]
+    end
+    subgraph rt["Agent Runtime"]
+        ar["AgentRuntime.run()"]
+    end
+    wa -- webhook --> waa
+    waa -- dispatch --> ar
+    ar -- reply --> waa
+    waa -- reply --> wa
 ```
 
 Currently supported channels:

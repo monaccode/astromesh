@@ -10,21 +10,22 @@ Astromesh Cloud is a managed platform for deploying AI agents without managing i
 
 Three services compose the platform:
 
-```
-┌─────────────────────────┐
-│   Studio (Next.js)      │  Visual agent builder — 5-step wizard, drag-and-drop tools
-│   studio.astromesh.io   │  Connects to Cloud API via JWT
-└─────────────┬───────────┘
-              │ REST / WebSocket
-┌─────────────▼───────────┐
-│   Cloud API (FastAPI)   │  /api/v1 — Auth, orgs, agents, keys, usage
-│   api.astromesh.io      │  Manages agent configs, lifecycle, BYOK provider keys
-└─────────────┬───────────┘
-              │ AgentRuntime.run()
-┌─────────────▼───────────┐
-│  Astromesh Runtime      │  Same open-source engine (AgentRuntime + ModelRouter + ToolRegistry)
-│  (shared, multi-tenant) │  Agents isolated by org naming convention: {org_slug}__{agent_name}
-└─────────────────────────┘
+```mermaid
+flowchart TB
+    studio["`**Studio (Next.js)**
+    studio.astromesh.io
+    Visual agent builder — 5-step wizard, drag-and-drop tools
+    Connects to Cloud API via JWT`"]
+    api["`**Cloud API (FastAPI)**
+    api.astromesh.io
+    /api/v1 — Auth, orgs, agents, keys, usage
+    Manages agent configs, lifecycle, BYOK provider keys`"]
+    runtime["`**Astromesh Runtime**
+    (shared, multi-tenant)
+    Same open-source engine (AgentRuntime + ModelRouter + ToolRegistry)
+    Agents isolated by org naming convention: {org_slug}__{agent_name}`"]
+    studio -- "REST / WebSocket" --> api
+    api -- "AgentRuntime.run()" --> runtime
 ```
 
 The runtime is the same engine described in the core Astromesh docs — the Cloud layer adds auth, multi-tenancy, the visual Studio, and the managed ops around it.
@@ -87,11 +88,12 @@ Limits per org (v0.1.0):
 
 Agents have a **lifecycle** with three states:
 
-```
-draft ──────→ deployed ──────→ paused
-  ↑               │               │
-  └───────────────┴───────────────┘
-         (re-deploy / unpause)
+```mermaid
+stateDiagram-v2
+    draft --> deployed
+    deployed --> paused
+    deployed --> draft: re-deploy / unpause
+    paused --> draft: re-deploy / unpause
 ```
 
 - **draft** — Config saved, not running. Can be edited freely.
