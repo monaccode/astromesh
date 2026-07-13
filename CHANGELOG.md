@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.32.0] - 2026-07-13
+
+### Added
+- **Registración dinámica de blueprints** — `POST /v1/workflows/register` acepta un blueprint
+  completo `{workflow, agents, rag_pipelines}` (objetos astromesh) y lo registra en runtime,
+  para poder lanzarlo con el `POST /{name}/run` existente sin que estuviera en disco al
+  bootstrap. Registra en orden RAG → agentes (`register_agent` + `deploy_agent`) → workflow,
+  de modo que el KB de un agente resuelva al construirlo. Idempotente (upsert); `422` en spec
+  inválido, `503` sin engine/runtime. Primitivas nuevas: `WorkflowEngine.register_workflow(spec)`
+  y `AgentRuntime.register_rag_pipeline(raw)` (agrega al store del runtime `_rag_specs`, el que
+  usa `_resolve_rag`). (`astromesh/api/routes/workflows.py`, `astromesh/workflow/__init__.py`,
+  `astromesh/runtime/engine.py`)
+
+### Changed
+- **`mark_orphaned_failed` gana un guard de staleness opcional** — `mark_orphaned_failed(now=None,
+  orphan_after_seconds=0)`: con el default (0) marca TODOS los runs `running` como huérfanos
+  (correcto en bootstrap); con `>0` solo marca los que no tienen progreso reciente (`updated_at`
+  más viejo que `now - orphan_after_seconds`, o ausente), para que sea seguro de llamar
+  periódicamente sin matar un run activo. (`astromesh/workflow/__init__.py`)
+
 ## [v0.31.0] - 2026-07-12
 
 > Accumulated release off `develop` since 0.30.0. Beyond the itemized entries below, this
