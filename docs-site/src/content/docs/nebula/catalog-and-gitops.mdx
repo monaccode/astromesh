@@ -1,0 +1,99 @@
+---
+title: Catalog & GitOps
+description: The catalog.lock.json machine contract, and the GitOps loop that carries a model from the foundry to a live endpoint.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+Publishing artifacts to the Hub is only half of a release. The other half is the **contract**: a
+machine-readable record of what was published, how good it is, and how to route to it. That contract
+is `catalog.lock.json`, and it is what connects the foundry to the running platform through GitOps.
+
+## The catalog source
+
+Humans edit small, reviewable YAML in `catalog/`: one file for models, one for datasets. A model
+entry declares its identity, its **output contract**, its **aliases**, and its **revisions**:
+
+```yaml
+models:
+  - name: centinela-sentiment
+    kind: classifier
+    task: text-classification
+    vertical: finanzas
+    hf_repo: astromesh/Centinela-Qwen3-4B
+    contract:
+      labels: [positivo, neutral, negativo]
+      validation: constrain_label
+    aliases:
+      prod: v0.1
+    revisions:
+      - version: v0.1
+        sha: "<real HF revision SHA>"
+        gate: passed
+        base_model: Qwen/Qwen3-4B
+        dataset: centinela-sentiment-es@1
+        formats: [safetensors, gguf]
+        eval:
+          macro_f1: 0.0        # filled from the real eval after training
+          invalid_rate: 0.0
+```
+
+- **`contract`** is the runtime promise: the exact label set and `constrain_label` validation, so a
+  consumer never has to guess or post-process free text.
+- **`aliases`** decouple a stable name (`prod`) from a specific revision (`v0.1`) — promotion is just
+  moving an alias.
+- **`revisions`** are immutable, gated snapshots with their eval numbers recorded.
+
+## The compiled lock
+
+`scripts/09_catalog.py compile` validates the source YAML and emits `catalog.lock.json` — the single
+machine contract everything downstream reads:
+
+```bash
+uv run python scripts/09_catalog.py compile \
+  --models catalog/centinela.yaml --datasets catalog/datasets.yaml \
+  --out catalog.lock.json
+```
+
+The [Models](/astromesh/models/) section of these docs is generated **directly from this file** —
+every model card you see is a projection of the lock.
+
+<Aside type="note" title="Preview state">
+Until the first real training run, the SHA and eval fields are placeholders and every card is marked
+**preview**. The gate, contract, and aliases are already real — only the measured numbers wait on
+the first published revision.
+</Aside>
+
+## The GitOps loop
+
+A release travels from the foundry to a live endpoint entirely through pull requests — no manual
+copying of endpoints, keys, or contracts into agent specs.
+
+```text
+  NEBULA                                         ASTROMESH
+  ┌──────────────────────────┐                   ┌───────────────────────────────────────┐
+  │ 1. train + gate (HF Job) │                   │ 4. bindings: alias ─▶ endpoint         │
+  │ 2. edit catalog/*.yaml   │   catalog PR      │ 5. apply-endpoints provisions the      │
+  │ 3. compile lock  ────────┼──────────────────▶│    live HF Inference Endpoint          │
+  │    (catalog.lock.json)   │  (push notifies   │ 6. writes providers.centinela.yaml     │
+  └──────────────────────────┘   astromesh)      │ 7. agent routes via providerRef        │
+                                                 └───────────────────────────────────────┘
+```
+
+1. **Foundry** trains and gates a revision, then records it in `catalog/*.yaml` and compiles the lock.
+2. A **catalog change** on the Nebula side notifies Astromesh (repository dispatch), which opens a
+   sync/promotion PR — bumping the pinned catalog and proposing binding changes.
+3. **Bindings** map a model alias (`prod`) to a serving config; merging them triggers endpoint
+   provisioning, which stands up (or updates) a live HF Inference Endpoint.
+4. Provisioning writes a `providers.centinela.yaml` entry; an agent references it by name via
+   **`providerRef`**, and the runtime resolves the endpoint, contract, and auth automatically.
+
+<Aside type="tip">
+The payoff of the contract: an agent author writes `providerRef: centinela-sentiment` and gets a
+live, gated, validated model — no endpoint URL, token, or label list copied by hand. See
+[Provider Configuration](/astromesh/configuration/providers/).
+</Aside>
+
+## Next
+
+See the whole thing land on a real model: [How a model is made: Centinela](/astromesh/nebula/centinela/).

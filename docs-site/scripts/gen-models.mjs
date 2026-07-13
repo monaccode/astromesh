@@ -197,7 +197,9 @@ description: Centinela model catalog
 ---
 
 Models compiled from the foundry catalog. Each card is generated from
-\`catalog.lock.json\` — the machine contract produced by the Nebula foundry.
+\`catalog.lock.json\` — the machine contract produced by the [Nebula foundry](/astromesh/nebula/introduction/).
+To see how these models are trained, gated, and published, read
+[The Foundry Pipeline](/astromesh/nebula/pipeline/).
 
 ${sections}
 `,

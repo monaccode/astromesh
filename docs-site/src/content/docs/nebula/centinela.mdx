@@ -1,0 +1,83 @@
+---
+title: 'How a model is made: Centinela'
+description: The first Nebula family, end-to-end — from base model to a self-hostable Spanish financial sentiment classifier.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+# How a model is made: Centinela <Badge text="preview" variant="caution" />
+
+<Badge text="finanzas" /> <Badge text="español" /> <Badge text="Apache-2.0" />
+
+**Centinela** is Nebula's first model family: Spanish-first models for finance and back-office work
+in LATAM. It's the concrete walk-through of everything in the previous pages — the pipeline, the
+gate, and the catalog contract, applied to one real model.
+
+## The model
+
+`Centinela-Qwen3-4B` (`v0.1`) is a financial **sentiment** classifier. Given a Spanish financial
+sentence, it returns exactly one of three labels:
+
+- **Contract:** `positivo` · `neutral` · `negativo`, enforced with `constrain_label` — the output is
+  guaranteed to be one of the three, never free text.
+- **Base:** QLoRA fine-tune of `Qwen/Qwen3-4B`.
+- **Dataset:** `centinela-sentiment-es@1` (finance sentiment, ES).
+- **Formats:** `safetensors` + `Q4_K_M` GGUF — runs cheap, self-hosted, even on CPU.
+- **License:** Apache-2.0.
+
+## Its journey through the foundry
+
+```text
+  Qwen/Qwen3-4B ─┐
+                 ├─ 02_train (QLoRA) ─▶ 03_merge ─▶ 04_quantize ─▶ export/centinela-4b.Q4_K_M.gguf
+  ES finance ────┘                                        │
+  dataset                                                 ▼
+                                          05_evaluate ── macro_f1 ≥ 0.85 AND beats base?
+                                                 │
+                                    pass ────────┴──────── fail → abort (no publish)
+                                       ▼
+                            06_push_to_hub ──▶ astromesh/Centinela-Qwen3-4B @ v0.1
+                                       │
+                            catalog/*.yaml ──▶ compile ──▶ catalog.lock.json ──▶ Models card
+```
+
+Every step is the real pipeline from [The Foundry Pipeline](/astromesh/nebula/pipeline/); the gate
+thresholds are the real `configs/eval.yaml`; the contract and aliases are the real
+`catalog/centinela.yaml`.
+
+<Aside type="caution" title="Preliminary">
+`v0.1` is defined in the catalog but not yet published — the revision SHA and eval metrics are
+placeholders until the first release runs. The card is marked **preview** for exactly this reason.
+</Aside>
+
+## Using it
+
+Once published, Centinela is consumable two ways.
+
+### Directly, self-hosted
+
+The GGUF build runs anywhere Ollama does — no GPU required:
+
+```bash
+ollama run hf.co/astromesh/Centinela-Qwen3-4B:Q4_K_M
+```
+
+### Through the runtime
+
+An agent routes to it through the GitOps contract — no endpoint or label list copied by hand:
+
+```yaml
+# in an agent's model block
+providerRef: centinela-sentiment
+```
+
+The runtime resolves the live endpoint, the `positivo/neutral/negativo` contract, and auth from the
+provisioned `providers.centinela.yaml`. Agents then call the typed facade
+`classify(text) -> SentimentResult` (exposed as an ADK tool) or route through `CentinelaProvider`
+like any other provider.
+
+## See also
+
+- [centinela-sentiment model card](/astromesh/models/centinela-sentiment/) — the generated catalog card.
+- [Catalog & GitOps](/astromesh/nebula/catalog-and-gitops/) — how the contract reaches the runtime.
+- [Provider Configuration](/astromesh/configuration/providers/) — how providers are wired.

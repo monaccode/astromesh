@@ -21,6 +21,7 @@ You can use just the core runtime with YAML config files, or combine it with the
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.2.0 |
 | **Nexus** | Multi-tenant Kubernetes control plane (operator + REST API) | `astromesh-nexus` | v0.3.0 |
 | **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.1.0 |
+| **Nebula** | Open-model foundry — trains, gates, and publishes the ecosystem's own models | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | v0.1.0 (preview) |
 
 ## How They Relate
 
@@ -48,6 +49,7 @@ Every component orbits the **Core Runtime** — the engine that loads agents, ro
 - **Node** installs the runtime as a native system service (`astromeshd`); **OS** ships it as a sealed appliance image; **Docker/Helm** package it for containers.
 - **CLI** is the `astromeshctl` management interface.
 - **Orbit** provisions cloud infrastructure with Terraform; **Nexus** is the multi-tenant control plane that runs a Node per tenant in Kubernetes.
+- **[Nebula](/astromesh/nebula/introduction/)** sits *upstream* of the runtime: it's the open-model foundry that trains, gates, and publishes the ecosystem's own models (the [Models](/astromesh/models/) catalog the runtime routes to).
 
 ## Forge vs Cortex
 
@@ -78,6 +80,7 @@ In short: reach for **Forge** when you want an instant, in-node visual builder; 
 | Provision cloud infrastructure with Terraform | [**Astromesh Orbit**](/astromesh/orbit/introduction/) |
 | Run a multi-tenant agent platform on Kubernetes | [**Astromesh Nexus**](/astromesh/nexus/introduction/) |
 | Manage nodes and clusters from the command line | [**Astromesh CLI**](/astromesh/reference/cli-commands/) |
+| Train and publish the ecosystem's own open models | [**Astromesh Nebula**](/astromesh/nebula/introduction/) |
 
 ## Deployment Layers
 
@@ -120,3 +123,4 @@ The ecosystem forms a layered stack. You choose your entry point at each layer:
 | OS | [OS Introduction](/astromesh/os/introduction/) — the immutable agent appliance |
 | Orbit | [Orbit Introduction](/astromesh/orbit/introduction/) — provision cloud infrastructure |
 | Nexus | [Nexus Introduction](/astromesh/nexus/introduction/) — multi-tenant Kubernetes control plane |
+| Nebula | [Nebula Introduction](/astromesh/nebula/introduction/) — the open-model foundry where our models are born |

@@ -97,6 +97,15 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Astromesh Nebula',
+          items: [
+            { label: 'Introduction', slug: 'nebula/introduction' },
+            { label: 'The Foundry Pipeline', slug: 'nebula/pipeline' },
+            { label: 'Catalog & GitOps', slug: 'nebula/catalog-and-gitops' },
+            { label: 'How a model is made: Centinela', slug: 'nebula/centinela' },
+          ],
+        },
+        {
           label: 'Models',
           autogenerate: { directory: 'models' },
         },
