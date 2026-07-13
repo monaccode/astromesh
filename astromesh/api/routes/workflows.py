@@ -7,6 +7,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from astromesh.workflow.loader import WorkflowLoader
+
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 _engine = None
@@ -29,6 +31,12 @@ class ResumeRequest(BaseModel):
 class DecisionRequest(BaseModel):
     approver: str
     comment: str | None = None
+
+
+class RegisterBlueprintRequest(BaseModel):
+    workflow: dict[str, Any]
+    agents: list[dict[str, Any]] = []
+    rag_pipelines: list[dict[str, Any]] = []
 
 
 @router.get("/")
@@ -122,6 +130,31 @@ async def approve_run(run_id: str, request: DecisionRequest):
 @router.post("/runs/{run_id}/reject")
 async def reject_run(run_id: str, request: DecisionRequest):
     return await _decide_endpoint(run_id, request, approved=False)
+
+
+@router.post("/register")
+async def register_blueprint(request: RegisterBlueprintRequest):
+    if not _engine or getattr(_engine, "_runtime", None) is None:
+        raise HTTPException(status_code=503, detail="Workflow engine/runtime not initialized")
+    runtime = _engine._runtime
+    try:
+        # 1) RAG primero (para que el KB resuelva al deployar agentes)
+        rag_names = [runtime.register_rag_pipeline(r) for r in request.rag_pipelines]
+        # 2) agentes: register (draft) + deploy (build → ejecutable)
+        agent_names = []
+        for a in request.agents:
+            await runtime.register_agent(a)
+            name = a.get("metadata", {}).get("name")
+            await runtime.deploy_agent(name)
+            agent_names.append(name)
+        # 3) workflow
+        if request.workflow.get("kind") != "Workflow":
+            raise ValueError(f"Expected kind: Workflow, got: {request.workflow.get('kind')}")
+        spec = WorkflowLoader("")._parse(request.workflow)
+        _engine.register_workflow(spec)
+    except (ValueError, KeyError) as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"workflow_name": spec.name, "agents": agent_names, "rag_pipelines": rag_names}
 
 
 @router.get("/{name}")
