@@ -508,6 +508,16 @@ class AgentRuntime:
         self._agent_status.pop(name, None)
         self._remove_agent_yaml(name)
 
+    def register_rag_pipeline(self, raw: dict) -> str:
+        """Registra (o reemplaza) un RAGPipeline en el store del runtime (`_rag_specs`),
+        el que usa `_resolve_rag` para el KB de un agente. Espeja `register_agent`
+        pero para RAG. Devuelve el nombre registrado."""
+        from astromesh.rag.loader import spec_from_raw
+
+        spec = spec_from_raw(raw)  # valida kind + name; lanza ValueError si es inválido
+        self._rag_specs[spec.name] = spec
+        return spec.name
+
 
 class Agent:
     def __init__(
