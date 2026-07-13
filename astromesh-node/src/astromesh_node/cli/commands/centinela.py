@@ -42,7 +42,7 @@ def reconcile_command(
 ) -> None:
     """Compile bindings + catalog lock into provider config (compile-only; no HF calls)."""
     lock = _load_lock()
-    bindings_doc = yaml.safe_load(Path(bindings).read_text())
+    bindings_doc = yaml.safe_load(Path(bindings).read_text(encoding="utf-8"))
     try:
         providers = reconcile(lock, bindings_doc)
     except ReconcileError as exc:
@@ -50,17 +50,19 @@ def reconcile_command(
         raise typer.Exit(1) from exc
     doc = to_provider_config(providers)
     Path(out).parent.mkdir(parents=True, exist_ok=True)
-    Path(out).write_text(yaml.safe_dump(doc, sort_keys=True, allow_unicode=True))
+    Path(out).write_text(yaml.safe_dump(doc, sort_keys=True, allow_unicode=True), encoding="utf-8")
     console.print(f"[green]Reconciled[/green] {len(providers)} Centinela provider(s) -> {out}")
 
 
 def _apply_stub_bindings(bindings_path: Path, missing: list) -> None:
     """Append a stub binding for each missing (model, alias) to bindings.yaml."""
-    doc = yaml.safe_load(bindings_path.read_text()) or {}
+    doc = yaml.safe_load(bindings_path.read_text(encoding="utf-8")) or {}
     doc.setdefault("spec", {}).setdefault("bindings", [])
     for mb in missing:
         doc["spec"]["bindings"].append(stub_binding(mb.model, mb.alias))
-    bindings_path.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True))
+    bindings_path.write_text(
+        yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
 
 
 def _apply_pin_bump(pyproject_paths: list[str], version: str) -> None:
@@ -68,7 +70,7 @@ def _apply_pin_bump(pyproject_paths: list[str], version: str) -> None:
     for raw in pyproject_paths:
         p = Path(raw)
         if p.exists():
-            p.write_text(bump_nebula_pin(p.read_text(), version))
+            p.write_text(bump_nebula_pin(p.read_text(encoding="utf-8"), version), encoding="utf-8")
 
 
 @app.command("plan-promotion")
@@ -86,9 +88,9 @@ def plan_promotion_command(
         None, "--pyproject", help="pyproject.toml(s) whose astromesh-nebula pin to bump"),
 ) -> None:
     """Plan a catalog promotion into file edits + a PR body (no HF calls)."""
-    old_doc = json.loads(Path(vendored_lock).read_text())
-    new_doc = json.loads(Path(new_lock).read_text())
-    bindings_doc = yaml.safe_load(Path(bindings).read_text()) or {}
+    old_doc = json.loads(Path(vendored_lock).read_text(encoding="utf-8"))
+    new_doc = json.loads(Path(new_lock).read_text(encoding="utf-8"))
+    bindings_doc = yaml.safe_load(Path(bindings).read_text(encoding="utf-8")) or {}
 
     try:
         plan = plan_promotion(old_doc, new_doc, bindings_doc)
@@ -98,15 +100,17 @@ def plan_promotion_command(
 
     if plan.is_noop:
         console.print("[yellow]No catalog changes[/yellow] — nothing to promote.")
-        Path(pr_body).write_text("")   # empty body signals the workflow to skip
+        Path(pr_body).write_text("", encoding="utf-8")  # empty body signals the workflow to skip
         return
 
-    Path(vendored_lock).write_text(Path(new_lock).read_text())  # refresh vendored lock verbatim
+    Path(vendored_lock).write_text(
+        Path(new_lock).read_text(encoding="utf-8"), encoding="utf-8"
+    )  # refresh vendored lock verbatim
     _apply_pin_bump(list(pyproject or []), version)
     if plan.missing_bindings:
         _apply_stub_bindings(Path(bindings), plan.missing_bindings)
-    Path(pr_body).write_text(render_pr_body(plan, version))
-    Path(labels_out).write_text(",".join(pr_labels(plan)))
+    Path(pr_body).write_text(render_pr_body(plan, version), encoding="utf-8")
+    Path(labels_out).write_text(",".join(pr_labels(plan)), encoding="utf-8")
 
     console.print(
         f"[green]Planned[/green] {len(plan.alias_moves)} move(s), "
@@ -130,7 +134,7 @@ def apply_endpoints_command(
     token = os.environ.get("HF_TOKEN")
     lock = _load_lock()
     models = {m["name"]: m for m in lock.get("models", [])}
-    bindings_doc = yaml.safe_load(Path(bindings).read_text()) or {}
+    bindings_doc = yaml.safe_load(Path(bindings).read_text(encoding="utf-8")) or {}
 
     try:
         desired_list = plan_endpoints(lock, bindings_doc)
@@ -176,5 +180,5 @@ def apply_endpoints_command(
 
     doc = to_provider_config(dict(sorted(providers.items())))
     Path(out).parent.mkdir(parents=True, exist_ok=True)
-    Path(out).write_text(yaml.safe_dump(doc, sort_keys=True, allow_unicode=True))
+    Path(out).write_text(yaml.safe_dump(doc, sort_keys=True, allow_unicode=True), encoding="utf-8")
     console.print(f"[green]Applied[/green] {len(providers)} endpoint(s) -> {out}")

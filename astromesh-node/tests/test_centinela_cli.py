@@ -40,12 +40,12 @@ BINDINGS = {
 def test_reconcile_command_writes_provider_config(tmp_path, monkeypatch):
     monkeypatch.setattr(centinela, "_load_lock", lambda: LOCK)
     bindings_path = tmp_path / "bindings.yaml"
-    bindings_path.write_text(yaml.safe_dump(BINDINGS))
+    bindings_path.write_text(yaml.safe_dump(BINDINGS), encoding="utf-8")
     out_path = tmp_path / "providers.centinela.yaml"
 
     centinela.reconcile_command(bindings=str(bindings_path), out=str(out_path))
 
-    doc = yaml.safe_load(out_path.read_text())
+    doc = yaml.safe_load(out_path.read_text(encoding="utf-8"))
     assert doc["kind"] == "ProviderConfig"
     entry = doc["spec"]["providers"]["centinela-sentiment"]
     assert entry["type"] == "centinela"
@@ -64,7 +64,7 @@ def test_reconcile_command_end_to_end_with_shipped_lock(tmp_path):
 
     centinela.reconcile_command(bindings=str(seed_bindings), out=str(out_path))
 
-    doc = yaml.safe_load(out_path.read_text())
+    doc = yaml.safe_load(out_path.read_text(encoding="utf-8"))
     assert "centinela-sentiment" in doc["spec"]["providers"]
     assert doc["spec"]["providers"]["centinela-sentiment"]["type"] == "centinela"
 
@@ -95,7 +95,9 @@ def _sentiment(aliases, revisions):
 
 def _write(tmp_path, name, obj):
     p = tmp_path / name
-    p.write_text(json.dumps(obj) if name.endswith(".json") else yaml.safe_dump(obj))
+    p.write_text(
+        json.dumps(obj) if name.endswith(".json") else yaml.safe_dump(obj), encoding="utf-8"
+    )
     return p
 
 
@@ -115,7 +117,7 @@ def test_plan_promotion_happy_path_edits_and_body(tmp_path):
                       _bindings([{"model": "centinela-sentiment", "alias": "staging",
                                   "endpoint": "https://ep.example.cloud"}]))
     pyproj = tmp_path / "pyproject.toml"
-    pyproj.write_text('centinela = ["astromesh-nebula>=0.1.0"]\n')
+    pyproj.write_text('centinela = ["astromesh-nebula>=0.1.0"]\n', encoding="utf-8")
     body = tmp_path / "pr-body.md"
     labels = tmp_path / "labels.txt"
 
@@ -124,10 +126,10 @@ def test_plan_promotion_happy_path_edits_and_body(tmp_path):
         vendored_lock=str(vendored), pr_body=str(body), labels_out=str(labels),
         pyproject=[str(pyproj)])
 
-    assert json.loads(vendored.read_text())["models"][0]["aliases"]["staging"] == "v0.2"
-    assert "astromesh-nebula>=0.2.0" in pyproj.read_text()
-    assert "Alias moves" in body.read_text()
-    assert labels.read_text().strip() == "centinela:staging"
+    assert json.loads(vendored.read_text(encoding="utf-8"))["models"][0]["aliases"]["staging"] == "v0.2"
+    assert "astromesh-nebula>=0.2.0" in pyproj.read_text(encoding="utf-8")
+    assert "Alias moves" in body.read_text(encoding="utf-8")
+    assert labels.read_text(encoding="utf-8").strip() == "centinela:staging"
 
 
 def test_plan_promotion_noop_writes_empty_body(tmp_path):
@@ -142,7 +144,7 @@ def test_plan_promotion_noop_writes_empty_body(tmp_path):
         vendored_lock=str(vendored), pr_body=str(body), labels_out=str(tmp_path / "l.txt"),
         pyproject=[])
 
-    assert body.read_text() == ""   # empty body → workflow skips the PR
+    assert body.read_text(encoding="utf-8") == ""   # empty body → workflow skips the PR
 
 
 def test_plan_promotion_missing_binding_appends_stub(tmp_path):
@@ -158,7 +160,7 @@ def test_plan_promotion_missing_binding_appends_stub(tmp_path):
         vendored_lock=str(vendored), pr_body=str(body), labels_out=str(tmp_path / "l.txt"),
         pyproject=[])
 
-    doc = yaml.safe_load(bindings_path.read_text())
+    doc = yaml.safe_load(bindings_path.read_text(encoding="utf-8"))
     stub = [b for b in doc["spec"]["bindings"] if b["alias"] == "staging"][0]
     assert stub["endpoint"] == STUB_ENDPOINT
 
@@ -179,7 +181,7 @@ def test_plan_promotion_blocked_exits_1_but_still_writes(tmp_path):
             vendored_lock=str(vendored), pr_body=str(body), labels_out=str(tmp_path / "l.txt"),
             pyproject=[])
     assert exc.value.exit_code == 1
-    assert "Blocked" in body.read_text()
+    assert "Blocked" in body.read_text(encoding="utf-8")
 
 
 def _sentiment_lock(sha="a" * 40, gate="passed"):
@@ -220,7 +222,7 @@ def test_apply_endpoints_create_writes_provider_config(tmp_path, monkeypatch):
     monkeypatch.setattr(_hf, "wait_url", lambda ep, **k: ep.url)
 
     bindings_path = tmp_path / "bindings.yaml"
-    bindings_path.write_text(yaml.safe_dump(_serving_bindings()))
+    bindings_path.write_text(yaml.safe_dump(_serving_bindings()), encoding="utf-8")
     out_path = tmp_path / "providers.centinela.yaml"
 
     centinela.apply_endpoints_command(
@@ -228,7 +230,7 @@ def test_apply_endpoints_create_writes_provider_config(tmp_path, monkeypatch):
         dry_run=False, wait_timeout=5)
 
     assert created["name"] == "centinela-sentiment-prod"
-    doc = yaml.safe_load(out_path.read_text())
+    doc = yaml.safe_load(out_path.read_text(encoding="utf-8"))
     entry = doc["spec"]["providers"]["centinela-sentiment"]
     assert entry["endpoint"] == "https://ep.aws.endpoints.huggingface.cloud"
     assert entry["endpoint_name"] == "centinela-sentiment-prod"
@@ -246,7 +248,7 @@ def test_apply_endpoints_dry_run_makes_no_mutation(tmp_path, monkeypatch):
     monkeypatch.setattr(_hf, "update_endpoint", _boom)
 
     bindings_path = tmp_path / "bindings.yaml"
-    bindings_path.write_text(yaml.safe_dump(_serving_bindings()))
+    bindings_path.write_text(yaml.safe_dump(_serving_bindings()), encoding="utf-8")
     out_path = tmp_path / "providers.centinela.yaml"
 
     centinela.apply_endpoints_command(
@@ -265,12 +267,12 @@ def test_apply_endpoints_skips_not_ready(tmp_path, monkeypatch):
 
     monkeypatch.setattr(_hf, "get_endpoint", _boom)
     bindings_path = tmp_path / "bindings.yaml"
-    bindings_path.write_text(yaml.safe_dump(_serving_bindings()))
+    bindings_path.write_text(yaml.safe_dump(_serving_bindings()), encoding="utf-8")
     out_path = tmp_path / "providers.centinela.yaml"
 
     centinela.apply_endpoints_command(
         bindings=str(bindings_path), out=str(out_path), namespace="org",
         dry_run=False, wait_timeout=5)
 
-    doc = yaml.safe_load(out_path.read_text())
+    doc = yaml.safe_load(out_path.read_text(encoding="utf-8"))
     assert doc["spec"]["providers"] == {}

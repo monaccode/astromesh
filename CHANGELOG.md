@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `astromesh-node`'s Centinela CLI (`plan-promotion`, `reconcile`) and its tests read/wrote files
+  with `Path.read_text()/write_text()` without an explicit encoding, so on Windows (cp1252/ascii
+  locale) they raised `UnicodeError` on PR bodies and locks containing non-ASCII characters
+  (em-dash, `·`, emoji). Pinned all file I/O in `commands/centinela.py` and `test_centinela_cli.py`
+  to `encoding="utf-8"`, fixing the `test-node (windows-latest)` CI job.
 - CI was red because the `centinela` extra (and the `dev` group / `astromesh-node`) declared a
   hard dependency on **astromesh-nebula** via a `path = "../astromesh-nebula"` source. That
   sibling repo is not present on CI runners, so `uv sync` failed to resolve. Removed
