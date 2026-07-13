@@ -52,6 +52,11 @@ class WorkflowEngine:
     def get_workflow(self, name: str) -> WorkflowSpec | None:
         return self._workflows.get(name)
 
+    def register_workflow(self, spec: WorkflowSpec) -> None:
+        """Registra (o reemplaza) un workflow en runtime, además de los cargados
+        del dir en bootstrap. Habilita correr blueprints generados dinámicamente."""
+        self._workflows[spec.name] = spec
+
     async def run(self, workflow_name: str, trigger: dict[str, Any]) -> WorkflowRunResult:
         """Starts a new durable run: creates a WorkflowRun in the store, then drives it.
 
