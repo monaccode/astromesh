@@ -352,9 +352,32 @@ class WorkflowEngine:
             n += 1
         return n
 
-    async def mark_orphaned_failed(self) -> int:
+    async def mark_orphaned_failed(
+        self, now: str | None = None, orphan_after_seconds: int = 0
+    ) -> int:
+        """Marca runs 'running' como 'failed' (huérfanos de un proceso muerto).
+
+        Con ``orphan_after_seconds<=0`` (default) marca TODOS los runs 'running' —
+        correcto SOLO en bootstrap, donde ningún proceso está driveando runs. Para
+        uso periódico pasá ``orphan_after_seconds>0``: solo marca runs sin progreso
+        reciente (``updated_at`` más viejo que ``now - orphan_after_seconds``, o sin
+        ``updated_at``), para no matar por error un run activo que checkpointea
+        ``updated_at`` por-step.
+        """
+        threshold: datetime | None = None
+        if orphan_after_seconds > 0:
+            ref = datetime.fromisoformat(now) if now else datetime.now(UTC)
+            threshold = ref - timedelta(seconds=orphan_after_seconds)
+
         n = 0
         for run in await self._store.list_by_status("running"):
+            if threshold is not None and run.updated_at:
+                try:
+                    last = datetime.fromisoformat(run.updated_at)
+                except ValueError:
+                    last = None
+                if last is not None and last >= threshold:
+                    continue  # progreso reciente → vivo, no tocar
             run.status = "failed"
             run.error = "orphaned: process died mid-run"
             await self._store.save(run)
