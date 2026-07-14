@@ -19,6 +19,10 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
 
     containers {
       image = "{{ svc.image }}"
+{% if observability.tracing.enabled %}
+      name       = "runtime"
+      depends_on = ["otel-collector"]
+{% endif %}
 
       ports {
         container_port = 8000
@@ -45,6 +49,16 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
         value = google_storage_bucket.rag_documents.name
       }
 {% endif %}
+{% if observability.tracing.enabled %}
+      env {
+        name  = "ASTROMESH_OTLP_ENABLED"
+        value = "1"
+      }
+      env {
+        name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+        value = "http://localhost:4317"
+      }
+{% endif %}
 {% for key, value in custom_env.items() %}
       env {
         name  = "{{ key }}"
@@ -57,6 +71,39 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
         mount_path = "/cloudsql"
       }
     }
+{% if observability.tracing.enabled %}
+    containers {
+      name  = "otel-collector"
+      image = "{{ observability.tracing.collector_image }}"
+      args  = ["--config=env:OTEL_COLLECTOR_CONFIG"]
+
+      env {
+        name  = "OTEL_COLLECTOR_CONFIG"
+        value = <<-EOT
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+          exporters:
+            googlecloud:
+              project: ${var.project_id}
+          service:
+            pipelines:
+              traces:
+                receivers: [otlp]
+                exporters: [googlecloud]
+        EOT
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+    }
+{% endif %}
 
     volumes {
       name = "cloudsql"

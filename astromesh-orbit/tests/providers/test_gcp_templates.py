@@ -238,3 +238,38 @@ def test_monitoring_tf_disabled(jinja_env, ctx):
     tmpl = jinja_env.get_template("monitoring.tf.j2")
     output = tmpl.render(ctx)
     assert "google_monitoring_dashboard" not in output
+
+
+def _tracing_ctx(ctx):
+    """ctx with tracing enabled (dashboard left at its default)."""
+    from astromesh_orbit.config import ObservabilitySpec, TracingSpec
+
+    ctx["observability"] = ObservabilitySpec(tracing=TracingSpec(enabled=True))
+    return ctx
+
+
+def test_cloud_run_renders_collector_sidecar(jinja_env, ctx):
+    tmpl = jinja_env.get_template("cloud_run.tf.j2")
+    output = tmpl.render(_tracing_ctx(ctx))
+    assert "otel-collector" in output
+    assert "--config=env:OTEL_COLLECTOR_CONFIG" in output
+    assert "googlecloud" in output
+    assert "0.0.0.0:4317" in output
+
+
+def test_cloud_run_renders_otlp_env_when_tracing(jinja_env, ctx):
+    tmpl = jinja_env.get_template("cloud_run.tf.j2")
+    output = tmpl.render(_tracing_ctx(ctx))
+    assert "ASTROMESH_OTLP_ENABLED" in output
+    assert "OTEL_EXPORTER_OTLP_ENDPOINT" in output
+    assert "http://localhost:4317" in output
+    assert 'depends_on = ["otel-collector"]' in output
+
+
+def test_cloud_run_omits_tracing_when_disabled(jinja_env, ctx):
+    # ctx's default observability has tracing.enabled = False
+    tmpl = jinja_env.get_template("cloud_run.tf.j2")
+    output = tmpl.render(ctx)
+    assert "otel-collector" not in output
+    assert "ASTROMESH_OTLP_ENABLED" not in output
+    assert "OTEL_EXPORTER_OTLP_ENDPOINT" not in output
