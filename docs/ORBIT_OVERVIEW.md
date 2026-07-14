@@ -218,8 +218,8 @@ The interactive wizard (`orbit init`) offers two presets:
 
 | Preset | Estimated Cost | Compute | Database | Cache |
 |---|---|---|---|---|
-| **Starter** | ~$30/mo | 1 instance each, 1 CPU / 1Gi | db-f1-micro, no HA | 1 GB basic |
-| **Pro** | ~$150/mo | Auto-scaling 1-5, 2 CPU / 2Gi | db-g1-small with HA | 4 GB standard |
+| **Starter** | ~$15/mo | 1 instance each, 1 CPU / 1Gi | db-f1-micro, no HA | 1 GB basic |
+| **Pro** | ~$80/mo | Auto-scaling 1-5, 2 CPU / 2Gi | db-g1-small with HA | 4 GB standard |
 
 The wizard writes explicit values to `orbit.yaml` — no magic tier references at runtime. You can edit the file after generation.
 

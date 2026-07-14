@@ -394,7 +394,7 @@ spec:
 
 The `orbit init` wizard offers two presets that populate `orbit.yaml` with explicit values.
 
-### Starter (~$30/mo)
+### Starter (~$15/mo)
 
 ```yaml
 spec:
@@ -426,7 +426,7 @@ spec:
 
 Best for: development, testing, demos, low-traffic production.
 
-### Pro (~$150/mo)
+### Pro (~$80/mo)
 
 ```yaml
 spec:
