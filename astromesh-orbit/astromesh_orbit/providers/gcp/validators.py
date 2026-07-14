@@ -20,6 +20,8 @@ REQUIRED_APIS = [
     "redis.googleapis.com",
     "secretmanager.googleapis.com",
     "vpcaccess.googleapis.com",
+    "storage.googleapis.com",
+    "artifactregistry.googleapis.com",
 ]
 
 # Windows needs gcloud.cmd; create_subprocess_exec can't resolve .cmd from PATH
