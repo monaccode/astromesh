@@ -165,7 +165,13 @@ def build_candidate_provider(block: dict):
 
 
 class AgentRuntime:
-    def __init__(self, config_dir="./config", service_manager=None, peer_client=None):
+    def __init__(
+        self,
+        config_dir="./config",
+        service_manager=None,
+        peer_client=None,
+        observability=None,
+    ):
         self._config_dir = Path(config_dir)
         self._provider_registry = load_provider_registry(self._config_dir)
         self._rag_specs = {}
@@ -175,13 +181,14 @@ class AgentRuntime:
         self._prompt_engine = PromptEngine()
         self.service_manager = service_manager
         self.peer_client = peer_client
+        self._observability = observability or {}
 
     async def bootstrap(self):
         # Wire OTLP export FIRST: the early returns below must not leave a deployment untraced.
         # Imported lazily — the module pulls in the traces route (FastAPI) on the enabled path.
         from astromesh.observability.setup import setup_observability
 
-        setup_observability()
+        setup_observability(self._observability)
 
         # Skip agent loading if agents service is disabled
         if self.service_manager and not self.service_manager.is_enabled("agents"):

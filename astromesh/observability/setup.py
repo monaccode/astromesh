@@ -32,15 +32,15 @@ def setup_observability(observability: dict | None = None) -> bool:
     if not tcfg.enabled:
         return False
 
-    from astromesh.api.routes.traces import set_collector
-    from astromesh.observability.collector import OTLPCollector
-    from astromesh.observability.metrics_export import (
-        MetricsConfig,
-        MetricsManager,
-        set_manager,
-    )
-
     try:
+        from astromesh.api.routes.traces import set_collector
+        from astromesh.observability.collector import OTLPCollector
+        from astromesh.observability.metrics_export import (
+            MetricsConfig,
+            MetricsManager,
+            set_manager,
+        )
+
         telemetry = TelemetryManager(tcfg)
         telemetry.setup()
         # OTLPCollector subclasses InternalCollector: GET /v1/traces keeps working, and spans are
@@ -63,9 +63,13 @@ def setup_observability(observability: dict | None = None) -> bool:
 
 
 def reset_observability() -> None:
-    """Restore the default, unwired state (in-memory collector, no metrics manager).
+    """Reset astromesh's own observability globals — collector, metrics manager, `_wired` flag.
 
-    Wiring is process-global; tests use this to keep it from leaking between them.
+    Wiring is process-global; tests use this to keep it from leaking between them. This does
+    NOT undo everything `setup_observability()` did: OpenTelemetry's global TracerProvider is
+    set-once (`trace.set_tracer_provider()` is a no-op after the first call), so once wired,
+    the process keeps that provider — and its live BatchSpanProcessor thread — installed for
+    good. Only astromesh's own collector/manager globals are reset here.
     """
     global _wired
 

@@ -26,16 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`docs-site/src/components/Head.astro`, `docs-site/src/styles/custom.css`)
 
 ### Fixed (Observability)
-- **OTLP export was never wired up.** `TelemetryManager`, `MetricsManager` and `OTLPCollector`
-  all existed but were never constructed: `set_manager()` had zero callers (so the engine's
-  metric recording was a silent no-op), the trace collector was hardcoded to the in-memory
-  `InternalCollector`, and `enabled` could only come from a `runtime.yaml` dict that nothing
-  ever loaded — so there was no way to turn export on at all. Added
+- **The core runtime never wired up OTLP export, and `astromesh-node` duplicated the wiring by
+  hand.** `TelemetryManager`, `MetricsManager` and `OTLPCollector` all existed but the core
+  `astromesh` package never constructed them — anything embedding or serving the core API
+  exported nothing, and there was no env var to turn export on. Separately, `astromesh-node`'s
+  daemon already built its own `TelemetryManager`/`OTLPCollector`/`MetricsManager` by hand from
+  `runtime.yaml`'s `spec.observability`, gated on that file's `otlp.enabled` flag. Added
   `astromesh/observability/setup.py` (`setup_observability()`), called from
   `AgentRuntime.bootstrap()` before its early returns, which starts the `TelemetryManager`,
   installs an `OTLPCollector` (still backing `GET /v1/traces`) and registers the
   `MetricsManager`. Added the `ASTROMESH_OTLP_ENABLED` env var so containerized deployments can
-  enable export. Default behavior is unchanged: with OTLP off, traces stay in the in-memory
+  enable export. `astromesh-node`'s hand-rolled wiring block is now removed in favor of this
+  single path: `AgentRuntime` takes an `observability` dict, and the daemon passes
+  `runtime.yaml`'s `spec.observability` through to it, so both the env var and the YAML config
+  reach the same wiring instead of racing to install competing collectors and
+  `TracerProvider`s. Default behavior is unchanged: with OTLP off, traces stay in the in-memory
   collector and nothing is exported.
 
 ### Fixed

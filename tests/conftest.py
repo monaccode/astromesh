@@ -14,6 +14,15 @@ def _disable_agent_yaml_persist(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _clean_otlp_env(monkeypatch):
+    """Remove ASTROMESH_OTLP_ENABLED so an ambiently-exported var (dev shell, CI runner) can't
+    make bootstrap() clobber collectors that tests inject. Autouse fixtures run in registration
+    order, so tests that need it (tests/test_otlp_wiring.py) set it via monkeypatch after this
+    delenv, which still wins for that test."""
+    monkeypatch.delenv("ASTROMESH_OTLP_ENABLED", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _fast_sse_for_tests(monkeypatch):
     """Use very short SSE idle timeouts so generators terminate quickly in TestClient."""
     monkeypatch.setenv("ASTROMESH_SSE_POLL_INTERVAL", "0.05")

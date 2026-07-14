@@ -103,3 +103,31 @@ async def test_bootstrap_leaves_defaults_when_disabled(tmp_path, monkeypatch):
     assert isinstance(get_collector(), InternalCollector)
     assert not isinstance(get_collector(), OTLPCollector)
     assert get_manager() is None
+
+
+async def test_bootstrap_wires_from_observability_dict(tmp_path, monkeypatch):
+    """runtime.yaml's spec.observability now reaches setup_observability via AgentRuntime."""
+    from astromesh.runtime.engine import AgentRuntime
+
+    monkeypatch.delenv("ASTROMESH_OTLP_ENABLED", raising=False)
+    runtime = AgentRuntime(
+        config_dir=str(tmp_path),
+        observability={"otlp": {"enabled": True, "endpoint": "http://collector:4317"}},
+    )
+    await runtime.bootstrap()
+
+    assert isinstance(get_collector(), OTLPCollector)
+    assert get_manager() is not None
+
+
+async def test_bootstrap_dict_disabled_beats_env(tmp_path, monkeypatch):
+    """An explicit observability dict that disables OTLP wins over the env var."""
+    from astromesh.runtime.engine import AgentRuntime
+
+    monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", "1")
+    runtime = AgentRuntime(config_dir=str(tmp_path), observability={"otlp": {"enabled": False}})
+    await runtime.bootstrap()
+
+    assert isinstance(get_collector(), InternalCollector)
+    assert not isinstance(get_collector(), OTLPCollector)
+    assert get_manager() is None

@@ -127,32 +127,9 @@ async def run_daemon(args: argparse.Namespace) -> None:
         config_dir=config_dir,
         service_manager=service_manager,
         peer_client=peer_client,
+        observability=daemon_config.observability,
     )
     await runtime.bootstrap()
-
-    # Fase 4.3: activate OTLP trace export when the runtime config asks for it (off by default). The
-    # node exports to a node-local collector (default localhost:4317); installing the OTLPCollector
-    # makes both /v1/traces and the OTLP bridge work. Best-effort — never blocks the daemon.
-    try:
-        from astromesh.observability.telemetry import TelemetryManager, TelemetryConfig
-        from astromesh.observability.collector import OTLPCollector
-        from astromesh.api.routes import traces as traces_route
-
-        tcfg = TelemetryConfig.from_env_and_dict(daemon_config.observability)
-        if tcfg.enabled:
-            tm = TelemetryManager(tcfg)
-            tm.setup()
-            traces_route.set_collector(OTLPCollector(telemetry_manager=tm))
-            logger.info("OTLP trace export enabled (endpoint=%s)", tcfg.otlp_endpoint)
-            # Fase 4.4c: also export per-agent egress-byte metrics to the same collector.
-            from astromesh.observability.metrics_export import MetricsManager, MetricsConfig, set_manager
-            mcfg = MetricsConfig.from_env_and_dict(daemon_config.observability)
-            mm = MetricsManager(endpoint=mcfg.endpoint, enabled=mcfg.enabled)
-            mm.setup()
-            set_manager(mm)
-            logger.info("agent-egress metric export enabled (endpoint=%s)", mcfg.endpoint)
-    except Exception:
-        logger.exception("OTLP export setup failed; continuing without it")
 
     agents.set_runtime(runtime)
     system.set_runtime(runtime)
