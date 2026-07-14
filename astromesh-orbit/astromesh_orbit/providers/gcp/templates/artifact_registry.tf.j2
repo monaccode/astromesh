@@ -1,0 +1,17 @@
+{% if storage.artifact_registry.enabled %}
+resource "google_artifact_registry_repository" "images" {
+  location      = var.region
+  repository_id = "{{ storage.artifact_registry.repository or (meta.name ~ '-images') }}"
+  format        = "DOCKER"
+  project       = var.project_id
+  description   = "Custom Astromesh container images"
+}
+
+resource "google_artifact_registry_repository_iam_member" "images_runtime_reader" {
+  location   = var.region
+  repository = google_artifact_registry_repository.images.repository_id
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${google_service_account.orbit.email}"
+  project    = var.project_id
+}
+{% endif %}

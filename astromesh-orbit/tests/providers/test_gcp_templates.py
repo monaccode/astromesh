@@ -173,3 +173,27 @@ def test_storage_tf_disabled(jinja_env, ctx):
     tmpl = jinja_env.get_template("storage.tf.j2")
     output = tmpl.render(ctx)
     assert "google_storage_bucket" not in output
+
+
+def test_artifact_registry_tf_renders(jinja_env, ctx):
+    tmpl = jinja_env.get_template("artifact_registry.tf.j2")
+    output = tmpl.render(ctx)
+    assert "google_artifact_registry_repository" in output
+    assert '"DOCKER"' in output
+    assert "roles/artifactregistry.reader" in output
+
+
+def test_artifact_registry_default_repo_name(jinja_env, ctx):
+    # meta.name == "test-astromesh" -> default repository "test-astromesh-images"
+    tmpl = jinja_env.get_template("artifact_registry.tf.j2")
+    output = tmpl.render(ctx)
+    assert "test-astromesh-images" in output
+
+
+def test_artifact_registry_disabled(jinja_env, ctx):
+    from astromesh_orbit.config import ArtifactRegistrySpec, StorageSpec
+
+    ctx["storage"] = StorageSpec(artifact_registry=ArtifactRegistrySpec(enabled=False))
+    tmpl = jinja_env.get_template("artifact_registry.tf.j2")
+    output = tmpl.render(ctx)
+    assert "google_artifact_registry_repository" not in output
