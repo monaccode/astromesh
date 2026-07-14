@@ -43,6 +43,7 @@ def ctx(config: OrbitConfig) -> dict:
         "secrets": config.spec.secrets,
         "images": config.spec.images,
         "storage": config.spec.storage,
+        "observability": config.spec.observability,
         "custom_env": {},
         "services": [
             {
@@ -219,3 +220,21 @@ def test_outputs_include_storage(jinja_env, ctx):
     output = tmpl.render(ctx)
     assert "rag_bucket" in output
     assert "artifact_registry_repo" in output
+
+
+def test_monitoring_tf_renders(jinja_env, ctx):
+    tmpl = jinja_env.get_template("monitoring.tf.j2")
+    output = tmpl.render(ctx)
+    assert "google_monitoring_dashboard" in output
+    assert "run.googleapis.com/request_count" in output
+    assert "run.googleapis.com/request_latencies" in output
+    assert "astromesh-runtime" in output
+
+
+def test_monitoring_tf_disabled(jinja_env, ctx):
+    from astromesh_orbit.config import ObservabilitySpec
+
+    ctx["observability"] = ObservabilitySpec(dashboard=False)
+    tmpl = jinja_env.get_template("monitoring.tf.j2")
+    output = tmpl.render(ctx)
+    assert "google_monitoring_dashboard" not in output
