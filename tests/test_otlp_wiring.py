@@ -5,7 +5,7 @@ Without it these three exist but are never constructed, so nothing is ever expor
 
 import pytest
 
-from astromesh.api.routes.traces import get_collector
+from astromesh.api.routes.traces import get_collector, set_collector
 from astromesh.observability.collector import InternalCollector, OTLPCollector
 from astromesh.observability.metrics_export import get_manager
 from astromesh.observability.setup import reset_observability, setup_observability
@@ -76,6 +76,19 @@ def test_wiring_failure_falls_back_to_defaults(monkeypatch):
     collector = get_collector()
     assert isinstance(collector, InternalCollector)
     assert not isinstance(collector, OTLPCollector)
+    assert get_manager() is None
+
+
+def test_malformed_observability_config_does_not_raise(monkeypatch):
+    """A malformed spec.observability must not kill bootstrap, and must not touch the collector."""
+    monkeypatch.delenv("ASTROMESH_OTLP_ENABLED", raising=False)
+    sentinel = InternalCollector()
+    set_collector(sentinel)
+
+    # "otlp" is a scalar where a mapping is expected -> .get() would raise AttributeError
+    assert setup_observability({"otlp": "yes"}) is False
+
+    assert get_collector() is sentinel  # zero-touch invariant preserved
     assert get_manager() is None
 
 

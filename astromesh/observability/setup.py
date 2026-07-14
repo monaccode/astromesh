@@ -26,12 +26,20 @@ def setup_observability(observability: dict | None = None) -> bool:
     if _wired:
         return True
 
-    from astromesh.observability.telemetry import TelemetryConfig, TelemetryManager
+    # Phase 1: resolve config. A malformed spec.observability must not kill the runtime, and
+    # nothing has been mutated yet — so return without rolling anything back.
+    try:
+        from astromesh.observability.telemetry import TelemetryConfig, TelemetryManager
 
-    tcfg = TelemetryConfig.from_env_and_dict(observability or {})
+        tcfg = TelemetryConfig.from_env_and_dict(observability or {})
+    except Exception:
+        logger.warning("invalid observability config; OTLP export disabled", exc_info=True)
+        return False
+
     if not tcfg.enabled:
         return False
 
+    # Phase 2: mutate globals. All-or-nothing: on failure roll back to the clean default.
     try:
         from astromesh.api.routes.traces import set_collector
         from astromesh.observability.collector import OTLPCollector
@@ -58,7 +66,7 @@ def setup_observability(observability: dict | None = None) -> bool:
         return False
 
     _wired = True
-    logger.info("OTLP export enabled — endpoint=%s", tcfg.otlp_endpoint)
+    logger.info("OTLP export enabled — traces=%s metrics=%s", tcfg.otlp_endpoint, mcfg.endpoint)
     return True
 
 
