@@ -1,0 +1,19 @@
+{% if storage.rag_documents.enabled %}
+resource "google_storage_bucket" "rag_documents" {
+  name                        = "${var.project_id}-{{ meta.name }}-rag-docs"
+  location                    = var.region
+  project                     = var.project_id
+  force_destroy               = false
+  uniform_bucket_level_access = true
+
+  versioning {
+    enabled = {{ 'true' if storage.rag_documents.versioning else 'false' }}
+  }
+}
+
+resource "google_storage_bucket_iam_member" "rag_documents_runtime" {
+  bucket = google_storage_bucket.rag_documents.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.orbit.email}"
+}
+{% endif %}

@@ -42,6 +42,7 @@ def ctx(config: OrbitConfig) -> dict:
         "cache": config.spec.cache,
         "secrets": config.spec.secrets,
         "images": config.spec.images,
+        "storage": config.spec.storage,
         "custom_env": {},
         "services": [
             {
@@ -154,3 +155,21 @@ def test_secrets_provider_keys_disabled(jinja_env, ctx):
     tmpl = jinja_env.get_template("secrets.tf.j2")
     output = tmpl.render(ctx)
     assert "fernet" not in output.lower()
+
+
+def test_storage_tf_renders(jinja_env, ctx):
+    tmpl = jinja_env.get_template("storage.tf.j2")
+    output = tmpl.render(ctx)
+    assert "google_storage_bucket" in output
+    assert "rag-docs" in output
+    assert "roles/storage.objectAdmin" in output
+    assert "uniform_bucket_level_access = true" in output
+
+
+def test_storage_tf_disabled(jinja_env, ctx):
+    from astromesh_orbit.config import RagDocumentsSpec, StorageSpec
+
+    ctx["storage"] = StorageSpec(rag_documents=RagDocumentsSpec(enabled=False))
+    tmpl = jinja_env.get_template("storage.tf.j2")
+    output = tmpl.render(ctx)
+    assert "google_storage_bucket" not in output
