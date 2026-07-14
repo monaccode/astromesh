@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -161,6 +162,47 @@ def status(config: str = typer.Option("orbit.yaml", help="Path to orbit.yaml")):
         console.print(f"\n  State bucket: {ds.state_bucket}")
 
     asyncio.run(_status())
+
+
+@orbit_app.command()
+def logs(
+    config: str = typer.Option("orbit.yaml", help="Path to orbit.yaml"),
+    limit: int = typer.Option(50, "--limit", help="Max log entries to show"),
+    since: str = typer.Option("1h", "--since", help="Freshness window (e.g. 10m, 1h, 2d)"),
+):
+    """Read the runtime service's logs from Cloud Logging."""
+
+    async def _logs():
+        from astromesh_orbit.providers.gcp.logs import LogsError, read_logs
+
+        cfg = _load_config(config)
+        try:
+            entries = await read_logs(
+                project=cfg.spec.provider.project,
+                service="astromesh-runtime",
+                limit=limit,
+                since=since,
+            )
+        except LogsError as exc:
+            print_msg = str(exc)
+            console.print(f"[red]Error:[/] {print_msg}")
+            console.print("  Try: [cyan]gcloud auth login[/]")
+            raise typer.Exit(1) from exc
+
+        if not entries:
+            console.print(f"[yellow]No log entries[/] in the last {since}.")
+            return
+
+        table = Table(title=f"astromesh-runtime — last {since}")
+        table.add_column("Timestamp", style="dim")
+        table.add_column("Severity", style="cyan")
+        table.add_column("Message")
+        for e in entries:
+            message = e.get("textPayload") or json.dumps(e.get("jsonPayload", {}))
+            table.add_row(e.get("timestamp", ""), e.get("severity", ""), message)
+        console.print(table)
+
+    asyncio.run(_logs())
 
 
 @orbit_app.command()

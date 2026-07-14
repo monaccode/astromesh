@@ -7,12 +7,11 @@ Supports two authentication methods:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
-import sys
 
 from astromesh_orbit.core.provider import CheckResult
+from astromesh_orbit.providers.gcp.gcloud import run_gcloud as _run_gcloud
 
 REQUIRED_APIS = [
     "run.googleapis.com",
@@ -27,9 +26,6 @@ REQUIRED_APIS = [
     "logging.googleapis.com",
 ]
 
-# Windows needs gcloud.cmd; create_subprocess_exec can't resolve .cmd from PATH
-_GCLOUD = "gcloud.cmd" if sys.platform == "win32" else "gcloud"
-
 
 def _has_service_account_key() -> str | None:
     """Return the path if GOOGLE_APPLICATION_CREDENTIALS is set and the file exists."""
@@ -37,26 +33,6 @@ def _has_service_account_key() -> str | None:
     if path and os.path.isfile(path):
         return path
     return None
-
-
-# ---------------------------------------------------------------------------
-# gcloud CLI helpers
-# ---------------------------------------------------------------------------
-
-
-async def _run_gcloud(*args: str) -> tuple[int, str, str]:
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            _GCLOUD,
-            *args,
-            "--format=json",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-    except FileNotFoundError:
-        return 127, "", "gcloud CLI not found in PATH"
-    stdout, stderr = await proc.communicate()
-    return proc.returncode or 0, stdout.decode(), stderr.decode()
 
 
 # ---------------------------------------------------------------------------
