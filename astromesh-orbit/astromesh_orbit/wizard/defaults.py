@@ -21,6 +21,10 @@ PRESETS: dict[str, dict[str, Any]] = {
         "images": {
             "runtime": "fulfarodev/astromesh:latest",
         },
+        "storage": {
+            "rag_documents": {"enabled": True, "versioning": True},
+            "artifact_registry": {"enabled": True, "repository": ""},
+        },
     },
     "pro": {
         "estimated_cost": 80,
@@ -37,6 +41,10 @@ PRESETS: dict[str, dict[str, Any]] = {
         "secrets": {"provider_keys": True, "jwt_secret": True},
         "images": {
             "runtime": "fulfarodev/astromesh:latest",
+        },
+        "storage": {
+            "rag_documents": {"enabled": True, "versioning": True},
+            "artifact_registry": {"enabled": True, "repository": ""},
         },
     },
 }
@@ -64,5 +72,6 @@ def build_orbit_yaml(
             "cache": p["cache"],
             "secrets": p["secrets"],
             "images": p["images"],
+            "storage": p["storage"],
         },
     }

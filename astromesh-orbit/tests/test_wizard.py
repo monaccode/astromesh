@@ -82,3 +82,23 @@ def test_build_orbit_yaml_writes_valid_yaml(tmp_path: Path):
 
     config = OrbitConfig.from_yaml(path)
     assert config.spec.provider.name == "gcp"
+
+
+def test_presets_include_storage():
+    for name in ("starter", "pro"):
+        storage = PRESETS[name]["storage"]
+        assert storage["rag_documents"]["enabled"] is True
+        assert storage["artifact_registry"]["enabled"] is True
+
+
+def test_build_orbit_yaml_includes_storage():
+    data = build_orbit_yaml(
+        name="d",
+        environment="develop",
+        provider="gcp",
+        project="p",
+        region="us-central1",
+        preset="starter",
+    )
+    assert data["spec"]["storage"]["rag_documents"]["enabled"] is True
+    assert data["spec"]["storage"]["artifact_registry"]["enabled"] is True
