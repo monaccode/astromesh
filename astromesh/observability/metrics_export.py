@@ -7,6 +7,8 @@ traces (4.3). Off by default; enabled only when observability.otlp.enabled.
 import os
 from dataclasses import dataclass
 
+from astromesh.observability.env import otlp_enabled_from_env
+
 
 @dataclass
 class MetricsConfig:
@@ -21,7 +23,10 @@ class MetricsConfig:
             or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
             or "http://127.0.0.1:4317"
         )
-        return cls(endpoint=endpoint, enabled=bool(otlp.get("enabled", False)))
+        enabled = otlp.get("enabled")
+        if enabled is None:
+            enabled = otlp_enabled_from_env()
+        return cls(endpoint=endpoint, enabled=bool(enabled))
 
 
 class MetricsManager:

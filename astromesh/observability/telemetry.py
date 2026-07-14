@@ -1,6 +1,8 @@
 import os
 from dataclasses import dataclass
 
+from astromesh.observability.env import otlp_enabled_from_env
+
 
 @dataclass
 class TelemetryConfig:
@@ -11,9 +13,11 @@ class TelemetryConfig:
 
     @classmethod
     def from_env_and_dict(cls, observability: dict) -> "TelemetryConfig":
-        """Build from a runtime.yaml spec.observability dict + OTEL_* env. Export is OFF by default —
-        only enabled when observability.otlp.enabled is truthy. Endpoint precedence: explicit dict
-        endpoint > OTEL_EXPORTER_OTLP_ENDPOINT env > localhost:4317 (the node-local collector default).
+        """Build from a runtime.yaml spec.observability dict + env. Export is OFF by default.
+        Enable precedence: explicit observability.otlp.enabled > ASTROMESH_OTLP_ENABLED env >
+        off. Endpoint precedence: explicit dict endpoint > OTEL_EXPORTER_OTLP_ENDPOINT env >
+        localhost:4317 (the node-local collector default). Note OTEL_EXPORTER_OTLP_ENDPOINT sets
+        only the endpoint — it never enables export.
         """
         otlp = (observability or {}).get("otlp", {}) or {}
         endpoint = (
@@ -21,9 +25,12 @@ class TelemetryConfig:
             or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
             or "http://localhost:4317"
         )
+        enabled = otlp.get("enabled")
+        if enabled is None:
+            enabled = otlp_enabled_from_env()
         return cls(
             otlp_endpoint=endpoint,
-            enabled=bool(otlp.get("enabled", False)),
+            enabled=bool(enabled),
         )
 
 

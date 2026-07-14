@@ -25,6 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Control theme, and re-applied across Starlight view transitions.
   (`docs-site/src/components/Head.astro`, `docs-site/src/styles/custom.css`)
 
+### Fixed (Observability)
+- **OTLP export was never wired up.** `TelemetryManager`, `MetricsManager` and `OTLPCollector`
+  all existed but were never constructed: `set_manager()` had zero callers (so the engine's
+  metric recording was a silent no-op), the trace collector was hardcoded to the in-memory
+  `InternalCollector`, and `enabled` could only come from a `runtime.yaml` dict that nothing
+  ever loaded — so there was no way to turn export on at all. Added
+  `astromesh/observability/setup.py` (`setup_observability()`), called from
+  `AgentRuntime.bootstrap()` before its early returns, which starts the `TelemetryManager`,
+  installs an `OTLPCollector` (still backing `GET /v1/traces`) and registers the
+  `MetricsManager`. Added the `ASTROMESH_OTLP_ENABLED` env var so containerized deployments can
+  enable export. Default behavior is unchanged: with OTLP off, traces stay in the in-memory
+  collector and nothing is exported.
+
 ### Fixed
 - `astromesh-node`'s Centinela CLI (`plan-promotion`, `reconcile`) and its tests read/wrote files
   with `Path.read_text()/write_text()` without an explicit encoding, so on Windows (cp1252/ascii

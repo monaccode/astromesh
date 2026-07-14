@@ -80,3 +80,41 @@ async def test_engine_emits_trace_to_collector(otel_config_dir):
     traces = await coll.query_traces(limit=10)
     span_names = [s.get("name") for t in traces for s in t.get("spans", [])]
     assert "agent.run" in span_names
+
+
+def test_enabled_from_astromesh_env(monkeypatch):
+    """ASTROMESH_OTLP_ENABLED turns export on when the dict says nothing."""
+    monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", "1")
+    assert TelemetryConfig.from_env_and_dict({}).enabled is True
+
+
+def test_enabled_env_truthy_variants(monkeypatch):
+    for value in ("1", "true", "TRUE", "yes", " Yes "):
+        monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", value)
+        assert TelemetryConfig.from_env_and_dict({}).enabled is True, value
+
+
+def test_enabled_env_falsy_variants(monkeypatch):
+    for value in ("0", "false", "no", ""):
+        monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", value)
+        assert TelemetryConfig.from_env_and_dict({}).enabled is False, value
+
+
+def test_dict_enabled_false_beats_env(monkeypatch):
+    """An explicit dict value wins over the env var, even when it disables export."""
+    monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", "1")
+    assert TelemetryConfig.from_env_and_dict({"otlp": {"enabled": False}}).enabled is False
+
+
+def test_metrics_config_enabled_from_astromesh_env(monkeypatch):
+    from astromesh.observability.metrics_export import MetricsConfig
+
+    monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", "1")
+    assert MetricsConfig.from_env_and_dict({}).enabled is True
+
+
+def test_metrics_config_dict_enabled_false_beats_env(monkeypatch):
+    from astromesh.observability.metrics_export import MetricsConfig
+
+    monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", "1")
+    assert MetricsConfig.from_env_and_dict({"otlp": {"enabled": False}}).enabled is False
