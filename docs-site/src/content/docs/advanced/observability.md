@@ -38,13 +38,19 @@ If these packages are not installed, Astromesh uses no-op fallbacks and logs no 
 
 ### Configuration
 
-Set the OTLP endpoint via environment variable or `TelemetryConfig`:
+Export is **off by default**. Turn it on with `ASTROMESH_OTLP_ENABLED`; the runtime wires it
+automatically at bootstrap (starting the `TelemetryManager`, installing an `OTLPCollector`, and
+registering the `MetricsManager`):
 
 ```bash
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export ASTROMESH_OTLP_ENABLED=1
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317   # optional; this is the default
 ```
 
-The `TelemetryManager` initializes on startup:
+`OTEL_EXPORTER_OTLP_ENDPOINT` sets only the endpoint — it never enables export on its own.
+An explicit `observability.otlp.enabled` value takes precedence over the env var.
+
+For programmatic embedding, you can also construct the `TelemetryManager` directly:
 
 ```python
 from astromesh.observability.telemetry import TelemetryManager, TelemetryConfig
@@ -152,6 +158,10 @@ telemetry = TelemetryManager()
 telemetry.setup()
 collector = OTLPCollector(telemetry_manager=telemetry)
 ```
+
+> The runtime installs `OTLPCollector` for you when OTLP export is enabled — see
+> `ASTROMESH_OTLP_ENABLED` above. Constructing it by hand, as shown, is only needed when
+> embedding Astromesh programmatically.
 
 ### Viewing Traces
 
