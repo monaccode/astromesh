@@ -357,7 +357,7 @@ Container image for the Astromesh Cloud Studio (Next.js).
 
 ---
 
-## storage
+## `spec.storage`
 
 Optional. Both blocks default to `enabled: true`.
 
