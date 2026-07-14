@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added (Orbit)
+- **v0.4.0 — Observability (GCP).** Delivers what the roadmap promised under "v0.2.0" but never
+  implemented (that version number was published without its content). `orbit apply` now
+  provisions a **Cloud Monitoring dashboard** with Cloud Run's golden signals (on by default),
+  and — when `observability.tracing.enabled` is set — an **OpenTelemetry Collector sidecar** that
+  receives OTLP on `localhost:4317` and exports to **Cloud Trace**, with the runtime container
+  configured to actually emit (`ASTROMESH_OTLP_ENABLED=1`). Two new commands: **`orbit logs`**
+  (reads the service's Cloud Run logs from Cloud Logging) and **`orbit upgrade`** (re-renders the
+  Terraform templates after a package update and shows a diff). New opt-in `spec.observability`
+  config section. There is deliberately no `logging` toggle: Cloud Run ships logs to Cloud Logging
+  for free. (`astromesh-orbit`)
 - **v0.3.0 — Storage & RAG (GCP).** `orbit apply` now provisions a Cloud Storage bucket
   for RAG source documents (`${project}-<name>-rag-docs`, IAM-wired to the runtime service
   account, exposed to the runtime as `ASTROMESH_RAG_BUCKET`) and an Artifact Registry Docker

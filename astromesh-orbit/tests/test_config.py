@@ -124,3 +124,33 @@ def test_storage_disabled_parses(tmp_path: Path, sample_orbit_dict: dict):
     config = OrbitConfig.from_yaml(path)
     assert config.spec.storage.rag_documents.enabled is False
     assert config.spec.storage.artifact_registry.enabled is False
+
+
+def test_parse_observability_defaults(sample_orbit_yaml: Path):
+    config = OrbitConfig.from_yaml(sample_orbit_yaml)
+    assert config.spec.observability.dashboard is True
+    assert config.spec.observability.tracing.enabled is False
+    assert config.spec.observability.tracing.collector_image
+
+
+def test_observability_backward_compatible(tmp_path: Path, sample_orbit_dict: dict):
+    # An orbit.yaml with no `observability` block still parses; defaults apply.
+    assert "observability" not in sample_orbit_dict["spec"]
+    path = tmp_path / "orbit.yaml"
+    path.write_text(yaml.dump(sample_orbit_dict))
+    config = OrbitConfig.from_yaml(path)
+    assert config.spec.observability.dashboard is True
+    assert config.spec.observability.tracing.enabled is False
+
+
+def test_observability_tracing_enabled_parses(tmp_path: Path, sample_orbit_dict: dict):
+    sample_orbit_dict["spec"]["observability"] = {
+        "dashboard": False,
+        "tracing": {"enabled": True, "collector_image": "otel/custom:1.2.3"},
+    }
+    path = tmp_path / "orbit.yaml"
+    path.write_text(yaml.dump(sample_orbit_dict))
+    config = OrbitConfig.from_yaml(path)
+    assert config.spec.observability.dashboard is False
+    assert config.spec.observability.tracing.enabled is True
+    assert config.spec.observability.tracing.collector_image == "otel/custom:1.2.3"

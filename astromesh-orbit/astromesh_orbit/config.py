@@ -62,6 +62,16 @@ class StorageSpec(BaseModel):
     artifact_registry: ArtifactRegistrySpec = ArtifactRegistrySpec()
 
 
+class TracingSpec(BaseModel):
+    enabled: bool = False
+    collector_image: str = "otel/opentelemetry-collector-contrib:0.115.1"
+
+
+class ObservabilitySpec(BaseModel):
+    dashboard: bool = True
+    tracing: TracingSpec = TracingSpec()
+
+
 class OrbitSpec(BaseModel):
     provider: ProviderSpec
     compute: ComputeSpec = ComputeSpec()
@@ -70,6 +80,7 @@ class OrbitSpec(BaseModel):
     secrets: SecretsSpec = SecretsSpec()
     images: ImagesSpec = ImagesSpec()
     storage: StorageSpec = StorageSpec()
+    observability: ObservabilitySpec = ObservabilitySpec()
     env: dict[str, str] = {}
 
 
