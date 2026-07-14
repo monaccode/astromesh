@@ -88,6 +88,8 @@ On GCP (MVP), `orbit apply` provisions the following resources:
 | GCS Bucket | `backend.tf.j2` | Terraform remote state |
 | GCS Bucket (RAG docs) | `storage.tf.j2` | Source documents for RAG (optional) |
 | Artifact Registry | `artifact_registry.tf.j2` | Docker repo for custom images (optional) |
+| Cloud Monitoring dashboard | `monitoring.tf.j2` | Cloud Run golden signals (optional, on by default) |
+| OTel Collector sidecar | `cloud_run.tf.j2` | Exports OTLP spans to Cloud Trace (optional, off by default) |
 
 Automatic resources (VPC Connector, Service Account, IAM bindings) are provisioned without user configuration. Cloud Run connects to Cloud SQL via the built-in Auth Proxy sidecar — no public database IP is exposed.
 
@@ -103,6 +105,24 @@ Cloud SQL socket at `/cloudsql` and receives `ASTROMESH_DATABASE_URL`).
 
 The `${project}-<name>-rag-docs` bucket stages source documents; the runtime receives its
 name as `ASTROMESH_RAG_BUCKET`.
+
+---
+
+### Observability
+
+Cloud Run already reports request metrics to Cloud Monitoring and ships stdout/stderr to Cloud
+Logging — Orbit provisions nothing for those; the dashboard simply charts them, and `orbit logs`
+reads them.
+
+Cloud Trace is opt-in. With `observability.tracing.enabled`, Orbit adds an OpenTelemetry
+Collector sidecar to the Cloud Run service and sets `ASTROMESH_OTLP_ENABLED=1` and
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` on the runtime container. The astromesh
+runtime then exports OTLP spans to the sidecar, which forwards them to Cloud Trace as the
+deployment's service account.
+
+Application logs reach Cloud Logging as plain text — astromesh does not emit JSON logs today, so
+severity and structured fields are not parsed. That needs a JSON formatter in the astromesh core
+(not yet implemented).
 
 ---
 
@@ -251,9 +271,7 @@ The wizard writes explicit values to `orbit.yaml` — no magic tier references a
 
 ### v0.2.0 — Observability
 
-- Cloud Monitoring, Trace, and Logging
-- Pre-configured dashboard
-- `orbit logs` and `orbit upgrade` CLI commands
+> The 0.2.0 version number was published without this content. Delivered in v0.4.0 below.
 
 ### v0.3.0 — Storage & RAG  ✅
 
@@ -262,12 +280,18 @@ The wizard writes explicit values to `orbit.yaml` — no magic tier references a
 - pgvector on the existing Cloud SQL as the RAG vector store (no separate vector DB)
 - ~~Cloud CDN for Studio~~ — dropped; Studio is no longer deployed (see commit 6278ccc)
 
-### v0.4.0 — GPU & Inference
+### v0.4.0 — Observability  ✅
+
+- Cloud Monitoring dashboard (Cloud Run golden signals; on by default)
+- Cloud Trace via an opt-in OpenTelemetry Collector sidecar
+- `orbit logs` and `orbit upgrade` CLI commands
+
+### v0.5.0 — GPU & Inference
 
 - Cloud Run with GPU (vLLM)
 - Embeddings and reranker services
 
-### v0.5.0 — Enterprise
+### v0.6.0 — Enterprise
 
 - Cloud Armor (WAF)
 - Custom domains + managed SSL

@@ -128,6 +128,27 @@ spec:
 
 Orbit does not provision a separate vector database for RAG — pgvector runs on the Cloud SQL instance Orbit already deploys. See [GCP Provider](/astromesh/orbit/gcp-provider/) for details.
 
+### `spec.observability`
+
+Optional. The Cloud Monitoring dashboard is on by default; Cloud Trace is opt-in because its collector sidecar adds a container to every Cloud Run instance.
+
+```yaml
+spec:
+  observability:
+    dashboard: true              # Cloud Monitoring dashboard (default: true)
+    tracing:
+      enabled: false             # OTel Collector sidecar -> Cloud Trace (default: false)
+      collector_image: "otel/opentelemetry-collector-contrib:0.115.1"
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `dashboard` | bool | true | Provision a Cloud Monitoring dashboard charting Cloud Run golden signals (requests, latency, error rate, instance count). |
+| `tracing.enabled` | bool | false | Add an OpenTelemetry Collector sidecar to the runtime Cloud Run service and set `ASTROMESH_OTLP_ENABLED=1` on the runtime container so it exports spans to Cloud Trace. |
+| `tracing.collector_image` | string | `otel/opentelemetry-collector-contrib:0.115.1` | Container image for the OTel Collector sidecar. |
+
+There is no `logging` field — Cloud Run ships container logs to Cloud Logging automatically. See [GCP Provider](/astromesh/orbit/gcp-provider/) for how `orbit logs` reads them.
+
 ## Presets
 
 The `orbit init` wizard offers two presets that fill in all values automatically. You can also pass `--preset` to skip the interactive wizard entirely.
@@ -245,15 +266,15 @@ your-project/
 
 ## Roadmap Fields
 
-`spec.storage` (v0.3.0) is implemented today — see [`spec.storage`](#specstorage) above. The following `spec` sections are still planned for future Orbit versions and are not yet implemented:
+`spec.storage` (v0.3.0) and `spec.observability` (v0.4.0) are implemented today — see [`spec.storage`](#specstorage) and [`spec.observability`](#specobservability) above. The following `spec` sections are still planned for future Orbit versions and are not yet implemented:
 
 ```yaml
-  # v0.4.0 — GPU & Inference
+  # v0.5.0 — GPU & Inference
   # gpu:
   #   vllm:
   #     machine_type: g2-standard-4
 
-  # v0.5.0 — Enterprise
+  # v0.6.0 — Enterprise
   # custom_domain: agents.mycompany.com
 ```
 

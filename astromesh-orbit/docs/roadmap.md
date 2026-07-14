@@ -11,12 +11,7 @@
 - Interactive wizard with presets
 
 ### v0.2.0 — Observability
-- Cloud Monitoring (Cloud Run metrics)
-- Cloud Trace (replaces OTEL Collector)
-- Cloud Logging (structured logs)
-- Pre-configured dashboard
-- `orbit logs` CLI command (Cloud Logging integration)
-- `orbit upgrade` command (regenerates templates after package update, shows diff)
+> The 0.2.0 version number was published without this content. Delivered in v0.4.0 below.
 
 ### v0.3.0 — Storage & RAG  ✅
 - Cloud Storage bucket for RAG documents (wired to the runtime via `ASTROMESH_RAG_BUCKET`)
@@ -24,12 +19,19 @@
 - pgvector on the existing Cloud SQL as the RAG vector store (no separate vector DB)
 - ~~Cloud CDN for Studio~~ — dropped; Studio is no longer deployed (see commit 6278ccc)
 
-### v0.4.0 — GPU & Inference
+### v0.4.0 — Observability  ✅
+- Cloud Monitoring dashboard (Cloud Run golden signals; on by default)
+- Cloud Trace via an OpenTelemetry Collector sidecar (opt-in: `observability.tracing.enabled`)
+- `orbit logs` (reads Cloud Run logs from Cloud Logging)
+- `orbit upgrade` (re-renders templates and shows a diff)
+- No `logging` toggle: Cloud Run ships logs to Cloud Logging for free
+
+### v0.5.0 — GPU & Inference
 - Cloud Run with GPU (vLLM)
 - Embeddings service (TEI on Cloud Run)
 - Reranker service
 
-### v0.5.0 — Enterprise
+### v0.6.0 — Enterprise
 - Cloud Armor (WAF)
 - Custom domains + managed SSL
 - Native VPC (no connector)
@@ -38,6 +40,4 @@
 ### v1.0.0 — Multi-Cloud
 - AWS provider (ECS/Fargate + RDS + ElastiCache)
 - Azure provider (Container Apps + Azure DB + Azure Cache)
-- GCP Marketplace listing
-- AWS Marketplace listing
-- Azure Marketplace listing
+- GCP, AWS and Azure Marketplace listings

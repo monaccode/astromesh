@@ -364,6 +364,27 @@ spec:
 
 ---
 
+## `spec.observability`
+
+Optional.
+
+```yaml
+spec:
+  observability:
+    dashboard: true              # Cloud Monitoring dashboard (default: true)
+    tracing:
+      enabled: false             # OTel Collector sidecar -> Cloud Trace (default: false)
+      collector_image: "otel/opentelemetry-collector-contrib:0.115.1"
+```
+
+`tracing` is off by default because the sidecar adds a container to every Cloud Run instance.
+Enabling it also sets `ASTROMESH_OTLP_ENABLED=1` on the runtime container, which is what makes
+the astromesh runtime export spans.
+
+There is no `logging` field: Cloud Run ships container logs to Cloud Logging automatically.
+
+---
+
 ## Wizard Presets
 
 The `orbit init` wizard offers two presets that populate `orbit.yaml` with explicit values.
@@ -526,15 +547,18 @@ Orbit validates the full configuration before any Terraform operation. Key rules
 
 ## Future Configuration (Roadmap)
 
-`spec.storage` (v0.3.0) is implemented today — see the [`spec.storage`](#specstorage) section above. The following sections are still planned and not yet implemented. They are shown commented out in generated `orbit.yaml` files for reference:
+`spec.storage` (v0.3.0) and `spec.observability` (v0.4.0) are implemented today — see the
+[`spec.storage`](#specstorage) and [`spec.observability`](#specobservability) sections above. The
+following sections are still planned and not yet implemented. They are shown commented out in
+generated `orbit.yaml` files for reference:
 
 ```yaml
-  # ── v0.4.0 — GPU & Inference ──
+  # ── v0.5.0 — GPU & Inference ──
   # gpu:
   #   vllm:
   #     machine_type: g2-standard-4
 
-  # ── v0.5.0 — Enterprise ──
+  # ── v0.6.0 — Enterprise ──
   # domain:
   #   custom: agents.example.com
   #   ssl: managed

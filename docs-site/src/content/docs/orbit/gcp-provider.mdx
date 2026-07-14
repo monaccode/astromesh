@@ -22,6 +22,8 @@ Every field in `orbit.yaml` maps to one or more GCP resources:
 | *(automatic)* | GCS Bucket (Terraform state) | `backend.tf.j2` |
 | `spec.storage.rag_documents` | GCS Bucket (RAG docs) | `storage.tf.j2` |
 | `spec.storage.artifact_registry` | Artifact Registry | `artifact_registry.tf.j2` |
+| `spec.observability.dashboard` | Cloud Monitoring dashboard | `monitoring.tf.j2` |
+| `spec.observability.tracing` | OTel Collector sidecar | `cloud_run.tf.j2` |
 
 ## Automatic Resources
 
@@ -68,6 +70,14 @@ Two additional resources are provisioned by default via `spec.storage` (see [Con
 - **Artifact Registry** (`artifact_registry.tf.j2`) — a Docker repository (`<metadata.name>-images` by default) for custom Astromesh container images. Disable with `spec.storage.artifact_registry.enabled: false`.
 
 Orbit does not provision a separate vector database for RAG. Cloud SQL for PostgreSQL supports the `pgvector` extension natively, so the existing Cloud SQL instance doubles as the RAG vector store — point a `*.rag.yaml` pipeline at it with `vector_store.backend: pgvector`.
+
+## Observability
+
+Cloud Run already reports request metrics to Cloud Monitoring and ships stdout/stderr to Cloud Logging at no extra cost — Orbit provisions nothing to get those. A Cloud Monitoring dashboard (`monitoring.tf.j2`) charting Cloud Run golden signals — request count, latency, error rate, instance count — is provisioned on by default; disable it with `spec.observability.dashboard: false`. `orbit logs` reads the Cloud Logging entries directly.
+
+Cloud Trace is opt-in. Setting `spec.observability.tracing.enabled: true` adds an OpenTelemetry Collector sidecar to the runtime Cloud Run service and sets `ASTROMESH_OTLP_ENABLED=1` on the runtime container, so the astromesh runtime exports OTLP spans to the sidecar, which forwards them to Cloud Trace under the deployment's service account.
+
+See [Configuration](/astromesh/orbit/configuration/) for the full `spec.observability` schema.
 
 ## Required GCP APIs
 

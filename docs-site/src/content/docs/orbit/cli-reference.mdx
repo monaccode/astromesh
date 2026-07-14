@@ -369,3 +369,74 @@ To take over Terraform management:
 - Writes files to the output directory
 - Does NOT modify any cloud resources
 - Does NOT affect `.orbit/` or `orbit.yaml`
+
+---
+
+## orbit logs
+
+Read the runtime service's Cloud Run logs from Cloud Logging.
+
+```
+astromeshctl orbit logs [--limit <n>] [--since <duration>]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--limit` | int | 50 | Maximum number of log entries to fetch. |
+| `--since` | string | `1h` | Time window to query, e.g. `30m`, `1h`, `24h`. |
+
+**Example:**
+
+```bash
+astromeshctl orbit logs --limit 20 --since 30m
+```
+
+```
+2026-07-14T10:02:11Z  INFO  Agent run started (agent=support, session=abc123)
+2026-07-14T10:02:12Z  INFO  Tool call: web_search
+2026-07-14T10:02:14Z  INFO  Agent run completed (200 OK, 1.8s)
+```
+
+**Side effects:**
+- Read-only — queries Cloud Logging, does not modify any cloud resources
+
+---
+
+## orbit upgrade
+
+Re-render the Terraform templates after an `astromesh-orbit` package update and show a diff against the currently generated files.
+
+```
+astromeshctl orbit upgrade [--apply]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--apply` | bool | false | Write the re-rendered templates to `.orbit/generated/`. Without this flag, only a diff is shown. |
+
+**Example:**
+
+```bash
+astromeshctl orbit upgrade
+```
+
+```
+Re-rendering Terraform templates from installed astromesh-orbit v0.4.0...
+
+--- .orbit/generated/monitoring.tf
++++ .orbit/generated/monitoring.tf (new)
++ resource "google_monitoring_dashboard" "runtime" {
++   ...
++ }
+
+1 file added, 0 changed, 0 removed.
+Run with --apply to write these changes.
+```
+
+**Side effects:**
+- Without `--apply`: read-only, prints a diff
+- With `--apply`: overwrites `.orbit/generated/*.tf` (does not run `terraform apply`)
