@@ -171,4 +171,6 @@ async def test_generate_includes_storage_files(
     assert "artifact_registry.tf" in names
     # bucket + AR repo actually rendered (defaults are enabled)
     assert "google_storage_bucket" in (output_dir / "storage.tf").read_text()
-    assert "google_artifact_registry_repository" in (output_dir / "artifact_registry.tf").read_text()
+    assert (
+        "google_artifact_registry_repository" in (output_dir / "artifact_registry.tf").read_text()
+    )
