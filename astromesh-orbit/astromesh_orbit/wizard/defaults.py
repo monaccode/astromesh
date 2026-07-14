@@ -25,6 +25,10 @@ PRESETS: dict[str, dict[str, Any]] = {
             "rag_documents": {"enabled": True, "versioning": True},
             "artifact_registry": {"enabled": True, "repository": ""},
         },
+        "observability": {
+            "dashboard": True,
+            "tracing": {"enabled": False},
+        },
     },
     "pro": {
         "estimated_cost": 80,
@@ -45,6 +49,10 @@ PRESETS: dict[str, dict[str, Any]] = {
         "storage": {
             "rag_documents": {"enabled": True, "versioning": True},
             "artifact_registry": {"enabled": True, "repository": ""},
+        },
+        "observability": {
+            "dashboard": True,
+            "tracing": {"enabled": False},
         },
     },
 }
@@ -73,5 +81,6 @@ def build_orbit_yaml(
             "secrets": p["secrets"],
             "images": p["images"],
             "storage": p["storage"],
+            "observability": p["observability"],
         },
     }

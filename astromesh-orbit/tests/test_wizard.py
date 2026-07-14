@@ -102,3 +102,23 @@ def test_build_orbit_yaml_includes_storage():
     )
     assert data["spec"]["storage"]["rag_documents"]["enabled"] is True
     assert data["spec"]["storage"]["artifact_registry"]["enabled"] is True
+
+
+def test_presets_include_observability():
+    for name in ("starter", "pro"):
+        obs = PRESETS[name]["observability"]
+        assert obs["dashboard"] is True
+        assert obs["tracing"]["enabled"] is False
+
+
+def test_build_orbit_yaml_includes_observability():
+    data = build_orbit_yaml(
+        name="d",
+        environment="develop",
+        provider="gcp",
+        project="p",
+        region="us-central1",
+        preset="starter",
+    )
+    assert data["spec"]["observability"]["dashboard"] is True
+    assert data["spec"]["observability"]["tracing"]["enabled"] is False
