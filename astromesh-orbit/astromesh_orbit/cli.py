@@ -244,6 +244,42 @@ def eject(output_dir: str = typer.Option("./orbit-terraform", help="Output direc
     asyncio.run(_eject())
 
 
+@orbit_app.command()
+def upgrade(
+    config: str = typer.Option("orbit.yaml", help="Path to orbit.yaml"),
+    apply: bool = typer.Option(False, "--apply", help="Overwrite the generated .tf files"),
+):
+    """Re-render Terraform templates (after an Orbit package update) and show what changes."""
+
+    async def _upgrade():
+        import shutil
+        import tempfile
+
+        from astromesh_orbit.upgrade import diff_generated
+
+        cfg = _load_config(config)
+        prov = _get_provider(cfg)
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
+            await prov.generate(cfg, tmp_dir)
+            diff = diff_generated(tmp_dir, GENERATED_DIR)
+            if not diff:
+                console.print("[green]Up to date[/] — generated templates match this package.")
+                return
+            console.print(diff)
+            if apply:
+                GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+                for f in tmp_dir.glob("*.tf"):
+                    shutil.copy2(f, GENERATED_DIR / f.name)
+                console.print(
+                    f"\n[green]Applied[/] — {GENERATED_DIR} updated. Run 'orbit plan' next."
+                )
+            else:
+                console.print("\n[dim]Re-run with --apply to write these changes.[/]")
+
+    asyncio.run(_upgrade())
+
+
 def register(app: typer.Typer) -> None:
     """Plugin entry point — called by astromeshctl plugin discovery."""
     app.add_typer(orbit_app, name="orbit")
