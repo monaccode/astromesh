@@ -160,3 +160,15 @@ async def test_provision_orchestrates_full_flow(
         assert result.env_file.name == "orbit.env"
         mock_val.assert_called_once()
         mock_bucket.assert_called_once()
+
+
+async def test_generate_includes_storage_files(
+    provider: GCPProvider, config: OrbitConfig, output_dir: Path
+):
+    files = await provider.generate(config, output_dir)
+    names = [f.name for f in files]
+    assert "storage.tf" in names
+    assert "artifact_registry.tf" in names
+    # bucket + AR repo actually rendered (defaults are enabled)
+    assert "google_storage_bucket" in (output_dir / "storage.tf").read_text()
+    assert "google_artifact_registry_repository" in (output_dir / "artifact_registry.tf").read_text()
