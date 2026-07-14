@@ -42,6 +42,7 @@ def ctx(config: OrbitConfig) -> dict:
         "cache": config.spec.cache,
         "secrets": config.spec.secrets,
         "images": config.spec.images,
+        "custom_env": {},
         "services": [
             {
                 "key": "runtime",
