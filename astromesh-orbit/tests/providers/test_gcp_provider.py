@@ -174,3 +174,12 @@ async def test_generate_includes_storage_files(
     assert (
         "google_artifact_registry_repository" in (output_dir / "artifact_registry.tf").read_text()
     )
+
+
+async def test_generate_includes_monitoring(
+    provider: GCPProvider, config: OrbitConfig, output_dir: Path
+):
+    files = await provider.generate(config, output_dir)
+    assert "monitoring.tf" in [f.name for f in files]
+    # dashboard defaults to enabled
+    assert "google_monitoring_dashboard" in (output_dir / "monitoring.tf").read_text()

@@ -36,6 +36,7 @@ TEMPLATE_FILES = [
     "cloud_run.tf.j2",
     "storage.tf.j2",
     "artifact_registry.tf.j2",
+    "monitoring.tf.j2",
     "outputs.tf.j2",
 ]
 
@@ -62,6 +63,7 @@ class GCPProvider:
             "secrets": config.spec.secrets,
             "images": config.spec.images,
             "storage": config.spec.storage,
+            "observability": config.spec.observability,
             "services": [
                 {
                     "key": "runtime",
