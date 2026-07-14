@@ -77,3 +77,29 @@ def test_wiring_failure_falls_back_to_defaults(monkeypatch):
     assert isinstance(collector, InternalCollector)
     assert not isinstance(collector, OTLPCollector)
     assert get_manager() is None
+
+
+async def test_bootstrap_wires_observability_before_early_return(tmp_path, monkeypatch):
+    """bootstrap() early-returns when there is no agents/ dir — observability must be wired anyway."""
+    from astromesh.runtime.engine import AgentRuntime
+
+    monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", "1")
+    assert not (tmp_path / "agents").exists()  # forces the early return
+
+    runtime = AgentRuntime(config_dir=str(tmp_path))
+    await runtime.bootstrap()
+
+    assert isinstance(get_collector(), OTLPCollector)
+    assert get_manager() is not None
+
+
+async def test_bootstrap_leaves_defaults_when_disabled(tmp_path, monkeypatch):
+    from astromesh.runtime.engine import AgentRuntime
+
+    monkeypatch.delenv("ASTROMESH_OTLP_ENABLED", raising=False)
+    runtime = AgentRuntime(config_dir=str(tmp_path))
+    await runtime.bootstrap()
+
+    assert isinstance(get_collector(), InternalCollector)
+    assert not isinstance(get_collector(), OTLPCollector)
+    assert get_manager() is None

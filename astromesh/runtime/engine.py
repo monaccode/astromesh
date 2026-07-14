@@ -177,6 +177,12 @@ class AgentRuntime:
         self.peer_client = peer_client
 
     async def bootstrap(self):
+        # Wire OTLP export FIRST: the early returns below must not leave a deployment untraced.
+        # Imported lazily — the module pulls in the traces route (FastAPI) on the enabled path.
+        from astromesh.observability.setup import setup_observability
+
+        setup_observability()
+
         # Skip agent loading if agents service is disabled
         if self.service_manager and not self.service_manager.is_enabled("agents"):
             return
