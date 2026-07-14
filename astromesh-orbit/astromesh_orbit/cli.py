@@ -252,10 +252,9 @@ def upgrade(
     """Re-render Terraform templates (after an Orbit package update) and show what changes."""
 
     async def _upgrade():
-        import shutil
         import tempfile
 
-        from astromesh_orbit.upgrade import diff_generated
+        from astromesh_orbit.upgrade import apply_generated, diff_generated
 
         cfg = _load_config(config)
         prov = _get_provider(cfg)
@@ -268,9 +267,7 @@ def upgrade(
                 return
             console.print(diff)
             if apply:
-                GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-                for f in tmp_dir.glob("*.tf"):
-                    shutil.copy2(f, GENERATED_DIR / f.name)
+                apply_generated(tmp_dir, GENERATED_DIR)
                 console.print(
                     f"\n[green]Applied[/] — {GENERATED_DIR} updated. Run 'orbit plan' next."
                 )
