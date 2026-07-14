@@ -118,7 +118,10 @@ async def test_falls_back_to_tofu_in_path():
 async def test_falls_back_to_terraform_in_path():
     with patch.dict("os.environ", {}, clear=False):
         os.environ.pop("TOFU_PATH", None)
-        with patch("astromesh_orbit.terraform.runner.shutil.which", side_effect=lambda x: "/usr/bin/terraform" if x == "terraform" else None):
+        with patch(
+            "astromesh_orbit.terraform.runner.shutil.which",
+            side_effect=lambda x: "/usr/bin/terraform" if x == "terraform" else None,
+        ):
             r = TerraformRunner()
             assert r._bin == "/usr/bin/terraform"
 

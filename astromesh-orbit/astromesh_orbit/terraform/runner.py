@@ -66,7 +66,8 @@ class TerraformRunner:
 
     async def init(self, work_dir: Path) -> None:
         code, stdout, stderr = await self._run(
-            [self._bin, "init", "-input=false", "-reconfigure", "-lock=false", "-no-color"], cwd=work_dir
+            [self._bin, "init", "-input=false", "-reconfigure", "-lock=false", "-no-color"],
+            cwd=work_dir,
         )
         if code != 0:
             raise RuntimeError(f"init failed:\n{stderr or stdout}")
@@ -105,9 +106,7 @@ class TerraformRunner:
             raise RuntimeError(f"destroy failed:\n{stderr or stdout}")
 
     async def output(self, work_dir: Path) -> dict[str, str]:
-        code, stdout, _ = await self._run(
-            [self._bin, "output", "-json", "-no-color"], cwd=work_dir
-        )
+        code, stdout, _ = await self._run([self._bin, "output", "-json", "-no-color"], cwd=work_dir)
         if code != 0 or not stdout.strip():
             return {}
         data = json.loads(stdout)

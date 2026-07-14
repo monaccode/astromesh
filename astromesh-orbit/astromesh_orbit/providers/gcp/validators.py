@@ -40,6 +40,7 @@ def _has_service_account_key() -> str | None:
 # gcloud CLI helpers
 # ---------------------------------------------------------------------------
 
+
 async def _run_gcloud(*args: str) -> tuple[int, str, str]:
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -59,9 +60,10 @@ async def _run_gcloud(*args: str) -> tuple[int, str, str]:
 # Service-account (google-auth library) helpers
 # ---------------------------------------------------------------------------
 
+
 def _load_sa_credentials():
     """Load default credentials from GOOGLE_APPLICATION_CREDENTIALS."""
-    from google.auth import default  # noqa: lazy import – optional dep
+    from google.auth import default  # lazy import – optional dep
     from google.auth.transport.requests import Request
 
     creds, project = default(
@@ -108,7 +110,7 @@ def _sa_check_project(project: str) -> CheckResult:
             name="project_exists",
             passed=False,
             message=f"Project {project} not found or no access: {exc}",
-            remediation=f"Verify the project ID and service account permissions",
+            remediation="Verify the project ID and service account permissions",
         )
 
 
@@ -158,6 +160,7 @@ def _sa_check_apis_enabled(project: str) -> list[CheckResult]:
 # ---------------------------------------------------------------------------
 # Public API — auto-selects auth method
 # ---------------------------------------------------------------------------
+
 
 async def check_gcloud_auth() -> CheckResult:
     if _has_service_account_key():

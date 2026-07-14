@@ -35,7 +35,7 @@ def _try_gcs_python(project: str, region: str, bucket_name: str) -> bool | None:
     if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
         return None
     try:
-        from google.cloud import storage  # noqa: lazy import
+        from google.cloud import storage  # lazy import – optional dep
     except ImportError:
         return None
 
@@ -90,7 +90,14 @@ async def ensure_gcs_state_bucket(project: str, region: str, name: str) -> str:
 
     # Try to create via gsutil
     code, _, stderr = await _run_gsutil(
-        "mb", "-p", project, "-l", region, "-b", "on", f"gs://{bucket_name}",
+        "mb",
+        "-p",
+        project,
+        "-l",
+        region,
+        "-b",
+        "on",
+        f"gs://{bucket_name}",
     )
     if code == 0:
         await _run_gsutil("versioning", "set", "on", f"gs://{bucket_name}")
@@ -101,7 +108,14 @@ async def ensure_gcs_state_bucket(project: str, region: str, name: str) -> str:
     suffix = hashlib.sha256(f"{project}-{name}".encode()).hexdigest()[:6]
     bucket_name = f"{project}-astromesh-orbit-state-{suffix}"
     code, _, stderr = await _run_gsutil(
-        "mb", "-p", project, "-l", region, "-b", "on", f"gs://{bucket_name}",
+        "mb",
+        "-p",
+        project,
+        "-l",
+        region,
+        "-b",
+        "on",
+        f"gs://{bucket_name}",
     )
     if code != 0:
         raise RuntimeError(
@@ -137,7 +151,7 @@ def ensure_vpc_peering(project: str, network: str = "default") -> None:
         f"?network=projects/{project}/global/networks/{network}"
     )
     if r.ok and r.json().get("connections"):
-        console.print(f"  [green]OK[/] VPC peering exists")
+        console.print("  [green]OK[/] VPC peering exists")
         return
 
     # Create IP range if needed
@@ -157,7 +171,9 @@ def ensure_vpc_peering(project: str, network: str = "default") -> None:
             },
         )
         if r.status_code >= 400:
-            console.print(f" [yellow]WARN[/] Could not create IP range: {r.json().get('error', {}).get('message', '')}")
+            console.print(
+                f" [yellow]WARN[/] Could not create IP range: {r.json().get('error', {}).get('message', '')}"
+            )
             return
         console.print(" OK")
         time.sleep(10)
@@ -165,8 +181,8 @@ def ensure_vpc_peering(project: str, network: str = "default") -> None:
     # Create peering connection
     console.print("  Creating VPC peering for Cloud SQL...", end="")
     r = session.post(
-        f"https://servicenetworking.googleapis.com/v1/services/"
-        f"servicenetworking.googleapis.com/connections",
+        "https://servicenetworking.googleapis.com/v1/services/"
+        "servicenetworking.googleapis.com/connections",
         json={
             "network": f"projects/{project}/global/networks/{network}",
             "reservedPeeringRanges": ["google-managed-services"],

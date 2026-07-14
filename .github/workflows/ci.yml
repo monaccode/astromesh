@@ -98,9 +98,19 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: false
-      # Deselect orbit_gcp: those tests provision real GCP resources and need credentials.
-      - name: Run tests
+      - name: Install dependencies
         working-directory: astromesh-orbit
-        run: |
-          uv sync --extra dev
-          uv run pytest -v -m "not orbit_gcp"
+        run: uv sync --extra dev
+
+      - name: Lint
+        working-directory: astromesh-orbit
+        run: uv run ruff check astromesh_orbit/ tests/
+
+      - name: Format check
+        working-directory: astromesh-orbit
+        run: uv run ruff format --check astromesh_orbit/ tests/
+
+      # Deselect orbit_gcp: those tests provision real GCP resources and need credentials.
+      - name: Tests
+        working-directory: astromesh-orbit
+        run: uv run pytest -v -m "not orbit_gcp"

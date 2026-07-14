@@ -83,7 +83,10 @@ def plan(config: str = typer.Option("orbit.yaml", help="Path to orbit.yaml")):
 
             runner = TerraformRunner()
             await runner.check_installed()
-            from astromesh_orbit.terraform.backend import ensure_gcs_state_bucket, ensure_vpc_peering
+            from astromesh_orbit.terraform.backend import (
+                ensure_gcs_state_bucket,
+                ensure_vpc_peering,
+            )
 
             await ensure_gcs_state_bucket(
                 cfg.spec.provider.project, cfg.spec.provider.region, cfg.metadata.name
