@@ -8,7 +8,7 @@ import yaml
 SAMPLE_ORBIT_YAML = {
     "apiVersion": "astromesh/v1",
     "kind": "OrbitDeployment",
-    "metadata": {"name": "test-astromesh", "environment": "dev"},
+    "metadata": {"name": "test-astromesh", "environment": "develop"},
     "spec": {
         "provider": {"name": "gcp", "project": "test-project-123", "region": "us-central1"},
         "compute": {

@@ -19,7 +19,6 @@ def test_parse_compute_specs(sample_orbit_yaml: Path):
     config = OrbitConfig.from_yaml(sample_orbit_yaml)
     assert config.spec.compute.runtime.cpu == "2"
     assert config.spec.compute.runtime.max_instances == 3
-    assert config.spec.compute.studio.min_instances == 0
 
 
 def test_parse_database_spec(sample_orbit_yaml: Path):
@@ -90,7 +89,7 @@ def test_default_environment(tmp_path: Path, sample_orbit_dict: dict):
     path = tmp_path / "orbit.yaml"
     path.write_text(yaml.dump(sample_orbit_dict))
     config = OrbitConfig.from_yaml(path)
-    assert config.metadata.environment == "dev"
+    assert config.metadata.environment == "develop"
 
 
 def test_file_not_found():

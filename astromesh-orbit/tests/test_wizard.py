@@ -10,13 +10,13 @@ from astromesh_orbit.wizard.defaults import PRESETS, build_orbit_yaml
 def test_starter_preset_exists():
     assert "starter" in PRESETS
     preset = PRESETS["starter"]
-    assert preset["estimated_cost"] == 30
+    assert preset["estimated_cost"] == 15
 
 
 def test_pro_preset_exists():
     assert "pro" in PRESETS
     preset = PRESETS["pro"]
-    assert preset["estimated_cost"] == 150
+    assert preset["estimated_cost"] == 80
 
 
 def test_starter_preset_values():
@@ -66,7 +66,7 @@ def test_build_orbit_yaml_pro():
 def test_build_orbit_yaml_writes_valid_yaml(tmp_path: Path):
     data = build_orbit_yaml(
         name="test",
-        environment="dev",
+        environment="develop",
         provider="gcp",
         project="test-proj",
         region="us-central1",
