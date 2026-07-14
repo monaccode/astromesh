@@ -95,3 +95,32 @@ def test_default_environment(tmp_path: Path, sample_orbit_dict: dict):
 def test_file_not_found():
     with pytest.raises(FileNotFoundError):
         OrbitConfig.from_yaml(Path("/nonexistent/orbit.yaml"))
+
+
+def test_parse_storage_defaults(sample_orbit_yaml: Path):
+    config = OrbitConfig.from_yaml(sample_orbit_yaml)
+    assert config.spec.storage.rag_documents.enabled is True
+    assert config.spec.storage.rag_documents.versioning is True
+    assert config.spec.storage.artifact_registry.enabled is True
+    assert config.spec.storage.artifact_registry.repository == ""
+
+
+def test_storage_backward_compatible(tmp_path: Path, sample_orbit_dict: dict):
+    # An orbit.yaml with no `storage` block still parses; defaults apply.
+    assert "storage" not in sample_orbit_dict["spec"]
+    path = tmp_path / "orbit.yaml"
+    path.write_text(yaml.dump(sample_orbit_dict))
+    config = OrbitConfig.from_yaml(path)
+    assert config.spec.storage.rag_documents.enabled is True
+
+
+def test_storage_disabled_parses(tmp_path: Path, sample_orbit_dict: dict):
+    sample_orbit_dict["spec"]["storage"] = {
+        "rag_documents": {"enabled": False},
+        "artifact_registry": {"enabled": False},
+    }
+    path = tmp_path / "orbit.yaml"
+    path.write_text(yaml.dump(sample_orbit_dict))
+    config = OrbitConfig.from_yaml(path)
+    assert config.spec.storage.rag_documents.enabled is False
+    assert config.spec.storage.artifact_registry.enabled is False

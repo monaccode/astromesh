@@ -47,6 +47,21 @@ class ImagesSpec(BaseModel):
     runtime: str = "fulfarodev/astromesh:latest"
 
 
+class RagDocumentsSpec(BaseModel):
+    enabled: bool = True
+    versioning: bool = True
+
+
+class ArtifactRegistrySpec(BaseModel):
+    enabled: bool = True
+    repository: str = ""  # empty -> "<metadata.name>-images" at render time
+
+
+class StorageSpec(BaseModel):
+    rag_documents: RagDocumentsSpec = RagDocumentsSpec()
+    artifact_registry: ArtifactRegistrySpec = ArtifactRegistrySpec()
+
+
 class OrbitSpec(BaseModel):
     provider: ProviderSpec
     compute: ComputeSpec = ComputeSpec()
@@ -54,6 +69,7 @@ class OrbitSpec(BaseModel):
     cache: CacheSpec = CacheSpec()
     secrets: SecretsSpec = SecretsSpec()
     images: ImagesSpec = ImagesSpec()
+    storage: StorageSpec = StorageSpec()
     env: dict[str, str] = {}
 
 

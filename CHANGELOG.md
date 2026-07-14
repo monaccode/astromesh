@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Orbit)
+- **v0.3.0 — Storage & RAG (GCP).** `orbit apply` now provisions a Cloud Storage bucket
+  for RAG source documents (`${project}-<name>-rag-docs`, IAM-wired to the runtime service
+  account, exposed to the runtime as `ASTROMESH_RAG_BUCKET`) and an Artifact Registry Docker
+  repository (`<name>-images`) for custom images. New opt-in `spec.storage` config section
+  (`rag_documents`, `artifact_registry`), both enabled by default. The RAG vector store
+  reuses the existing Cloud SQL via pgvector — no separate vector database is provisioned.
+  "Cloud CDN for Studio" is dropped from the roadmap (Studio is no longer deployed, per
+  6278ccc). (`astromesh-orbit`)
+
 ### Added (Docs Site)
 - **Interactive zoom/pan/fullscreen for every Mermaid diagram** — each rendered
   `<pre class="mermaid">` now gets a hover-revealed toolbar (zoom out / reset / zoom in /
