@@ -91,8 +91,10 @@ a:hover {
 
 /* ── Mermaid diagrams (Mission Control theme) ────────────────
    Rendered client-side (see Head.astro). Framed as a telemetry
-   panel; raw source is hidden until Mermaid marks it processed. */
+   panel; raw source is hidden until Mermaid marks it processed.
+   Each processed diagram gets zoom/pan/fullscreen controls. */
 pre.mermaid {
+  position: relative;
   background:
     radial-gradient(120% 120% at 50% 0%, rgba(0, 212, 255, 0.05), transparent 60%),
     var(--am-surface);
@@ -101,7 +103,7 @@ pre.mermaid {
   padding: 1.5rem 1rem;
   margin-block: 1.5rem;
   text-align: center;
-  overflow-x: auto;
+  overflow: hidden;
   line-height: normal;
 }
 pre.mermaid:not([data-processed]) {
@@ -117,4 +119,88 @@ pre.mermaid[data-processed]:hover {
 pre.mermaid svg {
   max-width: 100%;
   height: auto;
+}
+
+/* Viewport that clips the diagram while panning / zooming. */
+.am-mmd-viewport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.am-mmd-viewport.am-grabbing {
+  cursor: grabbing;
+}
+.am-mmd-viewport svg {
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* Zoom / reset / fullscreen toolbar (top-right, reveals on hover). */
+.am-mmd-controls {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 3;
+  display: flex;
+  gap: 0.3rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+pre.mermaid:hover .am-mmd-controls,
+pre.mermaid:focus-within .am-mmd-controls,
+pre.mermaid:fullscreen .am-mmd-controls {
+  opacity: 1;
+}
+.am-mmd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  color: var(--sl-color-accent-high, #67e8f9);
+  background: rgba(10, 20, 32, 0.72);
+  border: 1px solid var(--am-border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.am-mmd-btn:hover {
+  color: #fff;
+  border-color: var(--am-border-hover);
+  background: rgba(0, 212, 255, 0.14);
+  box-shadow: 0 0 8px var(--am-glow);
+}
+.am-mmd-btn:active {
+  transform: translateY(1px);
+}
+.am-mmd-btn svg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+}
+
+/* Fullscreen: fill the screen on a solid backdrop. */
+pre.mermaid:fullscreen {
+  margin: 0;
+  border-radius: 0;
+  padding: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #060d15;
+}
+pre.mermaid:fullscreen .am-mmd-viewport {
+  width: 100%;
+  height: 100%;
+}
+pre.mermaid:fullscreen .am-mmd-viewport svg {
+  max-width: 100%;
+  max-height: 100%;
 }

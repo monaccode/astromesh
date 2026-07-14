@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Docs Site)
+- **Interactive zoom/pan/fullscreen for every Mermaid diagram** — each rendered
+  `<pre class="mermaid">` now gets a hover-revealed toolbar (zoom out / reset / zoom in /
+  fullscreen) plus drag-to-pan, `Ctrl`/`⌘` + wheel zoom-to-cursor, and double-click reset.
+  Applied automatically after `mermaid.run()` (no per-page changes), styled to the Mission
+  Control theme, and re-applied across Starlight view transitions.
+  (`docs-site/src/components/Head.astro`, `docs-site/src/styles/custom.css`)
+
 ### Fixed
 - `astromesh-node`'s Centinela CLI (`plan-promotion`, `reconcile`) and its tests read/wrote files
   with `Path.read_text()/write_text()` without an explicit encoding, so on Windows (cp1252/ascii
