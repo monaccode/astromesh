@@ -82,7 +82,7 @@ Environment label. Affects resource naming (appended as suffix) and default beha
 |---|---|
 | `dev` | Allows `min_instances: 0` everywhere, smaller default resources |
 | `staging` | Same as production defaults but with environment suffix in names |
-| `production` | Full defaults, enforces `min_instances >= 1` for runtime and cloud_api |
+| `production` | Full defaults, enforces `min_instances >= 1` for runtime |
 
 ---
 
@@ -129,62 +129,60 @@ Cloud region for all resources. All services are deployed to the same region.
 
 ## `spec.compute`
 
-Compute resources for the three Astromesh services. Each service is deployed as a separate Cloud Run service (GCP).
+Compute resources for the Astromesh runtime. It is deployed as a single Cloud Run service (GCP).
 
 ### Service Blocks
 
-Three service blocks share the same schema:
+One service block:
 
 - `spec.compute.runtime` — Astromesh core runtime (AgentRuntime + ModelRouter + ToolRegistry)
-- `spec.compute.cloud_api` — Astromesh Cloud API (auth, orgs, agents, keys)
-- `spec.compute.studio` — Astromesh Cloud Studio (Next.js visual builder)
 
-### `spec.compute.<service>.min_instances`
+### `spec.compute.runtime.min_instances`
 
 | | |
 |---|---|
 | **Type** | `integer` |
 | **Required** | No |
-| **Default** | `1` (runtime, cloud_api), `0` (studio) |
+| **Default** | `1` |
 | **Range** | `0` - `100` |
 
-Minimum number of running instances. Setting to `0` enables scale-to-zero (cold starts apply). In `production` environment, runtime and cloud_api enforce a minimum of `1`.
+Minimum number of running instances. Setting to `0` enables scale-to-zero (cold starts apply). In `production` environment, runtime enforces a minimum of `1`.
 
 ---
 
-### `spec.compute.<service>.max_instances`
+### `spec.compute.runtime.max_instances`
 
 | | |
 |---|---|
 | **Type** | `integer` |
 | **Required** | No |
-| **Default** | `5` (runtime), `3` (cloud_api), `2` (studio) |
+| **Default** | `5` |
 | **Range** | `1` - `100` |
 
 Maximum number of instances for auto-scaling. Must be >= `min_instances`.
 
 ---
 
-### `spec.compute.<service>.cpu`
+### `spec.compute.runtime.cpu`
 
 | | |
 |---|---|
 | **Type** | `string` |
 | **Required** | No |
-| **Default** | `"2"` (runtime), `"1"` (cloud_api, studio) |
+| **Default** | `"2"` |
 | **Allowed** | `"1"`, `"2"`, `"4"`, `"8"` |
 
 CPU allocation per instance. Cloud Run supports up to 8 vCPUs per instance.
 
 ---
 
-### `spec.compute.<service>.memory`
+### `spec.compute.runtime.memory`
 
 | | |
 |---|---|
 | **Type** | `string` |
 | **Required** | No |
-| **Default** | `"2Gi"` (runtime), `"1Gi"` (cloud_api), `"512Mi"` (studio) |
+| **Default** | `"2Gi"` |
 | **Pattern** | `^[0-9]+(Mi|Gi)$` |
 
 Memory allocation per instance. Must be compatible with the CPU setting — Cloud Run enforces minimum memory-to-CPU ratios.
@@ -319,7 +317,7 @@ Create a Secret Manager entry for the JWT signing secret. An auto-generated rand
 
 ## `spec.images`
 
-Container image references for each service. Override these to use custom images or pin specific versions.
+Container image reference for the runtime service. Override this to use a custom image or pin a specific version.
 
 ### `spec.images.runtime`
 
@@ -330,30 +328,6 @@ Container image references for each service. Override these to use custom images
 | **Default** | `fulfarodev/astromesh:latest` |
 
 Container image for the Astromesh core runtime.
-
----
-
-### `spec.images.cloud_api`
-
-| | |
-|---|---|
-| **Type** | `string` |
-| **Required** | No |
-| **Default** | `fulfarodev/astromesh-cloud-api:latest` |
-
-Container image for the Astromesh Cloud API.
-
----
-
-### `spec.images.studio`
-
-| | |
-|---|---|
-| **Type** | `string` |
-| **Required** | No |
-| **Default** | `fulfarodev/astromesh-cloud-studio:latest` |
-
-Container image for the Astromesh Cloud Studio (Next.js).
 
 ---
 
@@ -404,14 +378,6 @@ spec:
       max_instances: 1
       cpu: "1"
       memory: "1Gi"
-    cloud_api:
-      min_instances: 1
-      max_instances: 1
-      cpu: "1"
-      memory: "512Mi"
-    studio:
-      min_instances: 0
-      max_instances: 1
 
   database:
     tier: db-f1-micro
@@ -436,14 +402,6 @@ spec:
       max_instances: 5
       cpu: "2"
       memory: "2Gi"
-    cloud_api:
-      min_instances: 1
-      max_instances: 3
-      cpu: "1"
-      memory: "1Gi"
-    studio:
-      min_instances: 0
-      max_instances: 2
 
   database:
     tier: db-g1-small
@@ -472,12 +430,6 @@ spec:
   compute:
     runtime:
       min_instances: 0       # Scale to zero when idle
-      max_instances: 1
-    cloud_api:
-      min_instances: 0
-      max_instances: 1
-    studio:
-      min_instances: 0
       max_instances: 1
 
   database:
@@ -530,7 +482,7 @@ spec:
     memory_gb: 4
 ```
 
-Always keep at least one instance running for runtime and cloud_api to eliminate cold starts. Enable HA on database and cache.
+Always keep at least one instance running for the runtime to eliminate cold starts. Enable HA on database and cache.
 
 ---
 
@@ -542,8 +494,6 @@ Override default images to use private registries, specific versions, or custom 
 spec:
   images:
     runtime: us-docker.pkg.dev/my-project/astromesh/runtime:v0.7.0
-    cloud_api: us-docker.pkg.dev/my-project/astromesh/cloud-api:v0.7.0
-    studio: us-docker.pkg.dev/my-project/astromesh/studio:v0.7.0
 ```
 
 When using Artifact Registry, ensure the Orbit service account has `roles/artifactregistry.reader` on the repository. Orbit does not grant this automatically — add it manually:
@@ -565,7 +515,7 @@ Orbit validates the full configuration before any Terraform operation. Key rules
 | Rule | Error message |
 |---|---|
 | `max_instances` >= `min_instances` | `max_instances (1) must be >= min_instances (2) for compute.runtime` |
-| `min_instances` >= 1 in production (runtime, cloud_api) | `production environment requires min_instances >= 1 for runtime` |
+| `min_instances` >= 1 in production (runtime) | `production environment requires min_instances >= 1 for runtime` |
 | `storage_gb` >= 10 | `database.storage_gb must be >= 10 (Cloud SQL minimum)` |
 | `memory_gb` >= 1 for cache | `cache.memory_gb must be >= 1` |
 | `provider.project` is non-empty | `spec.provider.project is required` |
@@ -576,19 +526,9 @@ Orbit validates the full configuration before any Terraform operation. Key rules
 
 ## Future Configuration (Roadmap)
 
-The following sections are planned but not implemented in v0.1.0. They are shown commented out in generated `orbit.yaml` files for reference:
+`spec.storage` (v0.3.0) is implemented today — see the [`spec.storage`](#specstorage) section above. The following sections are still planned and not yet implemented. They are shown commented out in generated `orbit.yaml` files for reference:
 
 ```yaml
-  # ── v0.2.0 — Observability ──
-  # monitoring:
-  #   enabled: false
-
-  # ── v0.3.0 — Storage & RAG ──
-  # storage:
-  #   rag_bucket: true
-  # artifact_registry:
-  #   enabled: false
-
   # ── v0.4.0 — GPU & Inference ──
   # gpu:
   #   vllm:
@@ -625,16 +565,6 @@ spec:
       max_instances: 5
       cpu: "2"
       memory: "2Gi"
-    cloud_api:
-      min_instances: 1
-      max_instances: 3
-      cpu: "1"
-      memory: "1Gi"
-    studio:
-      min_instances: 0
-      max_instances: 2
-      cpu: "1"
-      memory: "512Mi"
 
   database:
     tier: db-g1-small
@@ -652,8 +582,6 @@ spec:
 
   images:
     runtime: fulfarodev/astromesh:latest
-    cloud_api: fulfarodev/astromesh-cloud-api:latest
-    studio: fulfarodev/astromesh-cloud-studio:latest
 ```
 
 ---

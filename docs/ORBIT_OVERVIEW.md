@@ -24,7 +24,7 @@ flowchart TB
     runner --> cloud
     subgraph cloud["Cloud Infrastructure"]
         cr["`**Cloud Run**
-        runtime, cloud-api, studio`"]
+        runtime`"]
         sql["`**Cloud SQL**
         PostgreSQL`"]
         redis["`**Memorystore**
@@ -79,8 +79,8 @@ On GCP (MVP), `orbit apply` provisions the following resources:
 
 | Resource | Template | Purpose |
 |---|---|---|
-| 3 Cloud Run services | `cloud_run.tf.j2` | Runtime, Cloud API, Studio |
-| Cloud SQL for PostgreSQL | `cloud_sql.tf.j2` | Database for runtime + Cloud API |
+| 1 Cloud Run service | `cloud_run.tf.j2` | Runtime |
+| Cloud SQL for PostgreSQL | `cloud_sql.tf.j2` | Database for the runtime |
 | Memorystore for Redis | `memorystore.tf.j2` | Cache and memory backend |
 | Secret Manager entries | `secrets.tf.j2` | Provider keys, JWT secret |
 | Serverless VPC Connector | `networking.tf.j2` | Private network access for Cloud Run |
@@ -240,7 +240,7 @@ The wizard writes explicit values to `orbit.yaml` — no magic tier references a
 
 ### v0.1.0 — Core (MVP)
 
-- Cloud Run (runtime, cloud-api, studio)
+- Cloud Run (runtime)
 - Cloud SQL for PostgreSQL
 - Memorystore for Redis
 - Secret Manager
