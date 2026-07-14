@@ -273,3 +273,20 @@ def test_cloud_run_omits_tracing_when_disabled(jinja_env, ctx):
     assert "otel-collector" not in output
     assert "ASTROMESH_OTLP_ENABLED" not in output
     assert "OTEL_EXPORTER_OTLP_ENDPOINT" not in output
+
+
+def test_iam_grants_trace_roles_when_tracing(jinja_env, ctx):
+    from astromesh_orbit.config import ObservabilitySpec, TracingSpec
+
+    ctx["observability"] = ObservabilitySpec(tracing=TracingSpec(enabled=True))
+    tmpl = jinja_env.get_template("iam.tf.j2")
+    output = tmpl.render(ctx)
+    assert "roles/cloudtrace.agent" in output
+    assert "roles/monitoring.metricWriter" in output
+
+
+def test_iam_omits_trace_roles_when_disabled(jinja_env, ctx):
+    tmpl = jinja_env.get_template("iam.tf.j2")
+    output = tmpl.render(ctx)
+    assert "roles/cloudtrace.agent" not in output
+    assert "roles/monitoring.metricWriter" not in output
