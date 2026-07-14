@@ -59,3 +59,21 @@ def test_reset_restores_defaults(monkeypatch):
     assert isinstance(get_collector(), InternalCollector)
     assert not isinstance(get_collector(), OTLPCollector)
     assert get_manager() is None
+
+
+def test_wiring_failure_falls_back_to_defaults(monkeypatch):
+    """A failure while wiring must not raise into bootstrap, and must leave clean defaults."""
+    from astromesh.observability import telemetry as telemetry_mod
+
+    monkeypatch.setenv("ASTROMESH_OTLP_ENABLED", "1")
+
+    def boom(self):
+        raise RuntimeError("exporter exploded")
+
+    monkeypatch.setattr(telemetry_mod.TelemetryManager, "setup", boom)
+
+    assert setup_observability({}) is False  # does not raise
+    collector = get_collector()
+    assert isinstance(collector, InternalCollector)
+    assert not isinstance(collector, OTLPCollector)
+    assert get_manager() is None

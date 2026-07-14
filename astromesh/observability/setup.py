@@ -40,16 +40,22 @@ def setup_observability(observability: dict | None = None) -> bool:
         set_manager,
     )
 
-    telemetry = TelemetryManager(tcfg)
-    telemetry.setup()
-    # OTLPCollector subclasses InternalCollector: GET /v1/traces keeps working, and spans are
-    # additionally forwarded to OpenTelemetry.
-    set_collector(OTLPCollector(telemetry_manager=telemetry))
+    try:
+        telemetry = TelemetryManager(tcfg)
+        telemetry.setup()
+        # OTLPCollector subclasses InternalCollector: GET /v1/traces keeps working, and spans are
+        # additionally forwarded to OpenTelemetry.
+        set_collector(OTLPCollector(telemetry_manager=telemetry))
 
-    mcfg = MetricsConfig.from_env_and_dict(observability or {})
-    metrics = MetricsManager(endpoint=mcfg.endpoint, enabled=mcfg.enabled)
-    metrics.setup()
-    set_manager(metrics)
+        mcfg = MetricsConfig.from_env_and_dict(observability or {})
+        metrics = MetricsManager(endpoint=mcfg.endpoint, enabled=mcfg.enabled)
+        metrics.setup()
+        set_manager(metrics)
+    except Exception:
+        # Observability must never take down the runtime: bootstrap() calls this first.
+        logger.warning("OTLP export wiring failed; keeping the in-memory collector", exc_info=True)
+        reset_observability()
+        return False
 
     _wired = True
     logger.info("OTLP export enabled — endpoint=%s", tcfg.otlp_endpoint)
