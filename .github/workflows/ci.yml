@@ -86,3 +86,21 @@ jobs:
         run: |
           uv sync --extra test
           uv run pytest -v
+
+  test-orbit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
+      # Deselect orbit_gcp: those tests provision real GCP resources and need credentials.
+      - name: Run tests
+        working-directory: astromesh-orbit
+        run: |
+          uv sync --extra dev
+          uv run pytest -v -m "not orbit_gcp"
