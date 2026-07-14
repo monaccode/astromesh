@@ -197,3 +197,25 @@ def test_artifact_registry_disabled(jinja_env, ctx):
     tmpl = jinja_env.get_template("artifact_registry.tf.j2")
     output = tmpl.render(ctx)
     assert "google_artifact_registry_repository" not in output
+
+
+def test_cloud_run_includes_rag_bucket_env(jinja_env, ctx):
+    tmpl = jinja_env.get_template("cloud_run.tf.j2")
+    output = tmpl.render(ctx)
+    assert "ASTROMESH_RAG_BUCKET" in output
+
+
+def test_cloud_run_omits_rag_bucket_when_disabled(jinja_env, ctx):
+    from astromesh_orbit.config import RagDocumentsSpec, StorageSpec
+
+    ctx["storage"] = StorageSpec(rag_documents=RagDocumentsSpec(enabled=False))
+    tmpl = jinja_env.get_template("cloud_run.tf.j2")
+    output = tmpl.render(ctx)
+    assert "ASTROMESH_RAG_BUCKET" not in output
+
+
+def test_outputs_include_storage(jinja_env, ctx):
+    tmpl = jinja_env.get_template("outputs.tf.j2")
+    output = tmpl.render(ctx)
+    assert "rag_bucket" in output
+    assert "artifact_registry_repo" in output

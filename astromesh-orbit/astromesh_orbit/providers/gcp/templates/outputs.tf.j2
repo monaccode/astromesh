@@ -12,3 +12,16 @@ output "redis_host" {
   value       = google_redis_instance.main.host
   description = "Memorystore Redis host"
 }
+
+{% if storage.rag_documents.enabled %}
+output "rag_bucket" {
+  value       = google_storage_bucket.rag_documents.name
+  description = "GCS bucket for RAG source documents"
+}
+{% endif %}
+{% if storage.artifact_registry.enabled %}
+output "artifact_registry_repo" {
+  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}"
+  description = "Artifact Registry Docker repository path"
+}
+{% endif %}

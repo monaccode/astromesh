@@ -39,6 +39,12 @@ resource "google_cloud_run_v2_service" "{{ svc.key }}" {
         name  = "ASTROMESH_REDIS_URL"
         value = "redis://${google_redis_instance.main.host}:${google_redis_instance.main.port}"
       }
+{% if storage.rag_documents.enabled %}
+      env {
+        name  = "ASTROMESH_RAG_BUCKET"
+        value = google_storage_bucket.rag_documents.name
+      }
+{% endif %}
 {% for key, value in custom_env.items() %}
       env {
         name  = "{{ key }}"
