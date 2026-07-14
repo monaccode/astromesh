@@ -86,8 +86,23 @@ On GCP (MVP), `orbit apply` provisions the following resources:
 | Serverless VPC Connector | `networking.tf.j2` | Private network access for Cloud Run |
 | Service Account + IAM | `iam.tf.j2` | Least-privilege identity |
 | GCS Bucket | `backend.tf.j2` | Terraform remote state |
+| GCS Bucket (RAG docs) | `storage.tf.j2` | Source documents for RAG (optional) |
+| Artifact Registry | `artifact_registry.tf.j2` | Docker repo for custom images (optional) |
 
 Automatic resources (VPC Connector, Service Account, IAM bindings) are provisioned without user configuration. Cloud Run connects to Cloud SQL via the built-in Auth Proxy sidecar — no public database IP is exposed.
+
+---
+
+### RAG Vector Store
+
+Orbit does not provision a separate vector database. Astromesh's `PGVectorStore` enables the
+`vector` extension on first use, and Cloud SQL for PostgreSQL supports pgvector natively —
+so the vector store is the Cloud SQL instance Orbit already deploys. Point a RAG pipeline at
+it with `vector_store.backend: pgvector` in a `*.rag.yaml` (the runtime already mounts the
+Cloud SQL socket at `/cloudsql` and receives `ASTROMESH_DATABASE_URL`).
+
+The `${project}-<name>-rag-docs` bucket stages source documents; the runtime receives its
+name as `ASTROMESH_RAG_BUCKET`.
 
 ---
 
@@ -240,11 +255,12 @@ The wizard writes explicit values to `orbit.yaml` — no magic tier references a
 - Pre-configured dashboard
 - `orbit logs` and `orbit upgrade` CLI commands
 
-### v0.3.0 — Storage & RAG
+### v0.3.0 — Storage & RAG  ✅
 
-- Cloud Storage bucket for RAG documents
+- Cloud Storage bucket for RAG documents (wired to the runtime via `ASTROMESH_RAG_BUCKET`)
 - Artifact Registry for custom images
-- Cloud CDN for Studio
+- pgvector on the existing Cloud SQL as the RAG vector store (no separate vector DB)
+- ~~Cloud CDN for Studio~~ — dropped; Studio is no longer deployed (see commit 6278ccc)
 
 ### v0.4.0 — GPU & Inference
 

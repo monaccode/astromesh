@@ -18,10 +18,11 @@
 - `orbit logs` CLI command (Cloud Logging integration)
 - `orbit upgrade` command (regenerates templates after package update, shows diff)
 
-### v0.3.0 — Storage & RAG
-- Cloud Storage bucket for RAG documents
+### v0.3.0 — Storage & RAG  ✅
+- Cloud Storage bucket for RAG documents (wired to the runtime via `ASTROMESH_RAG_BUCKET`)
 - Artifact Registry for custom images
-- Cloud CDN for Studio
+- pgvector on the existing Cloud SQL as the RAG vector store (no separate vector DB)
+- ~~Cloud CDN for Studio~~ — dropped; Studio is no longer deployed (see commit 6278ccc)
 
 ### v0.4.0 — GPU & Inference
 - Cloud Run with GPU (vLLM)

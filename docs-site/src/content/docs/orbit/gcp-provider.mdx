@@ -20,6 +20,8 @@ Every field in `orbit.yaml` maps to one or more GCP resources:
 | *(automatic)* | Serverless VPC Connector | `networking.tf.j2` |
 | *(automatic)* | Service Account + IAM | `iam.tf.j2` |
 | *(automatic)* | GCS Bucket (Terraform state) | `backend.tf.j2` |
+| `spec.storage.rag_documents` | GCS Bucket (RAG docs) | `storage.tf.j2` |
+| `spec.storage.artifact_registry` | Artifact Registry | `artifact_registry.tf.j2` |
 
 ## Automatic Resources
 
@@ -57,6 +59,15 @@ Terraform state is stored in a GCS bucket named `{'{project}'}-astromesh-orbit-s
 <Aside type="note">
   If the bucket name is already taken by another GCP project, Orbit appends a 6-character hash suffix and retries.
 </Aside>
+
+## Storage & RAG
+
+Two additional resources are provisioned by default via `spec.storage` (see [Configuration](/astromesh/orbit/configuration/)):
+
+- **GCS bucket** (`storage.tf.j2`) — stages RAG source documents. The runtime receives its name as `ASTROMESH_RAG_BUCKET`. Disable with `spec.storage.rag_documents.enabled: false`.
+- **Artifact Registry** (`artifact_registry.tf.j2`) — a Docker repository (`<metadata.name>-images` by default) for custom runtime and cloud-api images. Disable with `spec.storage.artifact_registry.enabled: false`.
+
+Orbit does not provision a separate vector database for RAG. Cloud SQL for PostgreSQL supports the `pgvector` extension natively, so the existing Cloud SQL instance doubles as the RAG vector store — point a `*.rag.yaml` pipeline at it with `vector_store.backend: pgvector`.
 
 ## Required GCP APIs
 

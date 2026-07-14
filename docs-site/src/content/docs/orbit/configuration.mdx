@@ -104,6 +104,30 @@ The `runtime` compute service accepts:
 |---|---|---|---|
 | `runtime` | string | `fulfarodev/astromesh:latest` | Container image for the Astromesh runtime. |
 
+## Storage
+
+Optional GCS resources for RAG documents and custom container images. Both blocks default to `enabled: true`.
+
+```yaml
+spec:
+  storage:
+    rag_documents:
+      enabled: true       # provision the GCS RAG documents bucket
+      versioning: true    # keep object versions
+    artifact_registry:
+      enabled: true       # provision a Docker Artifact Registry repo
+      repository: ""      # empty -> "<metadata.name>-images"
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `rag_documents.enabled` | bool | true | Provision a GCS bucket for RAG source documents. The runtime receives its name as `ASTROMESH_RAG_BUCKET`. |
+| `rag_documents.versioning` | bool | true | Keep object versions on the RAG documents bucket. |
+| `artifact_registry.enabled` | bool | true | Provision a Docker Artifact Registry repository for custom images. |
+| `artifact_registry.repository` | string | `""` | Repository name. Empty defaults to `<metadata.name>-images`. |
+
+Orbit does not provision a separate vector database for RAG — pgvector runs on the Cloud SQL instance Orbit already deploys. See [GCP Provider](/astromesh/orbit/gcp-provider/) for details.
+
 ## Presets
 
 The `orbit init` wizard offers two presets that fill in all values automatically. You can also pass `--preset` to skip the interactive wizard entirely.

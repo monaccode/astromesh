@@ -357,6 +357,39 @@ Container image for the Astromesh Cloud Studio (Next.js).
 
 ---
 
+## storage
+
+Optional. Both blocks default to `enabled: true`.
+
+```yaml
+spec:
+  storage:
+    rag_documents:
+      enabled: true       # provision the GCS RAG documents bucket
+      versioning: true    # keep object versions
+    artifact_registry:
+      enabled: true       # provision a Docker Artifact Registry repo
+      repository: ""      # empty -> "<metadata.name>-images"
+```
+
+Using pgvector on the deployed Cloud SQL as the RAG vector store:
+
+```yaml
+kind: RAGPipeline
+metadata: { name: docs }
+spec:
+  embeddings: { provider: sentence_transformers, model: all-MiniLM-L6-v2, dimension: 384 }
+  vector_store:
+    backend: pgvector
+    collection: embeddings
+    connection:
+      host: /cloudsql/<CONNECTION_NAME>
+      user: astromesh
+      database: astromesh
+```
+
+---
+
 ## Wizard Presets
 
 The `orbit init` wizard offers two presets that populate `orbit.yaml` with explicit values.
