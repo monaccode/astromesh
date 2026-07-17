@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Core)
+- **`astromesh.api.main` could not be imported without the optional RAG and SQLite extras**,
+  so any slim install — notably the astromesh-os image, whose `.deb` ships only the
+  `observability` extra — crashed on startup with `ModuleNotFoundError: No module named
+  'numpy'` and could not serve `/v1/health` at all. Two eager module-level imports of
+  optional dependencies sat in the boot path: `rag/factory.py` (new in v0.30.0) imports every
+  vector store, pulling in `rag/stores/faiss_store.py`'s top-level `import numpy`, and
+  `workflow/store.py` imported `aiosqlite` at module level; `api/main.py` imports both the RAG
+  and workflow routes. Both now import lazily at call time — matching what these very modules
+  already did for `faiss`, and what the chroma/qdrant/pgvector stores do for their SDKs.
+  Regression-tested by `tests/test_slim_install.py`, which imports the boot path with the
+  optional roots blocked. The bug was invisible to CI, whose dev dependencies pull `numpy` and
+  `aiosqlite` in transitively; the astromesh-os boot gate is what caught it.
+  (`astromesh/rag/stores/faiss_store.py`, `astromesh/workflow/store.py`)
+
 ## [v0.33.0] - 2026-07-16
 
 ### Added (Orbit)

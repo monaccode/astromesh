@@ -3,10 +3,12 @@ from __future__ import annotations
 import copy
 import json
 from abc import ABC, abstractmethod
-
-import aiosqlite
+from typing import TYPE_CHECKING
 
 from astromesh.workflow.models import WorkflowRun
+
+if TYPE_CHECKING:
+    import aiosqlite
 
 
 class WorkflowRunStore(ABC):
@@ -65,6 +67,8 @@ class SqliteRunStore(WorkflowRunStore):
         self._db: aiosqlite.Connection | None = None
 
     async def initialize(self) -> None:
+        import aiosqlite
+
         self._db = await aiosqlite.connect(self._db_path)
         await self._db.execute(
             "CREATE TABLE IF NOT EXISTS workflow_runs ("

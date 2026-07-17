@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
-
 from astromesh.rag.stores.base import VectorStore
 
 
@@ -22,6 +20,8 @@ class FAISSStore(VectorStore):
         return self._index
 
     async def upsert(self, doc_id: str, embedding: list[float], content: str, metadata: dict):
+        import numpy as np
+
         index = self._get_index()
         vec = np.array([embedding], dtype=np.float32)
 
@@ -53,6 +53,8 @@ class FAISSStore(VectorStore):
         top_k: int = 10,
         filters: dict | None = None,
     ) -> list[dict]:
+        import numpy as np
+
         index = self._get_index()
         if index.ntotal == 0:
             return []
