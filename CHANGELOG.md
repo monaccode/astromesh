@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.33.1] - 2026-07-16
+
 ### Fixed (Core)
 - **`astromesh.api.main` could not be imported without the optional RAG and SQLite extras**,
   so any slim install — notably the astromesh-os image, whose `.deb` ships only the
