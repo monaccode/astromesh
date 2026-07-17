@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.34.0] - 2026-07-16
+
+### Added (Core)
+- **A run is now observable while it happens.** `AgentRuntime.run()` and `Agent.run()` accept an
+  optional `on_event` callback and emit `{"type": "token", "content"}` as each model completion
+  returns, plus `{"type": "tool_call", "id", "name", "arguments"}` **before** a tool executes and
+  `{"type": "tool_result", "id", "ok"}` after it returns or raises. Until now a tool call was only
+  visible *after* `run()` returned, in `steps` and the trace — there was no way to watch a run in
+  progress. `on_event` is synchronous (`Callable[[dict], None]`), mirroring `ChannelEventBus.emit()`;
+  a callback that raises is logged and swallowed, because an observer must never be able to break
+  the run it observes. `id` is a uuid4 per call, so a consumer can pair a result with its call.
+
+  It works for **every** orchestration pattern without touching any of them: all six receive the same
+  `model_fn`/`tool_fn` closures, which `Agent.run()` builds once, so wrapping those two covers ReAct,
+  Plan&Execute, Pipeline, Parallel Fan-Out, Supervisor and Swarm — and any pattern added later.
+  Note that Supervisor and Swarm use `tool_fn` for agent-to-agent delegation, so under those patterns
+  a `tool_call`'s `name` is an **agent** name, not a conventional tool.
+
+  `on_event` defaults to `None`, and without it behavior is byte-for-byte what it was.
+
+### Fixed (API)
+- **`/v1/ws/agent/{agent_name}` was a stub and never called the runtime.** It echoed
+  `[WebSocket] Received: {query}` back — the placeholder had been there since the endpoint was added.
+  It now runs the agent and streams the run's events as they happen, framed by `status` / `done` /
+  `error`. Events are forwarded while the run is still in flight; the forwarding loop exits only once
+  the run has finished *and* the queue is drained, so the tail of a run can't be lost. A client that
+  vanishes cancels the run at the next send attempt, rather than leaving an agent spending on a socket
+  nobody reads. Malformed client JSON now yields an `error` event instead of killing the connection.
+- **`main.py`'s lifespan never wired `ws.set_runtime`**, so the endpoint would have had no runtime in
+  production even once wired.
+- **The WebSocket handler leaked sockets** from `ConnectionManager` on any exit other than
+  `WebSocketDisconnect`.
+
+### Changed (API)
+- Token usage is now derived by a single `astromesh.api.usage.usage_from_trace()`, shared by
+  `POST /v1/agents/{name}/run` and the WebSocket handler instead of duplicated. It also no longer
+  raises on a malformed span (`{"attributes": None}` previously caused an `AttributeError`).
+- The WebSocket no longer emits the stub's `{"type": "response"}` event; a completed run reports
+  `{"type": "done", "answer", "session_id", "usage"}`.
+
+### Notes
+- `token` carries one whole completion, not individual tokens. Providers implement `stream()` but
+  `ModelRouter.route()` only calls `complete()`; wiring real token streaming touches the router the
+  whole platform shares and belongs in its own change. The contract survives it: `token` appends, so
+  real streaming only subdivides these chunks.
+- Under Parallel Fan-Out, subtasks run concurrently via `asyncio.gather`, so their `token` events
+  interleave. Sequential patterns concatenate cleanly.
+- **This makes the WebSocket endpoint live.** It was a harmless echo; it now runs agents and spends
+  on model calls. As with the rest of the API surface, it carries no auth — reachability, rate limiting
+  and quotas belong to whoever deploys the runtime.
+- Emitting each iteration's `content` exposes the model's per-iteration reasoning to whoever is
+  watching. An agent whose run is streamed to end users must be prompted so that `content` is
+  narration written for the reader, not private deliberation.
+
 ## [v0.33.1] - 2026-07-16
 
 ### Fixed (Core)
