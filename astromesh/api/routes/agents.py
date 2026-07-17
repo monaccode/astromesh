@@ -5,6 +5,7 @@ from dataclasses import asdict, is_dataclass
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from astromesh.api.usage import usage_from_trace
 from astromesh.errors import ModelProviderError, model_provider_error_payload
 
 
@@ -189,27 +190,9 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             len(result.get("answer", "") or ""),
             len(result.get("steps") or []),
         )
-        usage = None
         trace = result.get("trace", {})
-        spans = trace.get("spans", []) if isinstance(trace, dict) else []
-        total_in = 0
-        total_out = 0
-        model_used = ""
-        for span in spans:
-            attrs = span.get("attributes", {}) if isinstance(span, dict) else {}
-            # Runtime stores tokens as input_tokens / output_tokens in attributes
-            total_in += attrs.get("input_tokens", 0)
-            total_out += attrs.get("output_tokens", 0)
-            # Also check nested metadata.usage (legacy / external providers)
-            span_meta = attrs.get("metadata", {}) if isinstance(attrs, dict) else {}
-            if isinstance(span_meta, dict) and "usage" in span_meta:
-                u = span_meta["usage"]
-                total_in += u.get("prompt_tokens", 0)
-                total_out += u.get("completion_tokens", 0)
-            if isinstance(span_meta, dict) and "model" in span_meta and not model_used:
-                model_used = span_meta["model"]
-        if total_in or total_out:
-            usage = UsageInfo(tokens_in=total_in, tokens_out=total_out, model=model_used)
+        usage_data = usage_from_trace(trace)
+        usage = UsageInfo(**usage_data) if usage_data else None
         return AgentRunResponse(
             answer=result.get("answer", ""),
             steps=_steps_to_dicts(result.get("steps")),

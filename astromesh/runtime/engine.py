@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import uuid
 from pathlib import Path
 
 import yaml
@@ -20,6 +21,21 @@ from astromesh.orchestration.swarm import SwarmPattern
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
 
 logger = logging.getLogger(__name__)
+
+
+def _emit(on_event, event: dict) -> None:
+    """Hand one event to the caller's observer, if there is one.
+
+    An observer that raises is logged and ignored: watching a run must never be
+    able to break it. This mirrors ChannelEventBus.emit(), which likewise
+    swallows a subscriber's failure rather than propagating it into the producer.
+    """
+    if on_event is None:
+        return
+    try:
+        on_event(event)
+    except Exception:
+        logger.exception("on_event callback raised; ignoring")
 
 
 def _agent_disk_persist_enabled() -> bool:
@@ -413,11 +429,15 @@ class AgentRuntime:
             rag=rag,
         )
 
-    async def run(self, agent_name, query, session_id, context=None, parent_trace_id=None):
+    async def run(
+        self, agent_name, query, session_id, context=None, parent_trace_id=None, on_event=None
+    ):
         agent = self._agents.get(agent_name)
         if not agent:
             raise ValueError(f"Agent '{agent_name}' not found")
-        return await agent.run(query, session_id, context, parent_trace_id=parent_trace_id)
+        return await agent.run(
+            query, session_id, context, parent_trace_id=parent_trace_id, on_event=on_event
+        )
 
     def list_agents(self):
         result = []
@@ -566,7 +586,7 @@ class Agent:
         self._permissions = permissions
         self._orchestration_config = orchestration_config
 
-    async def run(self, query, session_id, context=None, parent_trace_id=None):
+    async def run(self, query, session_id, context=None, parent_trace_id=None, on_event=None):
         from datetime import datetime
         from astromesh.core.memory import ConversationTurn
         from astromesh.observability.tracing import TracingContext, SpanStatus
@@ -675,6 +695,8 @@ class Agent:
                         )
                     llm_span.set_attribute("response", _truncate(response.content, 10_000))
                     tracing.finish_span(llm_span)
+                    if response.content:
+                        _emit(on_event, {"type": "token", "content": response.content})
                     return response
                 except Exception as e:
                     llm_span.set_attribute("error_message", str(e))
@@ -682,6 +704,12 @@ class Agent:
                     raise
 
             async def tool_fn(name, args):
+                # One id per call so a consumer can pair the result with its call.
+                call_id = str(uuid.uuid4())
+                _emit(
+                    on_event,
+                    {"type": "tool_call", "id": call_id, "name": name, "arguments": args},
+                )
                 tool_span = tracing.start_span(
                     "tool.call", {"tool": name}, parent_span_id=root_span.span_id
                 )
@@ -692,10 +720,12 @@ class Agent:
                     tool_span.set_attribute("tool_args", args)
                     tool_span.set_attribute("tool_result", _truncate(str(observation), 5_000))
                     tracing.finish_span(tool_span)
+                    _emit(on_event, {"type": "tool_result", "id": call_id, "ok": True})
                     return observation
                 except Exception as e:
                     tool_span.set_attribute("error_message", str(e))
                     tracing.finish_span(tool_span, status=SpanStatus.ERROR)
+                    _emit(on_event, {"type": "tool_result", "id": call_id, "ok": False})
                     raise
 
             orch_span = tracing.start_span(

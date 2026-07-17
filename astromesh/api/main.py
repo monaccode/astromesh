@@ -82,6 +82,7 @@ async def lifespan(app: FastAPI):
         memory_route.set_runtime(r)
         whatsapp_route.set_runtime(r)
         agent_channels_route.set_runtime(r)
+        ws.set_runtime(r)
         yield
         return
 
@@ -105,6 +106,7 @@ async def lifespan(app: FastAPI):
     memory_route.set_runtime(runtime)
     whatsapp_route.set_runtime(runtime)
     agent_channels_route.set_runtime(runtime)
+    ws.set_runtime(runtime)
 
     try:
         yield
@@ -114,6 +116,7 @@ async def lifespan(app: FastAPI):
         memory_route.set_runtime(None)
         whatsapp_route.set_runtime(None)
         agent_channels_route.set_runtime(None)
+        ws.set_runtime(None)
 
 
 app = FastAPI(
