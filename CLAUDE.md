@@ -106,7 +106,29 @@ Channel adapters live in `astromesh/channels/`. Config in `config/channels.yaml`
 
 ## Release Checklist
 
-When creating a release, bump ALL version files in sync:
-- `pyproject.toml` → `version`
+This is a monorepo of **independently versioned packages**. They are NOT kept in sync with each
+other — only bump what actually changed.
+
+**Releasing the core (`astromesh`)** — these two files are the same package, so they move together
+(`cz bump` does both; they are commitizen's `version_files`):
+- `pyproject.toml` → `version` (two occurrences: `[project]` and `[tool.commitizen]`)
 - `astromesh/__init__.py` → `__version__`
-- `astromesh-forge/package.json` → `version`
+
+Then add the `CHANGELOG.md` section (`## [vX.Y.Z] - YYYY-MM-DD`, moving what sits under
+`[Unreleased]`) and tag `vX.Y.Z` (annotated). Pushing the tag publishes to PyPI. A core release
+touches exactly those three files.
+
+**Sub-packages release on their own cadence**, each with its own version file and release commit
+(e.g. `chore(release): astromesh-adk 0.1.9`) — do not bump them just because the core moved:
+Each Python sub-package keeps its `pyproject.toml` `version` and its package `__init__.py`
+`__version__` in step with each other (nothing automates this — commitizen only covers the core):
+- `astromesh-adk/` → `astromesh_adk/__init__.py` (also has its own `CHANGELOG.md`)
+- `astromesh-orbit/` → `astromesh_orbit/__init__.py` (also has its own `CHANGELOG.md`)
+- `astromesh-node/` → `src/astromesh_node/__init__.py`
+- `astromesh-cli/` → `astromesh_cli/__init__.py`
+- `astromesh-forge/package.json` (npm; no Python version file. Dormant since 0.23.0 — bump only if
+  Forge actually changed)
+
+**Downstream:** `astromesh-os` (separate repo) pins a core release tag in `runtime.pin` and builds
+the image from it. Its CI cannot resolve uv path sources (`build-deb.sh` uses pip) and its boot gate
+is what catches a runtime that imports but does not start — so verify a tag builds before pinning it.
