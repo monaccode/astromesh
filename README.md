@@ -383,12 +383,12 @@ Astromesh is an ecosystem of six components covering the full agent lifecycle:
 
 | Component | Description | Package | Status |
 |-----------|-------------|---------|--------|
-| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns | `astromesh` | v0.23.1 |
-| **ADK** | Python-first agent SDK with decorators and CLI | `astromesh-adk` | v0.1.5 |
+| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns | `astromesh` | v0.35.0 |
+| **ADK** | Python-first agent SDK with decorators and CLI | `astromesh-adk` | v0.2.0 |
 | **CLI** | CLI tool for managing nodes and clusters | `astromesh-cli` | v0.1.1 |
-| **Node** | Cross-platform system installer and daemon | `astromesh-node` | v0.1.0 |
-| **Forge** | Visual agent builder with wizard, canvas, and templates | `astromesh-forge` | v0.1.0 |
-| **Orbit** | Cloud-native IaC deployment with Terraform | `astromesh-orbit` | v0.1.2 |
+| **Node** | Cross-platform system installer and daemon | `astromesh-node` | v0.1.1 |
+| **Forge** | Visual agent builder with wizard, canvas, and templates | `astromesh-forge` | v0.24.0 |
+| **Orbit** | Cloud-native IaC deployment with Terraform | `astromesh-orbit` | v0.4.0 |
 | **Cortex** | Desktop IDE for agent engineering (Electron + React) | `astromesh-cortex` | v0.3.0 |
 | **Nexus** | Kubernetes control plane for multi-tenant cloud agents | `astromesh-nexus` | v0.3.0 |
 

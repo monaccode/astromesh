@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-14
+
+### Added
+
+- **Observability config schema** (`spec.observability`): opt-in blocks for the Cloud Monitoring dashboard, structured logging, and Cloud Trace, with dashboard/logging on and tracing off by default (`astromesh_orbit/config.py`)
+- **Cloud Monitoring dashboard** rendered from `monitoring.tf.j2` and wired into the GCP provider's observability context
+- **OTel Collector sidecar**: `orbit apply` provisions a collector sidecar and injects the OTLP env for the runtime to export spans to **Cloud Trace** (paired with core's OTLP wiring shipped in astromesh v0.33.0)
+- **`orbit logs`**: reads Cloud Logging for the workspace via `gcloud`
+- **`orbit upgrade`**: template-diff command that shows and applies drift between the workspace's rendered templates and the current provider templates
+- **Observability block in wizard presets**, so `orbit init` scaffolds the new config
+- IAM: grants **Cloud Trace** and **metric-writer** roles when tracing is enabled; requires the `monitoring`, `cloudtrace` and `logging` APIs during validation
+
+### Fixed
+
+- **`orbit upgrade` prunes dropped templates** instead of leaving stale files behind when a template is removed from the provider
+
+## [0.3.0] - 2026-07-14
+
+### Added
+
+- **Storage config schema** (`spec.storage`): declares the GCS RAG documents bucket and the Artifact Registry repo for custom images (`astromesh_orbit/config.py`)
+- **GCS RAG documents bucket** rendered from `storage.tf.j2` and wired into the GCP provider render
+- **Artifact Registry repo** rendered from `artifact_registry.tf.j2` for custom runtime images
+- **`ASTROMESH_RAG_BUCKET` env** and storage outputs exposed to the runtime so RAG can resolve its bucket at boot
+- **Storage block in wizard presets**, so `orbit init` scaffolds the new config
+- Requires the `storage` and `artifactregistry` APIs during validation
+
 ## [0.2.0] - 2026-05-20
 
 ### Added
