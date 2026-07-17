@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.35.0] - 2026-07-17
+
 ### Added (Core)
 - **`type: client` — a tool the runtime announces to the model but does not execute.**
   Some tools have no Python-side action: the point of the call is the call itself —
