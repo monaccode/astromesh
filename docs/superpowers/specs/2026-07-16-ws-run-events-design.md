@@ -109,7 +109,12 @@ The callback does `queue.put_nowait(event)` on a per-connection `asyncio.Queue`.
 
 **Flushing before `done` must be structural, not remembered.** When the run finishes, events may still be queued; sending `done` then loses the tail — the last `tool_result`, sometimes the last `tool_call` — and the consumer renders a run that never finished. So the forwarding loop's exit condition is *both* "the run is done" **and** "the queue is empty", which makes the flush impossible to skip. It mirrors the SSE route in `api/routes/agent_channels.py`, which polls its queue with `asyncio.wait_for` for the same reason and documents it.
 
-**A client that vanishes mid-run must cancel the run.** Otherwise an agent keeps spending model calls writing to a socket nobody is reading.
+**A client that vanishes mid-run eventually cancels the run — but not the instant it vanishes.** The forwarding loop has no independent way to notice a dead socket; it only finds out when it next tries to use it, i.e. the next `await websocket.send_json(event)`. That send raises, the `finally` cancels `run_task`, and the run stops. Concretely:
+
+- A run that keeps emitting events (tool calls, multiple ReAct iterations) is noticed at its *next emission* — the waste is bounded by roughly one step of the run.
+- A run that emits nothing for a stretch — a single long `model_fn` call with no tool calls in between — is not noticed until that call returns and the loop tries to send its `token`. In the worst case (a fan-out subtask's completion, or any single very long completion) that is the whole run: it burns to completion before the dead socket is ever discovered.
+
+So the real guarantee is "cancelled at the next send attempt," not "cancelled promptly." The gap is closeable — a reader task that awaits the socket independently of the send path (e.g. racing a read against the queue-poll) would notice a disconnect without waiting for an emission — but that reshapes `_run_and_stream`'s loop and is deferred: today's cost is bounded by one model call, and no consumer has hit it in practice.
 
 The queue is bounded. A full queue means something is very wrong (a runaway loop); log it. Dropping a `tool_call` silently means a consumer's UI never mounts that component, so the log line matters.
 
@@ -123,7 +128,7 @@ The queue is bounded. A full queue means something is very wrong (a runaway loop
 | `ModelProviderError` | propagates → `error` (the REST route maps this to 502; the WS has no status codes, so the message carries it) |
 | Unknown agent (`ValueError` from `AgentRuntime.run`) | → `error` |
 | Malformed client JSON | → `error`, connection stays open. Today an unparseable payload raises inside the loop and kills the connection. |
-| `WebSocketDisconnect` | as today: `manager.disconnect` — and the in-flight run task is cancelled, so the agent stops spending on a socket nobody reads |
+| `WebSocketDisconnect` | as today: `manager.disconnect` — and the in-flight run task is cancelled *at the next send attempt* (§4), not the moment the client vanishes; a run emitting nothing in the meantime keeps going until it does |
 
 **Every failure produces an `error` event before the connection closes.** A consumer that gets silence cannot distinguish "still thinking" from "dead", and will hang forever waiting. This is a hard requirement, not a nicety.
 
@@ -135,7 +140,11 @@ The queue is bounded. A full queue means something is very wrong (a runaway loop
 
 Wiring it means changing `ModelRouter`, `model_fn`, and every pattern's loop to handle a partial response whose `tool_calls` only arrive at the end. That is a real AstroMesh feature with a blast radius across the platform, and it deserves its own spec rather than riding along in this one.
 
-**The contract does not change when that happens.** `token` appends; a consumer that concatenates `token.content` renders identically whether it receives one chunk or forty. Real streaming later subdivides these chunks and nothing downstream needs to know.
+**The contract does not change when that happens — for the patterns that emit `token` in run order.** `token` appends; a consumer that concatenates `token.content` renders identically whether it receives one chunk or forty. Real streaming later subdivides these chunks and nothing downstream needs to know. This holds for ReAct, Plan&Execute, Pipeline, Supervisor, and Swarm: each calls `model_fn` sequentially — one completion returns, its `token` is emitted, then the next call starts — so `token` order matches emission order matches run order, and concatenation is correct.
+
+**It does not hold for `ParallelFanOutPattern`.** `execute()` (`orchestration/patterns.py:152`) dispatches every subtask's `model_fn` call at once via `asyncio.gather(*[run_subtask(st) for st in subtasks])` — several completions are in flight concurrently, and each, independently, emits its own `token` when it returns. The order those `token` events land in is the order the concurrent calls happen to *finish*, not the order the subtasks were dispatched in, and that order is not deterministic. A consumer that blindly concatenates `token.content` under fan-out gets text from concurrent workers interleaved — subtask 3's first chunk next to subtask 1's, with no marker separating them.
+
+**So the guarantee is per-pattern, not global:** sequential patterns concatenate cleanly; a fan-out pattern's `token` stream is only safe to *log or trace*, not to render as prose. A consumer that wants to stream a fan-out agent to end users needs to know which subtask each `token` came from — an attribution the current contract does not carry. That is a contract change (an id or index on `token`, and someone has to decide what it keys), deferred to whoever needs it. No such consumer exists today — the one real consumer (FAiNANSU) runs ReAct — so this spec does not invent one.
 
 ---
 
