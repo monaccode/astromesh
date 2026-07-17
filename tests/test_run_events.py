@@ -139,9 +139,7 @@ async def test_tool_call_and_tool_result_share_an_id():
 
 async def test_ids_differ_across_calls():
     events = []
-    agent = _make_agent(
-        RecordingPattern([("tool", "a", {}), ("tool", "b", {})])
-    )
+    agent = _make_agent(RecordingPattern([("tool", "a", {}), ("tool", "b", {})]))
     await agent.run("hola", "s1", on_event=events.append)
 
     ids = [e["id"] for e in events if e["type"] == "tool_call"]
@@ -190,9 +188,7 @@ async def test_the_engine_emits_no_status_or_done():
 
 async def test_events_arrive_in_run_order():
     events = []
-    agent = _make_agent(
-        RecordingPattern([("model",), ("tool", "a", {}), ("model",)])
-    )
+    agent = _make_agent(RecordingPattern([("model",), ("tool", "a", {}), ("model",)]))
     await agent.run("hola", "s1", on_event=events.append)
 
     assert [e["type"] for e in events] == [

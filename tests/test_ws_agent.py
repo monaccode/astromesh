@@ -274,7 +274,9 @@ async def test_events_stream_while_the_run_is_still_in_flight():
 
     delivered = asyncio.Event()
 
-    async def run_that_waits_for_delivery(agent_name, query, session_id, context=None, on_event=None, **kw):
+    async def run_that_waits_for_delivery(
+        agent_name, query, session_id, context=None, on_event=None, **kw
+    ):
         on_event({"type": "token", "content": "uno"})
         # Cannot return until the socket already got that event. A batched
         # implementation awaits this coroutine before ever draining the queue,

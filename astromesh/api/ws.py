@@ -74,9 +74,7 @@ async def _run_and_stream(websocket: WebSocket, agent_name: str, session_id: str
         {"type": "status", "status": "processing", "agent": agent_name}, websocket
     )
 
-    run_task = asyncio.create_task(
-        _runtime.run(agent_name, query, session_id, on_event=on_event)
-    )
+    run_task = asyncio.create_task(_runtime.run(agent_name, query, session_id, on_event=on_event))
 
     try:
         # The exit condition is the whole trick: the run must be finished AND the
