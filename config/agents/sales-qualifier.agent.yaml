@@ -53,7 +53,7 @@ spec:
 
   tools:
     - name: lookup_company
-      type: internal
+      type: client
       description: "Look up company information"
       parameters:
         company_name:

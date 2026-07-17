@@ -76,14 +76,14 @@ template:
         timeout_seconds: 45
       tools:
         - name: check_debt
-          type: internal
+          type: client
           description: "Look up debt details for a customer"
           parameters:
             customer_id:
               type: string
               description: "Customer or account ID"
         - name: record_commitment
-          type: internal
+          type: client
           description: "Record a payment commitment"
           parameters:
             customer_id:

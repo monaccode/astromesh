@@ -17,6 +17,7 @@ except ImportError:
 
 class ToolType(str, Enum):
     INTERNAL = "internal"
+    CLIENT = "client"
     MCP_STDIO = "mcp_stdio"
     MCP_SSE = "mcp_sse"
     MCP_HTTP = "mcp_http"
@@ -111,6 +112,32 @@ class ToolRegistry:
             **kwargs,
         )
 
+    def register_client_tool(
+        self,
+        name: str,
+        description: str,
+        parameters: dict | None = None,
+        **kwargs,
+    ):
+        """Register a tool the runtime announces but does not execute.
+
+        The call itself is the product: it reaches consumers live through
+        AgentRuntime.run's on_event ({"type": "tool_call", ...}) and afterwards
+        through AgentRunResponse.steps (action / action_input). What the call
+        means is the consumer's business, not the runtime's — which is why this
+        is 'client' and not 'ui'.
+
+        With nobody listening, a client tool is a silent no-op. That is correct:
+        the runtime's job is to announce it and record the call.
+        """
+        self._tools[name] = ToolDefinition(
+            name=name,
+            description=description,
+            tool_type=ToolType.CLIENT,
+            parameters=parameters or {"type": "object", "properties": {}},
+            **kwargs,
+        )
+
     async def execute(self, tool_name, arguments, context=None) -> dict:
         tool = self._tools.get(tool_name)
         if not tool:
@@ -119,6 +146,11 @@ class ToolRegistry:
             return {"error": f"Rate limit exceeded for '{tool_name}'"}
         if tool.tool_type == ToolType.INTERNAL and tool.handler:
             return await tool.handler(**arguments)
+        elif tool.tool_type == ToolType.CLIENT:
+            # Announced, not executed. {"ok": True} is the only honest answer:
+            # ReAct needs an observation to continue, the model already wrote the
+            # arguments, and the runtime cannot know whether a consumer listened.
+            return {"ok": True}
         elif tool.tool_type.value.startswith("mcp_"):
             server_name = tool.mcp_config["server"]
             client = self._mcp_clients.get(server_name)

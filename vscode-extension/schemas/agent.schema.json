@@ -169,17 +169,8 @@
               },
               "type": {
                 "type": "string",
-                "description": "Tool integration type.",
-                "enum": [
-                  "builtin",
-                  "internal",
-                  "mcp_stdio",
-                  "mcp_sse",
-                  "mcp_http",
-                  "webhook",
-                  "rag",
-                  "agent"
-                ]
+                "description": "Tool integration type. Only these three load from an agent YAML file.",
+                "enum": ["builtin", "agent", "client"]
               },
               "description": {
                 "type": "string",

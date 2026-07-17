@@ -72,7 +72,7 @@ template:
         timeout_seconds: 30
       tools:
         - name: check_balance
-          type: internal
+          type: client
           description: "Check outstanding balance for a customer"
           parameters:
             customer_id:

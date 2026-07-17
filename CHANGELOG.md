@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Core)
+- **`type: client` — a tool the runtime announces to the model but does not execute.**
+  Some tools have no Python-side action: the point of the call is the call itself —
+  "show this chart," "open this form" — and what it means is the consumer's business,
+  not the runtime's. `register_client_tool()` registers one; it reaches the model
+  through `get_tool_schemas()` like any other tool, and when the model calls it,
+  `ToolRegistry.execute()` returns `{"ok": True}` without running anything. The call
+  itself is the product: it reaches a consumer live through `AgentRuntime.run`'s
+  `on_event` (`{"type": "tool_call", ...}` / `{"type": "tool_result", "ok": true}`,
+  the streaming contract v0.34.0 added) and afterwards through
+  `AgentRunResponse.steps` (`action`/`action_input`). With nobody listening, a client
+  tool is a silent no-op — that's correct, not a bug: the runtime's job is to
+  announce and record the call, not to guess what it should do.
+- Agent YAML can now declare `type: client` tools under `spec.tools`, alongside the
+  existing `builtin` and `agent` types.
+
+### Fixed
+- **The YAML loader silently discarded any tool it didn't understand.** `_build_agent`'s
+  tools loop only had branches for `builtin` and `agent`; every other type — including
+  `internal`, the default when `type` is omitted — fell off the end of the `if`/`elif`
+  chain and vanished: never registered, never reaching the model, never logged. An
+  agent could ship with a tool nobody could call and nothing would say so. It now logs
+  a `WARNING` naming the agent, the tool, and the unsupported type. It still doesn't
+  raise — raising would stop `bootstrap()` for every existing YAML that declares
+  `internal` — but from 1.0 this becomes an error.
+- **Three shipped example agents (`sales-qualifier`, `autolink-parts`) had been
+  silently carrying phantom tools since before this fix existed.** `lookup_company`,
+  `search_parts` and `get_quote` all declared `type: internal`, a type the loader has
+  never been able to load from YAML (a YAML file cannot supply a Python handler). They
+  now declare `type: client` and actually register — which means these agents'
+  tool-calling behavior changes: the model can now see and call tools it silently
+  couldn't before. The same bug was independently shipping in 7 of the 15
+  `config/templates/*.template.yaml` files served at `/v1/templates` (10 phantom
+  tools total) — fixed the same way.
+- **YAML-authored `parameters` reached the model as invalid JSON Schema.** Every
+  shipped agent YAML writes tool parameters in a shorthand (`{param_name: {type,
+  description}}`) rather than real JSON Schema (`{type: object, properties: {...}}`).
+  `register_client_tool` passed it through untouched, so a strict provider (Anthropic's
+  `input_schema`, OpenAI strict mode) would reject the whole request with a 400 the
+  moment an agent declared a `client` tool with parameters — not just fail that one
+  tool. `client` is the first tool type where YAML `parameters` reach the model
+  verbatim (`builtin` uses the tool instance's own schema; no shipped `agent` tool
+  declares `parameters`), which is why this had gone unnoticed. Added
+  `_normalize_tool_parameters()` in `astromesh/runtime/engine.py`, wired into the
+  `client` branch of the tools loop, which wraps the shorthand into valid JSON Schema
+  and passes an already-valid schema through unchanged.
+- Corrected `docs/CONFIGURATION_GUIDE.md`, `docs-site`'s Agent YAML reference and
+  first-agent tutorial, and `vscode-extension/schemas/agent.schema.json`, all of which
+  documented or validated against a tool `type` list (`internal | mcp | webhook | rag`)
+  that has never been loadable from an agent YAML file — while omitting `builtin` and
+  `agent`, which are. All four now agree: `builtin`, `agent`, `client`.
+
+### Notes
+- **Behavior change for existing deployments.** Any agent YAML already declaring
+  `internal`, or any other unsupported `type`, now emits a `WARNING` at load time where
+  it previously loaded in total silence. The tool is still skipped, not an error — but
+  the log volume and content change is real for anyone running such a YAML today.
+- **Behavior change for `sales-qualifier` and `autolink-parts`.** Their tools were
+  inert before this change (declared, never registered, never callable) and are real,
+  visible, callable tools after it. Anyone running these example agents should expect
+  the model to now see and call `lookup_company`, `search_parts` and `get_quote`.
+- A `client` tool has no way to signal delivery or failure back to the model — it
+  cannot know whether a consumer was listening. `{"ok": True}` is deliberately the only
+  answer; ReAct needs *an* observation to continue, and the model already wrote the
+  arguments the consumer needs.
+
 ## [v0.34.0] - 2026-07-16
 
 ### Added (Core)

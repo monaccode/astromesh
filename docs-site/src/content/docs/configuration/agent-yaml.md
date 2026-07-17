@@ -124,7 +124,7 @@ spec:
   # --- Tools ---
   tools:
     - name: lookup_company
-      type: internal                # Tool type (internal, mcp, webhook, rag)
+      type: builtin                 # builtin | agent | client
       description: "Look up company information from CRM"
       parameters:
         company_name:
@@ -138,7 +138,19 @@ spec:
         query:
           type: string
           description: "Search query"
+```
 
+> **Tool types loadable from YAML:** `builtin` (a tool shipped with the runtime),
+> `agent` (another agent, callable as a tool), and `client` (announced to the model,
+> executed by whoever is listening — the call arrives live via `on_event` and
+> afterwards in `steps`; with nobody listening it is a no-op).
+>
+> `webhook` and `rag` appear in `ToolType` but are **not** declarable from YAML.
+> `internal` is deprecated: a YAML cannot supply a Python handler, so what it meant
+> is now `client`. Declaring an unsupported type logs a warning and skips the tool;
+> from 1.0 it will be an error.
+
+```yaml
   # --- Memory ---
   memory:
     conversational:
@@ -307,7 +319,7 @@ Each tool is an object in the `tools` array:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | Yes | Tool name. Must be unique within the agent. |
-| `type` | Yes | Tool type: `internal` (Python function), `mcp` (Model Context Protocol server), `webhook` (HTTP endpoint), `rag` (RAG pipeline as tool). |
+| `type` | Yes | Tool type loadable from YAML: `builtin` (a tool shipped with the runtime), `agent` (another agent, callable as a tool), or `client` (announced to the model, executed by whoever is listening). `mcp_stdio`/`mcp_sse`/`mcp_http`, `webhook` and `rag` exist in the runtime's `ToolType` but are not declarable from an agent YAML file. |
 | `description` | Yes | Description of what the tool does. Sent to the LLM for function calling. |
 | `parameters` | No | JSON Schema-like parameter definitions. Each parameter has a `type` and `description`. |
 

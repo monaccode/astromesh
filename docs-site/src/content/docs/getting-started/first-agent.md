@@ -282,7 +282,7 @@ Add the `tools` section to `spec`:
 spec:
   tools:
     - name: get_current_time
-      type: internal
+      type: builtin
       description: "Returns the current date and time in ISO 8601 format"
       permissions:
         - read
@@ -442,7 +442,7 @@ spec:
 
   tools:
     - name: get_current_time
-      type: internal
+      type: builtin
       description: "Returns the current date and time in ISO 8601 format"
       permissions:
         - read

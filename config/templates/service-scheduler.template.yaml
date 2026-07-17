@@ -82,7 +82,7 @@ template:
         timeout_seconds: 60
       tools:
         - name: check_availability
-          type: internal
+          type: client
           description: "Check available appointment slots"
           parameters:
             date:
@@ -92,7 +92,7 @@ template:
               type: string
               description: "Type of service requested"
         - name: book_appointment
-          type: internal
+          type: client
           description: "Book a service appointment"
           parameters:
             customer_name:

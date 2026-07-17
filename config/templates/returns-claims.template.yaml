@@ -70,7 +70,7 @@ template:
         timeout_seconds: 45
       tools:
         - name: lookup_order
-          type: internal
+          type: client
           description: "Look up order by order number"
           parameters:
             order_number:
