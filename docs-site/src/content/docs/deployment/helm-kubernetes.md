@@ -153,7 +153,7 @@ Expected output:
 ```json
 {
   "status": "healthy",
-  "version": "0.10.0"
+  "version": "0.35.0"
 }
 ```
 

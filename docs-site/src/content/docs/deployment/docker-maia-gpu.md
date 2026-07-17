@@ -107,7 +107,7 @@ Create `docker-compose.yml`:
 # Astromesh Maia Mesh — GPU Accelerated
 services:
   gateway:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     ports:
       - "8000:8000"
     environment:
@@ -119,7 +119,7 @@ services:
       - astromesh-mesh
 
   worker:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     environment:
       - ASTROMESH_ROLE=worker
       - ASTROMESH_NODE_NAME=worker
@@ -136,7 +136,7 @@ services:
       - astromesh-mesh
 
   inference:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     environment:
       - ASTROMESH_ROLE=inference
       - ASTROMESH_NODE_NAME=inference

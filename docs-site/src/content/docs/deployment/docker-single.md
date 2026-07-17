@@ -38,7 +38,7 @@ Create `docker-compose.yml`:
 # Astromesh Single-Node Deployment
 services:
   astromesh:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     ports:
       - "8000:8000"
     environment:
@@ -104,7 +104,7 @@ Expected output:
 ```json
 {
   "status": "healthy",
-  "version": "0.10.0"
+  "version": "0.35.0"
 }
 ```
 
@@ -170,7 +170,7 @@ To deploy your own agent definitions, mount a directory of YAML files:
 ```yaml
 services:
   astromesh:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     volumes:
       - ./agents:/etc/astromesh/agents:ro
     environment:
@@ -238,7 +238,7 @@ For full control, mount your own configuration files and disable auto-generation
 ```yaml
 services:
   astromesh:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     volumes:
       - ./config/runtime.yaml:/etc/astromesh/runtime.yaml:ro
       - ./config/providers.yaml:/etc/astromesh/providers.yaml:ro
@@ -258,7 +258,7 @@ For a complete deployment with PostgreSQL, Redis, and monitoring:
 ```yaml
 services:
   astromesh:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     ports:
       - "8000:8000"
     environment:
@@ -335,7 +335,7 @@ Expected output:
 ```json
 {
   "status": "healthy",
-  "version": "0.10.0"
+  "version": "0.35.0"
 }
 ```
 

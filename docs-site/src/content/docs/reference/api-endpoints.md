@@ -15,7 +15,7 @@ Health check endpoint. Returns 200 if the daemon is running.
 ```json
 {
   "status": "healthy",
-  "version": "0.10.0",
+  "version": "0.35.0",
   "uptime_seconds": 8072
 }
 ```
@@ -483,7 +483,7 @@ System status including version, uptime, and resource usage.
 **Response:**
 ```json
 {
-  "version": "0.10.0",
+  "version": "0.35.0",
   "status": "running",
   "mode": "standalone",
   "pid": 48291,
@@ -566,7 +566,7 @@ Request to join the cluster. Called by new nodes during startup.
   "node_id": "node-gamma",
   "address": "10.0.1.12:8000",
   "agents": ["assistant"],
-  "meta": { "version": "0.10.0" }
+  "meta": { "version": "0.35.0" }
 }
 ```
 

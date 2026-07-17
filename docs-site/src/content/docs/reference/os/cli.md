@@ -23,7 +23,7 @@ Show daemon status including version, uptime, mode, and agent count.
 
 ```
 $ astromeshctl status
-Astromesh v0.10.0
+Astromesh v0.35.0
 Status:    running
 Mode:      standalone
 PID:       48291

@@ -298,7 +298,7 @@ Or use a tag:
 
 ```yaml
 source:
-  targetRevision: v0.10.0
+  targetRevision: v0.35.0
 ```
 
 ### Deploy to a different cluster

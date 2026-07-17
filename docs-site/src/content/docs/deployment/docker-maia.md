@@ -83,7 +83,7 @@ Create `docker-compose.yml`:
 # Astromesh Maia Mesh — 3 Nodes
 services:
   gateway:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     ports:
       - "8000:8000"
     environment:
@@ -95,7 +95,7 @@ services:
       - astromesh-mesh
 
   worker:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     environment:
       - ASTROMESH_ROLE=worker
       - ASTROMESH_NODE_NAME=worker
@@ -112,7 +112,7 @@ services:
       - astromesh-mesh
 
   inference:
-    image: ghcr.io/monaccode/astromesh:0.10.0
+    image: fulfarodev/astromesh:0.35.0
     environment:
       - ASTROMESH_ROLE=inference
       - ASTROMESH_NODE_NAME=inference
@@ -413,7 +413,7 @@ docker compose exec worker curl http://gateway:8000/health
 Expected output:
 
 ```json
-{"status": "healthy", "version": "0.10.0"}
+{"status": "healthy", "version": "0.35.0"}
 ```
 
 If this fails, the containers are not on the same network.

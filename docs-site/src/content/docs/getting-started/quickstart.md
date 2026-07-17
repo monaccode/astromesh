@@ -133,7 +133,7 @@ Expected response:
 ```json
 {
   "status": "healthy",
-  "version": "0.10.0",
+  "version": "0.35.0",
   "agents_loaded": 3,
   "uptime_seconds": 5.2
 }
