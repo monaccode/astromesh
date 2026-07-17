@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.33.0] - 2026-07-16
+
 ### Added (Orbit)
 - **v0.4.0 — Observability (GCP).** Delivers what the roadmap promised under "v0.2.0" but never
   implemented (that version number was published without its content). `orbit apply` now
