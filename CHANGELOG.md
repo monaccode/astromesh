@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Astromesh Forge)
+- **Forge is gated in CI for the first time** (`test-forge`), and its lint is green again.
+  Nothing had ever run Forge's build, tests, or lint, so its lint sat red since 2026-03-30
+  (18 errors) while the build and its 20 tests stayed green — the same blind spot the Orbit
+  suite had before `test-orbit`. Adds the missing `test` script (vitest, jsdom and 5 test
+  files were present with no way to run them via npm), resolves the four lint errors that
+  TypeScript and the existing tests can prove safe, and documents the 16 remaining
+  `react-hooks` violations in place, each with the idiomatic fix it defers. Those 16 change
+  React runtime behaviour in components with no test coverage; refactoring them without a
+  net is what this gate exists to prevent, so they get their own spec. Forge → 0.24.0.
+  (`astromesh-forge`, `.github/workflows/ci.yml`)
+
 ## [v0.35.0] - 2026-07-17
 
 ### Added (Core)
