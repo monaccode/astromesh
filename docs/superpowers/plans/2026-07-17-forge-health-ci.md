@@ -483,15 +483,16 @@ Report the three outcomes explicitly. If any dimension does NOT go red, the gate
 
 ---
 
-### Task 4: Version bump and changelog
+### Task 4: Version bump
 
 **Files:**
 - Modify: `astromesh-forge/package.json` (`version`)
-- Modify: `CHANGELOG.md`
 
 **Interfaces:**
 - Consumes: Tasks 1–3 complete and green.
 - Produces: nothing downstream.
+
+**Note:** the changelog entry is NOT here. `CLAUDE.md` makes it mandatory that a `fix:`/`feat:`/`refactor:` commit carry its changelog entry in the same commit or the one immediately before, so the umbrella entry is front-loaded into Task 1 instead — the repo's convention for a feature series. This task only bumps the version.
 
 - [ ] **Step 1: Bump the version to 0.24.0**
 
@@ -503,36 +504,18 @@ In `astromesh-forge/package.json`:
 
 Forge follows its own line (adk is at 0.2.0, orbit at 0.4.0, node/cli at 0.1.1 — no sub-package tracks the core's 0.34.0). Forge changed in this plan, so it earns a bump. Do NOT touch `pyproject.toml`, `astromesh/__init__.py`, or any other package's version.
 
-- [ ] **Step 2: Add the changelog entry**
-
-In `CHANGELOG.md`, under `## [Unreleased]`, add:
-
-```markdown
-### Changed (Astromesh Forge)
-- **Forge is gated in CI for the first time** (`test-forge`), and its lint is green again.
-  Nothing had ever run Forge's build, tests, or lint, so its lint sat red since 2026-03-30
-  (18 errors) while the build and its 20 tests stayed green — the same blind spot the Orbit
-  suite had before `test-orbit`. Adds the missing `test` script (vitest, jsdom and 5 test
-  files were present with no way to run them via npm), resolves the four lint errors that
-  TypeScript and the existing tests can prove safe, and documents the 16 remaining
-  `react-hooks` violations in place, each with the idiomatic fix it defers. Those 16 change
-  React runtime behaviour in components with no test coverage; refactoring them without a
-  net is what this gate exists to prevent, so they get their own spec. Forge → 0.24.0.
-  (`astromesh-forge`, `.github/workflows/ci.yml`)
-```
-
-- [ ] **Step 3: Verify nothing else moved**
+- [ ] **Step 2: Verify nothing else moved**
 
 ```bash
 git diff --stat
 ```
 
-Expected: exactly `astromesh-forge/package.json` and `CHANGELOG.md`. If `pyproject.toml` or another package's version appears, revert it.
+Expected: exactly `astromesh-forge/package.json`. If `pyproject.toml` or another package's version appears, revert it. The changelog entry already landed in Task 1 — do not add a second one.
 
-- [ ] **Step 4: Commit and push**
+- [ ] **Step 3: Commit and push**
 
 ```bash
-git add astromesh-forge/package.json CHANGELOG.md
+git add astromesh-forge/package.json
 git commit -m "chore(forge): v0.24.0 — gate de CI y lint verde
 
 Forge bumpea en su propia linea, como el resto de los sub-paquetes; no sigue al
