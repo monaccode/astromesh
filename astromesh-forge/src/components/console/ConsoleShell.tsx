@@ -41,6 +41,7 @@ export function ConsoleShell() {
 
   // Sync tab from popout trigger
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     if (popoutDetail) setPopoutTab(popoutDetail.tab);
   }, [popoutDetail]);
 

@@ -213,7 +213,7 @@ export function CanvasEditor() {
         drillDown(agentName);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- omits drillDown (defined below, stable via closure); agentConfigs is its only reactive dependency. Idiomatic fix: reorder declarations or wrap drillDown in a ref. Pre-existing debt, undocumented until now.
     [agentConfigs],
   );
 

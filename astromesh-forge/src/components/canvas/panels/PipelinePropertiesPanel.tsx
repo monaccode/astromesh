@@ -104,6 +104,10 @@ function PromptFields({
 }) {
   const [text, setText] = useState(String(d.config.system ?? ""));
   useEffect(() => {
+    // Syncs props into local form state; the idiomatic fix is remounting via `key` or
+    // deriving during render. Deferred: this component has no test coverage, see the
+    // hook-refactor spec.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setText(String(d.config.system ?? ""));
   }, [nodeId, d.config]);
 
@@ -154,6 +158,10 @@ function ModelFields({
 
   useEffect(() => {
     const nc = d.config as unknown as ModelConfig;
+    // Syncs props into local form state; the idiomatic fix is remounting via `key` or
+    // deriving during render. Deferred: this component has no test coverage, see the
+    // hook-refactor spec.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
       provider: nc.provider ?? "ollama",
       model: nc.model ?? "",
@@ -239,6 +247,10 @@ function ToolFields({
 
   useEffect(() => {
     const nc = d.config as unknown as ToolConfig;
+    // Syncs props into local form state; the idiomatic fix is remounting via `key` or
+    // deriving during render. Deferred: this component has no test coverage, see the
+    // hook-refactor spec.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
       name: nc.name ?? "",
       type: nc.type ?? "internal",
@@ -313,6 +325,10 @@ function MemoryFields({
 
   useEffect(() => {
     const nc = d.config as unknown as MemoryConfig;
+    // Syncs props into local form state; the idiomatic fix is remounting via `key` or
+    // deriving during render. Deferred: this component has no test coverage, see the
+    // hook-refactor spec.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
       backend: nc.backend ?? "redis",
       strategy: nc.strategy ?? "",
@@ -408,6 +424,10 @@ function GuardrailFields({
 
   useEffect(() => {
     const nc = d.config as unknown as GuardrailConfig;
+    // Syncs props into local form state; the idiomatic fix is remounting via `key` or
+    // deriving during render. Deferred: this component has no test coverage, see the
+    // hook-refactor spec.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
       type: nc.type ?? "",
       action: (nc.action ?? "block") as NonNullable<GuardrailConfig["action"]>,

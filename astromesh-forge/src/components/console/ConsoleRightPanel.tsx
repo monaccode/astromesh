@@ -65,9 +65,16 @@ export function ConsoleRightPanel({ onPopoutDetail, popoutDetail }: ConsoleRight
   }, [panelWidth]);
 
   useEffect(() => {
+    // react-hooks/set-state-in-effect: syncs props into local form state; the idiomatic
+    // fix is remounting via `key` or deriving during render. Deferred: this component has
+    // no test coverage, see the hook-refactor spec. No suppression pragma needed on this
+    // line: the diagnostic is already silenced as a side effect of the exhaustive-deps
+    // pragma below, since this component's compiler analysis bails out as a whole once
+    // any of its react-hooks rules gets a lint escape hatch.
     setSelectedSpanId(null);
     setActiveTab("overview");
     onPopoutDetail?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- adding the dep risks a render loop; deferred with the rest of the hook debt. No test coverage here.
   }, [activeTraceRunId]);
 
   // Drag handling
@@ -118,6 +125,11 @@ export function ConsoleRightPanel({ onPopoutDetail, popoutDetail }: ConsoleRight
     }
   }, [selectedSpan, activeTab, onPopoutDetail]);
 
+  // react-hooks/preserve-manual-memoization: deferred with the rest of the hook debt.
+  // This component has no test coverage. No suppression pragma needed on this line:
+  // the diagnostic is already silenced as a side effect of the exhaustive-deps pragma
+  // below, since this component's compiler analysis bails out as a whole once any of
+  // its react-hooks rules gets a lint escape hatch.
   const handleCloseInline = useCallback(() => {
     setSelectedSpanId(null);
   }, []);
@@ -127,6 +139,7 @@ export function ConsoleRightPanel({ onPopoutDetail, popoutDetail }: ConsoleRight
     if (isPopped && selectedSpan) {
       onPopoutDetail?.({ span: selectedSpan, tab: activeTab });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- adding the deps risks a render loop; deferred with the rest of the hook debt. No test coverage here.
   }, [selectedSpanId]);
 
   return (

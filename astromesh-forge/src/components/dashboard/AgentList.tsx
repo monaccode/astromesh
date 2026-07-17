@@ -44,7 +44,7 @@ export function AgentList() {
   useEffect(() => {
     if (!connected) return;
     fetchAgents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchAgents is a plain (non-memoized) function; including it would fire the effect every render. Idiomatic fix: wrap it in useCallback. Pre-existing debt, undocumented until now.
   }, [connected]);
 
   async function fetchAgents() {

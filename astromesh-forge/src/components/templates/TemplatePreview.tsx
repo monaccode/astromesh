@@ -41,6 +41,7 @@ export function TemplatePreview({ templateName, open, onClose }: TemplatePreview
   useEffect(() => {
     if (!templateName || !open) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-then-setState; the idiomatic fix is moving fetching out of the effect into the data layer. Deferred: no test coverage.
     setLoading(true);
     setError(null);
     setTemplate(null);

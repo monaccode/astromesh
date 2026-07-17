@@ -99,6 +99,9 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
 
   useEffect(() => {
     if (!connected) return;
+    // Fetch-then-setState; the idiomatic fix is moving fetching out of the effect into
+    // the data layer. Deferred: this component has no test coverage.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-then-setState in effect
     setLoadingAgents(true);
     client
       .listAgents()
@@ -109,6 +112,9 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
 
   useEffect(() => {
     if (!micro || !connected) return;
+    // Fetch-then-setState; the idiomatic fix is moving fetching out of the effect into
+    // the data layer. Deferred: this component has no test coverage.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-then-setState in effect
     setLoadingBuiltins(true);
     client
       .listTools()

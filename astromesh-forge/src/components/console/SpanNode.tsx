@@ -101,6 +101,7 @@ export function SpanNode({
               </span>
             )}
             {SpanIcon && (
+              // eslint-disable-next-line react-hooks/static-components -- component defined inline; hoisting it changes remount behaviour. Deferred: no test coverage for this component.
               <SpanIcon size={10} className={getSpanDotColor(node.name)} />
             )}
             <span

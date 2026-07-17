@@ -30,6 +30,7 @@ export function TemplateGallery() {
   const [previewName, setPreviewName] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-then-setState; the idiomatic fix is moving fetching out of the effect into the data layer. Deferred: no test coverage.
     setLoading(true);
     client
       .listTemplates()
