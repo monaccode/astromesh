@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -94,6 +96,38 @@ def test_every_queued_event_is_delivered_before_done(client, mock_runtime):
     tokens = [e["content"] for e in events if e["type"] == "token"]
     assert tokens == [str(i) for i in range(20)]
     assert events[-1]["type"] == "done"
+
+
+def test_a_full_queue_drops_the_event_and_logs_a_warning(client, mock_runtime, monkeypatch, caplog):
+    """The queue is bounded so a runaway loop can't grow memory without limit.
+
+    A drop must be loud (logged), not silent, and the run must still finish
+    rather than getting stuck on a full queue. The real cap (1000) would take
+    an impractical number of synchronous on_event calls to reliably overflow
+    in a unit test, so the constant is monkeypatched down rather than lowered
+    in ws.py itself.
+    """
+    import astromesh.api.ws as ws_module
+
+    monkeypatch.setattr(ws_module, "_EVENT_QUEUE_MAX", 3)
+
+    async def run_that_floods(agent_name, query, session_id, context=None, on_event=None, **kw):
+        # No awaits in this loop: on_event runs synchronously back-to-back, so
+        # nothing drains the queue in between and the cap is actually hit.
+        for i in range(5):
+            on_event({"type": "token", "content": str(i)})
+        return {"answer": "listo", "steps": [], "trace": {}}
+
+    mock_runtime.run = AsyncMock(side_effect=run_that_floods)
+
+    with caplog.at_level(logging.WARNING, logger="astromesh.api.ws"):
+        with client.websocket_connect("/v1/ws/agent/demo") as ws:
+            ws.send_json({"query": "hola"})
+            events = _drain(ws)
+
+    assert events[-1]["type"] == "done"
+    dropped = [r for r in caplog.records if "queue full" in r.message]
+    assert dropped, f"expected a queue-full warning, got: {[r.message for r in caplog.records]}"
 
 
 def test_includes_usage_when_the_trace_reports_tokens(client, mock_runtime):
@@ -217,6 +251,58 @@ async def test_a_client_that_vanishes_mid_run_cancels_the_run():
         await asyncio.wait_for(cancelled.wait(), timeout=2)
     finally:
         set_ws_runtime(None)
+
+
+async def test_events_stream_while_the_run_is_still_in_flight():
+    """The defining property of the feature: an event reaches the socket before
+    the run finishes, not all at once at the end.
+
+    This is expressed as a handshake a batched implementation cannot fake: the
+    run cannot return until the socket has already received the event it just
+    emitted. A "run to completion, then drain the queue, then send done"
+    implementation would await the run first and never look at the queue in
+    time to unblock it — that's a deadlock, caught here by a bounded timeout
+    rather than a hung suite.
+
+    Driven directly against `_run_and_stream`, not `TestClient`: TestClient runs
+    the app in a worker thread (sync-over-async), which erases exactly the
+    interleaving this test depends on.
+    """
+    import asyncio
+
+    from astromesh.api.ws import _run_and_stream, set_runtime as set_ws_runtime
+
+    delivered = asyncio.Event()
+
+    async def run_that_waits_for_delivery(agent_name, query, session_id, context=None, on_event=None, **kw):
+        on_event({"type": "token", "content": "uno"})
+        # Cannot return until the socket already got that event. A batched
+        # implementation awaits this coroutine before ever draining the queue,
+        # so against it this line hangs until the outer wait_for times out.
+        await asyncio.wait_for(delivered.wait(), timeout=5)
+        return {"answer": "listo", "steps": [], "trace": {}}
+
+    rt = MagicMock()
+    rt.run = AsyncMock(side_effect=run_that_waits_for_delivery)
+    set_ws_runtime(rt)
+
+    class HandshakeSocket:
+        def __init__(self):
+            self.sent = []
+
+        async def send_json(self, message):
+            self.sent.append(message)
+            if message.get("type") == "token" and message.get("content") == "uno":
+                delivered.set()
+
+    socket = HandshakeSocket()
+    try:
+        await asyncio.wait_for(_run_and_stream(socket, "demo", "s1", "hola"), timeout=5)
+    finally:
+        set_ws_runtime(None)
+
+    assert delivered.is_set(), "the token event never reached the socket"
+    assert socket.sent[-1]["type"] == "done"
 
 
 async def test_the_app_lifespan_wires_the_ws_runtime():
