@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+
 from astromesh.core.tools import ToolRegistry, ToolType
+from astromesh.runtime.engine import AgentRuntime
 
 
 PARAMS = {
@@ -65,3 +68,76 @@ async def test_an_unknown_tool_still_reports_not_found():
     tools = ToolRegistry()
     result = await tools.execute("nope", {})
     assert "error" in result
+
+
+def _agent_spec(tools: list[dict]) -> dict:
+    return {
+        "apiVersion": "astromesh/v1",
+        "kind": "Agent",
+        "metadata": {"name": "test-agent", "version": "1.0.0"},
+        "spec": {
+            "identity": {"display_name": "Test", "description": "d"},
+            "model": {
+                "primary": {
+                    "provider": "openai_compat",
+                    "model": "gpt-4o-mini",
+                    "endpoint": "https://example.invalid/v1",
+                    "api_key_env": "NOPE_KEY",
+                }
+            },
+            "prompts": {"system": "you are a test agent"},
+            "orchestration": {"pattern": "react", "max_iterations": 3},
+            "tools": tools,
+        },
+    }
+
+
+def test_a_client_tool_declared_in_yaml_is_actually_registered():
+    """The bug this whole change exists for: the loader used to discard it silently."""
+    runtime = AgentRuntime(config_dir="/nonexistent")
+    agent = runtime._build_agent(
+        _agent_spec(
+            [
+                {
+                    "name": "diagram_process",
+                    "type": "client",
+                    "description": "Draw the process",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"nodes": {"type": "array"}},
+                    },
+                }
+            ]
+        )
+    )
+    names = [s["function"]["name"] for s in agent._tools.get_tool_schemas()]
+    assert "diagram_process" in names
+
+
+def test_an_unsupported_tool_type_warns_and_names_what_it_dropped(caplog):
+    with caplog.at_level(logging.WARNING):
+        runtime = AgentRuntime(config_dir="/nonexistent")
+        runtime._build_agent(
+            _agent_spec([{"name": "lookup_company", "type": "internal", "description": "d"}])
+        )
+    assert "lookup_company" in caplog.text
+    assert "test-agent" in caplog.text
+    assert "internal" in caplog.text
+
+
+def test_an_unsupported_tool_type_does_not_stop_the_agent_from_loading():
+    """Raising would take bootstrap() down for every existing YAML with 'internal'."""
+    runtime = AgentRuntime(config_dir="/nonexistent")
+    agent = runtime._build_agent(
+        _agent_spec([{"name": "ghost", "type": "internal", "description": "d"}])
+    )
+    assert agent is not None
+    assert "ghost" not in [s["function"]["name"] for s in agent._tools.get_tool_schemas()]
+
+
+def test_a_tool_with_no_type_at_all_warns(caplog):
+    """'internal' is the default, so a tool with no type silently didn't exist."""
+    with caplog.at_level(logging.WARNING):
+        runtime = AgentRuntime(config_dir="/nonexistent")
+        runtime._build_agent(_agent_spec([{"name": "typeless", "description": "d"}]))
+    assert "typeless" in caplog.text

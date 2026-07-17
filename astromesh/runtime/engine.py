@@ -398,6 +398,27 @@ class AgentRuntime:
                     context_transform=tool_def.get("context_transform"),
                 )
                 tools.set_runtime(self)
+            elif tool_type == "client":
+                tools.register_client_tool(
+                    name=tool_def["name"],
+                    description=tool_def.get("description", ""),
+                    parameters=tool_def.get("parameters"),
+                    rate_limit=tool_def.get("rate_limit"),
+                )
+            else:
+                # Until 0.35.0 this fell off the end of the chain in silence: the tool
+                # was never registered, never reached the model, and nothing said so —
+                # you got an agent with no tools and nothing to look at. 'internal' is
+                # the default type, so a tool with no 'type' landed here too.
+                # It warns rather than raises: raising would stop bootstrap() for every
+                # existing YAML that declares one. The error comes in 1.0.
+                logger.warning(
+                    "agent %r declares tool %r with unsupported type %r — ignoring it. "
+                    "YAML supports: builtin, agent, client.",
+                    metadata["name"],
+                    tool_def.get("name"),
+                    tool_type,
+                )
         pattern_map = {
             "react": ReActPattern,
             "plan_and_execute": PlanAndExecutePattern,
