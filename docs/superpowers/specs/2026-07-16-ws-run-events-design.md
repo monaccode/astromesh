@@ -30,7 +30,13 @@ Two things, one change:
 
 ### What deliberately does NOT change
 
-- **`astromesh/orchestration/patterns.py`.** All four patterns (`ReActPattern:38`, `PlanAndExecutePattern:99`, `ParallelFanOutPattern:152`, `PipelinePattern:191`) share the signature `execute(query, context, model_fn, tool_fn, tools, max_iterations=10)` and every one that calls a tool calls it as `await tool_fn(tc["name"], tc["arguments"])`. The closure is built **once**, in `Agent.run()` (`engine.py:684`). Wrapping it there covers every pattern — including patterns added later — without touching this file.
+- **The orchestration patterns.** All six share the signature `execute(query, context, model_fn, tool_fn, tools, max_iterations=10)`, and every one that reaches a tool reaches it as `await tool_fn(name, args)`:
+  - `patterns.py`: `ReActPattern:38`, `PlanAndExecutePattern:99`, `ParallelFanOutPattern:152` (never calls tools), `PipelinePattern:191`
+  - `orchestration/supervisor.py:11` and `orchestration/swarm.py:11` — separate modules, same signature
+
+  The closure is built **once**, in `Agent.run()` (`engine.py:684`). Wrapping it there covers all six — and any pattern added later — without touching any pattern file.
+
+  Note for consumers: `supervisor` and `swarm` use `tool_fn` for agent-to-agent delegation (`supervisor.py:42` calls `tool_fn(worker_name, {"query": ...})`; `swarm.py:41` does the same for a handoff). So under those patterns a `tool_call` event's `name` is an **agent** name, not a conventional tool. That is correct — from the runtime's side it *is* a tool call — but a consumer that renders tool names should not assume they're all tools.
 - **`astromesh/core/model_router.py`.** `ModelRouter.route()` is used by the whole platform. It is not touched. See §6.
 - **The REST route, the ADK, the channels bus.** `on_event` defaults to `None`; without it, behavior is byte-for-byte what it is today.
 
