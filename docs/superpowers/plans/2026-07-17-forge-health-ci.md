@@ -264,10 +264,20 @@ Expected: `OK: todos los disables estan justificados`.
 - [ ] **Step 7: Verify the debt is greppable and complete**
 
 ```bash
-grep -rc "eslint-disable-next-line react-hooks" src/ | grep -v ":0" | awk -F: '{s+=$2} END {print s" sitios documentados (esperado: 16)"}'
+grep -rn "eslint-disable-next-line react-hooks\|react-hooks/set-state-in-effect:\|react-hooks/preserve-manual-memoization:" src/ | wc -l
 ```
 
-Expected: `16 sitios documentados (esperado: 16)`.
+**Do not verify this by counting to 16.** An earlier draft of this step did, and the count is a false green twice over: `CanvasEditor.tsx` and `AgentList.tsx` already carried bare `exhaustive-deps` disables from before this plan, so a repo-wide grep counts them too — landing on 16 while the real figure is different.
+
+What actually needs to hold, and how to check each:
+
+1. `npx eslint . --max-warnings 0` exits 0 (Step 5 — this is the binding requirement).
+2. Every `eslint-disable` in `src/` carries a reason (Step 6).
+3. Every one of the 16 original sites is documented — by pragma **or** by plain comment where a pragma is impossible (see below). Read them, do not count them.
+
+**Why some sites cannot carry a pragma.** `eslint-plugin-react-hooks@7`'s compiler-derived rules bail out of a component's analysis entirely once any of its react-hooks rules gets an escape hatch. In a component holding an `exhaustive-deps` disable, the other react-hooks diagnostics are already silenced — so a pragma on those lines is itself reported as unused and breaks `--max-warnings 0`. Those sites get a plain comment carrying the same reason, plus a note that no pragma is needed and why.
+
+**This has a consequence the gate cannot paper over:** in a component with an `exhaustive-deps` disable, a *new* react-hooks violation will not be caught. Verified empirically — injecting a fresh `set-state-in-effect` into `ConsoleRightPanel.tsx` leaves eslint at exit 0, while the same injection into `Toolbox.tsx` (which has only `set-state-in-effect` pragmas) exits 1. The blind spot is exactly the three files with `exhaustive-deps` disables — `ConsoleRightPanel.tsx`, `CanvasEditor.tsx`, `AgentList.tsx` — of which the latter two were already silenced before this plan by their pre-existing bare disables. Record this for the hook-refactor spec: removing those `exhaustive-deps` disables restores the gate over those components.
 
 - [ ] **Step 8: Verify nothing else changed**
 
