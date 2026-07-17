@@ -250,3 +250,79 @@ def test_the_configuration_guide_lists_the_types_that_actually_load():
     guide = (REPO_ROOT / "docs" / "CONFIGURATION_GUIDE.md").read_text()
     assert "builtin | agent | client" in guide
     assert "# internal | mcp | webhook | rag" not in guide
+
+
+def _tool_schema(agent, tool_name: str) -> dict:
+    return next(
+        s["function"] for s in agent._tools.get_tool_schemas() if s["function"]["name"] == tool_name
+    )
+
+
+def test_yaml_shorthand_parameters_reach_the_model_as_valid_json_schema():
+    """The bug: {param: {type, description}} shorthand passed through raw is not JSON Schema."""
+    runtime = AgentRuntime(config_dir="/nonexistent")
+    agent = runtime._build_agent(
+        _agent_spec(
+            [
+                {
+                    "name": "lookup_company",
+                    "type": "client",
+                    "description": "Look up company information",
+                    "parameters": {
+                        "company_name": {
+                            "type": "string",
+                            "description": "Company name to look up",
+                        }
+                    },
+                }
+            ]
+        )
+    )
+    schema = _tool_schema(agent, "lookup_company")["parameters"]
+    assert schema["type"] == "object"
+    assert schema["properties"] == {
+        "company_name": {"type": "string", "description": "Company name to look up"}
+    }
+
+
+def test_already_valid_json_schema_parameters_pass_through_unchanged():
+    """Idempotent: a YAML author who already writes real JSON Schema must not be rewritten."""
+    runtime = AgentRuntime(config_dir="/nonexistent")
+    agent = runtime._build_agent(
+        _agent_spec(
+            [{"name": "show_thing", "type": "client", "description": "d", "parameters": PARAMS}]
+        )
+    )
+    schema = _tool_schema(agent, "show_thing")["parameters"]
+    assert schema == PARAMS
+
+
+def test_absent_parameters_still_get_the_client_tool_default():
+    runtime = AgentRuntime(config_dir="/nonexistent")
+    agent = runtime._build_agent(
+        _agent_spec([{"name": "ping", "type": "client", "description": "d"}])
+    )
+    schema = _tool_schema(agent, "ping")["parameters"]
+    assert schema == {"type": "object", "properties": {}}
+
+
+def test_shipped_client_tools_emit_valid_json_schema():
+    """This is the test that would have caught it: the real shipped YAMLs, not a hand-written fixture."""
+    runtime = AgentRuntime(config_dir="/nonexistent")
+    for path, tool_names in [
+        (REPO_ROOT / "config" / "agents" / "sales-qualifier.agent.yaml", ["lookup_company"]),
+        (
+            REPO_ROOT / "config" / "agents" / "autolink-parts.agent.yaml",
+            ["search_parts", "get_quote"],
+        ),
+    ]:
+        config = yaml.safe_load(path.read_text())
+        agent = runtime._build_agent(config)
+        for tool_name in tool_names:
+            schema = _tool_schema(agent, tool_name)["parameters"]
+            assert schema.get("type") == "object", f"{path.name}:{tool_name} -> {schema}"
+            assert "properties" in schema, f"{path.name}:{tool_name} -> {schema}"
+            for param_name, param_schema in schema["properties"].items():
+                assert "type" in param_schema, (
+                    f"{path.name}:{tool_name}.{param_name} -> {param_schema}"
+                )

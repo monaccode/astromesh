@@ -67,6 +67,52 @@ def _make_builtin_handler(tool_instance, agent_name, rag_pipeline=None):
     return _handler
 
 
+def _normalize_tool_parameters(parameters: dict | None) -> dict | None:
+    """Turn a YAML-authored 'parameters' block into valid JSON Schema.
+
+    Every shipped agent YAML writes tool parameters in a shorthand — a flat
+    mapping of param name -> {type, description}, e.g.:
+
+        parameters:
+          company_name:
+            type: string
+            description: "Company name to look up"
+
+    That is not JSON Schema: it has no `type: object` and no `properties`
+    wrapper. Passed through untouched, it reaches the model exactly as
+    written, and a provider that validates function-calling schemas
+    (Anthropic's input_schema requires `type: object`; OpenAI strict mode
+    rejects the shape outright) 400s the whole request — not just that one
+    tool. This wraps the shorthand into `{"type": "object", "properties":
+    {...}}` so what the model receives is always valid.
+
+    Idempotent: a mapping that is already valid JSON Schema (`type: object`
+    with a `properties` key) is returned unchanged, so a YAML author who
+    writes real JSON Schema is never rewritten.
+
+    `None` (parameters omitted from YAML entirely) passes through as `None`
+    so each register_* call's own default parameter set still applies.
+
+    The shorthand has no way to express `required`; nothing is inferred, so
+    a shorthand-normalized schema simply has no `required` key (valid JSON
+    Schema — `required` is optional).
+
+    Lives here, not in ToolRegistry.register_client_tool, because this is
+    where YAML enters the runtime for every tool type — 'client' is the
+    first to hit this bug because it's the first type where YAML-authored
+    'parameters' reach the model verbatim, but 'agent' would hit the exact
+    same bug the moment any YAML declares 'parameters' on an agent tool.
+    A normalizer placed in register_client_tool would only ever cover
+    client tools; this one is available to any branch of the tools loop
+    below that decides it needs it.
+    """
+    if parameters is None:
+        return None
+    if parameters.get("type") == "object" and "properties" in parameters:
+        return parameters
+    return {"type": "object", "properties": parameters}
+
+
 def _truncate(text: str | None, limit: int) -> str:
     """Truncate text to limit chars, appending a marker if truncated."""
     if not text:
@@ -402,7 +448,7 @@ class AgentRuntime:
                 tools.register_client_tool(
                     name=tool_def["name"],
                     description=tool_def.get("description", ""),
-                    parameters=tool_def.get("parameters"),
+                    parameters=_normalize_tool_parameters(tool_def.get("parameters")),
                     rate_limit=tool_def.get("rate_limit"),
                 )
             else:
