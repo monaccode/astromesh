@@ -24,9 +24,13 @@ Two things, one change:
 | File | Change |
 |---|---|
 | `astromesh/runtime/engine.py` | `AgentRuntime.run()` and `Agent.run()` take `on_event=None`; two closures wrapped |
-| `astromesh/api/ws.py` | Handler calls the runtime and streams events |
+| `astromesh/api/ws.py` | `set_runtime` + a handler that calls the runtime and streams events |
+| `astromesh/api/main.py` | Wire `ws.set_runtime` into the lifespan — it is the one route module the lifespan never wired |
+| `astromesh/api/usage.py` | New — `usage_from_trace()`, shared by the REST route and the handler (§4) |
+| `astromesh/api/routes/agents.py` | Use the shared helper instead of its inline copy |
 | `tests/test_ws_agent.py` | New — the repo's first WebSocket test |
 | `tests/test_run_events.py` | New — `on_event` emission and ordering |
+| `tests/test_usage_from_trace.py` | New |
 
 ### What deliberately does NOT change
 
@@ -94,16 +98,20 @@ Emission must never break a run. Every `on_event` call is wrapped so that a rais
 
 ### In the WebSocket handler
 
-Per query, the handler: emits `status`, awaits `_runtime.run(..., on_event=cb)`, then emits `done` — or `error` if it raised (§5). `done.answer` is `result["answer"]`; `done.session_id` is the connection's; `done.usage` is computed from `result["trace"]["spans"]` by summing `input_tokens`/`output_tokens`, exactly as `api/routes/agents.py` already does for `AgentRunResponse.usage`. That summing logic is duplicated in two routes the moment this lands — if it grows a third caller, extract it; two is not yet a pattern.
+Per query, the handler: emits `status`, awaits `_runtime.run(..., on_event=cb)`, then emits `done` — or `error` if it raised (§5). `done.answer` is `result["answer"]`; `done.session_id` is the connection's; `done.usage` is computed the same way `api/routes/agents.py` already computes `AgentRunResponse.usage`: walk `result["trace"]["spans"]` and sum the tokens.
 
-The callback does `queue.put_nowait(event)` on a per-connection `asyncio.Queue`; a separate task drains the queue to the socket. Two properties this buys:
+**That logic gets extracted to `astromesh/api/usage.py` first, rather than copied.** It is 25 lines, and it carries a legacy branch for external providers that nest their counts under `metadata.usage` — precisely the kind of detail that gets fixed in one copy and forgotten in the other. Two callers with a shared quirk are already a reason to have one implementation. The helper returns a plain `dict` so the handler never has to import a pydantic response model from a route.
+
+The callback does `queue.put_nowait(event)` on a per-connection `asyncio.Queue`. The run itself is an `asyncio.Task`, and the handler forwards events to the socket while that task is in flight. Two properties this buys:
 
 - **Events reach the client while the run is still going.** Draining only after `await run(...)` returns would deliver everything at once at the end, which defeats the entire point.
 - **A slow socket cannot stall the agent.** `put_nowait` never awaits.
 
-**The flush-before-`done` race is the thing to get right:** when `run()` returns, the pump may not have sent everything yet. The queue must be drained before `done` goes out, or the last `tool_result` — sometimes the last `tool_call` — is lost, and the consumer renders a run that never finished. The pump task must also not outlive the connection.
+**Flushing before `done` must be structural, not remembered.** When the run finishes, events may still be queued; sending `done` then loses the tail — the last `tool_result`, sometimes the last `tool_call` — and the consumer renders a run that never finished. So the forwarding loop's exit condition is *both* "the run is done" **and** "the queue is empty", which makes the flush impossible to skip. It mirrors the SSE route in `api/routes/agent_channels.py`, which polls its queue with `asyncio.wait_for` for the same reason and documents it.
 
-The queue is bounded. A full queue means something is very wrong (a runaway loop, a dead pump); log it. Dropping a `tool_call` silently means a consumer's UI never mounts that component, so the log line matters.
+**A client that vanishes mid-run must cancel the run.** Otherwise an agent keeps spending model calls writing to a socket nobody is reading.
+
+The queue is bounded. A full queue means something is very wrong (a runaway loop); log it. Dropping a `tool_call` silently means a consumer's UI never mounts that component, so the log line matters.
 
 ---
 
@@ -115,7 +123,7 @@ The queue is bounded. A full queue means something is very wrong (a runaway loop
 | `ModelProviderError` | propagates → `error` (the REST route maps this to 502; the WS has no status codes, so the message carries it) |
 | Unknown agent (`ValueError` from `AgentRuntime.run`) | → `error` |
 | Malformed client JSON | → `error`, connection stays open. Today an unparseable payload raises inside the loop and kills the connection. |
-| `WebSocketDisconnect` | as today: `manager.disconnect`, and the in-flight run's pump task is cancelled |
+| `WebSocketDisconnect` | as today: `manager.disconnect` — and the in-flight run task is cancelled, so the agent stops spending on a socket nobody reads |
 
 **Every failure produces an `error` event before the connection closes.** A consumer that gets silence cannot distinguish "still thinking" from "dead", and will hang forever waiting. This is a hard requirement, not a nicety.
 
@@ -162,7 +170,7 @@ This is not optional. Without it, all text arrives in the final iteration and ev
 - **every queued event is delivered before `done`** — the flush race in §4
 - a runtime that raises → `error`, not silence
 - malformed JSON → `error`, connection survives
-- disconnect mid-run does not leak the pump task
+- disconnect mid-run cancels the run task (drive `_run_and_stream` directly with a fake socket that dies — TestClient runs the app in a worker thread and can't express this race)
 
 `asyncio_mode = "auto"` (`pyproject.toml`), so no `@pytest.mark.asyncio`. Tests live flat in `tests/`. Command: `uv run pytest -v` (there is **no** `--cov-fail-under` in this repo — checked `pyproject.toml`, `Makefile`, `.github/workflows/*`).
 
