@@ -265,24 +265,33 @@ def _template_tools(path: "pathlib.Path") -> list:
     return (agent_config.get("spec") or {}).get("tools", []) or []
 
 
-def test_no_shipped_template_declares_type_internal():
+def test_no_shipped_template_declares_a_tool_type_the_loader_drops():
     """The templates guard the original test missed: it only globbed config/agents/,
     so these — bundled into the wheel and served at /v1/templates, a wider-copied
     surface than the example agents — rotted unnoticed with the same 'internal'
     lie Task 4 fixed for config/agents/.
 
-    Scoped to 'internal' specifically (not 'any type the loader drops'): a few
-    templates also declare 'type: rag' under tools, which the loader equally
-    drops today (RAG is wired through spec.knowledge, not spec.tools) — a
-    real, separate, pre-existing bug outside this fix's scope. Widening this
-    assertion to catch it too would require deciding what those tools should
-    become, which nothing in this change directs.
+    Scoped to 'internal' only (rather than an allowlist), this test previously
+    passed with a hand-injected 'type: webhook' still present — proving the
+    guard was narrower than it looked. Widened to the loader's real supported
+    set, same as the sibling config/agents/ test, so any type the loader drops
+    is caught, not just 'internal'.
+
+    'rag' is allowlisted here, not because the loader supports it, but because
+    it's known, pre-existing debt: 8 templates already declare 'type: rag'
+    under spec.tools, predating this branch; RAG is wired through
+    spec.knowledge, not spec.tools, so the loader has no branch for it and
+    warns at load (see the else-branch of the tools loop in
+    AgentRuntime._build_agent) — the same 'unsupported type, ignore it' path
+    every other dropped type goes through. Fixing those 8 templates is a
+    separate, real bug out of scope for this change (task-4, spec §8).
     """
+    supported = {"builtin", "agent", "client", "rag"}
     offenders = []
     for path in _template_files():
         for tool in _template_tools(path):
             tool_type = tool.get("type", "internal")
-            if tool_type == "internal":
+            if tool_type not in supported:
                 offenders.append(f"{path.name}:{tool.get('name')} -> {tool_type}")
     assert offenders == []
 

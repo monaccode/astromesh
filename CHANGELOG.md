@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   never been able to load from YAML (a YAML file cannot supply a Python handler). They
   now declare `type: client` and actually register — which means these agents'
   tool-calling behavior changes: the model can now see and call tools it silently
-  couldn't before. The same bug was independently shipping in 7 of the 9
+  couldn't before. The same bug was independently shipping in 7 of the 15
   `config/templates/*.template.yaml` files served at `/v1/templates` (10 phantom
   tools total) — fixed the same way.
 - **YAML-authored `parameters` reached the model as invalid JSON Schema.** Every
