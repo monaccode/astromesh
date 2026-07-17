@@ -19,5 +19,10 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // `const { fallback: _, ...rest } = spec` is how this codebase omits a key.
+      // The omitted binding is unused by construction — that is the point of the idiom.
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
+    },
   },
 ])

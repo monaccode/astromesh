@@ -45,7 +45,7 @@ export function removeNodeReconnect(
 ): { nodes: Node[]; edges: Edge[] } {
   const incoming = edges.filter((e) => e.target === nodeId);
   const outgoing = edges.filter((e) => e.source === nodeId);
-  let nextEdges = edges.filter((e) => e.source !== nodeId && e.target !== nodeId);
+  const nextEdges = edges.filter((e) => e.source !== nodeId && e.target !== nodeId);
   if (incoming.length === 1 && outgoing.length === 1) {
     nextEdges.push({
       id: `${incoming[0].source}-${outgoing[0].target}`,

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ForgeClient } from "../client";
+import type { AgentConfig } from "../../types/agent";
 
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
@@ -40,7 +41,7 @@ describe("ForgeClient", () => {
       ok: true,
       json: () => Promise.resolve({ status: "created" }),
     });
-    const config = { apiVersion: "astromesh/v1", kind: "Agent" } as any;
+    const config = { apiVersion: "astromesh/v1", kind: "Agent" } as AgentConfig;
     await client.createAgent(config);
     expect(mockFetch).toHaveBeenCalledWith(
       "http://localhost:8000/v1/agents",

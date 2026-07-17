@@ -15,7 +15,7 @@ const DEFAULT_WIDTH = 420;
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 900;
 
-export function findSpanInTree(nodes: SpanTreeNode[], id: string): SpanTreeNode | null {
+function findSpanInTree(nodes: SpanTreeNode[], id: string): SpanTreeNode | null {
   for (const node of nodes) {
     if (node.span_id === id) return node;
     const found = findSpanInTree(node.children, id);
