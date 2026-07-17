@@ -74,7 +74,7 @@ template:
         timeout_seconds: 60
       tools:
         - name: lookup_company
-          type: internal
+          type: client
           description: "Look up company information from CRM"
           parameters:
             company_name:

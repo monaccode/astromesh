@@ -78,7 +78,7 @@ template:
               type: string
               description: "Property search criteria"
         - name: schedule_viewing
-          type: internal
+          type: client
           description: "Schedule a property viewing"
           parameters:
             property_id:

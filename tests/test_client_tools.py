@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import pathlib
 from unittest.mock import AsyncMock, MagicMock
@@ -250,6 +251,66 @@ def test_the_configuration_guide_lists_the_types_that_actually_load():
     guide = (REPO_ROOT / "docs" / "CONFIGURATION_GUIDE.md").read_text()
     assert "builtin | agent | client" in guide
     assert "# internal | mcp | webhook | rag" not in guide
+
+
+def _template_files():
+    return sorted((REPO_ROOT / "config" / "templates").glob("*.template.yaml"))
+
+
+def _template_tools(path: "pathlib.Path") -> list:
+    """Templates nest the real agent spec under template.agent_config.spec.tools,
+    not spec.tools directly — a different shape than config/agents/*.agent.yaml."""
+    spec = yaml.safe_load(path.read_text())
+    agent_config = (spec.get("template") or {}).get("agent_config") or {}
+    return (agent_config.get("spec") or {}).get("tools", []) or []
+
+
+def test_no_shipped_template_declares_type_internal():
+    """The templates guard the original test missed: it only globbed config/agents/,
+    so these — bundled into the wheel and served at /v1/templates, a wider-copied
+    surface than the example agents — rotted unnoticed with the same 'internal'
+    lie Task 4 fixed for config/agents/.
+
+    Scoped to 'internal' specifically (not 'any type the loader drops'): a few
+    templates also declare 'type: rag' under tools, which the loader equally
+    drops today (RAG is wired through spec.knowledge, not spec.tools) — a
+    real, separate, pre-existing bug outside this fix's scope. Widening this
+    assertion to catch it too would require deciding what those tools should
+    become, which nothing in this change directs.
+    """
+    offenders = []
+    for path in _template_files():
+        for tool in _template_tools(path):
+            tool_type = tool.get("type", "internal")
+            if tool_type == "internal":
+                offenders.append(f"{path.name}:{tool.get('name')} -> {tool_type}")
+    assert offenders == []
+
+
+def test_agent_yaml_doc_does_not_teach_type_internal():
+    doc = (
+        REPO_ROOT / "docs-site" / "src" / "content" / "docs" / "configuration" / "agent-yaml.md"
+    ).read_text()
+    assert "type: internal" not in doc
+    assert "builtin | agent | client" in doc
+    assert "`internal` (Python function)" not in doc
+
+
+def test_first_agent_doc_does_not_teach_type_internal():
+    doc = (
+        REPO_ROOT / "docs-site" / "src" / "content" / "docs" / "getting-started" / "first-agent.md"
+    ).read_text()
+    assert "type: internal" not in doc
+
+
+def test_vscode_schema_tool_type_enum_matches_what_the_loader_supports():
+    schema = json.loads(
+        (REPO_ROOT / "vscode-extension" / "schemas" / "agent.schema.json").read_text()
+    )
+    tool_type_enum = schema["properties"]["spec"]["properties"]["tools"]["items"]["properties"][
+        "type"
+    ]["enum"]
+    assert set(tool_type_enum) == {"builtin", "agent", "client"}
 
 
 def _tool_schema(agent, tool_name: str) -> dict:

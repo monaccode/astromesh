@@ -71,7 +71,7 @@ template:
         timeout_seconds: 45
       tools:
         - name: search_parts
-          type: internal
+          type: client
           description: "Search parts inventory by vehicle and part type"
           parameters:
             vehicle_make:
@@ -84,7 +84,7 @@ template:
               type: string
               description: "Type of part (brake pads, oil filter, etc.)"
         - name: get_quote
-          type: internal
+          type: client
           description: "Generate a quote for parts and installation"
           parameters:
             parts:
