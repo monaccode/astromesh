@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 from unittest.mock import AsyncMock, MagicMock
+
+import yaml
 
 from astromesh.core.tools import ToolRegistry, ToolType
 from astromesh.runtime.engine import Agent, AgentRuntime
+
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 PARAMS = {
@@ -221,3 +227,26 @@ async def test_a_client_tool_reaches_a_consumer_live_and_in_steps():
     step = result["steps"][0]
     assert step.action == "diagram_process"
     assert step.action_input == {"nodes": [{"id": "a"}]}
+
+
+def _agent_files():
+    return sorted((REPO_ROOT / "config" / "agents").glob("*.agent.yaml"))
+
+
+def test_no_shipped_agent_declares_a_tool_type_the_loader_drops():
+    """A shipped example that lies about its tools teaches the lie."""
+    supported = {"builtin", "agent", "client"}
+    offenders = []
+    for path in _agent_files():
+        spec = yaml.safe_load(path.read_text())
+        for tool in (spec.get("spec") or {}).get("tools", []) or []:
+            tool_type = tool.get("type", "internal")
+            if tool_type not in supported:
+                offenders.append(f"{path.name}:{tool.get('name')} -> {tool_type}")
+    assert offenders == []
+
+
+def test_the_configuration_guide_lists_the_types_that_actually_load():
+    guide = (REPO_ROOT / "docs" / "CONFIGURATION_GUIDE.md").read_text()
+    assert "builtin | agent | client" in guide
+    assert "# internal | mcp | webhook | rag" not in guide

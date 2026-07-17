@@ -120,13 +120,25 @@ spec:
   # --- Tools ---
   tools:
     - name: lookup_company
-      type: internal            # internal | mcp | webhook | rag
+      type: builtin             # builtin | agent | client
       description: "Look up company information"
       parameters:
         company_name:
           type: string
           description: "Company name to look up"
+```
 
+> **Tool types loadable from YAML:** `builtin` (a tool shipped with the runtime),
+> `agent` (another agent, callable as a tool), and `client` (announced to the model,
+> executed by whoever is listening — the call arrives live via `on_event` and
+> afterwards in `steps`; with nobody listening it is a no-op).
+>
+> `webhook` and `rag` appear in `ToolType` but are **not** declarable from YAML.
+> `internal` is deprecated: a YAML cannot supply a Python handler, so what it meant
+> is now `client`. Declaring an unsupported type logs a warning and skips the tool;
+> from 1.0 it will be an error.
+
+```yaml
   # --- Memory ---
   memory:
     conversational:
