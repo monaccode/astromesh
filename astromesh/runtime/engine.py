@@ -67,6 +67,16 @@ def _make_builtin_handler(tool_instance, agent_name, rag_pipeline=None):
     return _handler
 
 
+class _InvalidToolParameters(Exception):
+    """Raised by _normalize_tool_parameters when `parameters` is present but not
+    a mapping (e.g. a YAML list, string, int or bool). Carries the offending
+    type's name so the caller can name it in a warning."""
+
+    def __init__(self, actual_type: str):
+        self.actual_type = actual_type
+        super().__init__(actual_type)
+
+
 def _normalize_tool_parameters(parameters: dict | None) -> dict | None:
     """Turn a YAML-authored 'parameters' block into valid JSON Schema.
 
@@ -86,9 +96,13 @@ def _normalize_tool_parameters(parameters: dict | None) -> dict | None:
     tool. This wraps the shorthand into `{"type": "object", "properties":
     {...}}` so what the model receives is always valid.
 
-    Idempotent: a mapping that is already valid JSON Schema (`type: object`
-    with a `properties` key) is returned unchanged, so a YAML author who
-    writes real JSON Schema is never rewritten.
+    Idempotent: the real invariant is "a mapping that declares `type: object`
+    is already JSON Schema" — full stop, whether or not it also carries a
+    `properties` key. A bare `{type: object}` (a valid no-arg tool schema) is
+    returned with `properties` defaulted to `{}`; any other keys already
+    present (`properties`, `required`, `additionalProperties`, ...) are kept
+    exactly as written. So a YAML author who writes real JSON Schema is never
+    rewritten out from under them.
 
     `None` (parameters omitted from YAML entirely) passes through as `None`
     so each register_* call's own default parameter set still applies.
@@ -96,6 +110,15 @@ def _normalize_tool_parameters(parameters: dict | None) -> dict | None:
     The shorthand has no way to express `required`; nothing is inferred, so
     a shorthand-normalized schema simply has no `required` key (valid JSON
     Schema — `required` is optional).
+
+    Raises `_InvalidToolParameters` if `parameters` is neither `None` nor a
+    mapping — YAML can express `parameters: [a, b]` or a bare scalar just as
+    easily as a mapping, and blindly calling `.get()` on it would raise
+    `AttributeError` and take the whole agent down with it (caught by
+    `load_agents`'s broad `except`, but that degrades an agent to `draft`
+    over one malformed tool declaration). The caller in the tools loop below
+    catches this and treats it like any other unsupported tool shape: warns,
+    naming the agent and the tool, and skips just that tool.
 
     Lives here, not in ToolRegistry.register_client_tool, because this is
     where YAML enters the runtime for every tool type — 'client' is the
@@ -108,8 +131,12 @@ def _normalize_tool_parameters(parameters: dict | None) -> dict | None:
     """
     if parameters is None:
         return None
-    if parameters.get("type") == "object" and "properties" in parameters:
-        return parameters
+    if not isinstance(parameters, dict):
+        raise _InvalidToolParameters(type(parameters).__name__)
+    if parameters.get("type") == "object":
+        normalized = dict(parameters)
+        normalized.setdefault("properties", {})
+        return normalized
     return {"type": "object", "properties": parameters}
 
 
@@ -445,10 +472,25 @@ class AgentRuntime:
                 )
                 tools.set_runtime(self)
             elif tool_type == "client":
+                try:
+                    normalized_parameters = _normalize_tool_parameters(tool_def.get("parameters"))
+                except _InvalidToolParameters as exc:
+                    # Same warn-don't-break stance as the unsupported-type branch below:
+                    # a malformed 'parameters' block on one tool must not degrade the
+                    # whole agent to 'draft'. Names the agent, the tool, and what was
+                    # wrong, then skips just this tool.
+                    logger.warning(
+                        "agent %r declares tool %r with parameters of type %r — "
+                        "expected a mapping (YAML shorthand or JSON Schema), ignoring it.",
+                        metadata["name"],
+                        tool_def.get("name"),
+                        exc.actual_type,
+                    )
+                    continue
                 tools.register_client_tool(
                     name=tool_def["name"],
                     description=tool_def.get("description", ""),
-                    parameters=_normalize_tool_parameters(tool_def.get("parameters")),
+                    parameters=normalized_parameters,
                     rate_limit=tool_def.get("rate_limit"),
                 )
             else:

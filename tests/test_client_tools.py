@@ -367,6 +367,87 @@ def test_absent_parameters_still_get_the_client_tool_default():
     assert schema == {"type": "object", "properties": {}}
 
 
+def test_a_list_typed_parameters_block_warns_and_skips_only_that_tool(caplog):
+    """YAML can write `parameters: [a, b]` — a list has no .get() and used to raise."""
+    with caplog.at_level(logging.WARNING):
+        runtime = AgentRuntime(config_dir="/nonexistent")
+        agent = runtime._build_agent(
+            _agent_spec(
+                [
+                    {
+                        "name": "broken",
+                        "type": "client",
+                        "description": "d",
+                        "parameters": ["a", "b"],
+                    },
+                    {"name": "fine", "type": "client", "description": "d"},
+                ]
+            )
+        )
+    assert "broken" in caplog.text
+    assert "test-agent" in caplog.text
+    names = [s["function"]["name"] for s in agent._tools.get_tool_schemas()]
+    assert "broken" not in names
+    assert "fine" in names
+
+
+def test_a_string_typed_parameters_block_warns_and_skips_only_that_tool(caplog):
+    with caplog.at_level(logging.WARNING):
+        runtime = AgentRuntime(config_dir="/nonexistent")
+        agent = runtime._build_agent(
+            _agent_spec(
+                [
+                    {"name": "broken", "type": "client", "description": "d", "parameters": "oops"},
+                    {"name": "fine", "type": "client", "description": "d"},
+                ]
+            )
+        )
+    assert "broken" in caplog.text
+    names = [s["function"]["name"] for s in agent._tools.get_tool_schemas()]
+    assert "broken" not in names
+    assert "fine" in names
+
+
+def test_an_int_typed_parameters_block_warns_and_skips_only_that_tool(caplog):
+    with caplog.at_level(logging.WARNING):
+        runtime = AgentRuntime(config_dir="/nonexistent")
+        agent = runtime._build_agent(
+            _agent_spec(
+                [
+                    {"name": "broken", "type": "client", "description": "d", "parameters": 7},
+                    {"name": "fine", "type": "client", "description": "d"},
+                ]
+            )
+        )
+    assert "broken" in caplog.text
+    names = [s["function"]["name"] for s in agent._tools.get_tool_schemas()]
+    assert "broken" not in names
+    assert "fine" in names
+
+
+def test_a_bare_type_object_schema_does_not_get_a_phantom_type_property():
+    """{type: object} with no `properties` key is already-valid JSON Schema for a
+    no-arg tool. The old check required `properties` to be present before treating
+    a mapping as already-schema, so this fell through to the shorthand-wrapping
+    branch and became {"type": "object", "properties": {"type": "object"}} — a
+    phantom parameter literally named "type"."""
+    runtime = AgentRuntime(config_dir="/nonexistent")
+    agent = runtime._build_agent(
+        _agent_spec(
+            [
+                {
+                    "name": "no_args",
+                    "type": "client",
+                    "description": "d",
+                    "parameters": {"type": "object"},
+                }
+            ]
+        )
+    )
+    schema = _tool_schema(agent, "no_args")["parameters"]
+    assert schema == {"type": "object", "properties": {}}
+
+
 def test_shipped_client_tools_emit_valid_json_schema():
     """This is the test that would have caught it: the real shipped YAMLs, not a hand-written fixture."""
     runtime = AgentRuntime(config_dir="/nonexistent")
