@@ -114,3 +114,31 @@ jobs:
       - name: Tests
         working-directory: astromesh-orbit
         run: uv run pytest -v -m "not orbit_gcp"
+
+  test-forge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # setup-node@v6, matching ci.yml's convention of recent majors (checkout@v7,
+      # setup-python@v6). v7.0.0 exists but shipped 2026-07-14 — too fresh to adopt
+      # blind. docs.yml still pins @v4; this is the newer of the two in-repo shapes.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: astromesh-forge/package-lock.json
+      # `ci`, not `install`: the lockfile is authoritative and must not drift.
+      - name: Install dependencies
+        working-directory: astromesh-forge
+        run: npm ci
+      - name: Lint
+        working-directory: astromesh-forge
+        # --max-warnings 0: eslint exits 0 on warnings by default, which is how this
+        # suite drifted red unnoticed in the first place.
+        run: npx eslint . --max-warnings 0
+      - name: Tests
+        working-directory: astromesh-forge
+        run: npm test
+      - name: Build
+        working-directory: astromesh-forge
+        run: npm run build
