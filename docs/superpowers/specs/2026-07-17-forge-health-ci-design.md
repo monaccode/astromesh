@@ -60,8 +60,14 @@ these introduce no behaviour change.
 | `src/api/__tests__/client.test.ts:43` | `@typescript-eslint/no-explicit-any` |
 | `src/components/console/ConsoleRightPanel.tsx:18` | `react-refresh/only-export-components` |
 
-`only-export-components` is fixed by moving the non-component export out to its own module; every
-importer breaks at compile time if that move is wrong, which is exactly the proof required.
+`only-export-components` needs no module move: `findSpanInTree` has no importer outside its own file
+(it is used at `ConsoleRightPanel.tsx:21` and `:111` only), so dropping the `export` keyword settles
+it, and `tsc -b` proves nothing else wanted it.
+
+All four fixes were verified together before this spec was finalised: applied, then
+`tsc -b && vite build` green and 20/20 tests passing, and `eslint . --format json` reporting exactly
+16 problems instead of 20 — the four above gone, Group B untouched. Then reverted, leaving the work
+to implementation.
 
 **Group B — disable with a written justification (16).** Each of these changes what React does at
 runtime. All sit in components with no test coverage (`PipelinePropertiesPanel`, `Toolbox`,
@@ -119,16 +125,20 @@ A new job in `.github/workflows/ci.yml`, mirroring the shape of its siblings (`t
 `test-cli`, `test-orbit`): checkout → `actions/setup-node` (with npm cache) → `npm ci` → lint → test
 → build, all with `working-directory: astromesh-forge`.
 
-Two deliberate departures from the sibling jobs:
-
-- **Path filter.** The job runs only when `astromesh-forge/**` or `ci.yml` changes. Forge is a SPA
-  with no dependency on the Python packages; running it on every core push would be pure noise. The
-  Python jobs have no path filter today; this spec does not change them.
-- **`--max-warnings 0`.** `eslint` exits 0 on warnings by default, which would let warnings
-  accumulate invisibly — the exact failure mode this spec exists to end. With Group B's warnings
-  explicitly disabled, zero-warnings is achievable today, so the gate demands it.
+One deliberate departure from the sibling jobs: **`--max-warnings 0`**. `eslint` exits 0 on warnings
+by default, which would let warnings accumulate invisibly — the exact failure mode this spec exists
+to end. With Group B's warnings explicitly disabled, zero-warnings is achievable today, so the gate
+demands it.
 
 `npm ci` (not `npm install`) — the lockfile is clean and must stay authoritative.
+
+**No path filter.** An earlier draft of this spec had the job run only on `astromesh-forge/**`
+changes. Dropped: GitHub Actions has no native per-job path filter, and both ways of getting one
+cost more than the roughly one minute of CI they save — a third-party action (`dorny/paths-filter`)
+would put an external dependency in the build chain, and a separate workflow file would break the
+single-`CI`-badge convention the README links to. `test-forge` runs on every push, exactly like its
+four siblings. If it ever gets slow enough to matter, moving it to its own workflow with a native
+`on.push.paths` filter is the cheap fix.
 
 ### 5. Version + changelog
 
@@ -154,6 +164,10 @@ The installed toolchain declares (read from `node_modules`, not assumed):
 **Node 22.12+ satisfies both**, so that is what `test-forge` pins and what `package.json` declares
 as `"engines": { "node": ">=22.12" }`. Local Node 20.20.2 also satisfies both, which is why today's
 green run is not evidence either way.
+
+Supporting evidence: `.github/workflows/docs.yml` already builds `docs-site` — Astro, i.e. Vite — on
+`node-version: 22` in this repo's CI, so Node 22 with a Vite toolchain is a proven combination here,
+not a bet.
 
 Engine ranges are a declaration of intent, not a guarantee, so the implementation's first step still
 runs `npm ci && npm run lint && npm test && npm run build` on Node 22 and confirms it green before
