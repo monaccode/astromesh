@@ -322,3 +322,105 @@ async def test_the_app_lifespan_wires_the_ws_runtime():
     finally:
         agents_route.set_runtime(None)
         ws_module.set_runtime(None)
+
+
+async def test_a_non_disconnect_exception_still_deregisters_the_socket():
+    """`manager.disconnect` must run however the handler exits, not only on
+    WebSocketDisconnect. session_id defaults to "default", so a leaked entry
+    from any other escaping exception (a RuntimeError, a cancellation, an
+    unexpected Starlette error) piles anonymous connections into one list
+    that never shrinks.
+
+    Driven directly against `agent_websocket`, not TestClient: the decorator
+    just registers the route and returns the function unchanged, so it is
+    callable with a bare fake socket exposing accept/receive_text/send_json.
+    """
+    import json as json_mod
+
+    from astromesh.api.ws import agent_websocket, manager, set_runtime as set_ws_runtime
+
+    rt = MagicMock()
+    rt.run = AsyncMock(return_value={"answer": "listo", "steps": [], "trace": {}})
+    set_ws_runtime(rt)
+
+    class FlakySocket:
+        """Answers one valid query, then blows up with something that is
+        not WebSocketDisconnect — the class of exception the old handler
+        never cleaned up after."""
+
+        def __init__(self):
+            self.query_params = {"session_id": "flaky"}
+            self._calls = 0
+
+        async def accept(self):
+            pass
+
+        async def receive_text(self):
+            self._calls += 1
+            if self._calls == 1:
+                return json_mod.dumps({"query": "hola"})
+            raise RuntimeError("boom")
+
+        async def send_json(self, message):
+            pass
+
+    socket = FlakySocket()
+    try:
+        with pytest.raises(RuntimeError, match="boom"):
+            await agent_websocket(socket, "demo")
+        assert "flaky" not in manager.active_connections, (
+            "the socket was never deregistered after a non-disconnect exception"
+        )
+    finally:
+        set_ws_runtime(None)
+
+
+async def test_run_task_is_retrieved_even_if_it_misbehaves_during_cancellation():
+    """The `finally` in `_run_and_stream` requests `run_task.cancel()` but must
+    also await it, or a run that raises something other than CancelledError
+    during teardown becomes a task whose exception nobody retrieves (asyncio
+    logs "Task exception was never retrieved").
+
+    This must not change what actually propagates out of `_run_and_stream`:
+    the socket failure (WebSocketDisconnect here) is still the cause, even
+    though the run's own teardown also failed.
+    """
+    import asyncio
+
+    from fastapi import WebSocketDisconnect
+
+    from astromesh.api.ws import _run_and_stream, set_runtime as set_ws_runtime
+
+    async def run_that_misbehaves_on_cancel(
+        agent_name, query, session_id, context=None, on_event=None, **kw
+    ):
+        on_event({"type": "token", "content": "uno"})
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            # Simulates a run whose teardown itself fails, rather than
+            # cleanly propagating the cancellation.
+            raise RuntimeError("teardown blew up") from None
+        return {"answer": "nunca llega", "steps": [], "trace": {}}
+
+    rt = MagicMock()
+    rt.run = AsyncMock(side_effect=run_that_misbehaves_on_cancel)
+    set_ws_runtime(rt)
+
+    class DyingSocket:
+        def __init__(self):
+            self.sends = 0
+
+        async def send_json(self, message):
+            self.sends += 1
+            if self.sends >= 2:
+                raise WebSocketDisconnect()
+
+    try:
+        # If the teardown await isn't caught, the RuntimeError raised inside
+        # the finally block would replace this and the test would see
+        # RuntimeError instead — pinning that the socket failure still wins.
+        with pytest.raises(WebSocketDisconnect):
+            await _run_and_stream(DyingSocket(), "demo", "s1", "hola")
+    finally:
+        set_ws_runtime(None)

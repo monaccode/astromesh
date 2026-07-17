@@ -96,6 +96,19 @@ async def _run_and_stream(websocket: WebSocket, agent_name: str, session_id: str
         # leave an agent burning model calls for a socket nobody is reading.
         if not run_task.done():
             run_task.cancel()
+        # Retrieve the task's outcome so asyncio never logs "Task exception was
+        # never retrieved" for it. A clean cancellation is expected and swallowed;
+        # anything else is logged, not re-raised — the exception that got us into
+        # this finally (if any) is what must keep propagating, not a teardown
+        # failure in the task we're cleaning up after.
+        try:
+            await run_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception(
+                "run task raised during teardown agent=%s session=%s", agent_name, session_id
+            )
 
     try:
         result = await run_task
@@ -141,4 +154,10 @@ async def agent_websocket(websocket: WebSocket, agent_name: str):
 
             await _run_and_stream(websocket, agent_name, session_id, query)
     except WebSocketDisconnect:
+        pass
+    finally:
+        # Unconditional: any exit path — a clean disconnect, a RuntimeError, a
+        # cancellation, an unexpected Starlette error — must deregister the
+        # socket. session_id defaults to "default", so a leak here means
+        # anonymous connections pile into one list that never shrinks.
         manager.disconnect(websocket, session_id)
