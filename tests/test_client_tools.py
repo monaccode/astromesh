@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from unittest.mock import AsyncMock, MagicMock
 
 from astromesh.core.tools import ToolRegistry, ToolType
-from astromesh.runtime.engine import AgentRuntime
+from astromesh.runtime.engine import Agent, AgentRuntime
 
 
 PARAMS = {
@@ -141,3 +142,82 @@ def test_a_tool_with_no_type_at_all_warns(caplog):
         runtime = AgentRuntime(config_dir="/nonexistent")
         runtime._build_agent(_agent_spec([{"name": "typeless", "description": "d"}]))
     assert "typeless" in caplog.text
+
+
+class _FakeResponse:
+    def __init__(self, content="", tool_calls=None):
+        self.content = content
+        self.tool_calls = tool_calls or []
+        self.model = "fake-model"
+        self.provider = "fake"
+        self.latency_ms = 1
+        self.cost = 0.0
+        self.usage = {"input_tokens": 1, "output_tokens": 1}
+
+
+class _CallsTheClientTool:
+    """Stands in for a real pattern: drives the same closures every pattern drives."""
+
+    async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
+        from astromesh.orchestration.patterns import AgentStep
+
+        observation = await tool_fn("diagram_process", {"nodes": [{"id": "a"}]})
+        return {
+            "answer": "listo",
+            "steps": [
+                AgentStep(
+                    action="diagram_process",
+                    action_input={"nodes": [{"id": "a"}]},
+                    observation=str(observation),
+                )
+            ],
+        }
+
+
+async def test_a_client_tool_reaches_a_consumer_live_and_in_steps():
+    """The two paths of the contract. Neither alone is enough."""
+    agent = Agent.__new__(Agent)
+    agent.name = "test-agent"
+    agent._pattern = _CallsTheClientTool()
+    agent._role_map = {}
+    agent._orchestration_config = {"pattern": "test"}
+    agent._permissions = {}
+    agent._guardrails = {}
+    agent._rag = None
+    agent._knowledge = None
+    agent._system_prompt = "you are a test agent"
+
+    router = MagicMock()
+    router.route = AsyncMock(return_value=_FakeResponse(content="narrando"))
+    agent._routers = {"default": router}
+
+    tools = ToolRegistry()
+    tools.register_client_tool(
+        name="diagram_process",
+        description="Draw the process",
+        parameters={"type": "object", "properties": {"nodes": {"type": "array"}}},
+    )
+    agent._tools = tools
+
+    memory = MagicMock()
+    memory.build_context = AsyncMock(return_value=[])
+    memory.persist_turn = AsyncMock()
+    agent._memory = memory
+
+    prompt = MagicMock()
+    prompt.render = MagicMock(return_value="you are a test agent")
+    agent._prompt_engine = prompt
+
+    events = []
+    result = await agent.run("hola", "s1", on_event=events.append)
+
+    # Path 1: live.
+    call = next(e for e in events if e["type"] == "tool_call")
+    assert call["name"] == "diagram_process"
+    assert call["arguments"] == {"nodes": [{"id": "a"}]}
+    assert next(e for e in events if e["type"] == "tool_result")["ok"] is True
+
+    # Path 2: after the fact.
+    step = result["steps"][0]
+    assert step.action == "diagram_process"
+    assert step.action_input == {"nodes": [{"id": "a"}]}
