@@ -202,6 +202,7 @@ def build_candidate_provider(block: dict):
             config={
                 "base_url": base,
                 "model": model or "llama3",
+                "parameters": block.get("parameters"),
                 "timeout": float(block.get("timeout", 120)),
             }
         )

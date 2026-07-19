@@ -19,10 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   merge into the request body for both `complete()` and `stream()`, with per-call kwargs
   taking precedence — the same `{**self.parameters, **kwargs}` order LiteLLMProvider
   already used, so the two sources behave identically rather than merely both working.
-  `ollama` has the same gap but a different fix: its API carries sampling parameters under
-  a nested `options` object rather than at the top level, so it is deliberately left for
-  its own change instead of being guessed at here.
   (`astromesh/providers/openai_compat.py`, `astromesh/runtime/engine.py`)
+- **`parameters` now reaches `ollama` too, in the nested `options` object its API
+  actually reads.** The last of the three branches, and the one that was wrong in a way
+  copying the others would not have fixed: ollama's native `/api/chat` takes sampling
+  parameters under `options`, and `additionalProperties` means anything left at the top
+  level is accepted and ignored rather than rejected. The provider had been merging every
+  kwarg into the top level, so per-call `temperature` was already being dropped on the
+  floor before `parameters` was ever wired up. Sampling keys are now routed into `options`
+  under ollama's own spelling — `max_tokens` becomes `num_predict`, the one name the agent
+  schema spells the OpenAI way — while ollama's genuine top-level fields (`format`,
+  `keep_alive`, `think`) stay where the API expects them. Names verified against the
+  `ModelOptions` schema in ollama's API reference rather than inferred from the other
+  providers; that check also turned up `presence_penalty` and `frequency_penalty`, which
+  the agent schema permits but ollama's native surface does not define (they exist only on
+  its OpenAI-compat `/v1` endpoint), so declaring one now logs a warning naming it instead
+  of dropping it in silence. `options` is omitted entirely when no parameters are set, so
+  models keep their Modelfile defaults.
+  (`astromesh/providers/ollama_provider.py`, `astromesh/runtime/engine.py`)
 
 ### Changed (Astromesh Forge)
 - **Forge is gated in CI for the first time** (`test-forge`), and its lint is green again.

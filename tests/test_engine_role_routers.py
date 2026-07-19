@@ -86,6 +86,7 @@ def test_timeout_propagates_from_block(monkeypatch, source, model):
 @pytest.mark.parametrize(
     "source,model",
     [
+        ("ollama", "llama3.1:8b"),
         ("openai_compat", "gpt-4o-mini"),
         ("litellm", "anthropic/claude-opus-4-8"),
     ],
@@ -109,6 +110,7 @@ def test_parameters_propagate_from_block(monkeypatch, source, model):
 @pytest.mark.parametrize(
     "source,model",
     [
+        ("ollama", "llama3.1:8b"),
         ("openai_compat", "gpt-4o-mini"),
         ("litellm", "anthropic/claude-opus-4-8"),
     ],

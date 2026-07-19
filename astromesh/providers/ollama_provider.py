@@ -3,12 +3,41 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from typing import Any, AsyncIterator
 
 import httpx
 
 from .base import CompletionChunk, CompletionResponse
+
+logger = logging.getLogger(__name__)
+
+# Ollama's native /api/chat takes sampling parameters in a nested `options`
+# object; anything left at the top level is accepted and ignored. The agent
+# schema spells these keys the OpenAI way, so one of them needs translating.
+# Names verified against the ModelOptions schema at docs.ollama.com/api/chat.
+_OPTION_ALIASES = {"max_tokens": "num_predict"}
+_KNOWN_OPTIONS = frozenset(
+    {"seed", "temperature", "top_k", "top_p", "min_p", "stop", "num_ctx", "num_predict"}
+)
+
+
+def _split_options(params: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Split a flat param dict into (ollama `options`, top-level fields).
+
+    Keys that name a sampling option go into `options` under ollama's own
+    spelling; everything else (format, keep_alive, think, ...) stays top-level.
+    """
+    options: dict[str, Any] = {}
+    top_level: dict[str, Any] = {}
+    for key, value in params.items():
+        name = _OPTION_ALIASES.get(key, key)
+        if name in _KNOWN_OPTIONS:
+            options[name] = value
+        else:
+            top_level[key] = value
+    return options, top_level
 
 
 class OllamaProvider:
@@ -19,7 +48,23 @@ class OllamaProvider:
         self.base_url: str = config.get("base_url", "http://localhost:11434")
         self.model: str = config.get("model", "llama3")
         self.timeout: float = config.get("timeout", 120.0)
+        self.parameters: dict = config.get("parameters", {}) or {}
         self._client: httpx.AsyncClient | None = None
+
+        # presence_penalty / frequency_penalty exist on ollama's OpenAI-compat
+        # surface (/v1) but not in the native ModelOptions schema, so they would
+        # ride along and do nothing. Say so once instead of failing silently —
+        # dropping a declared parameter without a word is the bug this fixes.
+        unsupported = [
+            k for k in self.parameters if _OPTION_ALIASES.get(k, k) not in _KNOWN_OPTIONS
+        ]
+        if unsupported:
+            logger.warning(
+                "ollama model %r: parameter(s) %s are not in ollama's native ModelOptions "
+                "and will be ignored by the server; they are sent verbatim at the top level",
+                self.model,
+                ", ".join(sorted(unsupported)),
+            )
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -106,7 +151,12 @@ class OllamaProvider:
         if tools:
             payload["tools"] = self._convert_tools(tools)
 
-        payload.update(kwargs)
+        # Configured parameters first, per-call kwargs win — same precedence as
+        # the other providers' {**self.parameters, **kwargs}.
+        options, top_level = _split_options({**self.parameters, **kwargs})
+        payload.update(top_level)
+        if options:
+            payload["options"] = options
 
         start = time.perf_counter()
         resp = await client.post("/api/chat", json=payload)
@@ -139,7 +189,10 @@ class OllamaProvider:
             "messages": messages,
             "stream": True,
         }
-        payload.update(kwargs)
+        options, top_level = _split_options({**self.parameters, **kwargs})
+        payload.update(top_level)
+        if options:
+            payload["options"] = options
 
         async with client.stream("POST", "/api/chat", json=payload) as resp:
             resp.raise_for_status()

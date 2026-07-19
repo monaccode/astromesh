@@ -88,6 +88,82 @@ async def test_ollama_health_check_unhealthy():
     assert await provider.health_check() is False
 
 
+@respx.mock
+async def test_ollama_sends_parameters_inside_options():
+    """Ollama's native /api/chat takes sampling params in a nested `options`
+    object — at the top level they are silently ignored. `max_tokens` is the
+    agent schema's name; ollama's ModelOptions calls it `num_predict`."""
+    route = respx.post("http://localhost:11434/api/chat").mock(
+        return_value=httpx.Response(200, json=OLLAMA_CHAT_RESPONSE)
+    )
+
+    provider = OllamaProvider(
+        {
+            "base_url": "http://localhost:11434",
+            "model": "llama3",
+            "parameters": {"temperature": 0.2, "max_tokens": 512, "top_p": 0.9},
+        }
+    )
+    await provider.complete(MESSAGES)
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["options"] == {"temperature": 0.2, "num_predict": 512, "top_p": 0.9}
+    # and nothing leaked to the top level, where ollama would ignore it
+    assert "temperature" not in body
+    assert "max_tokens" not in body
+
+
+@respx.mock
+async def test_ollama_call_kwargs_override_configured_parameters():
+    route = respx.post("http://localhost:11434/api/chat").mock(
+        return_value=httpx.Response(200, json=OLLAMA_CHAT_RESPONSE)
+    )
+
+    provider = OllamaProvider(
+        {
+            "base_url": "http://localhost:11434",
+            "model": "llama3",
+            "parameters": {"temperature": 0.2},
+        }
+    )
+    await provider.complete(MESSAGES, temperature=0.9)
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["options"]["temperature"] == 0.9
+
+
+@respx.mock
+async def test_ollama_non_sampling_kwargs_stay_top_level():
+    """Only sampling keys are routed into `options`; ollama's own top-level
+    fields (format, keep_alive, think) must stay where the API expects them."""
+    route = respx.post("http://localhost:11434/api/chat").mock(
+        return_value=httpx.Response(200, json=OLLAMA_CHAT_RESPONSE)
+    )
+
+    provider = OllamaProvider({"base_url": "http://localhost:11434", "model": "llama3"})
+    await provider.complete(MESSAGES, format="json", keep_alive="5m", temperature=0.4)
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["format"] == "json"
+    assert body["keep_alive"] == "5m"
+    assert body["options"] == {"temperature": 0.4}
+
+
+@respx.mock
+async def test_ollama_omits_options_when_no_parameters():
+    """No parameters → no `options` key at all, so the model keeps its own
+    Modelfile defaults instead of being handed an empty object."""
+    route = respx.post("http://localhost:11434/api/chat").mock(
+        return_value=httpx.Response(200, json=OLLAMA_CHAT_RESPONSE)
+    )
+
+    provider = OllamaProvider({"base_url": "http://localhost:11434", "model": "llama3"})
+    await provider.complete(MESSAGES)
+
+    body = json.loads(route.calls.last.request.content)
+    assert "options" not in body
+
+
 def test_ollama_supports_tools():
     provider = OllamaProvider({"model": "llama3"})
     assert provider.supports_tools() is True
