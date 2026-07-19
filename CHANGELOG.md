@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Core)
+- **`timeout` in an agent's model block now reaches the `openai_compat` provider.**
+  `build_candidate_provider()` passed `timeout` through on the `ollama` and `litellm`
+  branches but omitted it on the `openai_compat` / `openai` / `azure_openai` branch, so
+  `OpenAICompatProvider` never found the key and pinned every HTTP client to its 120s
+  default regardless of what the agent declared. Reasoning models, whose time-to-first-token
+  scales with how much work a single turn asks for, hit that ceiling and failed with a
+  generic `ModelProviderError: The LLM request timed out.` — while the error's own hint
+  ("Increase timeout in provider config") pointed at a knob that did not exist for this
+  source. `spec.orchestration.timeout_seconds` is a different clock and does not move it.
+  The VS Code agent schema (`$defs/modelConfig`, `additionalProperties: false`) did not
+  declare `timeout` either, so the now-working key would have been flagged in-editor; it is
+  declared there now. Tests cover `timeout` propagation and its 120s default across all
+  three branches together — the divergence went unnoticed because no test compared them.
+  (`astromesh/runtime/engine.py`, `vscode-extension/schemas/agent.schema.json`)
+
 ### Changed (Astromesh Forge)
 - **Forge is gated in CI for the first time** (`test-forge`), and its lint is green again.
   Nothing had ever run Forge's build, tests, or lint, so its lint sat red since 2026-03-30

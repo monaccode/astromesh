@@ -415,6 +415,11 @@
           "type": "string",
           "description": "Name of the environment variable holding the API key."
         },
+        "timeout": {
+          "type": "number",
+          "description": "HTTP client timeout in seconds for requests to this model (default 120). Raise it for reasoning models whose time-to-first-token can exceed the default.",
+          "exclusiveMinimum": 0
+        },
         "temperature": {
           "type": "number",
           "description": "Sampling temperature (top-level shorthand for parameters.temperature).",

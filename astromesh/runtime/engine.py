@@ -213,6 +213,7 @@ def build_candidate_provider(block: dict):
                 "model": model or "gpt-4o-mini",
                 "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
                 "api_key": block.get("api_key"),
+                "timeout": float(block.get("timeout", 120)),
             }
         )
     if source == "litellm":

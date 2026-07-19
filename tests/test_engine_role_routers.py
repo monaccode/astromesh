@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
+import pytest
+
 from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
@@ -55,6 +57,47 @@ def test_legacy_provider_key_maps_to_source():
 
 def test_unknown_source_returns_none():
     assert build_candidate_provider({"source": "does-not-exist", "model": "x"}) is None
+
+
+@pytest.mark.parametrize(
+    "source,model",
+    [
+        ("ollama", "llama3.1:8b"),
+        ("openai_compat", "gpt-4o-mini"),
+        ("openai", "gpt-4o-mini"),
+        ("azure_openai", "gpt-4o-mini"),
+        ("litellm", "anthropic/claude-opus-4-8"),
+    ],
+)
+def test_timeout_propagates_from_block(monkeypatch, source, model):
+    """Every source must honour an explicit `timeout` from the model block.
+
+    Regression: the openai_compat branch dropped the key, so the provider fell
+    back to its 120s default no matter what the agent declared.
+    """
+    from astromesh.providers import litellm_provider as _llm
+
+    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    prov = build_candidate_provider({"source": source, "model": model, "timeout": 600})
+    assert prov is not None
+    assert prov.timeout == 600.0
+
+
+@pytest.mark.parametrize(
+    "source,model",
+    [
+        ("ollama", "llama3.1:8b"),
+        ("openai_compat", "gpt-4o-mini"),
+        ("litellm", "anthropic/claude-opus-4-8"),
+    ],
+)
+def test_timeout_defaults_to_120_when_absent(monkeypatch, source, model):
+    from astromesh.providers import litellm_provider as _llm
+
+    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    prov = build_candidate_provider({"source": source, "model": model})
+    assert prov is not None
+    assert prov.timeout == 120.0
 
 
 def test_litellm_missing_dependency_skips_candidate(monkeypatch):
