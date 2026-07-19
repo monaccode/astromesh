@@ -86,6 +86,45 @@ def test_timeout_propagates_from_block(monkeypatch, source, model):
 @pytest.mark.parametrize(
     "source,model",
     [
+        ("openai_compat", "gpt-4o-mini"),
+        ("litellm", "anthropic/claude-opus-4-8"),
+    ],
+)
+def test_parameters_propagate_from_block(monkeypatch, source, model):
+    """`parameters` must reach the provider, not just `timeout`.
+
+    Regression: the openai_compat branch dropped this key too, so per-model
+    temperature/max_tokens declared in the agent YAML were a silent no-op.
+    """
+    from astromesh.providers import litellm_provider as _llm
+
+    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    prov = build_candidate_provider(
+        {"source": source, "model": model, "parameters": {"temperature": 0.25}}
+    )
+    assert prov is not None
+    assert prov.parameters == {"temperature": 0.25}
+
+
+@pytest.mark.parametrize(
+    "source,model",
+    [
+        ("openai_compat", "gpt-4o-mini"),
+        ("litellm", "anthropic/claude-opus-4-8"),
+    ],
+)
+def test_parameters_default_to_empty_when_absent(monkeypatch, source, model):
+    from astromesh.providers import litellm_provider as _llm
+
+    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    prov = build_candidate_provider({"source": source, "model": model})
+    assert prov is not None
+    assert prov.parameters == {}
+
+
+@pytest.mark.parametrize(
+    "source,model",
+    [
         ("ollama", "llama3.1:8b"),
         ("openai_compat", "gpt-4o-mini"),
         ("litellm", "anthropic/claude-opus-4-8"),

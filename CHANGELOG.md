@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Core)
+- **`parameters` in an agent's model block now reaches the `openai_compat` provider.**
+  The twin of the `timeout` gap fixed in v0.35.1, found while auditing whether that key
+  was the only one the three branches treated differently. It was not, and this one was
+  broken in two layers at once: `build_candidate_provider()` never passed `parameters` on
+  the `openai_compat` branch, and `OpenAICompatProvider` never read it either — so a
+  per-model `temperature` / `max_tokens` / `top_p` declared in the agent YAML was accepted
+  by the schema, which documents it as "passed verbatim to the provider", and then
+  silently discarded. Only the `litellm` branch honoured it. Configured parameters now
+  merge into the request body for both `complete()` and `stream()`, with per-call kwargs
+  taking precedence — the same `{**self.parameters, **kwargs}` order LiteLLMProvider
+  already used, so the two sources behave identically rather than merely both working.
+  `ollama` has the same gap but a different fix: its API carries sampling parameters under
+  a nested `options` object rather than at the top level, so it is deliberately left for
+  its own change instead of being guessed at here.
+  (`astromesh/providers/openai_compat.py`, `astromesh/runtime/engine.py`)
+
 ### Changed (Astromesh Forge)
 - **Forge is gated in CI for the first time** (`test-forge`), and its lint is green again.
   Nothing had ever run Forge's build, tests, or lint, so its lint sat red since 2026-03-30

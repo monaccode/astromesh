@@ -81,6 +81,7 @@ class OpenAICompatProvider:
         self.base_url: str = config.get("base_url", "https://api.openai.com/v1")
         self.model: str = config.get("model", "gpt-4o")
         self.timeout: float = config.get("timeout", 120.0)
+        self.parameters: dict = config.get("parameters", {}) or {}
 
         env_var = config.get("api_key_env", "OPENAI_API_KEY")
         api_key = config.get("api_key")
@@ -121,7 +122,9 @@ class OpenAICompatProvider:
             "messages": messages,
             "stream": False,
         }
-        payload.update(kwargs)
+        # Configured parameters first, per-call kwargs win — same precedence as
+        # LiteLLMProvider's {**self.parameters, **kwargs}.
+        payload.update({**self.parameters, **kwargs})
 
         start = time.perf_counter()
         resp = await client.post("/chat/completions", json=payload)
@@ -161,7 +164,7 @@ class OpenAICompatProvider:
             "messages": messages,
             "stream": True,
         }
-        payload.update(kwargs)
+        payload.update({**self.parameters, **kwargs})
 
         # TODO: if a streaming consumer ever needs cache tokens, the streamed usage
         # must also carry cache_read_input_tokens (from the final [DONE] chunk) like complete() does.

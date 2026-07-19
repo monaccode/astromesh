@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 import respx
@@ -125,6 +127,64 @@ async def test_openai_compat_complete():
 def test_openai_compat_supports_tools():
     provider = OpenAICompatProvider({"model": "gpt-4o", "api_key": "sk-test"})
     assert provider.supports_tools() is True
+
+
+@respx.mock
+async def test_openai_compat_sends_configured_parameters():
+    """`parameters` from the model block must reach the request body.
+
+    The schema documents them as "passed verbatim to the provider"; before this
+    they were accepted and silently dropped for this source.
+    """
+    route = respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=OPENAI_CHAT_RESPONSE)
+    )
+
+    provider = OpenAICompatProvider(
+        {
+            "model": "gpt-4o",
+            "api_key": "sk-test",
+            "parameters": {"temperature": 0.2, "max_tokens": 512},
+        }
+    )
+    await provider.complete(MESSAGES)
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["temperature"] == 0.2
+    assert body["max_tokens"] == 512
+
+
+@respx.mock
+async def test_openai_compat_call_kwargs_override_configured_parameters():
+    """Per-call kwargs win over configured parameters — same precedence as
+    LiteLLMProvider's `{**self.parameters, **kwargs}`."""
+    route = respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=OPENAI_CHAT_RESPONSE)
+    )
+
+    provider = OpenAICompatProvider(
+        {"model": "gpt-4o", "api_key": "sk-test", "parameters": {"temperature": 0.2}}
+    )
+    await provider.complete(MESSAGES, temperature=0.9)
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["temperature"] == 0.9
+
+
+@respx.mock
+async def test_openai_compat_stream_sends_configured_parameters():
+    route = respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(200, text="data: [DONE]\n\n")
+    )
+
+    provider = OpenAICompatProvider(
+        {"model": "gpt-4o", "api_key": "sk-test", "parameters": {"temperature": 0.3}}
+    )
+    async for _ in provider.stream(MESSAGES):
+        pass
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["temperature"] == 0.3
 
 
 async def test_openai_compat_missing_api_key_fails_fast(monkeypatch):
