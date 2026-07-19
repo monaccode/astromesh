@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock
 
 import pytest
@@ -57,6 +58,107 @@ def test_legacy_provider_key_maps_to_source():
 
 def test_unknown_source_returns_none():
     assert build_candidate_provider({"source": "does-not-exist", "model": "x"}) is None
+
+
+# ---------------------------------------------------------------------------
+# Declared-but-dropped keys — the failure family behind the timeout/parameters
+# bugs: a key the schema accepts, the wiring ignores, and nobody is told about.
+# ---------------------------------------------------------------------------
+
+
+def test_warns_when_a_declared_key_is_not_consumed(monkeypatch, caplog):
+    """`endpoint` means nothing to litellm (it routes by model prefix), so
+    declaring one must say so rather than disappear."""
+    from astromesh.providers import litellm_provider as _llm
+
+    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    with caplog.at_level(logging.WARNING):
+        build_candidate_provider(
+            {
+                "source": "litellm",
+                "model": "anthropic/claude-opus-4-8",
+                "endpoint": "https://example.invalid/v1",
+            }
+        )
+    assert "endpoint" in caplog.text
+    assert "litellm" in caplog.text
+
+
+def test_warns_for_key_unused_by_this_source_only(caplog):
+    """`timeout` is honoured by three sources but not by centinela; the warning
+    is per-source, not global."""
+    with caplog.at_level(logging.WARNING):
+        build_candidate_provider(
+            {"source": "centinela", "model": "c", "endpoint": "https://x", "timeout": 300}
+        )
+    assert "timeout" in caplog.text
+
+
+def test_no_warning_for_a_fully_consumed_block(caplog):
+    with caplog.at_level(logging.WARNING):
+        build_candidate_provider(
+            {
+                "source": "openai_compat",
+                "model": "gpt-4o-mini",
+                "endpoint": "https://api.openai.com/v1",
+                "api_key": "sk-x",
+                "timeout": 600,
+                "parameters": {"temperature": 0.2},
+            }
+        )
+    assert caplog.text == ""
+
+
+def test_no_warning_for_none_valued_keys_from_provider_ref(monkeypatch, caplog):
+    """resolve_block() injects endpoint/contract/... as None for every source.
+    Warning on those would fire on every providerRef block and train people to
+    ignore the warning entirely."""
+    from astromesh.providers import litellm_provider as _llm
+
+    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    with caplog.at_level(logging.WARNING):
+        build_candidate_provider(
+            {
+                "source": "litellm",
+                "model": "anthropic/claude-opus-4-8",
+                "endpoint": None,
+                "endpoint_name": None,
+                "contract": None,
+            }
+        )
+    assert caplog.text == ""
+
+
+@pytest.mark.parametrize(
+    "source,model",
+    [
+        ("ollama", "llama3.1:8b"),
+        ("openai_compat", "gpt-4o-mini"),
+        ("litellm", "anthropic/claude-opus-4-8"),
+    ],
+)
+def test_top_level_temperature_shorthand_folds_into_parameters(monkeypatch, source, model):
+    """The schema calls `temperature` a "top-level shorthand for
+    parameters.temperature"; it was never read by anything."""
+    from astromesh.providers import litellm_provider as _llm
+
+    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    prov = build_candidate_provider(
+        {"source": source, "model": model, "temperature": 0.4, "max_tokens": 256}
+    )
+    assert prov.parameters == {"temperature": 0.4, "max_tokens": 256}
+
+
+def test_explicit_parameters_win_over_shorthand():
+    prov = build_candidate_provider(
+        {
+            "source": "openai_compat",
+            "model": "gpt-4o-mini",
+            "temperature": 0.4,
+            "parameters": {"temperature": 0.9},
+        }
+    )
+    assert prov.parameters["temperature"] == 0.9
 
 
 @pytest.mark.parametrize(

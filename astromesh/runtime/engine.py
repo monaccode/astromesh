@@ -179,6 +179,67 @@ def _normalize_tool_calls(raw_calls: list) -> list[dict]:
     return normalized
 
 
+# Keys each source's wiring below actually reads. Anything else an agent
+# declares is dropped on the floor, which is how the `timeout` and `parameters`
+# bugs survived 35 releases: the schema accepted them and nobody said a word.
+# `temperature`/`max_tokens` are the documented top-level shorthand, folded into
+# `parameters` by _model_parameters() for the sources that take parameters.
+_SELECTOR_KEYS = frozenset({"source", "provider", "model", "providerRef"})
+_SHORTHAND_KEYS = ("temperature", "max_tokens")
+_PARAMETER_KEYS = frozenset({"parameters", "timeout", *_SHORTHAND_KEYS})
+_CONSUMED_KEYS: dict[str, frozenset[str]] = {
+    "ollama": _SELECTOR_KEYS | _PARAMETER_KEYS | {"endpoint"},
+    "openai_compat": _SELECTOR_KEYS | _PARAMETER_KEYS | {"endpoint", "api_key", "api_key_env"},
+    "litellm": _SELECTOR_KEYS | _PARAMETER_KEYS | {"api_key", "api_key_env"},
+    "centinela": _SELECTOR_KEYS
+    | {
+        "endpoint",
+        "endpoint_name",
+        "api_key",
+        "api_key_env",
+        "contract",
+        "invalid_policy",
+        "max_retries",
+    },
+}
+_CONSUMED_KEYS["openai"] = _CONSUMED_KEYS["openai_compat"]
+_CONSUMED_KEYS["azure_openai"] = _CONSUMED_KEYS["openai_compat"]
+
+
+def _model_parameters(block: dict) -> dict | None:
+    """Merge the top-level `temperature`/`max_tokens` shorthand into `parameters`.
+
+    The agent schema documents both as "top-level shorthand for
+    parameters.<name>", but nothing ever read them. An explicit entry under
+    `parameters` wins over the shorthand.
+    """
+    params = dict(block.get("parameters") or {})
+    for key in _SHORTHAND_KEYS:
+        if block.get(key) is not None:
+            params.setdefault(key, block[key])
+    return params or None
+
+
+def _warn_unconsumed_keys(block: dict, source: str) -> None:
+    """Warn about keys this source's wiring will ignore.
+
+    Only non-None values count: resolve_block() injects endpoint/contract/... as
+    None for every source, and warning on those would fire for every providerRef
+    block and teach everyone to tune the warning out.
+    """
+    consumed = _CONSUMED_KEYS.get(source)
+    if consumed is None:
+        return
+    ignored = sorted(k for k, v in block.items() if v is not None and k not in consumed)
+    if ignored:
+        logger.warning(
+            "model block for source %r declares %s, which this source does not use; "
+            "the value(s) will be ignored",
+            source,
+            ", ".join(repr(k) for k in ignored),
+        )
+
+
 def build_candidate_provider(block: dict):
     """Build a provider instance from a candidate/legacy block.
 
@@ -196,13 +257,15 @@ def build_candidate_provider(block: dict):
     if not source:
         source = "litellm" if "/" in model else "openai_compat"
 
+    _warn_unconsumed_keys(block, source)
+
     if source == "ollama":
         base = (block.get("endpoint") or "http://localhost:11434").rstrip("/")
         return OllamaProvider(
             config={
                 "base_url": base,
                 "model": model or "llama3",
-                "parameters": block.get("parameters"),
+                "parameters": _model_parameters(block),
                 "timeout": float(block.get("timeout", 120)),
             }
         )
@@ -214,7 +277,7 @@ def build_candidate_provider(block: dict):
                 "model": model or "gpt-4o-mini",
                 "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
                 "api_key": block.get("api_key"),
-                "parameters": block.get("parameters"),
+                "parameters": _model_parameters(block),
                 "timeout": float(block.get("timeout", 120)),
             }
         )
@@ -234,7 +297,7 @@ def build_candidate_provider(block: dict):
                 "model": model or "gpt-4o",
                 "api_key": block.get("api_key"),
                 "api_key_env": block.get("api_key_env"),
-                "parameters": block.get("parameters"),
+                "parameters": _model_parameters(block),
                 "timeout": float(block.get("timeout", 120)),
             }
         )

@@ -76,9 +76,27 @@
           "description": "LLM model configuration.",
           "additionalProperties": false,
           "properties": {
+            "extra": {
+              "type": "object",
+              "description": "Further legacy candidates, keyed by an arbitrary name. Each value is a model block and joins the 'default' role after primary and fallback.",
+              "additionalProperties": {
+                "$ref": "#/$defs/modelConfig"
+              }
+            },
+            "default": {
+              "$ref": "#/$defs/roleConfig",
+              "description": "Candidates for the 'default' role — the models used when no role is requested."
+            },
+            "roles": {
+              "type": "object",
+              "description": "Per-role model candidates, so a planner and a worker can run on different models within one agent. Using 'default'/'roles' switches the whole block to the role schema; 'primary'/'fallback'/'extra' are then ignored.",
+              "additionalProperties": {
+                "$ref": "#/$defs/roleConfig"
+              }
+            },
             "primary": {
               "$ref": "#/$defs/modelConfig",
-              "description": "Primary model configuration."
+              "description": "Primary model configuration (legacy schema; collapses into the 'default' role)."
             },
             "fallback": {
               "$ref": "#/$defs/modelConfig",
@@ -384,36 +402,97 @@
     }
   },
   "$defs": {
+    "roleConfig": {
+      "type": "object",
+      "description": "Candidate models for one role, tried in order by the role's router.",
+      "additionalProperties": false,
+      "properties": {
+        "candidates": {
+          "type": "array",
+          "description": "Model blocks for this role, in preference order.",
+          "items": {
+            "$ref": "#/$defs/modelConfig"
+          }
+        },
+        "strategy": {
+          "type": "string",
+          "description": "Routing strategy for this role (default 'cost_optimized').",
+          "enum": [
+            "cost_optimized",
+            "latency_optimized",
+            "quality_first",
+            "round_robin",
+            "capability_match"
+          ]
+        }
+      }
+    },
     "modelConfig": {
       "type": "object",
       "description": "Configuration for a single LLM model endpoint.",
       "additionalProperties": false,
       "properties": {
-        "provider": {
+        "source": {
           "type": "string",
-          "description": "LLM provider identifier.",
+          "description": "Adapter that serves this model. Preferred over the legacy 'provider' key. Omitted, it is inferred: 'litellm' for prefixed models (containing '/'), 'openai_compat' otherwise.",
           "enum": [
             "ollama",
             "openai",
             "openai_compat",
-            "vllm",
-            "llamacpp",
-            "huggingface",
-            "onnx"
+            "azure_openai",
+            "litellm",
+            "centinela"
           ]
+        },
+        "provider": {
+          "type": "string",
+          "description": "Legacy alias for 'source'. Prefer 'source' in new agents.",
+          "enum": [
+            "ollama",
+            "openai",
+            "openai_compat",
+            "azure_openai",
+            "litellm",
+            "centinela"
+          ]
+        },
+        "providerRef": {
+          "type": "string",
+          "description": "Name of an entry in the provider registry to resolve this block from. The registry supplies source/endpoint/api_key/contract; keys set here override it."
         },
         "model": {
           "type": "string",
-          "description": "Model name or tag (e.g. 'llama3.1:8b', 'gpt-4o-mini')."
+          "description": "Model name or tag (e.g. 'llama3.1:8b', 'gpt-4o-mini'). For 'litellm', the provider-prefixed form (e.g. 'anthropic/claude-opus-4-8')."
         },
         "endpoint": {
           "type": "string",
-          "description": "Base URL for the model API.",
+          "description": "Base URL for the model API. Not used by 'litellm', which routes on the model prefix.",
           "format": "uri"
+        },
+        "endpoint_name": {
+          "type": "string",
+          "description": "Named endpoint, used by the 'centinela' source."
+        },
+        "api_key": {
+          "type": "string",
+          "description": "API key as a literal value. Prefer 'api_key_env' so the key stays out of the YAML."
         },
         "api_key_env": {
           "type": "string",
           "description": "Name of the environment variable holding the API key."
+        },
+        "contract": {
+          "type": "object",
+          "description": "Label contract for the 'centinela' source."
+        },
+        "invalid_policy": {
+          "type": "string",
+          "description": "What to do with a response that violates the contract ('centinela' source)."
+        },
+        "max_retries": {
+          "type": "integer",
+          "description": "Retries on an invalid response ('centinela' source).",
+          "minimum": 0
         },
         "timeout": {
           "type": "number",

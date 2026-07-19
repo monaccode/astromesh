@@ -36,7 +36,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its OpenAI-compat `/v1` endpoint), so declaring one now logs a warning naming it instead
   of dropping it in silence. `options` is omitted entirely when no parameters are set, so
   models keep their Modelfile defaults.
+  **Behaviour change worth knowing about:** five of the seven agents this repo ships
+  declare `temperature`/`max_tokens` on an ollama model and none of them had ever taken
+  effect. They do now — `astromesh-copilot` (0.3), `autolink-parts` (0.1),
+  `sales-qualifier` (0.3), `support-agent` (0.2) and `whatsapp-assistant` (0.4) were all
+  running on ollama's default temperature of 0.8, and their `max_tokens` now caps output
+  where nothing capped it before. This is what the YAML always asked for, but it is a real
+  change in what those agents do.
   (`astromesh/providers/ollama_provider.py`, `astromesh/runtime/engine.py`)
+
+### Added (Core)
+- **A model block that declares a key its source ignores now says so.** All three bugs
+  above shared one shape — a key the schema accepts, the wiring drops, and nobody is told
+  — and the only defence was someone reading the three branches side by side, which is
+  what nobody did for 35 releases. `build_candidate_provider()` now knows which keys each
+  source consumes and warns about the rest, naming the source and the keys. Only non-None
+  values count: `resolve_block()` injects `endpoint`/`contract`/... as None for every
+  source, and warning on those would fire for every `providerRef` block and teach everyone
+  to tune the warning out. It finds live cases already — `endpoint` means nothing to
+  `litellm`, which routes on the model prefix, and `timeout` means nothing to `centinela`.
+  Verified silent against all seven agents this repo ships.
+  (`astromesh/runtime/engine.py`)
+- **The `temperature` / `max_tokens` top-level shorthand actually works now.** The schema
+  has always described both as "top-level shorthand for parameters.<name>" and nothing
+  ever read them; they were one more silently dropped key. They now fold into `parameters`
+  for the sources that take parameters, with an explicit entry under `parameters` winning.
+  (`astromesh/runtime/engine.py`)
+
+### Fixed (VS Code extension)
+- **The agent schema and the runtime now agree, in both directions.** The schema had drifted
+  far enough to be actively misleading. It advertised four sources — `vllm`, `llamacpp`,
+  `huggingface`, `onnx` — that `build_candidate_provider()` has no branch for: the provider
+  classes exist but nothing instantiates them, so an agent declaring one passed the editor
+  and was dropped at load with "not registered; skipping". Those are gone. In the other
+  direction it forbade keys the runtime reads (`source`, `api_key`, `providerRef`, and
+  centinela's `endpoint_name`/`contract`/`invalid_policy`/`max_retries`) and rejected the
+  entire per-role model schema (`default`, `roles`) shipped in v0.29.0, plus legacy `extra`
+  — so `role-router-demo.agent.yaml`, an agent in this repo, showed as invalid in-editor.
+  All declared now, with a `roleConfig` definition for the role blocks.
+  New tests hold both directions shut: every agent the repo ships must validate against the
+  schema, the schema may not offer a source the engine cannot build, and it may not forbid a
+  key the engine consumes. Confirmed the guards fail on the exact regressions they describe.
+  (`vscode-extension/schemas/agent.schema.json`, `tests/test_agent_schema.py`)
 
 ### Changed (Astromesh Forge)
 - **Forge is gated in CI for the first time** (`test-forge`), and its lint is green again.
