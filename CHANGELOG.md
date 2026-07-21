@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.36.0] - 2026-07-21
+
 ### Added (Core)
 - **`usage.by_model`: desglose de consumo por modelo en cada corrida.** Una sola
   invocación toca habitualmente varios modelos —patrones que consultan a más de uno
