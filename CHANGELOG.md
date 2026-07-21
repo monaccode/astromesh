@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recibe sus agentes por `POST /v1/agents`— quedaba con `_rag_specs` vacío de forma
   permanente, así que ningún agente registrado después podía resolver su `knowledge_base`.
   La carga de RAG ahora ocurre antes de esa salida.
+- **Los templates de prompt de un agente ya no pisan los de otro.** `PromptEngine` es una
+  única instancia compartida por el runtime y `_build_agent` registraba los
+  `prompts.templates` de cada agente por nombre pelado: dos agentes que declararan un
+  template homónimo colisionaban, y ganaba el último construido. El registro ahora lleva
+  el nombre del agente como alcance. Defecto latente —ningún camino de ejecución lee hoy
+  esos templates— cerrado antes de que un runtime multi-agente lo vuelva alcanzable.
 - **`parameters` in an agent's model block now reaches the `openai_compat` provider.**
   The twin of the `timeout` gap fixed in v0.35.1, found while auditing whether that key
   was the only one the three branches treated differently. It was not, and this one was

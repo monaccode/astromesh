@@ -591,7 +591,7 @@ class AgentRuntime:
         pattern = pattern_cls()
         prompts = spec.get("prompts", {})
         for name, tmpl in prompts.get("templates", {}).items():
-            self._prompt_engine.register_template(name, tmpl)
+            self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
         return Agent(
             name=metadata["name"],
             version=metadata.get("version", "0.1.0"),
