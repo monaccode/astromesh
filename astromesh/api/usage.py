@@ -32,6 +32,13 @@ def usage_from_trace(trace: dict | None) -> dict | None:
         total_in += attrs.get("input_tokens", 0)
         total_out += attrs.get("output_tokens", 0)
 
+        # El runtime escribe el modelo como atributo directo del span llm.complete
+        # (engine.py, llm_span.set_attribute("model", response.model)). Hasta v0.35.1
+        # esto solo se leía de metadata.model —la rama heredada— así que con proveedores
+        # nativos el campo volvía siempre vacío.
+        if not model_used and isinstance(attrs.get("model"), str):
+            model_used = attrs["model"]
+
         # Legacy / external providers nest them under metadata.usage.
         span_meta = attrs.get("metadata", {})
         if isinstance(span_meta, dict) and "usage" in span_meta:

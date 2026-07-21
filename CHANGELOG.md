@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   template homónimo colisionaban, y ganaba el último construido. El registro ahora lleva
   el nombre del agente como alcance. Defecto latente —ningún camino de ejecución lee hoy
   esos templates— cerrado antes de que un runtime multi-agente lo vuelva alcanzable.
+- **`usage.model` ya no vuelve vacío con proveedores nativos.** `usage_from_trace` leía el
+  modelo solo de `metadata.model` —la forma que usan los proveedores externos heredados—
+  mientras que el runtime lo escribe como atributo directo del span `llm.complete`. Toda
+  corrida sobre un proveedor nativo reportaba `"model": ""`, en `POST /v1/agents/{n}/run`
+  y en el WebSocket por igual. Ahora se lee el atributo directo, con prioridad sobre el
+  heredado.
 - **`parameters` in an agent's model block now reaches the `openai_compat` provider.**
   The twin of the `timeout` gap fixed in v0.35.1, found while auditing whether that key
   was the only one the three branches treated differently. It was not, and this one was
