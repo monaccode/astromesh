@@ -348,12 +348,17 @@ class AgentRuntime:
         # Skip agent loading if agents service is disabled
         if self.service_manager and not self.service_manager.is_enabled("agents"):
             return
-        agents_dir = self._config_dir / "agents"
-        if not agents_dir.exists():
-            return
+        # RAG antes de la salida temprana: un runtime que se administra por API arranca
+        # sin agentes en disco, y hasta v0.35.1 eso lo dejaba con _rag_specs vacío para
+        # siempre — los agentes registrados después no podían resolver su base de
+        # conocimiento. load_all() ya tolera un directorio inexistente.
         from astromesh.rag.loader import RAGPipelineLoader
 
         self._rag_specs = RAGPipelineLoader(str(self._config_dir / "rag")).load_all()
+
+        agents_dir = self._config_dir / "agents"
+        if not agents_dir.exists():
+            return
         configs = []
         for f in agents_dir.glob("*.agent.yaml"):
             configs.append(yaml.safe_load(f.read_text()))

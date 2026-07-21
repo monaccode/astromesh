@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed (Core)
+- **Los pipelines de RAG ya no se pierden cuando el runtime arranca sin agentes en disco.**
+  `bootstrap()` salía temprano al no encontrar `config/agents/`, y esa salida ocurría antes
+  de cargar `config/rag/*.rag.yaml`. Un runtime administrado por API —que arranca vacío y
+  recibe sus agentes por `POST /v1/agents`— quedaba con `_rag_specs` vacío de forma
+  permanente, así que ningún agente registrado después podía resolver su `knowledge_base`.
+  La carga de RAG ahora ocurre antes de esa salida.
 - **`parameters` in an agent's model block now reaches the `openai_compat` provider.**
   The twin of the `timeout` gap fixed in v0.35.1, found while auditing whether that key
   was the only one the three branches treated differently. It was not, and this one was
