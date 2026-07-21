@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Core)
+- **`usage.by_model`: desglose de consumo por modelo en cada corrida.** Una sola
+  invocación toca habitualmente varios modelos —patrones que consultan a más de uno
+  (supervisor, pipeline, swarm, parallel_fan_out), enrutamiento por rol, y fallback entre
+  proveedores— y el campo plano `usage.model` no tiene un valor correcto posible en ese
+  caso. `usage_from_trace` ahora agrupa el consumo por `(provider, model, role)` y reporta
+  `calls`, `tokens_in`, `tokens_out` y `cost` de cada uno, ordenado por consumo
+  descendente. Los campos planos se conservan como totales. Lo reciben por igual
+  `POST /v1/agents/{n}/run` y el WebSocket, que ya compartían la función.
+
 ### Fixed (Core)
 - **Los pipelines de RAG ya no se pierden cuando el runtime arranca sin agentes en disco.**
   `bootstrap()` salía temprano al no encontrar `config/agents/`, y esa salida ocurría antes

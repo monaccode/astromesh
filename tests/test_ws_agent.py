@@ -143,7 +143,12 @@ def test_includes_usage_when_the_trace_reports_tokens(client, mock_runtime):
         ws.send_json({"query": "hola"})
         events = _drain(ws)
 
-    assert events[-1]["usage"] == {"tokens_in": 10, "tokens_out": 5, "model": ""}
+    assert events[-1]["usage"] == {
+        "tokens_in": 10,
+        "tokens_out": 5,
+        "model": "",
+        "by_model": [],
+    }
 
 
 def test_usage_is_none_when_the_trace_reports_nothing(client, mock_runtime):
