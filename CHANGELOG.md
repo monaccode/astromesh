@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `calls`, `tokens_in`, `tokens_out` y `cost` de cada uno, ordenado por consumo
   descendente. Los campos planos se conservan como totales. Lo reciben por igual
   `POST /v1/agents/{n}/run` y el WebSocket, que ya compartían la función.
+  El campo se declara como `usage.by_model` en el modelo de respuesta de
+  `POST /v1/agents/{n}/run` (`ModelUsage`), y el WebSocket lo publica en el diccionario de
+  `usage` sin cambios adicionales.
 
 ### Fixed (Core)
 - **Los pipelines de RAG ya no se pierden cuando el runtime arranca sin agentes en disco.**

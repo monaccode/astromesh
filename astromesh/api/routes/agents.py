@@ -42,10 +42,29 @@ class AgentRunRequest(BaseModel):
     context: dict | None = None
 
 
+class ModelUsage(BaseModel):
+    """Consumo atribuido a un modelo dentro de una corrida.
+
+    Una invocación toca habitualmente varios modelos: por el patrón de
+    orquestación, por el enrutamiento por rol, o por fallback entre proveedores.
+    """
+
+    provider: str = ""
+    model: str = ""
+    role: str = "default"
+    calls: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost: float = 0.0
+
+
 class UsageInfo(BaseModel):
     tokens_in: int = 0
     tokens_out: int = 0
+    # Primer modelo visto. Sin valor correcto posible en una corrida multi-modelo;
+    # se conserva por compatibilidad. Usar by_model para atribuir consumo.
     model: str = ""
+    by_model: list[ModelUsage] = []
 
 
 class AgentRunResponse(BaseModel):
