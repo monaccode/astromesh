@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Normalización de parámetros de tools mudada a `astromesh/core/schema.py` para compartirla
+  entre el loader de agentes y el marco de integraciones.
+
 ## [v0.36.0] - 2026-07-21
 
 ### Added (Core)
