@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added (Backend)
 
 - Marco de integraciones: modelos y validación del manifest `integration.yaml`.
+- Marco de integraciones: interpolación restringida de `{param}` con guardia anti-traversal.
+- Marco de integraciones: esquemas de autenticación bearer, header, query, basic y none.
+- Marco de integraciones: clasificación de errores (`error_kind`) del contrato con Nexus.
+- Marco de integraciones: carga del escape `handler: python:modulo:funcion`.
 
 ### Changed
 
