@@ -43,6 +43,23 @@ packages = ["astromesh_orbit"]
 line-length = 100
 target-version = "py312"
 
+# Mismo criterio que el core: el gate se declara, no se hereda del default de
+# ruff, para que una versión nueva no pueda ampliarlo sola.
+[tool.ruff.lint]
+select = [
+    "F", "E4", "E7", "E9", "W",
+    "I", "UP", "B", "C4", "SIM", "RET",
+    "PERF", "FURB", "PIE", "FLY",
+    "DTZ", "ASYNC", "LOG", "G",
+    "PT", "N", "PTH", "ISC", "RUF", "BLE",
+    "PLE", "PLW",
+    "S102", "S110", "S112",
+    "TRY002", "TRY004",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ASYNC230", "ASYNC240", "DTZ001", "DTZ005", "BLE001", "S110", "SIM105", "TRY002", "RUF012"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = [

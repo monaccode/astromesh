@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from astromesh_orbit.terraform.runner import TerraformRunner, TerraformNotFoundError
+from astromesh_orbit.terraform.runner import TerraformNotFoundError, TerraformRunner
 
 
 @pytest.fixture

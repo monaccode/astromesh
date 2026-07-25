@@ -1,9 +1,9 @@
 """Shared fixtures for Orbit tests."""
 
 from pathlib import Path
+
 import pytest
 import yaml
-
 
 SAMPLE_ORBIT_YAML = {
     "apiVersion": "astromesh/v1",

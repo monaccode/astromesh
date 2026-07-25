@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -83,7 +84,7 @@ class GCPProvider:
         return ValidationResult(ok=ok, checks=checks)
 
     async def generate(self, config: OrbitConfig, output_dir: Path) -> list[Path]:
-        output_dir.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(output_dir.mkdir, parents=True, exist_ok=True)
         ctx = self._build_context(config)
         generated = []
         for tmpl_name in TEMPLATE_FILES:
@@ -157,7 +158,7 @@ class GCPProvider:
         await self._tf.destroy(output_dir, auto_approve=True)
 
     async def eject(self, config: OrbitConfig, output_dir: Path) -> Path:
-        output_dir.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(output_dir.mkdir, parents=True, exist_ok=True)
         ctx = self._build_context(config)
         for tmpl_name in TEMPLATE_FILES:
             tmpl = self._jinja.get_template(tmpl_name)
