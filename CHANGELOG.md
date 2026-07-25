@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Marco de integraciones: esquemas de autenticación bearer, header, query, basic y none.
 - Marco de integraciones: clasificación de errores (`error_kind`) del contrato con Nexus.
 - Marco de integraciones: carga del escape `handler: python:modulo:funcion`.
+- Marco de integraciones: catálogo auto-descubierto en `astromesh/integrations/catalog/`.
+- Marco de integraciones: resolución de credenciales por corrida (bundle de Nexus) con
+  respaldo en `config/connections.yaml`.
+- Marco de integraciones: ejecutor HTTP declarativo con paginación cursor/offset, selección
+  de respuesta y escape a handlers Python.
 
 ### Changed
 
