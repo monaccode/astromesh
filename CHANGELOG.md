@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- Marco de integraciones: modelos y validación del manifest `integration.yaml`.
+
 ### Changed
 
 - Normalización de parámetros de tools mudada a `astromesh/core/schema.py` para compartirla
