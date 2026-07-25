@@ -47,8 +47,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CI se ponía en rojo por calendario y no por commits: `uv.lock` está en `.gitignore` y CI
   resuelve dependencias frescas en cada corrida, así que ruff 0.16.0 —que amplió su ruleset
-  por defecto— entró solo y sumó 259 hallazgos sin que cambiara una línea. Se pone techo
-  `<0.16` en el core y en Orbit. Adoptar 0.16 queda anotado en `docs/DEBT.md`.
+  por defecto— entró solo y sumó 259 hallazgos sin que cambiara una línea. El core y Orbit
+  declaran ahora `[tool.ruff.lint] select` explícito: el gate deja de heredarse del default
+  del linter, así que una versión nueva no puede ampliarlo sola. Se adoptó 0.16 y se quitó
+  el techo. Las dos reglas excluidas (`PLW0603`, `N818`) llevan el motivo escrito al lado.
+- Los loaders de RAG, de recursos RAG y de workflows descartaban en silencio cualquier
+  archivo inválido: un YAML mal escrito hacía desaparecer el pipeline sin dejar rastro
+  para diagnosticarlo. Ahora registran cuál se omitió y por qué.
+- `predict()` del registro de modelos devolvía `None` para un formato que `load` no
+  instancia (`SAFETENSORS` llega a `READY` sin instancia), así que el llamador no podía
+  distinguirlo de una predicción vacía. Ahora levanta.
+- Las tools de archivo leían y escribían bloqueando el event loop que además atiende la
+  API: un archivo grande frenaba a todas las corridas en vuelo. Pasan por
+  `asyncio.to_thread`.
+- Los turnos de conversación se fechaban con `datetime.utcnow()` (naive). La columna de
+  Postgres es `TIMESTAMPTZ` y venía asumiendo UTC en silencio. Ahora se usa
+  `datetime.now(UTC)`; los backends de texto guardan el offset explícito y
+  `fromisoformat` sigue leyendo las filas viejas.
+- Dos `except` mentían sobre lo que atrapaban: `(KeyError, Exception)` y
+  `(json.JSONDecodeError, Exception)`, donde el segundo miembro absorbe al primero.
+- 24 excepciones se re-lanzaban dentro de un `except` sin encadenar, perdiendo el
+  traceback original.
+- Orbit: `provision`/`eject` creaban el directorio con un `mkdir` bloqueante dentro de la
+  corrutina, y el test de config esperaba `Exception` a secas —cualquier fallo del parseo
+  lo daba por bueno—; ahora espera `ValidationError`.
 
 - `GET /v1/tools` devolvía una lista vacía fija; ahora reporta builtins y acciones de
   integración.
@@ -64,6 +86,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Normalización de parámetros de tools mudada a `astromesh/core/schema.py` para compartirla
   entre el loader de agentes y el marco de integraciones.
+- `pytest.raises(ValueError)` sin `match=` en 8 tests: cualquier `ValueError` del camino los
+  daba por buenos. Ahora verifican el mensaje real.
+- Los esquemas de tools (`parameters`, `config_schema`) se anotan `ClassVar`, que es lo que
+  son. Los enums `str, Enum` pasan a `StrEnum`.
 
 ## [v0.36.0] - 2026-07-21
 
