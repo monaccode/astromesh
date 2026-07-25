@@ -305,7 +305,7 @@ class WorkflowEngine:
                 await self._store.save(run)
                 i += 1
 
-        except Exception:
+        except Exception:  # noqa: BLE001  (el fallo del paso se reporta como estado, no se propaga)
             status = "failed"
             run.status = status
             run.updated_at = datetime.now(UTC).isoformat()

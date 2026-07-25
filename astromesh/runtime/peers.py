@@ -57,7 +57,7 @@ class PeerClient:
         try:
             resp = await self._http.get(f"{peer['url']}/v1/health")
             return resp.status_code == 200
-        except Exception:
+        except Exception:  # noqa: BLE001  (cualquier fallo del sondeo significa 'no sano')
             return False
 
     async def health_check_all(self) -> dict[str, bool]:
@@ -89,7 +89,9 @@ class PeerClient:
                     resp = await self._http.request(method, f"{next_peer['url']}{path}", **kwargs)
                     resp.raise_for_status()
                     return resp.json()
-                except Exception:
+                # Un peer caído no puede cortar el ciclo; se prueba el siguiente.
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("peer %s falló: %s", next_peer["url"], exc)
                     continue
             raise RuntimeError(f"All peers for service '{service}' failed") from e
 

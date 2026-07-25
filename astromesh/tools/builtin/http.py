@@ -1,3 +1,4 @@
+from typing import ClassVar
 from urllib.parse import urlparse
 
 import httpx
@@ -10,7 +11,7 @@ _BLOCKED_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"}
 class HttpRequestTool(BuiltinTool):
     name = "http_request"
     description = "Make HTTP requests (GET, POST, PUT, DELETE) to external APIs"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "method": {
@@ -48,7 +49,7 @@ class HttpRequestTool(BuiltinTool):
                 resp = await client.request(method, url, **kwargs)
                 try:
                     resp_body = resp.json()
-                except Exception:
+                except Exception:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     resp_body = resp.text[:max_size]
                 return ToolResult(
                     success=True,
@@ -59,14 +60,14 @@ class HttpRequestTool(BuiltinTool):
                     },
                     metadata={"url": url, "method": method},
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
 
 
 class GraphQLQueryTool(BuiltinTool):
     name = "graphql_query"
     description = "Execute GraphQL queries against an endpoint"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "endpoint": {"type": "string"},
@@ -95,5 +96,5 @@ class GraphQLQueryTool(BuiltinTool):
                     data=resp.json(),
                     metadata={"endpoint": endpoint, "status_code": resp.status_code},
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))

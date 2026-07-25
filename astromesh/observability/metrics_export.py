@@ -124,7 +124,7 @@ class MetricsManager:
                     tool = attrs.get("tool", "unknown")
                     if self._tools is not None:
                         self._tools.add(1, {"tool": tool, "status": status})
-        except Exception:
+        except Exception:  # noqa: BLE001, S110  (telemetría: loguear el fallo del exportador arriesga realimentar este mismo camino)
             pass
 
     def flush(self, timeout_millis: int = 5000) -> None:

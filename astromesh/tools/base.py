@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 
 @dataclass
@@ -39,8 +39,8 @@ class BuiltinTool(ABC):
 
     name: str = ""
     description: str = ""
-    parameters: dict = {}
-    config_schema: dict = {}
+    parameters: ClassVar[dict] = {}
+    config_schema: ClassVar[dict] = {}
 
     def __init__(self, config: dict | None = None):
         self.config = config or {}

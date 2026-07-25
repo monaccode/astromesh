@@ -26,16 +26,16 @@ async def list_tools():
         for name in loader.list_available()
     ]
     for manifest in default_catalog().all():
-        for action in manifest.actions:
-            tools.append(
-                {
-                    "name": f"{manifest.slug}_{action.name}",
-                    "description": action.description,
-                    "type": "integration",
-                    "integration": manifest.slug,
-                    "writes": action.mutates,
-                }
-            )
+        tools.extend(
+            {
+                "name": f"{manifest.slug}_{action.name}",
+                "description": action.description,
+                "type": "integration",
+                "integration": manifest.slug,
+                "writes": action.mutates,
+            }
+            for action in manifest.actions
+        )
     return {"tools": tools, "count": len(tools)}
 
 

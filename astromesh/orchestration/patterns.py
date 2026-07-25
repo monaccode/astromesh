@@ -162,7 +162,10 @@ class ParallelFanOutPattern(OrchestrationPattern):
             subtasks = _loads(decompose_resp.content)
             if not isinstance(subtasks, list):
                 subtasks = [query]
-        except (json_mod.JSONDecodeError, Exception):
+        # El modelo puede devolver cualquier cosa: si no es una lista de subtareas
+        # se sigue con la consulta original. Decía `(JSONDecodeError, Exception)`,
+        # una tupla donde el segundo miembro ya cubría al primero.
+        except Exception:  # noqa: BLE001
             subtasks = [query]
 
         # Execute subtasks in parallel

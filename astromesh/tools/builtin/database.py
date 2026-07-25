@@ -2,6 +2,7 @@
 
 import re
 import sqlite3
+from typing import ClassVar
 
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 
@@ -14,7 +15,7 @@ _WRITE_PATTERNS = re.compile(
 class SqlQueryTool(BuiltinTool):
     name = "sql_query"
     description = "Execute SQL queries against a database (SQLite)"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "query": {"type": "string"},
@@ -71,5 +72,5 @@ class SqlQueryTool(BuiltinTool):
                 data={"affected_rows": cursor.rowcount},
                 metadata={"db": db_path},
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))

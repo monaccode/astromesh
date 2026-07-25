@@ -128,7 +128,7 @@ async def receive_agent_message(
     raw_body = await request.body()
     try:
         payload = await request.json()
-    except Exception:
+    except Exception:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
         return Response(status_code=400, content="Invalid JSON")
 
     # Phase 1: signature validation
@@ -209,29 +209,29 @@ async def stream_channel_events(request: Request, agent: str | None = Query(None
             # b) the generator terminates gracefully in test environments where the
             #    HTTP transport never sends a real disconnect signal.
             #
-            # Pattern: try to dequeue for up to POLL_INTERVAL seconds; if nothing
-            # arrives for IDLE_EXIT_AFTER consecutive polls, close the stream so
+            # Pattern: try to dequeue for up to poll_interval seconds; if nothing
+            # arrives for idle_exit_after consecutive polls, close the stream so
             # the EventSource client can reconnect.  Between reconnects the ring
             # buffer preserves all events, so no data is lost.
             # Tune via env vars for production vs. test environments.
             import os
 
-            POLL_INTERVAL = float(os.getenv("ASTROMESH_SSE_POLL_INTERVAL", "1.0"))
-            KEEPALIVE_EVERY = int(os.getenv("ASTROMESH_SSE_KEEPALIVE_EVERY", "15"))
-            IDLE_EXIT_AFTER = int(os.getenv("ASTROMESH_SSE_IDLE_EXIT_AFTER", "30"))
+            poll_interval = float(os.getenv("ASTROMESH_SSE_POLL_INTERVAL", "1.0"))
+            keepalive_every = int(os.getenv("ASTROMESH_SSE_KEEPALIVE_EVERY", "15"))
+            idle_exit_after = int(os.getenv("ASTROMESH_SSE_IDLE_EXIT_AFTER", "30"))
 
             idle_ticks = 0
             while True:
                 if await request.is_disconnected():
                     break
                 try:
-                    event = await asyncio.wait_for(q.get(), timeout=POLL_INTERVAL)
+                    event = await asyncio.wait_for(q.get(), timeout=poll_interval)
                     idle_ticks = 0
                 except TimeoutError:
                     idle_ticks += 1
-                    if idle_ticks % KEEPALIVE_EVERY == 0:
+                    if idle_ticks % keepalive_every == 0:
                         yield ": keepalive\n\n"
-                    if idle_ticks >= IDLE_EXIT_AFTER:
+                    if idle_ticks >= idle_exit_after:
                         # Let the client reconnect; buffer preserves recent events.
                         break
                     continue

@@ -9,6 +9,7 @@ que pidió el archivo.
 import asyncio
 import os
 from pathlib import Path
+from typing import ClassVar
 
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 
@@ -24,7 +25,7 @@ def _is_path_allowed(path: str, allowed_paths: list[str]) -> bool:
 class ReadFileTool(BuiltinTool):
     name = "read_file"
     description = "Read the contents of a local file (text, CSV, JSON)"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "path": {"type": "string"},
@@ -48,14 +49,14 @@ class ReadFileTool(BuiltinTool):
             )
         except FileNotFoundError:
             return ToolResult(success=False, data=None, error=f"File not found: {path}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
 
 
 class WriteFileTool(BuiltinTool):
     name = "write_file"
     description = "Write content to a local file"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "path": {"type": "string"},
@@ -81,5 +82,5 @@ class WriteFileTool(BuiltinTool):
                 data={"path": path, "bytes_written": len(content.encode(encoding))},
                 metadata={},
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))

@@ -76,7 +76,7 @@ class ONNXProvider:
         try:
             self._load_model()
             return True
-        except Exception:
+        except Exception:  # noqa: BLE001  (cualquier fallo del sondeo significa 'no sano')
             return False
 
     def supports_tools(self) -> bool:

@@ -40,9 +40,8 @@ class GuardrailsEngine:
                 if _HAS_NATIVE_GUARDRAILS and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
                     tf = RustTopicFilter(blocked)
                     found = tf.contains_blocked(result)
-                    if found is not None:
-                        if rule.get("action", "warn") == "block":
-                            raise ValueError(f"Blocked topic detected: {found}")
+                    if found is not None and rule.get("action", "warn") == "block":
+                        raise ValueError(f"Blocked topic detected: {found}")
                 else:
                     for topic in blocked:
                         if topic.lower() in result.lower() and (

@@ -118,6 +118,26 @@ select = [
     "TRY002", "TRY004",
 ]
 
+# Dos reglas del set de arriba chocan con decisiones deliberadas del repo. Se
+# apagan acá, con el motivo, en vez de repartir `noqa` que nadie sabría revisar.
+ignore = [
+    # Los módulos de rutas exponen `router` + `set_runtime(runtime)` y guardan el
+    # runtime en un singleton de módulo: es la arquitectura que documenta
+    # CLAUDE.md y la usan los 16 sitios que PLW0603 marca. Sacar el `global`
+    # significa rediseñar el cableado de la API, no callar un linter.
+    "PLW0603",
+    # Renombrar `CredentialMissing` -> `CredentialMissingError` (y equivalentes)
+    # toca 45 referencias, entre ellas la spec aprobada del marco de
+    # integraciones. Es un cambio de nombres públicos: se decide aparte.
+    "N818",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Los tests difieren del código de librería por diseño: bloquear el loop no
+# molesta a nadie, las fechas ingenuas alcanzan, y atrapar todo o dejar pasar
+# una excepción suele ser el montaje del caso, no un descuido.
+"tests/**" = ["ASYNC230", "ASYNC240", "DTZ001", "DTZ005", "BLE001", "S110", "SIM105", "TRY002", "RUF012"]
+
 
 [tool.commitizen]
 name = "cz_conventional_commits"

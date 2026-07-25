@@ -47,7 +47,7 @@ class StepExecutor:
                 return result
             except TimeoutError:
                 last_error = f"Step '{step.name}' timed out after {step.timeout_seconds}s"
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  (el fallo del paso se reporta como estado, no se propaga)
                 last_error = str(exc)
 
             if attempt < max_attempts - 1:

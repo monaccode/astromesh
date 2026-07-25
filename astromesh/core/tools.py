@@ -221,7 +221,7 @@ class ToolRegistry:
                     template = env.from_string(tpl_str)
                     rendered = template.render(data=_DotDict(arguments))
                     transform_ctx = json_mod.loads(rendered)
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     return {"error": f"Context transform failed: {exc}"}
             parent_trace_id = (context or {}).get("trace_id")
             return await self._runtime.run(
@@ -265,9 +265,12 @@ class ToolRegistry:
     def get_tool_schemas(self, agent_permissions=None) -> list[dict]:
         schemas = []
         for name, tool in self._tools.items():
-            if agent_permissions and tool.permissions:
-                if not any(p in agent_permissions for p in tool.permissions):
-                    continue
+            if (
+                agent_permissions
+                and tool.permissions
+                and not any(p in agent_permissions for p in tool.permissions)
+            ):
+                continue
             schemas.append(
                 {
                     "type": "function",

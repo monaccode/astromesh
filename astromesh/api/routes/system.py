@@ -109,7 +109,7 @@ async def system_doctor():
                             status="ok" if healthy else "degraded",
                             message=f"Provider {name} health check",
                         )
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001  (cualquier fallo del sondeo significa 'no sano')
                         checks[f"provider:{key}"] = CheckResult(status="error", message=str(e))
 
     # Check peers

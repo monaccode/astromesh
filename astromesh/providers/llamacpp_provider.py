@@ -98,7 +98,7 @@ class LlamaCppProvider:
             client = await self._get_client()
             resp = await client.get("/health")
             return resp.status_code == 200
-        except Exception:
+        except Exception:  # noqa: BLE001  (cualquier fallo del sondeo significa 'no sano')
             return False
 
     def supports_tools(self) -> bool:

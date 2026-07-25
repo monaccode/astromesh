@@ -25,6 +25,9 @@ from astromesh.runtime.provider_registry import load_provider_registry, resolve_
 
 logger = logging.getLogger(__name__)
 
+# Colores del DFS que detecta ciclos entre agentes: sin visitar / en la pila / cerrado.
+_WHITE, _GRAY, _BLACK = 0, 1, 2
+
 
 def _emit(on_event, event: dict) -> None:
     """Hand one event to the caller's observer, if there is one.
@@ -216,7 +219,7 @@ def build_candidate_provider(block: dict):
 
         try:
             _llm._import_litellm()
-        except Exception:
+        except Exception:  # noqa: BLE001  (best-effort: este camino nunca puede levantar)
             logger.warning(
                 "litellm not installed; skipping candidate model %r (install the 'litellm' extra)",
                 model,
@@ -289,9 +292,7 @@ class AgentRuntime:
         agents_dir = self._config_dir / "agents"
         if not agents_dir.exists():
             return
-        configs = []
-        for f in agents_dir.glob("*.agent.yaml"):
-            configs.append(yaml.safe_load(f.read_text()))
+        configs = [yaml.safe_load(f.read_text()) for f in agents_dir.glob("*.agent.yaml")]
         self._detect_circular_refs(configs)
         for config in configs:
             name = config.get("metadata", {}).get("name", "<unknown>")
@@ -319,23 +320,22 @@ class AgentRuntime:
             graph[name] = agent_tools
 
         # DFS cycle detection
-        WHITE, GRAY, BLACK = 0, 1, 2
-        color = dict.fromkeys(graph, WHITE)
+        color = dict.fromkeys(graph, _WHITE)
 
         def dfs(node, path):
-            color[node] = GRAY
+            color[node] = _GRAY
             for neighbor in graph.get(node, []):
                 if neighbor not in color:
                     continue  # references external agent, skip
-                if color[neighbor] == GRAY:
+                if color[neighbor] == _GRAY:
                     cycle = [*path, neighbor]
                     raise ValueError(f"Circular agent reference detected: {' -> '.join(cycle)}")
-                if color[neighbor] == WHITE:
+                if color[neighbor] == _WHITE:
                     dfs(neighbor, [*path, neighbor])
-            color[node] = BLACK
+            color[node] = _BLACK
 
         for node in graph:
-            if color[node] == WHITE:
+            if color[node] == _WHITE:
                 dfs(node, [node])
 
     def _normalize_model_spec(self, model_spec: dict) -> dict[str, dict]:
@@ -370,9 +370,11 @@ class AgentRuntime:
                 candidates.append(block)
         extras = model_spec.get("extra")
         if isinstance(extras, dict):
-            for block in extras.values():
-                if isinstance(block, dict) and (block.get("provider") or block.get("source")):
-                    candidates.append(block)
+            candidates.extend(
+                block
+                for block in extras.values()
+                if isinstance(block, dict) and (block.get("provider") or block.get("source"))
+            )
         strategy = (model_spec.get("routing") or {}).get("strategy", "cost_optimized")
         roles["default"] = {"candidates": candidates, "strategy": strategy}
         return roles
@@ -384,8 +386,8 @@ class AgentRuntime:
         for role_name, cfg in roles.items():
             router = ModelRouter({"strategy": cfg.get("strategy", "cost_optimized")})
             registered = 0
-            for i, block in enumerate(cfg.get("candidates", [])):
-                block = resolve_block(block, self._provider_registry)
+            for i, raw_block in enumerate(cfg.get("candidates", [])):
+                block = resolve_block(raw_block, self._provider_registry)
                 try:
                     prov = build_candidate_provider(block)
                 except Exception:
@@ -853,7 +855,7 @@ class Agent:
                         if _m is not None:
                             _req_bytes = len(_json.dumps(full_messages, default=str))
                             _m.record(self.name, getattr(response, "model", "unknown"), _req_bytes)
-                    except Exception:
+                    except Exception:  # noqa: BLE001, S110  (métrica best-effort: no puede alterar ni ensuciar la corrida)
                         pass
                     if hasattr(response, "usage") and response.usage:
                         llm_span.set_attribute(

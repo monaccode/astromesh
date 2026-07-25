@@ -1,10 +1,13 @@
 import copy
+import logging
 from pathlib import Path
 
 import yaml
 from fastapi import APIRouter, HTTPException
 
 from astromesh.rag.loader import spec_from_raw
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -26,8 +29,11 @@ def _seed() -> None:
         try:
             raw = yaml.safe_load(f.read_text())
             spec = spec_from_raw(raw)
-        except Exception:
-            continue  # skip invalid files
+        # Un archivo inválido no puede tumbar el arranque, pero saltarlo en
+        # silencio deja al usuario sin saber por qué su pipeline no aparece.
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("se omite %s: no se pudo cargar (%s)", f.name, exc)
+            continue
         _pipelines[spec.name] = raw
 
 

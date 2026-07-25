@@ -1,11 +1,14 @@
 # astromesh/workflow/loader.py
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import yaml
 
 from astromesh.workflow.models import RetryConfig, StepSpec, WorkflowSpec
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowLoader:
@@ -23,8 +26,10 @@ class WorkflowLoader:
             try:
                 wf = self.load_file(f)
                 workflows[wf.name] = wf
-            except Exception:
-                continue  # skip invalid files
+            # Se salta el workflow inválido, pero queda registrado cuál y por qué.
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("se omite %s: no se pudo cargar (%s)", f.name, exc)
+                continue
         return workflows
 
     def load_file(self, path: Path) -> WorkflowSpec:
@@ -37,9 +42,7 @@ class WorkflowLoader:
     def _parse(self, raw: dict) -> WorkflowSpec:
         metadata = raw.get("metadata", {})
         spec = raw.get("spec", {})
-        steps = []
-        for step_raw in spec.get("steps", []):
-            steps.append(self._parse_step(step_raw))
+        steps = [self._parse_step(step_raw) for step_raw in spec.get("steps", [])]
         return WorkflowSpec(
             name=metadata["name"],
             version=metadata.get("version", "0.1.0"),

@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime
+from typing import ClassVar
 from zoneinfo import ZoneInfo
 
 from jinja2 import BaseLoader, Environment, TemplateSyntaxError, UndefinedError
@@ -10,7 +11,7 @@ from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 class DatetimeNowTool(BuiltinTool):
     name = "datetime_now"
     description = "Get the current date and time with optional timezone"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "timezone": {
@@ -24,7 +25,10 @@ class DatetimeNowTool(BuiltinTool):
         tz_name = arguments.get("timezone", "UTC")
         try:
             tz = ZoneInfo(tz_name)
-        except (KeyError, Exception):
+        # ZoneInfoNotFoundError hereda de KeyError; un nombre mal formado da
+        # ValueError. La tupla anterior decía `(KeyError, Exception)`, donde el
+        # segundo miembro se tragaba todo y volvía inútil al primero.
+        except (KeyError, ValueError):
             tz = UTC
             tz_name = "UTC"
         now = datetime.now(tz)
@@ -42,7 +46,7 @@ class DatetimeNowTool(BuiltinTool):
 class JsonTransformTool(BuiltinTool):
     name = "json_transform"
     description = "Transform JSON data using a Jinja2 template that outputs JSON"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "data": {"description": "The input data to transform"},
@@ -70,7 +74,7 @@ class JsonTransformTool(BuiltinTool):
 class CacheStoreTool(BuiltinTool):
     name = "cache_store"
     description = "Temporary key-value cache for sharing data between tool calls"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "action": {

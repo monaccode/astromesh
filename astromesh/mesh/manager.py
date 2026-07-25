@@ -119,7 +119,7 @@ class MeshManager:
                     len(self._cluster.nodes),
                 )
                 return
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  (un peer caído no puede cortar el ciclo)
                 logger.warning("Failed to join via seed %s: %s", seed_url, e)
                 continue
 
@@ -153,7 +153,7 @@ class MeshManager:
                     data = resp.json()
                     incoming = [NodeState.from_dict(n) for n in data.get("nodes", [])]
                     self._cluster.merge(incoming)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  (un peer caído no puede cortar el ciclo)
                 logger.debug("Gossip to %s failed: %s", target.name, e)
 
     async def heartbeat_once(self) -> None:

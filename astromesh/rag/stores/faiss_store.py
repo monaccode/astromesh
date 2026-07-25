@@ -76,9 +76,8 @@ class FAISSStore(VectorStore):
             if doc is None:
                 continue
 
-            if filters:
-                if not all(doc["metadata"].get(fk) == fv for fk, fv in filters.items()):
-                    continue
+            if filters and not all(doc["metadata"].get(fk) == fv for fk, fv in filters.items()):
+                continue
 
             results.append(
                 {
