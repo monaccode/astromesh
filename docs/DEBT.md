@@ -33,29 +33,32 @@ checks y en el gossip del mesh, atrapar todo **es** el contrato.
 
 ---
 
-## Versionar `uv.lock` (o `uv sync --frozen` en CI)
+## ~~Versionar `uv.lock`~~ — CERRADA el 2026-07-25
 
-**Estado:** pendiente. Es una decisión de política de dependencias.
+`uv.lock` salió de `.gitignore` y se versionan los cuatro: la raíz,
+`astromesh-node/`, `astromesh-cli/` y `astromesh-orbit/`. Cada uno es un
+proyecto uv independiente con su propia resolución.
 
-### Qué pasa
+CI pasó a `uv sync --locked` en los seis sitios que instalaban dependencias
+(`ci.yml` ×4, `centinela-endpoints.yml`, `centinela-sync.yml`). `--locked`, no
+`--frozen`: `--frozen` usaría el lock a ciegas, mientras que `--locked` **falla**
+si alguien editó un `pyproject.toml` sin re-lockear, con un mensaje que dice qué
+correr. Verificado plantando una dependencia extra sin re-lockear: el sync corta
+con "The lockfile at `uv.lock` needs to be updated".
 
-`uv.lock` está en `.gitignore` (línea 25) y CI corre `uv sync --extra all` sin
-lock, así que **resuelve dependencias frescas en cada corrida**. El gate de CI
-puede ponerse rojo por calendario, no por commits.
+Los locks son universales (cubren win32/no-win32 y Python 3.12/3.13/3.14), así
+que el mismo archivo sirve para la matriz ubuntu/macos/windows.
 
-Ya pasó una vez: ruff saltó de 0.15 a 0.16 solo, amplió su ruleset por defecto y
-dejó rojo cualquier PR abierto después del 2026-07-21, con el código intacto.
-Ese caso puntual está cerrado (ahora el ruleset es explícito), pero **la clase
-entera del problema sigue abierta** para todas las demás dependencias: pytest,
-httpx, pydantic, fastapi. Cualquiera puede cambiar un default, endurecer una
-validación o deprecar algo, y romper CI sin que nadie haya tocado nada.
+**Cómo se actualiza una dependencia ahora:** `uv lock` en el directorio del
+proyecto que cambió, y el lock va commiteado junto al cambio de `pyproject.toml`.
+Para subir una en particular: `uv lock --upgrade-package <nombre>`.
 
-### Qué hay que decidir
+**Lo que esto cambia de fondo:** el gate de CI ya no puede romperse por
+calendario. Una dependencia nueva entra sólo cuando alguien la mete en un commit,
+y ese commit se puede revisar y revertir. El precio es que las actualizaciones
+son ahora un acto explícito — si nadie corre `uv lock`, el repo se queda quieto.
+Conviene revisar los locks cada tanto, o poner un bot que abra el PR.
 
-Versionar `uv.lock` da builds reproducibles y actualizaciones deliberadas (un PR
-que dice "subo httpx"), a cambio de mantener el lock. La alternativa es seguir
-resolviendo fresco y aceptar que CI es también un canario de upstream — que es
-útil, pero entonces el fallo hay que poder distinguirlo del fallo propio.
-
-No lo decidimos acá porque afecta a todo el repo y a cómo se releasea, no sólo
-al linter.
+**No afecta a `astromesh-os`:** su `build-deb.sh` instala con pip, que ignora
+`uv.lock` por completo. Las dos restricciones de esa integración siguen igual
+(ver la nota de `runtime.pin`).
