@@ -24,7 +24,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_ORG: ${{ vars.HF_ORG }}
         run: |
-          uv sync --extra test
+          uv sync --locked --extra test
           uv run python -c '
           from astromesh_node.cli.commands.centinela import apply_endpoints_command
           apply_endpoints_command(

@@ -45,8 +45,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- CI se ponía en rojo por calendario y no por commits: `uv.lock` está en `.gitignore` y CI
-  resuelve dependencias frescas en cada corrida, así que ruff 0.16.0 —que amplió su ruleset
+- **`uv.lock` se versiona** (raíz, `astromesh-node/`, `astromesh-cli/`, `astromesh-orbit/`) y
+  CI instala con `uv sync --locked` en los seis sitios que resolvían dependencias. Sin lock,
+  CI resolvía fresco en cada corrida y cualquier dependencia podía romper el gate sin que
+  nadie tocara el código. `--locked` además falla si un `pyproject.toml` cambió sin
+  re-lockear, en vez de resolver por su cuenta y ocultarlo.
+- CI se ponía en rojo por calendario y no por commits: `uv.lock` estaba en `.gitignore` y CI
+  resolvía dependencias frescas en cada corrida, así que ruff 0.16.0 —que amplió su ruleset
   por defecto— entró solo y sumó 259 hallazgos sin que cambiara una línea. El core y Orbit
   declaran ahora `[tool.ruff.lint] select` explícito: el gate deja de heredarse del default
   del linter, así que una versión nueva no puede ampliarlo sola. Se adoptó 0.16 y se quitó

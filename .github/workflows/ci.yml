@@ -35,8 +35,11 @@ jobs:
         with:
           enable-cache: false
 
+      # --locked, no a secas: usa el uv.lock versionado y falla si quedó
+      # desincronizado de pyproject.toml. Sin esto CI resuelve fresco en cada
+      # corrida y el gate se rompe por calendario, no por commits.
       - name: Install dependencies
-        run: uv sync --extra all
+        run: uv sync --locked --extra all
 
       - name: Lint
         run: uv run ruff check astromesh/ tests/
@@ -64,7 +67,7 @@ jobs:
       - name: Run tests
         working-directory: astromesh-node
         run: |
-          uv sync --extra test
+          uv sync --locked --extra test
           uv run pytest -v
 
   test-cli:
@@ -84,7 +87,7 @@ jobs:
       - name: Run tests
         working-directory: astromesh-cli
         run: |
-          uv sync --extra test
+          uv sync --locked --extra test
           uv run pytest -v
 
   test-orbit:
@@ -100,7 +103,7 @@ jobs:
           enable-cache: false
       - name: Install dependencies
         working-directory: astromesh-orbit
-        run: uv sync --extra dev
+        run: uv sync --locked --extra dev
 
       - name: Lint
         working-directory: astromesh-orbit
