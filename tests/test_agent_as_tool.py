@@ -1,6 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock
-from astromesh.core.tools import ToolRegistry, ToolType, ToolDefinition
+
+import pytest
+
+from astromesh.core.tools import ToolDefinition, ToolRegistry, ToolType
 
 
 class TestToolTypeAgent:

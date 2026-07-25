@@ -5,7 +5,7 @@ from jsonschema import ValidationError
 
 pytest.importorskip("nebula", reason="astromesh-nebula (optional sibling repo) not installed")
 
-from nebula.catalog import validate_lock  # noqa: E402
+from nebula.catalog import validate_lock
 
 
 def _valid_lock() -> dict:

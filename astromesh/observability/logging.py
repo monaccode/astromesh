@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import IO, Any
 
 
@@ -12,7 +12,7 @@ class StructuredLogger:
 
     def _emit(self, level: str, event: str, **kwargs: Any):
         record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": level,
             "event": event,
             **kwargs,

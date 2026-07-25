@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from jinja2 import BaseLoader, Environment, TemplateSyntaxError, UndefinedError
@@ -25,7 +25,7 @@ class DatetimeNowTool(BuiltinTool):
         try:
             tz = ZoneInfo(tz_name)
         except (KeyError, Exception):
-            tz = timezone.utc
+            tz = UTC
             tz_name = "UTC"
         now = datetime.now(tz)
         return ToolResult(
@@ -91,13 +91,13 @@ class CacheStoreTool(BuiltinTool):
         if action == "set":
             cache[key] = arguments.get("value")
             return ToolResult(success=True, data=None, metadata={"action": "set", "key": key})
-        elif action == "get":
+        if action == "get":
             return ToolResult(
                 success=True,
                 data=cache.get(key),
                 metadata={"action": "get", "key": key},
             )
-        elif action == "delete":
+        if action == "delete":
             cache.pop(key, None)
             return ToolResult(success=True, data=None, metadata={"action": "delete", "key": key})
         return ToolResult(success=False, data=None, error=f"Unknown action: {action}")

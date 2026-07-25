@@ -15,16 +15,16 @@ from astromesh.api.routes import (
     dashboard,
     integrations,
     memory,
-    tools,
+    mesh,
+    metrics,
     rag,
     rag_resources,
-    whatsapp,
     system,
-    mesh,
-    traces,
-    metrics,
-    workflows,
     templates,
+    tools,
+    traces,
+    whatsapp,
+    workflows,
 )
 from astromesh.logging_config import setup_logging
 

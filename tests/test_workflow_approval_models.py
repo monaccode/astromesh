@@ -25,8 +25,9 @@ def test_workflow_run_pending_approval_defaults_none():
 
 
 def test_loader_parses_approval_step():
-    from pathlib import Path
     import tempfile
+    from pathlib import Path
+
     from astromesh.workflow.loader import WorkflowLoader
 
     yaml_text = (

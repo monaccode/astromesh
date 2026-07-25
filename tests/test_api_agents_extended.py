@@ -1,10 +1,11 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 
 from astromesh.api.main import app
 from astromesh.api.routes import agents as agents_route
-from unittest.mock import AsyncMock, MagicMock
 
 
 @pytest.fixture(autouse=True)

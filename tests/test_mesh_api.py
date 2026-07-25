@@ -28,19 +28,19 @@ def _make_node(node_id: str = "node-2", name: str = "peer") -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def mesh_manager():
     config = MeshConfig(enabled=True, node_name="test-node", bind="127.0.0.1:8000")
     svc = ServiceManager({"api": True})
     return MeshManager(config, svc)
 
 
-@pytest.fixture()
+@pytest.fixture
 def elector(mesh_manager):
     return LeaderElector(mesh_manager)
 
 
-@pytest.fixture()
+@pytest.fixture
 def client(mesh_manager, elector):
     mesh_routes.set_mesh(mesh_manager, elector)
     yield TestClient(app)

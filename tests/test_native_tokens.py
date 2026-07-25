@@ -1,6 +1,6 @@
 """Tests for native token budget strategy."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from astromesh.core.memory import ConversationTurn
 
@@ -14,7 +14,7 @@ class TestTokenBudget:
                 ConversationTurn(
                     role="user",
                     content=content,
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     token_count=tc,
                 )
             )

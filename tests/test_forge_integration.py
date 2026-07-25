@@ -55,7 +55,7 @@ def forge_config_dir(tmp_path, monkeypatch):
     (templates_dir / "test-tpl.template.yaml").write_text(yaml.dump(tpl))
 
     monkeypatch.setenv("ASTROMESH_CONFIG_DIR", str(config_dir))
-    yield config_dir
+    return config_dir
 
 
 async def test_full_forge_flow(forge_config_dir):

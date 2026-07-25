@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import AsyncIterator, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 class RoutingStrategy(str, Enum):

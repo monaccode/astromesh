@@ -6,8 +6,8 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, Query, Request, Response
 
-from astromesh.channels.whatsapp import WhatsAppClient
 from astromesh.channels.media import build_multimodal_query
+from astromesh.channels.whatsapp import WhatsAppClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["channels"])

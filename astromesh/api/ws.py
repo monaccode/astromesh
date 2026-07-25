@@ -86,7 +86,7 @@ async def _run_and_stream(websocket: WebSocket, agent_name: str, session_id: str
         while not run_task.done() or not queue.empty():
             try:
                 event = await asyncio.wait_for(queue.get(), timeout=_POLL_INTERVAL)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             await websocket.send_json(event)
     finally:

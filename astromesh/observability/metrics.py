@@ -21,7 +21,7 @@ class MetricsCollector:
 
     def _setup_metrics(self):
         try:
-            from prometheus_client import Counter, Histogram, Gauge
+            from prometheus_client import Counter, Gauge, Histogram
 
             prefix = self._config.prefix
             self._counters["agent_runs"] = Counter(

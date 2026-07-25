@@ -48,10 +48,10 @@ class TelemetryManager:
 
         try:
             from opentelemetry import trace
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+            from opentelemetry.sdk.resources import Resource
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
-            from opentelemetry.sdk.resources import Resource
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
             resource = Resource.create({"service.name": self._config.service_name})
             self._provider = TracerProvider(resource=resource)

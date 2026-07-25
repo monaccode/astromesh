@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod
 import asyncio as aio
-from dataclasses import dataclass
 import json as json_mod
 import os
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 try:
     from astromesh._native import rust_json_loads as _native_json_loads

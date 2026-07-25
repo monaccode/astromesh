@@ -227,7 +227,7 @@ async def stream_channel_events(request: Request, agent: str | None = Query(None
                 try:
                     event = await asyncio.wait_for(q.get(), timeout=POLL_INTERVAL)
                     idle_ticks = 0
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     idle_ticks += 1
                     if idle_ticks % KEEPALIVE_EVERY == 0:
                         yield ": keepalive\n\n"

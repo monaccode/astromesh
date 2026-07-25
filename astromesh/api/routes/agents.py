@@ -227,7 +227,7 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             answer=result.get("answer", ""),
             steps=_steps_to_dicts(result.get("steps")),
             usage=usage,
-            trace=trace if trace else None,
+            trace=trace or None,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -1,5 +1,6 @@
-from astromesh.orchestration.patterns import OrchestrationPattern, AgentStep
 import json as json_mod
+
+from astromesh.orchestration.patterns import AgentStep, OrchestrationPattern
 
 
 class SupervisorPattern(OrchestrationPattern):

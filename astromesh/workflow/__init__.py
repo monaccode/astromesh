@@ -6,11 +6,13 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from astromesh.observability.tracing import TracingContext, SpanStatus
+from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.workflow.executor import StepExecutor
 from astromesh.workflow.loader import WorkflowLoader
 from astromesh.workflow.models import (
     StepStatus as WfStepStatus,
+)
+from astromesh.workflow.models import (
     StepType,
     WorkflowRun,
     WorkflowRunResult,
@@ -243,8 +245,7 @@ class WorkflowEngine:
                     status = "failed"
                     run.error = result.error
                     break
-                else:
-                    tracing.finish_span(step_span)
+                tracing.finish_span(step_span)
 
                 # Store result in context for subsequent steps
                 context["steps"][step.name] = {"output": result.output}

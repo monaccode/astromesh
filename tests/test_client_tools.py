@@ -12,7 +12,6 @@ import yaml
 from astromesh.core.tools import ToolRegistry, ToolType
 from astromesh.runtime.engine import Agent, AgentRuntime
 
-
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -257,7 +256,7 @@ def _template_files():
     return sorted((REPO_ROOT / "config" / "templates").glob("*.template.yaml"))
 
 
-def _template_tools(path: "pathlib.Path") -> list:
+def _template_tools(path: pathlib.Path) -> list:
     """Templates nest the real agent spec under template.agent_config.spec.tools,
     not spec.tools directly — a different shape than config/agents/*.agent.yaml."""
     spec = yaml.safe_load(path.read_text())

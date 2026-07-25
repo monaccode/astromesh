@@ -109,7 +109,7 @@ class ModelRegistry:
 
         if info.format == ModelFormat.ONNX:
             return info.instance.run(None, input_data)
-        elif info.format == ModelFormat.PYTORCH:
+        if info.format == ModelFormat.PYTORCH:
             import torch
 
             with torch.no_grad():

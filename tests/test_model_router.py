@@ -9,9 +9,11 @@ from astromesh.errors import ModelProviderError
 from astromesh.providers.base import (
     CompletionChunk,
     CompletionResponse,
-    CompletionResponse as CR,
     ProviderHealth,
     RoutingStrategy,
+)
+from astromesh.providers.base import (
+    CompletionResponse as CR,
 )
 
 

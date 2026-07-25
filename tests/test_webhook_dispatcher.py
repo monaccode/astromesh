@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from astromesh.channels.base import ChannelMessage
 from astromesh.channels.webhook_dispatcher import (
-    WebhookEventDispatcher,
     DefaultWebhookEventHandler,
     StatusUpdateHandler,
+    WebhookEventDispatcher,
 )
 from astromesh.channels.whatsapp import WhatsAppClient
 

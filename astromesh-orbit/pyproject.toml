@@ -24,9 +24,9 @@ all = ["astromesh-orbit[gcp]"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
-    # Mismo techo que el core: ruff 0.16.0 amplió su ruleset por defecto y trae
-    # 13 hallazgos nuevos acá sin que cambie una línea. Ver docs/DEBT.md.
-    "ruff>=0.4,<0.16",
+    # Sin techo: igual que el core, el ruleset va declarado en `[tool.ruff.lint]
+    # select` de este pyproject, así que una versión nueva no puede ampliarlo sola.
+    "ruff>=0.16",
 ]
 
 [project.entry-points."astromeshctl.plugins"]

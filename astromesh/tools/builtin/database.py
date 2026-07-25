@@ -64,13 +64,12 @@ class SqlQueryTool(BuiltinTool):
                     data={"columns": columns, "rows": rows, "row_count": len(rows)},
                     metadata={"db": db_path},
                 )
-            else:
-                conn.commit()
-                conn.close()
-                return ToolResult(
-                    success=True,
-                    data={"affected_rows": cursor.rowcount},
-                    metadata={"db": db_path},
-                )
+            conn.commit()
+            conn.close()
+            return ToolResult(
+                success=True,
+                data={"affected_rows": cursor.rowcount},
+                metadata={"db": db_path},
+            )
         except Exception as e:
             return ToolResult(success=False, data=None, error=str(e))

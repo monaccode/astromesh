@@ -1,7 +1,7 @@
 import uuid
 
-import numpy as np
 import faiss
+import numpy as np
 
 from astromesh.core.memory import SemanticBackend, SemanticMemory
 

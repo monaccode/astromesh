@@ -14,10 +14,10 @@ from astromesh.core.tools import ToolRegistry
 from astromesh.integrations import default_catalog
 from astromesh.integrations.credentials import CredentialResolver
 from astromesh.orchestration.patterns import (
-    ReActPattern,
-    PlanAndExecutePattern,
     ParallelFanOutPattern,
     PipelinePattern,
+    PlanAndExecutePattern,
+    ReActPattern,
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
@@ -260,7 +260,7 @@ class AgentRuntime:
         self._config_dir = Path(config_dir)
         self._provider_registry = load_provider_registry(self._config_dir)
         self._rag_specs = {}
-        self._agents: dict[str, "Agent"] = {}
+        self._agents: dict[str, Agent] = {}
         self._agent_status: dict[str, str] = {}
         self._agent_configs: dict[str, dict] = {}
         self._prompt_engine = PromptEngine()
@@ -320,7 +320,7 @@ class AgentRuntime:
 
         # DFS cycle detection
         WHITE, GRAY, BLACK = 0, 1, 2
-        color = {name: WHITE for name in graph}
+        color = dict.fromkeys(graph, WHITE)
 
         def dfs(node, path):
             color[node] = GRAY
@@ -778,8 +778,9 @@ class Agent:
         connections=None,
     ):
         from datetime import datetime
+
         from astromesh.core.memory import ConversationTurn
-        from astromesh.observability.tracing import TracingContext, SpanStatus
+        from astromesh.observability.tracing import SpanStatus, TracingContext
 
         tracing = TracingContext(agent_name=self.name, session_id=session_id)
         if parent_trace_id:
@@ -845,6 +846,7 @@ class Agent:
                     # Fase 4.4c: attribute the outbound provider-request bytes to this agent.
                     try:
                         import json as _json
+
                         from astromesh.observability.metrics_export import get_manager as _gm
 
                         _m = _gm()

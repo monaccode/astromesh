@@ -30,7 +30,7 @@ def _mgr_with_fakes(sink):
 
 
 def _build_ctx():
-    from astromesh.observability.tracing import TracingContext, SpanStatus
+    from astromesh.observability.tracing import SpanStatus, TracingContext
 
     ctx = TracingContext(agent_name="rec-agent", session_id="s1")
     root = ctx.start_span("agent.run", {"agent": "rec-agent", "session": "s1"})

@@ -1,13 +1,14 @@
 # tests/test_workflow_models.py
 import pytest
+
 from astromesh.workflow.models import (
-    WorkflowSpec,
-    StepSpec,
-    StepResult,
     RetryConfig,
-    WorkflowRunResult,
-    StepType,
+    StepResult,
+    StepSpec,
     StepStatus,
+    StepType,
+    WorkflowRunResult,
+    WorkflowSpec,
 )
 
 

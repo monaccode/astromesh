@@ -1,13 +1,12 @@
 import hashlib
 import hmac
 import json
-
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from astromesh.channels.whatsapp import WhatsAppClient
-from astromesh.channels.base import ChannelMessage, MediaAttachment
+import pytest
 
+from astromesh.channels.base import ChannelMessage, MediaAttachment
+from astromesh.channels.whatsapp import WhatsAppClient
 
 # ---------------------------------------------------------------------------
 # Fixtures

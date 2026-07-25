@@ -1,7 +1,7 @@
-from astromesh.ml.model_registry import ModelRegistry, ModelFormat, ModelStatus
+from astromesh.ml.model_registry import ModelFormat, ModelRegistry, ModelStatus
 from astromesh.ml.serving.onnx_runtime import ONNXModelServer, ONNXServingConfig
 from astromesh.ml.serving.torch_serve import TorchModelServer, TorchServingConfig
-from astromesh.ml.training.classifier import ClassifierTrainer, ClassifierConfig
+from astromesh.ml.training.classifier import ClassifierConfig, ClassifierTrainer
 from astromesh.ml.training.embeddings import EmbeddingTrainer, EmbeddingTrainerConfig
 
 

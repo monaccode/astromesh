@@ -374,8 +374,9 @@ async def test_role_map_remaps_role(monkeypatch):
 
 
 def test_demo_agent_builds_role_routers(monkeypatch):
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     from astromesh.providers import litellm_provider as _llm
 

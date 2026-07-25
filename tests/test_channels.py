@@ -1,12 +1,10 @@
 """Tests for base channel abstraction and media content builder."""
 
 import base64
-
 from unittest.mock import AsyncMock
 
 from astromesh.channels.base import ChannelAdapter, ChannelMessage, MediaAttachment
 from astromesh.channels.media import build_multimodal_query
-
 
 # ---------------------------------------------------------------------------
 # MediaAttachment tests

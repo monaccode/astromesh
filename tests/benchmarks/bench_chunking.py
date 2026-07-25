@@ -1,6 +1,7 @@
 """Benchmarks for chunking strategies."""
 
 import os
+
 import pytest
 
 

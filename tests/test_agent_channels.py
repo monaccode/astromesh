@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from astromesh.api.routes.agent_channels import router, set_runtime
-from astromesh.channels.event_bus import channel_event_bus, ChannelEvent as BusEvent
-from astromesh.channels.resolver import resolve_env_vars, get_channel_adapter
+from astromesh.channels.event_bus import ChannelEvent as BusEvent
+from astromesh.channels.event_bus import channel_event_bus
+from astromesh.channels.resolver import get_channel_adapter, resolve_env_vars
 
 
 def test_resolve_env_vars_replaces_references(monkeypatch):
@@ -80,6 +81,7 @@ def mock_runtime():
 @pytest.fixture
 def client(mock_runtime):
     from fastapi import FastAPI
+
     from astromesh.channels.resolver import clear_cache
 
     app = FastAPI()
