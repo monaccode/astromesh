@@ -9,7 +9,10 @@ import yaml
 from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
+from astromesh.core.schema import InvalidToolParameters, normalize_tool_parameters
 from astromesh.core.tools import ToolRegistry
+from astromesh.integrations import default_catalog
+from astromesh.integrations.credentials import CredentialResolver
 from astromesh.orchestration.patterns import (
     ReActPattern,
     PlanAndExecutePattern,
@@ -65,79 +68,6 @@ def _make_builtin_handler(tool_instance, agent_name, rag_pipeline=None):
         return result.to_dict()
 
     return _handler
-
-
-class _InvalidToolParameters(Exception):
-    """Raised by _normalize_tool_parameters when `parameters` is present but not
-    a mapping (e.g. a YAML list, string, int or bool). Carries the offending
-    type's name so the caller can name it in a warning."""
-
-    def __init__(self, actual_type: str):
-        self.actual_type = actual_type
-        super().__init__(actual_type)
-
-
-def _normalize_tool_parameters(parameters: dict | None) -> dict | None:
-    """Turn a YAML-authored 'parameters' block into valid JSON Schema.
-
-    Every shipped agent YAML writes tool parameters in a shorthand — a flat
-    mapping of param name -> {type, description}, e.g.:
-
-        parameters:
-          company_name:
-            type: string
-            description: "Company name to look up"
-
-    That is not JSON Schema: it has no `type: object` and no `properties`
-    wrapper. Passed through untouched, it reaches the model exactly as
-    written, and a provider that validates function-calling schemas
-    (Anthropic's input_schema requires `type: object`; OpenAI strict mode
-    rejects the shape outright) 400s the whole request — not just that one
-    tool. This wraps the shorthand into `{"type": "object", "properties":
-    {...}}` so what the model receives is always valid.
-
-    Idempotent: the real invariant is "a mapping that declares `type: object`
-    is already JSON Schema" — full stop, whether or not it also carries a
-    `properties` key. A bare `{type: object}` (a valid no-arg tool schema) is
-    returned with `properties` defaulted to `{}`; any other keys already
-    present (`properties`, `required`, `additionalProperties`, ...) are kept
-    exactly as written. So a YAML author who writes real JSON Schema is never
-    rewritten out from under them.
-
-    `None` (parameters omitted from YAML entirely) passes through as `None`
-    so each register_* call's own default parameter set still applies.
-
-    The shorthand has no way to express `required`; nothing is inferred, so
-    a shorthand-normalized schema simply has no `required` key (valid JSON
-    Schema — `required` is optional).
-
-    Raises `_InvalidToolParameters` if `parameters` is neither `None` nor a
-    mapping — YAML can express `parameters: [a, b]` or a bare scalar just as
-    easily as a mapping, and blindly calling `.get()` on it would raise
-    `AttributeError` and take the whole agent down with it (caught by
-    `load_agents`'s broad `except`, but that degrades an agent to `draft`
-    over one malformed tool declaration). The caller in the tools loop below
-    catches this and treats it like any other unsupported tool shape: warns,
-    naming the agent and the tool, and skips just that tool.
-
-    Lives here, not in ToolRegistry.register_client_tool, because this is
-    where YAML enters the runtime for every tool type — 'client' is the
-    first to hit this bug because it's the first type where YAML-authored
-    'parameters' reach the model verbatim, but 'agent' would hit the exact
-    same bug the moment any YAML declares 'parameters' on an agent tool.
-    A normalizer placed in register_client_tool would only ever cover
-    client tools; this one is available to any branch of the tools loop
-    below that decides it needs it.
-    """
-    if parameters is None:
-        return None
-    if not isinstance(parameters, dict):
-        raise _InvalidToolParameters(type(parameters).__name__)
-    if parameters.get("type") == "object":
-        normalized = dict(parameters)
-        normalized.setdefault("properties", {})
-        return normalized
-    return {"type": "object", "properties": parameters}
 
 
 def _truncate(text: str | None, limit: int) -> str:
@@ -504,6 +434,12 @@ class AgentRuntime:
         top_k = knowledge.get("top_k", rag_spec.retrieval.get("top_k", 5))
         return AgentRAG(pipeline, top_k=top_k)
 
+    def _credential_resolver(self) -> CredentialResolver:
+        """Un resolver por runtime; lee config/connections.yaml una sola vez."""
+        if getattr(self, "_resolver", None) is None:
+            self._resolver = CredentialResolver(self._config_dir / "connections.yaml")
+        return self._resolver
+
     def _build_agent(self, config):
         spec = config["spec"]
         metadata = config["metadata"]
@@ -544,8 +480,8 @@ class AgentRuntime:
                 tools.set_runtime(self)
             elif tool_type == "client":
                 try:
-                    normalized_parameters = _normalize_tool_parameters(tool_def.get("parameters"))
-                except _InvalidToolParameters as exc:
+                    normalized_parameters = normalize_tool_parameters(tool_def.get("parameters"))
+                except InvalidToolParameters as exc:
                     # Same warn-don't-break stance as the unsupported-type branch below:
                     # a malformed 'parameters' block on one tool must not degrade the
                     # whole agent to 'draft'. Names the agent, the tool, and what was
@@ -564,6 +500,60 @@ class AgentRuntime:
                     parameters=normalized_parameters,
                     rate_limit=tool_def.get("rate_limit"),
                 )
+            elif tool_type == "integration":
+                slug = tool_def.get("name")
+                integration = default_catalog().get(slug)
+                if integration is None:
+                    logger.warning(
+                        "agent %r declara la integración %r, que no existe en el catálogo — "
+                        "se ignora.",
+                        metadata["name"],
+                        slug,
+                    )
+                    continue
+                connection = tool_def.get("connection")
+                if not connection:
+                    logger.warning(
+                        "agent %r declara la integración %r sin 'connection' — se ignora.",
+                        metadata["name"],
+                        slug,
+                    )
+                    continue
+                action_names = tool_def.get("actions")
+                if not action_names:
+                    # La allowlist es obligatoria: exponer todas las acciones de varias
+                    # integraciones infla el prompt y empeora la elección del modelo.
+                    logger.warning(
+                        "agent %r declara la integración %r sin 'actions' — la allowlist "
+                        "es obligatoria, se ignora.",
+                        metadata["name"],
+                        slug,
+                    )
+                    continue
+                resolver = self._credential_resolver()
+                for action_name in action_names:
+                    action = integration.action(action_name)
+                    if action is None:
+                        logger.warning(
+                            "agent %r declara la acción %r de la integración %r, que no "
+                            "existe — se ignora sólo esa acción.",
+                            metadata["name"],
+                            action_name,
+                            slug,
+                        )
+                        continue
+                    tools.register_integration_tool(
+                        name=f"{integration.slug}_{action.name}",
+                        manifest=integration,
+                        action=action,
+                        connection=connection,
+                        resolver=resolver,
+                        rate_limit=(
+                            tool_def.get("rate_limit")
+                            or action.rate_limit
+                            or integration.defaults.rate_limit
+                        ),
+                    )
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
                 # was never registered, never reached the model, and nothing said so —
@@ -573,7 +563,7 @@ class AgentRuntime:
                 # existing YAML that declares one. The error comes in 1.0.
                 logger.warning(
                     "agent %r declares tool %r with unsupported type %r — ignoring it. "
-                    "YAML supports: builtin, agent, client.",
+                    "YAML supports: builtin, agent, client, integration.",
                     metadata["name"],
                     tool_def.get("name"),
                     tool_type,
@@ -610,13 +600,25 @@ class AgentRuntime:
         )
 
     async def run(
-        self, agent_name, query, session_id, context=None, parent_trace_id=None, on_event=None
+        self,
+        agent_name,
+        query,
+        session_id,
+        context=None,
+        parent_trace_id=None,
+        on_event=None,
+        connections=None,
     ):
         agent = self._agents.get(agent_name)
         if not agent:
             raise ValueError(f"Agent '{agent_name}' not found")
         return await agent.run(
-            query, session_id, context, parent_trace_id=parent_trace_id, on_event=on_event
+            query,
+            session_id,
+            context,
+            parent_trace_id=parent_trace_id,
+            on_event=on_event,
+            connections=connections,
         )
 
     def list_agents(self):
@@ -766,7 +768,15 @@ class Agent:
         self._permissions = permissions
         self._orchestration_config = orchestration_config
 
-    async def run(self, query, session_id, context=None, parent_trace_id=None, on_event=None):
+    async def run(
+        self,
+        query,
+        session_id,
+        context=None,
+        parent_trace_id=None,
+        on_event=None,
+        connections=None,
+    ):
         from datetime import datetime
         from astromesh.core.memory import ConversationTurn
         from astromesh.observability.tracing import TracingContext, SpanStatus
@@ -895,7 +905,16 @@ class Agent:
                 )
                 try:
                     observation = await self._tools.execute(
-                        name, args, {"agent": self.name, "session": session_id}
+                        name,
+                        args,
+                        {
+                            "agent": self.name,
+                            "session": session_id,
+                            # El bundle viaja por la clausura, no por `args`: los args
+                            # se persisten en la traza (set_attribute más abajo) y una
+                            # credencial ahí quedaría escrita en disco.
+                            "connections": connections or {},
+                        },
                     )
                     tool_span.set_attribute("tool_args", args)
                     tool_span.set_attribute("tool_result", _truncate(str(observation), 5_000))

@@ -40,6 +40,11 @@ class AgentRunRequest(BaseModel):
     query: str
     session_id: str = "default"
     context: dict | None = None
+    connections: dict | None = None
+    """Credenciales resueltas por corrida, inyectadas por el plano de control.
+
+    No se persisten: no entran a la traza, ni a la memoria, ni a la respuesta.
+    """
 
 
 class ModelUsage(BaseModel):
@@ -201,7 +206,13 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             request.session_id,
             len(request.query),
         )
-        result = await _runtime.run(agent_name, request.query, request.session_id, context)
+        result = await _runtime.run(
+            agent_name,
+            request.query,
+            request.session_id,
+            context,
+            connections=request.connections,
+        )
         logger.debug(
             "run_agent done agent=%s session=%s answer_chars=%d steps=%d",
             agent_name,

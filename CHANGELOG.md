@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- Marco de integraciones: modelos y validación del manifest `integration.yaml`.
+- Marco de integraciones: interpolación restringida de `{param}` con guardia anti-traversal.
+- Marco de integraciones: esquemas de autenticación bearer, header, query, basic y none.
+- Marco de integraciones: clasificación de errores (`error_kind`) del contrato con Nexus.
+- Marco de integraciones: carga del escape `handler: python:modulo:funcion`.
+- Marco de integraciones: catálogo auto-descubierto en `astromesh/integrations/catalog/`.
+- Marco de integraciones: resolución de credenciales por corrida (bundle de Nexus) con
+  respaldo en `config/connections.yaml`.
+- Marco de integraciones: ejecutor HTTP declarativo con paginación cursor/offset, selección
+  de respuesta y escape a handlers Python.
+- `ToolType.INTEGRATION`: las acciones de integración se registran y ejecutan como tools,
+  resolviendo credenciales por corrida.
+- YAML de agentes: `type: integration` con `connection` y allowlist de `actions`.
+- `AgentRuntime.run()` acepta `connections`: bundle de credenciales por corrida, propagado
+  a los agentes-como-tool.
+- `GET /v1/integrations` y `GET /v1/integrations/{slug}`: catálogo con acciones y
+  credenciales requeridas.
+- `POST /v1/agents/{name}/run` acepta `connections`.
+- Integración `http`: cliente genérico para APIs internas, con base_url y auth por conexión.
+- Integración `whatsapp`: envío de texto y plantillas, y resolución de media, sobre Meta
+  Graph API.
+- Integración `google_drive`: listar, buscar y leer metadatos de archivos, y subida por
+  sesión resumable.
+- Span `integration.call` con slug, acción, status y `error_kind`.
+- Integración `instagram`: listar y leer media, comentarios, y publicar fotos
+  (contenedor + publicación encadenados en un handler).
+- Integración `facebook`: publicaciones y comentarios de una página, y publicar en el feed.
+- Integración `gmail`: listar y leer mensajes, etiquetas, y enviar correo (MIME RFC 5322
+  en base64url vía handler).
+- Integración `google_sheets`: leer, sobrescribir y agregar filas. Enteramente declarativa.
+- Integración `tiktok`: perfil, listado de videos y publicación por URL.
+- `pagination.cursor_in`: el cursor puede viajar en el cuerpo, no sólo en la query
+  (lo necesita TikTok y cualquier API que pagine sobre POST).
+
+### Fixed
+
+- CI se ponía en rojo por calendario y no por commits: `uv.lock` está en `.gitignore` y CI
+  resuelve dependencias frescas en cada corrida, así que ruff 0.16.0 —que amplió su ruleset
+  por defecto— entró solo y sumó 259 hallazgos sin que cambiara una línea. Se pone techo
+  `<0.16` en el core y en Orbit. Adoptar 0.16 queda anotado en `docs/DEBT.md`.
+
+- `GET /v1/tools` devolvía una lista vacía fija; ahora reporta builtins y acciones de
+  integración.
+- `docs/CONFIGURATION_GUIDE.md` no documentaba el tipo de tool `integration`.
+
+### Changed
+
+- `writes` en el manifest pasa a ser tri-estado (`true`/`false`/no declarado). Las acciones
+  con método mutante deben declararlo explícitamente; leer por POST es legítimo y ya no
+  obliga a marcar una escritura falsa. Los consumidores usan `ActionSpec.mutates`.
+- Un campo opcional del body o de la query cuyo argumento no llegó ahora se omite en vez
+  de fallar la acción entera.
+
+- Normalización de parámetros de tools mudada a `astromesh/core/schema.py` para compartirla
+  entre el loader de agentes y el marco de integraciones.
+
 ## [v0.36.0] - 2026-07-21
 
 ### Added (Core)

@@ -1,0 +1,96 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: google_drive
+  version: 0.1.0
+  description: >
+    Google Drive API v3. El access token lo entrega la conexión ya
+    resuelto: el core no hace el flujo OAuth ni refresca. Es la plantilla
+    de gmail y sheets — mismo esquema de auth, distinta base_url.
+spec:
+  base_url: "https://www.googleapis.com/drive/v3"
+  auth:
+    scheme: bearer
+    credential: access_token
+  defaults:
+    timeout_seconds: 60
+  actions:
+    - name: list_files
+      description: "Lista archivos del Drive del usuario, más recientes primero"
+      parameters:
+        page_size:
+          type: integer
+          description: "Cantidad de archivos por página, máximo 1000"
+          default: 25
+      request:
+        method: GET
+        path: "/files"
+        query:
+          pageSize: "{page_size}"
+          fields: "files(id,name,mimeType,modifiedTime,size),nextPageToken"
+          orderBy: "modifiedTime desc"
+      response:
+        select: "files"
+      pagination:
+        style: cursor
+        cursor_param: pageToken
+        cursor_path: "nextPageToken"
+
+    - name: get_file
+      description: "Devuelve los metadatos de un archivo por su ID"
+      parameters:
+        file_id:
+          type: string
+          description: "ID del archivo en Drive"
+          required: true
+      request:
+        method: GET
+        path: "/files/{file_id}"
+        query:
+          fields: "id,name,mimeType,modifiedTime,size,webViewLink"
+
+    - name: search
+      description: "Busca archivos con la sintaxis de consulta de Drive"
+      parameters:
+        query:
+          type: string
+          description: "Consulta Drive, por ejemplo: name contains 'informe'"
+          required: true
+        page_size:
+          type: integer
+          description: "Cantidad de resultados por página"
+          default: 25
+      request:
+        method: GET
+        path: "/files"
+        query:
+          q: "{query}"
+          pageSize: "{page_size}"
+          fields: "files(id,name,mimeType,modifiedTime),nextPageToken"
+      response:
+        select: "files"
+      pagination:
+        style: cursor
+        cursor_param: pageToken
+        cursor_path: "nextPageToken"
+
+    - name: upload_file
+      description: "Sube un archivo de texto a Drive y devuelve sus metadatos"
+      writes: true
+      handler: "python:astromesh.integrations.catalog.google_drive.handlers:upload_file"
+      parameters:
+        name:
+          type: string
+          description: "Nombre del archivo en Drive"
+          required: true
+        content:
+          type: string
+          description: "Contenido del archivo"
+          required: true
+        mime_type:
+          type: string
+          description: "Tipo MIME del contenido"
+          default: "text/plain"
+        parent_folder_id:
+          type: string
+          description: "ID de la carpeta destino; si se omite, va a la raíz"

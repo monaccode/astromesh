@@ -1,0 +1,76 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: http
+  version: 0.1.0
+  description: >
+    Integración HTTP genérica para APIs internas y sistemas legacy. El
+    base_url y el material de auth vienen de la conexión, no del manifest:
+    una sola integración sirve a cualquier cantidad de servicios propios.
+spec:
+  # Sin base_url a propósito. La conexión lo aporta.
+  auth:
+    scheme: header
+    credential: api_key
+    header_name: X-Api-Key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: get
+      description: "Hace un GET a un path de la API configurada en la conexión"
+      parameters:
+        path:
+          type: string
+          description: "Path relativo al base_url, empezando con /"
+          required: true
+      request:
+        method: GET
+        path: "{path}"
+      allow_slash: [path]
+
+    - name: post
+      description: "Hace un POST con cuerpo JSON a un path de la API configurada"
+      writes: true
+      parameters:
+        path:
+          type: string
+          description: "Path relativo al base_url, empezando con /"
+          required: true
+        body:
+          type: object
+          description: "Cuerpo JSON a enviar"
+      request:
+        method: POST
+        path: "{path}"
+        body: "{body}"
+      allow_slash: [path]
+
+    - name: put
+      description: "Hace un PUT con cuerpo JSON a un path de la API configurada"
+      writes: true
+      parameters:
+        path:
+          type: string
+          description: "Path relativo al base_url, empezando con /"
+          required: true
+        body:
+          type: object
+          description: "Cuerpo JSON a enviar"
+      request:
+        method: PUT
+        path: "{path}"
+        body: "{body}"
+      allow_slash: [path]
+
+    - name: delete
+      description: "Hace un DELETE a un path de la API configurada"
+      writes: true
+      parameters:
+        path:
+          type: string
+          description: "Path relativo al base_url, empezando con /"
+          required: true
+      request:
+        method: DELETE
+        path: "{path}"
+      allow_slash: [path]

@@ -120,7 +120,7 @@ spec:
   # --- Tools ---
   tools:
     - name: lookup_company
-      type: builtin             # builtin | agent | client
+      type: builtin             # builtin | agent | client | integration
       description: "Look up company information"
       parameters:
         company_name:
@@ -129,14 +129,127 @@ spec:
 ```
 
 > **Tool types loadable from YAML:** `builtin` (a tool shipped with the runtime),
-> `agent` (another agent, callable as a tool), and `client` (announced to the model,
+> `agent` (another agent, callable as a tool), `client` (announced to the model,
 > executed by whoever is listening — the call arrives live via `on_event` and
-> afterwards in `steps`; with nobody listening it is a no-op).
+> afterwards in `steps`; with nobody listening it is a no-op), and `integration`
+> (one or more actions of a catalogued external service — see **Integraciones** below).
 >
 > `webhook` and `rag` appear in `ToolType` but are **not** declarable from YAML.
 > `internal` is deprecated: a YAML cannot supply a Python handler, so what it meant
 > is now `client`. Declaring an unsupported type logs a warning and skips the tool;
 > from 1.0 it will be an error.
+
+## Integraciones
+
+Una integración es un servicio externo descrito por un manifest en
+`astromesh/integrations/catalog/<slug>/integration.yaml`.
+
+### Catálogo
+
+| Slug | Qué cubre | Auth |
+|---|---|---|
+| `http` | APIs internas y legacy; base_url y auth vienen de la conexión | configurable |
+| `whatsapp` | WhatsApp Business Cloud: enviar texto y plantillas, leer media | bearer (Meta) |
+| `instagram` | Media y comentarios de cuentas business; publicar fotos | bearer (Meta) |
+| `facebook` | Publicaciones y comentarios de página; publicar en el feed | bearer (Meta) |
+| `gmail` | Listar y leer mensajes y etiquetas; enviar correo | bearer (Google) |
+| `google_drive` | Listar, buscar y leer archivos; subir por sesión resumable | bearer (Google) |
+| `google_sheets` | Leer, sobrescribir y agregar filas | bearer (Google) |
+| `tiktok` | Perfil, listado de videos, publicar por URL | bearer (TikTok) |
+
+Las tres de Meta comparten base_url y esquema de auth; las tres de Google
+comparten esquema y difieren sólo en base_url. Por eso una integración nueva de
+cualquiera de las dos familias es copiar la vecina y cambiar las acciones.
+
+Un agente habilita las acciones que necesita:
+
+```yaml
+tools:
+  - type: integration
+    name: whatsapp          # slug del catálogo
+    connection: wa_main     # nombre de conexión
+    actions:                # allowlist obligatoria
+      - send_text
+      - get_media
+```
+
+La tool que ve el modelo se llama `<slug>_<accion>` — `whatsapp_send_text`, con
+guion bajo: OpenAI y Anthropic validan los nombres de función contra
+`^[a-zA-Z0-9_-]{1,64}$` y un punto haría fallar la request entera.
+
+Una acción fuera de `actions` no existe para ese agente. La allowlist es
+obligatoria y es a la vez control de contexto (tres integraciones con todas sus
+acciones inflan el prompt y el modelo elige peor) y superficie de permisos.
+
+### Conexiones
+
+Las credenciales no viven en el YAML del agente. Se resuelven en este orden:
+
+1. El bundle `connections` del request de corrida, que inyecta el plano de
+   control (Nexus):
+
+   ```json
+   {"query": "...", "connections": {"wa_main": {"access_token": "..."}}}
+   ```
+
+2. `config/connections.yaml` para self-hosted, con `${VAR}` como en
+   `channels.yaml`. Ver `config/connections.yaml.example`.
+
+Si no hay ninguna, la acción devuelve `credential_missing` y el agente sigue
+corriendo. El core no guarda, no cifra y no refresca credenciales: el flujo
+OAuth es de Nexus.
+
+### Errores
+
+Ninguna falla de integración levanta excepción — todas vuelven como resultado
+con un `error_kind` en `metadata`, que es parte del contrato:
+
+| `error_kind` | Cuándo | Qué hacer |
+|---|---|---|
+| `credential_invalid` | 401, 403 | refrescar el token y reintentar |
+| `credential_missing` | conexión sin configurar | configurarla |
+| `rate_limited` | 429 (trae `retry_after`) | backoff |
+| `rate_limited_local` | lo frenó AstroMesh | bajar la frecuencia |
+| `upstream_error` | 5xx, timeout, red | reintentable |
+| `bad_request` | 4xx restantes | el modelo corrigió mal los argumentos |
+
+### Declarar `writes`
+
+`writes` es tri-estado: `true`, `false`, o no declarado. Una acción con método
+mutante (POST, PUT, PATCH, DELETE) **tiene que declararlo**, y el test de
+conformidad la rechaza si no lo hace. No se exige que sea `true`: leer por POST
+es común y legítimo (búsquedas con cuerpo, GraphQL, la Display API de TikTok), y
+esas acciones ponen `writes: false`. Lo que no se acepta es el silencio, que deja
+al cliente sin señal y se parece demasiado a un olvido.
+
+`writes: true` marca una acción mutante. **En esta versión informa, no bloquea**:
+se refleja en `requires_approval`, se publica en el catálogo y viaja en el evento
+`tool_call` para que un cliente lo interponga. El runtime no frena la llamada.
+
+### Ver qué hay disponible
+
+- `GET /v1/integrations` — catálogo
+- `GET /v1/integrations/{slug}` — acciones y qué credenciales pide
+
+Ninguno expone valores de credencial, sólo qué claves hace falta entregar.
+
+### Agregar una integración
+
+Una carpeta con un `integration.yaml`. El test de conformidad
+(`tests/test_integration_conformance.py`) la valida sola: esquema, nombres
+aceptados por los proveedores, placeholders declarados, handlers resolubles y
+descripciones útiles. No hay que escribir tests.
+
+Los campos opcionales se declaran sin más: un `{param}` del body o de la query
+cuyo argumento no llegó se **omite**, no falla. Sólo lo marcado `required` es
+obligatorio, y eso lo ataja el esquema antes de llegar al ejecutor.
+
+Si una acción necesita más de un request (subidas resumables, encadenar la
+creación de un contenedor con su publicación, construir un MIME), se declara
+`handler: python:modulo:funcion` en vez de `request:`. Las dos formas son
+mutuamente excluyentes y el manifest falla al cargar si se declaran ambas.
+Hoy 3 de 32 acciones del catálogo usan el escape: si esa proporción se
+invierte, la decisión de hacerlo declarativo hay que revisarla.
 
 ```yaml
   # --- Memory ---

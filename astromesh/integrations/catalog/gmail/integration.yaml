@@ -1,0 +1,92 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: gmail
+  version: 0.1.0
+  description: >
+    Gmail API v1 sobre la casilla del usuario autenticado. El access token lo
+    entrega la conexión ya resuelto: el core no hace el flujo OAuth ni
+    refresca. Mismo esquema de auth que google_drive y google_sheets.
+spec:
+  base_url: "https://gmail.googleapis.com/gmail/v1"
+  auth:
+    scheme: bearer
+    credential: access_token
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: list_messages
+      description: >
+        Lista los mensajes de la casilla. Acepta la sintaxis de búsqueda de
+        Gmail, por ejemplo "from:ana@example.com is:unread".
+      parameters:
+        query:
+          type: string
+          description: "Consulta con sintaxis de Gmail; vacío devuelve todo"
+        max_results:
+          type: integer
+          description: "Cantidad de mensajes por página, máximo 500"
+          default: 25
+      request:
+        method: GET
+        path: "/users/me/messages"
+        query:
+          q: "{query}"
+          maxResults: "{max_results}"
+      response:
+        select: "messages"
+      pagination:
+        style: cursor
+        cursor_param: pageToken
+        cursor_path: "nextPageToken"
+
+    - name: get_message
+      description: "Devuelve un mensaje completo por su ID, con cabeceras y cuerpo"
+      parameters:
+        message_id:
+          type: string
+          description: "ID del mensaje en Gmail"
+          required: true
+        format:
+          type: string
+          description: "Nivel de detalle: full, metadata o minimal"
+          default: "full"
+      request:
+        method: GET
+        path: "/users/me/messages/{message_id}"
+        query:
+          format: "{format}"
+
+    - name: list_labels
+      description: "Lista las etiquetas de la casilla, propias y del sistema"
+      request:
+        method: GET
+        path: "/users/me/labels"
+      response:
+        select: "labels"
+
+    - name: send_message
+      description: >
+        Envía un correo. Es un handler porque Gmail no recibe campos sueltos:
+        exige un mensaje MIME RFC 5322 completo, codificado en base64url.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.gmail.handlers:send_message"
+      parameters:
+        to:
+          type: string
+          description: "Dirección del destinatario"
+          required: true
+        subject:
+          type: string
+          description: "Asunto del correo"
+          required: true
+        body:
+          type: string
+          description: "Cuerpo del correo en texto plano"
+          required: true
+        cc:
+          type: string
+          description: "Direcciones en copia, separadas por comas"
+        reply_to_thread_id:
+          type: string
+          description: "ID del hilo al que responder, para que quede enhebrado"

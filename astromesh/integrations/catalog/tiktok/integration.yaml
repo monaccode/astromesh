@@ -1,0 +1,110 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: tiktok
+  version: 0.1.0
+  description: >
+    TikTok API v2: perfil, listado de videos y publicación por URL. Varias de
+    sus operaciones de lectura usan POST con cuerpo — por eso declaran
+    'writes: false' explícito en vez de quedar en silencio.
+spec:
+  base_url: "https://open.tiktokapis.com/v2"
+  auth:
+    scheme: bearer
+    credential: access_token
+  defaults:
+    timeout_seconds: 60
+  actions:
+    - name: get_user_info
+      description: "Devuelve el perfil público de la cuenta autenticada"
+      parameters:
+        fields:
+          type: string
+          description: "Campos a traer, separados por comas"
+          default: "open_id,display_name,avatar_url,follower_count,likes_count,video_count"
+      request:
+        method: GET
+        path: "/user/info/"
+        query:
+          fields: "{fields}"
+      response:
+        select: "data.user"
+
+    - name: list_videos
+      description: >
+        Lista los videos publicados de la cuenta. Es un POST porque la API lo
+        define así, pero sólo lee.
+      writes: false
+      parameters:
+        fields:
+          type: string
+          description: "Campos a traer de cada video, separados por comas"
+          default: "id,title,cover_image_url,share_url,create_time,like_count,view_count"
+        max_count:
+          type: integer
+          description: "Cantidad de videos por página, máximo 20"
+          default: 10
+      request:
+        method: POST
+        path: "/video/list/"
+        query:
+          fields: "{fields}"
+        body:
+          max_count: "{max_count}"
+          cursor: "{cursor}"
+      response:
+        select: "data.videos"
+      pagination:
+        style: cursor
+        cursor_param: cursor
+        cursor_path: "data.cursor"
+        cursor_in: body
+
+    - name: publish_video
+      description: >
+        Publica un video que TikTok descarga desde una URL pública. Devuelve
+        un publish_id; el estado se consulta con get_publish_status.
+      writes: true
+      parameters:
+        video_url:
+          type: string
+          description: "URL pública del video, en un dominio verificado ante TikTok"
+          required: true
+        title:
+          type: string
+          description: "Título o descripción de la publicación"
+          required: true
+        privacy_level:
+          type: string
+          description: "Visibilidad: PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS o SELF_ONLY"
+          default: "SELF_ONLY"
+      request:
+        method: POST
+        path: "/post/publish/video/init/"
+        body:
+          post_info:
+            title: "{title}"
+            privacy_level: "{privacy_level}"
+          source_info:
+            source: "PULL_FROM_URL"
+            video_url: "{video_url}"
+      response:
+        select: "data"
+
+    - name: get_publish_status
+      description: >
+        Consulta en qué estado quedó una publicación. Es un POST porque la API
+        lo define así, pero sólo lee.
+      writes: false
+      parameters:
+        publish_id:
+          type: string
+          description: "ID de publicación devuelto por publish_video"
+          required: true
+      request:
+        method: POST
+        path: "/post/publish/status/fetch/"
+        body:
+          publish_id: "{publish_id}"
+      response:
+        select: "data"
