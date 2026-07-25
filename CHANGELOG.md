@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   respaldo en `config/connections.yaml`.
 - Marco de integraciones: ejecutor HTTP declarativo con paginación cursor/offset, selección
   de respuesta y escape a handlers Python.
+- `ToolType.INTEGRATION`: las acciones de integración se registran y ejecutan como tools,
+  resolviendo credenciales por corrida.
+- YAML de agentes: `type: integration` con `connection` y allowlist de `actions`.
+- `AgentRuntime.run()` acepta `connections`: bundle de credenciales por corrida, propagado
+  a los agentes-como-tool.
 
 ### Changed
 

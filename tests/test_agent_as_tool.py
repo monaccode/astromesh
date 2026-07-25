@@ -126,6 +126,9 @@ class TestExecuteAgentTool:
             session_id="sess-1",
             context=None,
             parent_trace_id=None,
+            # El bundle de credenciales baja al sub-agente: sin esto, una
+            # integración declarada por el hijo se queda sin conexión.
+            connections={},
         )
         assert result["answer"] == "Lead is qualified"
 
@@ -161,6 +164,7 @@ class TestExecuteAgentTool:
             session_id="sess-42",
             context=None,
             parent_trace_id=None,
+            connections={},
         )
 
 
