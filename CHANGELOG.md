@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - YAML de agentes: `type: integration` con `connection` y allowlist de `actions`.
 - `AgentRuntime.run()` acepta `connections`: bundle de credenciales por corrida, propagado
   a los agentes-como-tool.
+- `GET /v1/integrations` y `GET /v1/integrations/{slug}`: catálogo con acciones y
+  credenciales requeridas.
+- `POST /v1/agents/{name}/run` acepta `connections`.
+- Integración `http`: cliente genérico para APIs internas, con base_url y auth por conexión.
+- Integración `whatsapp`: envío de texto y plantillas, y resolución de media, sobre Meta
+  Graph API.
+- Integración `google_drive`: listar, buscar y leer metadatos de archivos, y subida por
+  sesión resumable.
+
+### Fixed
+
+- `GET /v1/tools` devolvía una lista vacía fija; ahora reporta builtins y acciones de
+  integración.
 
 ### Changed
 

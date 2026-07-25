@@ -45,9 +45,15 @@ def _reject_traversal(raw: str, param: str) -> None:
 def interpolate(template: str, args: dict, *, position: str, allow_slash: bool = False) -> str:
     """Sustituye `{param}` en `template` con los valores de `args`.
 
-    position: "path" (encodea, prohíbe `/` salvo allow_slash, siempre prohíbe `..`),
-              "query" (encodea todo, incluida la barra),
-              "raw" (no encodea; para bodies y headers).
+    Hay exactamente dos posiciones, y la diferencia es quién codifica:
+
+    - "path": el valor se pega a la URL a mano, así que acá se percent-encodea,
+      se prohíbe `/` salvo `allow_slash`, y siempre se prohíbe `..`.
+    - "raw": el valor se entrega a httpx (query params, headers, body) o va
+      dentro de un JSON. httpx percent-encodea los params por su cuenta al
+      construir la URL; codificar acá también produciría doble codificación
+      — `name contains 'x'` viajaría como `name%2520contains...` y la API
+      recibiría basura.
     """
 
     def _replace(match: re.Match) -> str:
@@ -63,8 +69,6 @@ def interpolate(template: str, args: dict, *, position: str, allow_slash: bool =
                 )
             safe = "/" if allow_slash else ""
             return quote(value, safe=safe)
-        if position == "query":
-            return quote(value, safe="")
         return value
 
     return _PLACEHOLDER.sub(_replace, template)

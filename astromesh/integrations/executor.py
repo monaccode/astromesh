@@ -145,8 +145,10 @@ class HttpActionExecutor:
         allow_slash = set(action.allow_slash or [])
         try:
             path = self._render_path(action.request.path, args, allow_slash)
+            # "raw", no "query": httpx percent-encodea los params al armar la URL.
+            # Codificar acá también daría doble codificación.
             params = {
-                key: interpolate(str(value), args, position="query")
+                key: interpolate(str(value), args, position="raw")
                 for key, value in (action.request.query or {}).items()
             }
             params.update(auth_params)

@@ -11,7 +11,32 @@ class ToolExecuteRequest(BaseModel):
 
 @router.get("/tools")
 async def list_tools():
-    return {"tools": []}
+    """Todo lo invocable del catálogo: builtins y acciones de integración."""
+    from astromesh.integrations import default_catalog
+    from astromesh.tools import ToolLoader
+
+    loader = ToolLoader()
+    loader.auto_discover()
+    tools = [
+        {
+            "name": loader.get(name).name,
+            "description": loader.get(name).description,
+            "type": "builtin",
+        }
+        for name in loader.list_available()
+    ]
+    for manifest in default_catalog().all():
+        for action in manifest.actions:
+            tools.append(
+                {
+                    "name": f"{manifest.slug}_{action.name}",
+                    "description": action.description,
+                    "type": "integration",
+                    "integration": manifest.slug,
+                    "writes": action.writes,
+                }
+            )
+    return {"tools": tools, "count": len(tools)}
 
 
 @router.get("/tools/builtin")

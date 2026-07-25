@@ -13,6 +13,7 @@ from astromesh.api.routes import (
     agent_channels,
     agents,
     dashboard,
+    integrations,
     memory,
     tools,
     rag,
@@ -138,6 +139,8 @@ app.add_middleware(
 app.include_router(agents.router, prefix="/v1")
 app.include_router(memory.router, prefix="/v1")
 app.include_router(tools.router, prefix="/v1")
+# El catálogo de integraciones es estático: no necesita set_runtime.
+app.include_router(integrations.router, prefix="/v1")
 app.include_router(rag.router, prefix="/v1")
 app.include_router(rag_resources.router, prefix="/v1")
 app.include_router(ws.router, prefix="/v1")

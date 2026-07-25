@@ -15,8 +15,10 @@ def test_url_encodes_in_path():
     assert interpolate("/{name}", {"name": "a b&c"}, position="path") == "/a%20b%26c"
 
 
-def test_query_position_encodes_too():
-    assert interpolate("{q}", {"q": "hola mundo"}, position="query") == "hola%20mundo"
+def test_query_values_are_not_pre_encoded():
+    """httpx codifica los params al armar la URL; hacerlo acá daría doble codificación."""
+    assert interpolate("{q}", {"q": "hola mundo"}, position="raw") == "hola mundo"
+    assert interpolate("{q}", {"q": "name contains 'x'"}, position="raw") == "name contains 'x'"
 
 
 def test_raw_position_does_not_encode():
@@ -24,8 +26,8 @@ def test_raw_position_does_not_encode():
 
 
 def test_non_string_values_are_stringified():
-    assert interpolate("{limit}", {"limit": 25}, position="query") == "25"
-    assert interpolate("{flag}", {"flag": True}, position="query") == "true"
+    assert interpolate("{limit}", {"limit": 25}, position="raw") == "25"
+    assert interpolate("{flag}", {"flag": True}, position="raw") == "true"
 
 
 def test_multiple_placeholders():
@@ -67,8 +69,8 @@ def test_double_encoded_traversal_rejected():
         interpolate("/{p}", {"p": "%252e%252e/secrets"}, position="path")
 
 
-def test_slash_allowed_freely_in_query():
-    assert interpolate("{q}", {"q": "a/b"}, position="query") == "a%2Fb"
+def test_slash_is_fine_outside_the_path():
+    assert interpolate("{q}", {"q": "a/b"}, position="raw") == "a/b"
 
 
 def test_interpolate_structure_walks_nested_dicts_and_lists():
