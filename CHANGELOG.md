@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CI se ponía en rojo por calendario y no por commits: `uv.lock` está en `.gitignore` y CI
+  resuelve dependencias frescas en cada corrida, así que ruff 0.16.0 —que amplió su ruleset
+  por defecto— entró solo y sumó 259 hallazgos sin que cambiara una línea. Se pone techo
+  `<0.16` en el core y en Orbit. Adoptar 0.16 queda anotado en `docs/DEBT.md`.
+
 - `GET /v1/tools` devolvía una lista vacía fija; ahora reporta builtins y acciones de
   integración.
 - `docs/CONFIGURATION_GUIDE.md` no documentaba el tipo de tool `integration`.
