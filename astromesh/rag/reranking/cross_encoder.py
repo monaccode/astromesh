@@ -26,7 +26,7 @@ class CrossEncoderReranker(Reranker):
         scores = model.predict(pairs)
 
         scored_docs = []
-        for doc, score in zip(documents, scores):
+        for doc, score in zip(documents, scores, strict=False):
             scored_docs.append({**doc, "rerank_score": float(score)})
 
         scored_docs.sort(key=lambda d: d["rerank_score"], reverse=True)

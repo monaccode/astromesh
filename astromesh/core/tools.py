@@ -3,7 +3,7 @@ import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 try:
@@ -16,7 +16,7 @@ except ImportError:
     _HAS_NATIVE_RL = False
 
 
-class ToolType(str, Enum):
+class ToolType(StrEnum):
     INTERNAL = "internal"
     CLIENT = "client"
     MCP_STDIO = "mcp_stdio"
@@ -57,8 +57,8 @@ class _DotDict(dict):
     def __getattr__(self, key):
         try:
             return self[key]
-        except KeyError:
-            raise AttributeError(f"No attribute '{key}'")
+        except KeyError as exc:
+            raise AttributeError(f"No attribute '{key}'") from exc
 
 
 class ToolRegistry:

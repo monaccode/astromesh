@@ -1,16 +1,16 @@
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
 
-class ModelFormat(str, Enum):
+class ModelFormat(StrEnum):
     ONNX = "onnx"
     PYTORCH = "pytorch"
     SAFETENSORS = "safetensors"
 
 
-class ModelStatus(str, Enum):
+class ModelStatus(StrEnum):
     REGISTERED = "registered"
     LOADING = "loading"
     READY = "ready"
@@ -89,8 +89,8 @@ class ModelRegistry:
             if info.metadata.get("device") == "cuda":
                 providers.insert(0, "CUDAExecutionProvider")
             return ort.InferenceSession(info.path, providers=providers)
-        except ImportError:
-            raise RuntimeError("onnxruntime not installed")
+        except ImportError as exc:
+            raise RuntimeError("onnxruntime not installed") from exc
 
     async def _load_pytorch(self, info: ModelInfo):
         try:
@@ -99,8 +99,8 @@ class ModelRegistry:
             model = torch.jit.load(info.path)
             model.eval()
             return model
-        except ImportError:
-            raise RuntimeError("torch not installed")
+        except ImportError as exc:
+            raise RuntimeError("torch not installed") from exc
 
     async def predict(self, name: str, input_data: Any, version: str = "latest") -> Any:
         info = self.get(name, version)
@@ -118,7 +118,9 @@ class ModelRegistry:
         # `load` sólo instancia ONNX y PyTorch, pero marca READY igual. Sin este
         # raise el formato restante devolvía None y el llamador no podía
         # distinguirlo de una predicción vacía.
-        raise RuntimeError(f"Model '{name}:{version}' has no runner for format '{info.format.value}'")
+        raise RuntimeError(
+            f"Model '{name}:{version}' has no runner for format '{info.format.value}'"
+        )
 
     def unregister(self, name: str, version: str):
         key = f"{name}:{version}"

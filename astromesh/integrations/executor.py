@@ -118,7 +118,15 @@ class HttpActionExecutor:
     # httpx.AsyncClient, que es quien lo aplica. No hay nada que mover a un
     # context manager de cancelación.
     async def _run_handler(
-        self, action, args, base_url, headers, resolved, timeout, agent_name, session_id  # noqa: ASYNC109
+        self,
+        action,
+        args,
+        base_url,
+        headers,
+        resolved,
+        timeout,  # noqa: ASYNC109
+        agent_name,
+        session_id,
     ) -> ToolResult:
         try:
             fn = load_handler(action.handler)
@@ -146,7 +154,14 @@ class HttpActionExecutor:
 
     # ASYNC109: mismo motivo que _run_handler.
     async def _run_request(
-        self, manifest, action, args, base_url, headers, auth_params, timeout  # noqa: ASYNC109
+        self,
+        manifest,
+        action,
+        args,
+        base_url,
+        headers,
+        auth_params,
+        timeout,  # noqa: ASYNC109
     ) -> ToolResult:
         allow_slash = set(action.allow_slash or [])
         try:

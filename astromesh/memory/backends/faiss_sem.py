@@ -45,7 +45,7 @@ class FAISSSemanticBackend(SemanticBackend):
         scores, indices = self._indices[agent_id].search(query_vec, k)
 
         results = []
-        for score, idx in zip(scores[0], indices[0]):
+        for score, idx in zip(scores[0], indices[0], strict=False):
             if idx < 0 or float(score) < threshold:
                 continue
             entry = self._data[agent_id][idx]

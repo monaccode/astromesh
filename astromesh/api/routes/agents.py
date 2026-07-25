@@ -135,9 +135,9 @@ async def create_agent(config: dict):
         ).get("name", "unknown")
         return {"name": name, "status": "registered"}
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=409, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.delete("/agents/{agent_name}")
@@ -149,7 +149,7 @@ async def delete_agent(agent_name: str):
         _runtime.unregister_agent(agent_name)
         return {"name": agent_name, "status": "removed"}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.put("/agents/{agent_name}")
@@ -161,7 +161,7 @@ async def update_agent(agent_name: str, config: dict):
         await _runtime.update_agent(agent_name, config)
         return {"agent": agent_name, "status": "updated"}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/agents/{agent_name}/deploy")
@@ -173,7 +173,7 @@ async def deploy_agent(agent_name: str):
         await _runtime.deploy_agent(agent_name)
         return {"agent": agent_name, "status": "deployed"}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/agents/{agent_name}/pause")
@@ -185,7 +185,7 @@ async def pause_agent(agent_name: str):
         _runtime.pause_agent(agent_name)
         return {"agent": agent_name, "status": "paused"}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/agents/{agent_name}/run")
@@ -230,8 +230,8 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             trace=trace or None,
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except ModelProviderError as e:
-        raise HTTPException(status_code=502, detail=model_provider_error_payload(e))
+        raise HTTPException(status_code=502, detail=model_provider_error_payload(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

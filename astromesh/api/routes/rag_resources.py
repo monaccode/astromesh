@@ -62,7 +62,7 @@ async def create_pipeline(config: dict):
     try:
         spec = spec_from_raw(config)
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from e
     if spec.name in _pipelines:
         raise HTTPException(status_code=409, detail=f"RAGPipeline already exists: {spec.name}")
     _pipelines[spec.name] = config
@@ -77,7 +77,7 @@ async def update_pipeline(name: str, config: dict):
     try:
         spec = spec_from_raw(config)
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from e
     # The URL path is the resource identity. Renaming via PUT would store the doc
     # under the old key with a new inner name, so the list would advertise a name
     # that GET/DELETE-by-name can't resolve. Forbid it: rename = delete + create.

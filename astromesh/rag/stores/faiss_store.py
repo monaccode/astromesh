@@ -69,7 +69,7 @@ class FAISSStore(VectorStore):
         scores, indices = index.search(vec, k)
 
         results: list[dict] = []
-        for score, idx in zip(scores[0], indices[0]):
+        for score, idx in zip(scores[0], indices[0], strict=False):
             if idx < 0 or idx >= len(self._docs):
                 continue
             doc = self._docs[idx]

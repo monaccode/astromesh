@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import random
 import time
@@ -127,13 +128,11 @@ class MeshManager:
     async def leave(self) -> None:
         self._left = True
         for node in self.get_gossip_targets():
-            try:
+            with contextlib.suppress(Exception):
                 await self._http.post(
                     f"{node.url}/v1/mesh/leave",
                     json={"node_id": self.node_id},
                 )
-            except Exception:
-                pass
         logger.info("Left mesh")
 
     async def gossip_once(self) -> None:
@@ -163,13 +162,11 @@ class MeshManager:
         local.last_heartbeat = time.time()
         targets = self.get_gossip_targets()
         for target in targets:
-            try:
+            with contextlib.suppress(Exception):
                 await self._http.post(
                     f"{target.url}/v1/mesh/heartbeat",
                     json=local.to_dict(),
                 )
-            except Exception:
-                pass
 
     async def close(self) -> None:
         await self._http.aclose()

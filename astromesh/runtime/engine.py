@@ -328,10 +328,10 @@ class AgentRuntime:
                 if neighbor not in color:
                     continue  # references external agent, skip
                 if color[neighbor] == GRAY:
-                    cycle = path + [neighbor]
+                    cycle = [*path, neighbor]
                     raise ValueError(f"Circular agent reference detected: {' -> '.join(cycle)}")
                 if color[neighbor] == WHITE:
-                    dfs(neighbor, path + [neighbor])
+                    dfs(neighbor, [*path, neighbor])
             color[node] = BLACK
 
         for node in graph:
@@ -777,7 +777,7 @@ class Agent:
         on_event=None,
         connections=None,
     ):
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         from astromesh.core.memory import ConversationTurn
         from astromesh.observability.tracing import SpanStatus, TracingContext
@@ -836,7 +836,7 @@ class Agent:
 
             async def model_fn(messages, tools, role=None):
                 llm_span = tracing.start_span("llm.complete", parent_span_id=root_span.span_id)
-                full_messages = [{"role": "system", "content": rendered_prompt}] + messages
+                full_messages = [{"role": "system", "content": rendered_prompt}, *messages]
                 resolved_role = self._role_map.get(role, role) if role else "default"
                 router = self._routers.get(resolved_role) or self._routers["default"]
                 llm_span.set_attribute("role", role or "default")
@@ -974,7 +974,12 @@ class Agent:
                 ConversationTurn(
                     role="user",
                     content=user_content,
-                    timestamp=datetime.utcnow(),
+                    # Aware, no naive: esto termina en una columna TIMESTAMPTZ de
+                    # Postgres, que hasta acá recibía un naive y lo asumía UTC sin
+                    # que nadie lo dijera. Los backends de texto guardan ahora un
+                    # isoformat con `+00:00`; `fromisoformat` lee las dos formas,
+                    # así que las filas viejas se siguen leyendo.
+                    timestamp=datetime.now(UTC),
                     metadata=user_metadata,
                 ),
             )
@@ -983,7 +988,7 @@ class Agent:
                 ConversationTurn(
                     role="assistant",
                     content=result.get("answer", ""),
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(UTC),
                 ),
             )
             tracing.finish_span(persist_span)

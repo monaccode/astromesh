@@ -23,7 +23,7 @@ class SwarmPattern(OrchestrationPattern):
                 '{"handoff": "agent_name", "context": "..."}'
             )
 
-            full_messages = [{"role": "system", "content": agent_prompt}] + messages
+            full_messages = [{"role": "system", "content": agent_prompt}, *messages]
             response = await model_fn(full_messages, tools, role="reasoner")
 
             try:

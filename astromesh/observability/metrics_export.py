@@ -4,6 +4,7 @@ App-side (the engine knows which agent makes each provider call), reusing the sa
 traces (4.3). Off by default; enabled only when observability.otlp.enabled.
 """
 
+import contextlib
 import os
 from dataclasses import dataclass
 
@@ -78,10 +79,8 @@ class MetricsManager:
 
     def record(self, agent: str, model: str, nbytes: int) -> None:
         if self._counter is not None and nbytes > 0:
-            try:
+            with contextlib.suppress(Exception):
                 self._counter.add(nbytes, {"agent": agent, "model": model or "unknown"})
-            except Exception:
-                pass
 
     def record_run(self, ctx) -> None:
         """4.3b: derive the engine metric set from a completed TracingContext. Best-effort; never raises."""
@@ -130,10 +129,8 @@ class MetricsManager:
 
     def flush(self, timeout_millis: int = 5000) -> None:
         if self._provider is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._provider.force_flush(timeout_millis=timeout_millis)
-            except Exception:
-                pass
 
 
 _manager: "MetricsManager | None" = None

@@ -37,7 +37,7 @@ class ReActPattern(OrchestrationPattern):
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         history = context.get("_history_messages", []) if isinstance(context, dict) else []
-        messages = list(history) + [{"role": "user", "content": query}]
+        messages = [*list(history), {"role": "user", "content": query}]
         steps: list[AgentStep] = []
         for _ in range(max_iterations):
             response = await model_fn(messages, tools, role="reasoner")
