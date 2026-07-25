@@ -104,7 +104,7 @@ def test_rejects_action_with_both_request_and_handler(tmp_path):
         '      handler: "python:astromesh.integrations.catalog.demo.handlers:create_item"',
         '      handler: "python:x:y"\n      request: {method: POST, path: "/items"}',
     )
-    with pytest.raises(ManifestError, match="request.*handler|handler.*request"):
+    with pytest.raises(ManifestError, match=r"request.*handler|handler.*request"):
         load_manifest(_write(tmp_path, bad))
 
 

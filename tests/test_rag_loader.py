@@ -36,7 +36,7 @@ def test_load_file_rejects_wrong_kind(tmp_path):
     p = _write(tmp_path, "bad.rag.yaml", "kind: Workflow\nmetadata: {name: x}\n")
     import pytest
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Expected kind: RAGPipeline"):
         RAGPipelineLoader(str(tmp_path)).load_file(p)
 
 

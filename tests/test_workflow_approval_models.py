@@ -15,7 +15,7 @@ def test_approval_counts_in_mutual_exclusion():
     with pytest.raises(ValueError, match="approval"):
         StepSpec(name="bad", tool="t", approval={"approver": "x"})
     # zero step types → error
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="exactly one of"):
         StepSpec(name="empty")
 
 

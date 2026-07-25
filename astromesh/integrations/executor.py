@@ -114,8 +114,11 @@ class HttpActionExecutor:
                 args[name] = spec["default"]
         return args
 
+    # ASYNC109: el `timeout` no lo implementa esta corrutina, se lo pasa entero a
+    # httpx.AsyncClient, que es quien lo aplica. No hay nada que mover a un
+    # context manager de cancelación.
     async def _run_handler(
-        self, action, args, base_url, headers, resolved, timeout, agent_name, session_id
+        self, action, args, base_url, headers, resolved, timeout, agent_name, session_id  # noqa: ASYNC109
     ) -> ToolResult:
         try:
             fn = load_handler(action.handler)
@@ -141,8 +144,9 @@ class HttpActionExecutor:
             logger.warning("handler %s falló: %s", action.handler, exc)
             return _fail(errors.classify_exception(exc), f"{type(exc).__name__}: {exc}")
 
+    # ASYNC109: mismo motivo que _run_handler.
     async def _run_request(
-        self, manifest, action, args, base_url, headers, auth_params, timeout
+        self, manifest, action, args, base_url, headers, auth_params, timeout  # noqa: ASYNC109
     ) -> ToolResult:
         allow_slash = set(action.allow_slash or [])
         try:
@@ -154,14 +158,11 @@ class HttpActionExecutor:
             # opcional sin argumento se omita en vez de reventar — mismo criterio
             # que en el body.
             params = {
-                key: value
-                for key, value in (
-                    interpolate_structure(
-                        dict(action.request.query or {}), args, allow_slash_params=allow_slash
-                    )
+                key: str(value)
+                for key, value in interpolate_structure(
+                    dict(action.request.query or {}), args, allow_slash_params=allow_slash
                 ).items()
             }
-            params = {k: str(v) for k, v in params.items()}
             params.update(auth_params)
             params.update(self._pagination_params(action, args))
             request_headers = {

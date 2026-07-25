@@ -61,7 +61,8 @@ async def test_a_client_tool_does_not_claim_delivery():
     tools = ToolRegistry()
     tools.register_client_tool(name="show_thing", description="d", parameters=PARAMS)
     result = await tools.execute("show_thing", {"label": "hola"})
-    assert "delivered" not in result and "sent" not in result
+    assert "delivered" not in result
+    assert "sent" not in result
 
 
 def test_register_client_tool_defaults_its_parameters():

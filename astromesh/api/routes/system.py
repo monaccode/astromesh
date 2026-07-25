@@ -2,6 +2,7 @@
 
 import os
 import time
+from pathlib import Path
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -41,7 +42,7 @@ class DoctorResponse(BaseModel):
 
 
 def _detect_mode() -> str:
-    if os.path.exists("/etc/astromesh/runtime.yaml"):
+    if Path("/etc/astromesh/runtime.yaml").exists():
         return "system"
     return "dev"
 

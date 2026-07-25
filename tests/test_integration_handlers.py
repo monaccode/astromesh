@@ -23,17 +23,17 @@ def test_rejects_malformed_reference():
 
 
 def test_rejects_unknown_module():
-    with pytest.raises(HandlerError, match="módulo|module"):
+    with pytest.raises(HandlerError, match=r"módulo|module"):
         load_handler("python:astromesh.nope.nope:fn")
 
 
 def test_rejects_unknown_symbol():
-    with pytest.raises(HandlerError, match="símbolo|symbol"):
+    with pytest.raises(HandlerError, match=r"símbolo|symbol"):
         load_handler("python:tests.test_integration_handlers:no_existe")
 
 
 def test_rejects_non_callable_symbol():
-    with pytest.raises(HandlerError, match="invocable|callable"):
+    with pytest.raises(HandlerError, match=r"invocable|callable"):
         load_handler("python:tests.test_integration_handlers:NOT_CALLABLE")
 
 

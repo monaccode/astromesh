@@ -27,7 +27,7 @@ def test_builds_ollama_from_source():
 def test_builds_litellm_from_source(monkeypatch):
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     prov = build_candidate_provider(
         {
             "source": "litellm",
@@ -41,7 +41,7 @@ def test_builds_litellm_from_source(monkeypatch):
 def test_infers_litellm_from_prefixed_model(monkeypatch):
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     prov = build_candidate_provider({"model": "gemini/gemini-2.0-pro"})
     assert isinstance(prov, LiteLLMProvider)
 
@@ -71,7 +71,7 @@ def test_warns_when_a_declared_key_is_not_consumed(monkeypatch, caplog):
     declaring one must say so rather than disappear."""
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     with caplog.at_level(logging.WARNING):
         build_candidate_provider(
             {
@@ -115,7 +115,7 @@ def test_no_warning_for_none_valued_keys_from_provider_ref(monkeypatch, caplog):
     ignore the warning entirely."""
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     with caplog.at_level(logging.WARNING):
         build_candidate_provider(
             {
@@ -130,7 +130,7 @@ def test_no_warning_for_none_valued_keys_from_provider_ref(monkeypatch, caplog):
 
 
 @pytest.mark.parametrize(
-    "source,model",
+    ("source", "model"),
     [
         ("ollama", "llama3.1:8b"),
         ("openai_compat", "gpt-4o-mini"),
@@ -142,7 +142,7 @@ def test_top_level_temperature_shorthand_folds_into_parameters(monkeypatch, sour
     parameters.temperature"; it was never read by anything."""
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     prov = build_candidate_provider(
         {"source": source, "model": model, "temperature": 0.4, "max_tokens": 256}
     )
@@ -162,7 +162,7 @@ def test_explicit_parameters_win_over_shorthand():
 
 
 @pytest.mark.parametrize(
-    "source,model",
+    ("source", "model"),
     [
         ("ollama", "llama3.1:8b"),
         ("openai_compat", "gpt-4o-mini"),
@@ -179,14 +179,14 @@ def test_timeout_propagates_from_block(monkeypatch, source, model):
     """
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     prov = build_candidate_provider({"source": source, "model": model, "timeout": 600})
     assert prov is not None
     assert prov.timeout == 600.0
 
 
 @pytest.mark.parametrize(
-    "source,model",
+    ("source", "model"),
     [
         ("ollama", "llama3.1:8b"),
         ("openai_compat", "gpt-4o-mini"),
@@ -201,7 +201,7 @@ def test_parameters_propagate_from_block(monkeypatch, source, model):
     """
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     prov = build_candidate_provider(
         {"source": source, "model": model, "parameters": {"temperature": 0.25}}
     )
@@ -210,7 +210,7 @@ def test_parameters_propagate_from_block(monkeypatch, source, model):
 
 
 @pytest.mark.parametrize(
-    "source,model",
+    ("source", "model"),
     [
         ("ollama", "llama3.1:8b"),
         ("openai_compat", "gpt-4o-mini"),
@@ -220,14 +220,14 @@ def test_parameters_propagate_from_block(monkeypatch, source, model):
 def test_parameters_default_to_empty_when_absent(monkeypatch, source, model):
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     prov = build_candidate_provider({"source": source, "model": model})
     assert prov is not None
     assert prov.parameters == {}
 
 
 @pytest.mark.parametrize(
-    "source,model",
+    ("source", "model"),
     [
         ("ollama", "llama3.1:8b"),
         ("openai_compat", "gpt-4o-mini"),
@@ -237,7 +237,7 @@ def test_parameters_default_to_empty_when_absent(monkeypatch, source, model):
 def test_timeout_defaults_to_120_when_absent(monkeypatch, source, model):
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())
+    monkeypatch.setattr(_llm, "_import_litellm", object)
     prov = build_candidate_provider({"source": source, "model": model})
     assert prov is not None
     assert prov.timeout == 120.0
@@ -380,7 +380,7 @@ def test_demo_agent_builds_role_routers(monkeypatch):
 
     from astromesh.providers import litellm_provider as _llm
 
-    monkeypatch.setattr(_llm, "_import_litellm", lambda: object())  # pretend litellm is installed
+    monkeypatch.setattr(_llm, "_import_litellm", object)  # pretend litellm is installed
     cfg = yaml.safe_load(Path("config/agents/role-router-demo.agent.yaml").read_text())
     rt = _runtime()
     routers = rt._build_role_routers(cfg["spec"]["model"])

@@ -17,7 +17,8 @@ async def test_create_load_roundtrip():
     store = InMemoryRunStore()
     await store.create(_run("r1"))
     loaded = await store.load("r1")
-    assert loaded is not None and loaded.run_id == "r1"
+    assert loaded is not None
+    assert loaded.run_id == "r1"
     assert await store.load("nope") is None
 
 
@@ -29,7 +30,8 @@ async def test_save_updates():
     run.current_index = 3
     await store.save(run)
     again = await store.load("r1")
-    assert again.status == "suspended" and again.current_index == 3
+    assert again.status == "suspended"
+    assert again.current_index == 3
 
 
 async def test_list_by_status():

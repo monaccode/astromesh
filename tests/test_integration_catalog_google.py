@@ -69,7 +69,8 @@ async def test_gmail_send_message_builds_base64url_mime():
 
     raw = json.loads(route.calls[0].request.content)["raw"]
     # base64url, no base64 estándar: Gmail rechaza + y / acá.
-    assert "+" not in raw and "/" not in raw
+    assert "+" not in raw
+    assert "/" not in raw
     mime = base64.urlsafe_b64decode(raw).decode()
     assert "To: ana@example.com" in mime
     assert "Subject: Hola" in mime

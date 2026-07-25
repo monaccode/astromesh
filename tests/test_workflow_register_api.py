@@ -76,7 +76,7 @@ def _blueprint():
 
 
 @pytest.fixture
-def _fake(request):
+def fake_engine(request):
     rt = _FakeRuntime()
     eng = _FakeEngine(rt)
     wf_route.set_workflow_engine(eng)
@@ -84,8 +84,8 @@ def _fake(request):
     wf_route.set_workflow_engine(None)
 
 
-async def test_register_blueprint_registers_all_in_order(client, _fake):
-    eng, rt = _fake
+async def test_register_blueprint_registers_all_in_order(client, fake_engine):
+    eng, rt = fake_engine
     resp = await client.post("/v1/workflows/register", json=_blueprint())
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -101,8 +101,8 @@ async def test_register_blueprint_registers_all_in_order(client, _fake):
     ]
 
 
-async def test_register_is_idempotent(client, _fake):
-    eng, rt = _fake
+async def test_register_is_idempotent(client, fake_engine):
+    eng, _rt = fake_engine
     await client.post("/v1/workflows/register", json=_blueprint())
     resp = await client.post("/v1/workflows/register", json=_blueprint())
     assert resp.status_code == 200
@@ -115,7 +115,7 @@ async def test_register_503_when_engine_uninitialized(client):
     assert resp.status_code == 503
 
 
-async def test_register_422_on_bad_workflow(client, _fake):
+async def test_register_422_on_bad_workflow(client, fake_engine):
     bp = _blueprint()
     bp["workflow"]["kind"] = "NotAWorkflow"
     resp = await client.post("/v1/workflows/register", json=bp)

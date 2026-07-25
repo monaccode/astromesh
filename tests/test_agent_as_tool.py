@@ -239,9 +239,7 @@ class TestAgentToolTracing:
 class TestCircularAgentDetection:
     def _make_agent_config(self, name, agent_tools=None):
         """Helper to build a minimal agent YAML config dict."""
-        tools = []
-        for at in agent_tools or []:
-            tools.append({"name": at, "type": "agent", "agent": at})
+        tools = [{"name": at, "type": "agent", "agent": at} for at in agent_tools or []]
         return {
             "apiVersion": "astromesh/v1",
             "kind": "Agent",
@@ -260,7 +258,7 @@ class TestCircularAgentDetection:
 
         runtime = AgentRuntime.__new__(AgentRuntime)
         configs = [self._make_agent_config("agent-a", agent_tools=["agent-a"])]
-        with pytest.raises(ValueError, match="[Cc]ircular"):
+        with pytest.raises(ValueError, match=r"[Cc]ircular"):
             runtime._detect_circular_refs(configs)
 
     def test_indirect_cycle_detected(self):
@@ -272,7 +270,7 @@ class TestCircularAgentDetection:
             self._make_agent_config("agent-a", agent_tools=["agent-b"]),
             self._make_agent_config("agent-b", agent_tools=["agent-a"]),
         ]
-        with pytest.raises(ValueError, match="[Cc]ircular"):
+        with pytest.raises(ValueError, match=r"[Cc]ircular"):
             runtime._detect_circular_refs(configs)
 
     def test_no_cycle_passes(self):

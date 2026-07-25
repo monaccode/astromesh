@@ -40,14 +40,17 @@ async def test_run_suspends_then_get_then_resume(client, wired):
     r = await client.post("/v1/workflows/wf/run", json={"trigger": {}})
     assert r.status_code == 200
     body = r.json()
-    assert body["status"] == "suspended" and body["run_id"]
+    assert body["status"] == "suspended"
+    assert body["run_id"]
     run_id = body["run_id"]
 
     g = await client.get(f"/v1/workflows/runs/{run_id}")
-    assert g.status_code == 200 and g.json()["status"] == "suspended"
+    assert g.status_code == 200
+    assert g.json()["status"] == "suspended"
 
     res = await client.post(f"/v1/workflows/runs/{run_id}/resume", json={"payload": {"amount": 9}})
-    assert res.status_code == 200 and res.json()["status"] == "completed"
+    assert res.status_code == 200
+    assert res.json()["status"] == "completed"
 
 
 async def test_resume_non_suspended_409(client, wired):

@@ -98,7 +98,7 @@ def test_leader_election_across_cluster(three_node_mesh):
 
 
 def test_scheduler_routes_to_worker(three_node_mesh):
-    gw, wk, inf = three_node_mesh
+    gw, wk, _inf = three_node_mesh
     scheduler = Scheduler(gw)
     node_id = scheduler.route_request("support-agent")
     assert node_id == wk.node_id
@@ -114,7 +114,7 @@ def test_scheduler_placement_only_workers(three_node_mesh):
 
 
 def test_peer_client_from_mesh_integration(three_node_mesh):
-    gw, wk, inf = three_node_mesh
+    gw, _wk, _inf = three_node_mesh
     client = PeerClient.from_mesh(gw)
     assert len(client.list_peers()) == 2
     assert len(client.find_peers("agents")) == 1
@@ -122,7 +122,7 @@ def test_peer_client_from_mesh_integration(three_node_mesh):
 
 
 def test_node_failure_detection(three_node_mesh):
-    gw, wk, inf = three_node_mesh
+    gw, wk, _inf = three_node_mesh
     wk_id = wk.node_id
     gw._cluster.nodes[wk_id].last_heartbeat = time.time() - 20
     gw._config.failure_timeout = 15
@@ -131,7 +131,7 @@ def test_node_failure_detection(three_node_mesh):
 
 
 def test_node_failure_triggers_election(three_node_mesh):
-    gw, wk, inf = three_node_mesh
+    gw, _wk, _inf = three_node_mesh
     elector = LeaderElector(gw)
     elector.elect()
     leader_before = elector.current_leader()
@@ -147,7 +147,7 @@ def test_node_failure_triggers_election(three_node_mesh):
 
 
 def test_gossip_merge_propagates(three_node_mesh):
-    gw, wk, inf = three_node_mesh
+    gw, wk, _inf = three_node_mesh
     wk._cluster.nodes[wk.node_id].load.active_requests = 42
     wk._cluster.nodes[wk.node_id].last_heartbeat = time.time()
 
@@ -157,7 +157,7 @@ def test_gossip_merge_propagates(three_node_mesh):
 
 
 def test_mesh_api_shows_cluster(three_node_mesh):
-    gw, wk, inf = three_node_mesh
+    gw, _wk, _inf = three_node_mesh
     elector = LeaderElector(gw)
     elector.elect()
     mesh_routes.set_mesh(gw, elector)

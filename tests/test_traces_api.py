@@ -22,7 +22,7 @@ async def collector():
 
 class TestTracesAPI:
     async def test_list_traces(self, collector):
-        c, trace_id = collector
+        _c, trace_id = collector
         async with (
             LifespanManager(app),
             AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
@@ -34,7 +34,7 @@ class TestTracesAPI:
         assert data["traces"][0]["trace_id"] == trace_id
 
     async def test_get_trace(self, collector):
-        c, trace_id = collector
+        _c, trace_id = collector
         async with (
             LifespanManager(app),
             AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,

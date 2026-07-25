@@ -1,3 +1,5 @@
+import pytest
+
 from astromesh.ml.model_registry import ModelFormat, ModelRegistry, ModelStatus
 from astromesh.ml.serving.onnx_runtime import ONNXModelServer, ONNXServingConfig
 from astromesh.ml.serving.torch_serve import TorchModelServer, TorchServingConfig
@@ -36,6 +38,20 @@ def test_unregister_model():
     registry.register("temp", "1.0", ModelFormat.ONNX, "/p", "test")
     registry.unregister("temp", "1.0")
     assert registry.get("temp", "1.0") is None
+
+
+async def test_predict_rejects_a_format_it_cannot_run():
+    """SAFETENSORS es un formato registrable que `load` no instancia.
+
+    Antes `predict` caía al final de la cadena de ifs y devolvía `None`, así que
+    el llamador recibía un resultado vacío indistinguible de una predicción real.
+    """
+    registry = ModelRegistry()
+    info = registry.register("emb", "1.0", ModelFormat.SAFETENSORS, "/p", "embedding")
+    info.status = ModelStatus.READY
+
+    with pytest.raises(RuntimeError, match="safetensors"):
+        await registry.predict("emb", {"input": [1]})
 
 
 async def test_classifier_trainer():

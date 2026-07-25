@@ -45,10 +45,11 @@ class GuardrailsEngine:
                             raise ValueError(f"Blocked topic detected: {found}")
                 else:
                     for topic in blocked:
-                        if topic.lower() in result.lower():
-                            if rule.get("action", "warn") == "block":
-                                raise ValueError(f"Blocked topic detected: {topic}")
-                            result = result  # warn but allow
+                        if topic.lower() in result.lower() and (
+                            rule.get("action", "warn") == "block"
+                        ):
+                            raise ValueError(f"Blocked topic detected: {topic}")
+                        # action == "warn": el texto pasa sin tocar
             elif rule_type == "max_length":
                 max_len = rule.get("max_chars", 10000)
                 if len(result) > max_len:

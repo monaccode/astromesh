@@ -142,7 +142,7 @@ async def test_approve_non_approval_run_raises():
     store = InMemoryRunStore()
     eng = _engine([StepSpec(name="a", tool="t")], store)
     run_id = (await eng.run("wf", trigger={})).run_id
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="is not awaiting approval") as exc:
         await eng.approve(run_id, approver="u:jc", comment=None, decided_at="t")
     assert "not found" not in str(exc.value)
 
@@ -163,6 +163,6 @@ async def test_approve_plain_wait_run_raises_without_not_found():
     assert saved.status == "suspended"
     assert saved.pending_approval is None
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="is not awaiting approval") as exc:
         await eng.approve(run_id, approver="u:jc", comment=None, decided_at="t")
     assert "not found" not in str(exc.value)

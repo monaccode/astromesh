@@ -118,4 +118,5 @@ async def test_rate_limit_still_applies_to_integration_tools(tmp_path):
     first = await registry.execute("demo_ping", {}, ctx)
     second = await registry.execute("demo_ping", {}, ctx)
     assert first["success"] is True
-    assert "error" in second and "Rate limit" in second["error"]
+    assert "error" in second
+    assert "Rate limit" in second["error"]

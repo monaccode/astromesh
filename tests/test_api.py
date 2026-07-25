@@ -29,7 +29,8 @@ async def test_get_agent_returns_full_config(client):
     assert detail.status_code == 200
     body = detail.json()
     assert body.get("kind") == "Agent"
-    assert "metadata" in body and "spec" in body
+    assert "metadata" in body
+    assert "spec" in body
     assert "identity" in body["spec"]
     assert "display_name" in body["spec"]["identity"]
 

@@ -47,7 +47,8 @@ async def test_parallel_fan_out_role_sequence():
     await ParallelFanOutPattern().execute("q", {}, model_fn, AsyncMock(), [])
     roles = _roles_used(model_fn)
     assert roles[0] == "planner"
-    assert roles[1] == "worker" and roles[2] == "worker"
+    assert roles[1] == "worker"
+    assert roles[2] == "worker"
     assert roles[-1] == "synthesizer"
 
 

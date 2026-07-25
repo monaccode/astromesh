@@ -13,7 +13,7 @@ class SupervisorPattern(OrchestrationPattern):
         steps = []
         worker_names = list(self._workers.keys()) or ["default"]
 
-        for iteration in range(max_iterations):
+        for _iteration in range(max_iterations):
             supervisor_prompt = (
                 f"You are a supervisor managing workers: {worker_names}\n"
                 f"Task: {query}\n"

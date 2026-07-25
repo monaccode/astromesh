@@ -109,7 +109,7 @@ class TestWorkflowSpec:
         assert wf.get_step("nonexistent") is None
 
     def test_duplicate_step_names_raises(self):
-        with pytest.raises(ValueError, match="[Dd]uplicate"):
+        with pytest.raises(ValueError, match=r"[Dd]uplicate"):
             WorkflowSpec(
                 name="test-wf",
                 trigger="api",

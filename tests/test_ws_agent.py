@@ -119,10 +119,12 @@ def test_a_full_queue_drops_the_event_and_logs_a_warning(client, mock_runtime, m
 
     mock_runtime.run = AsyncMock(side_effect=run_that_floods)
 
-    with caplog.at_level(logging.WARNING, logger="astromesh.api.ws"):
-        with client.websocket_connect("/v1/ws/agent/demo") as ws:
-            ws.send_json({"query": "hola"})
-            events = _drain(ws)
+    with (
+        caplog.at_level(logging.WARNING, logger="astromesh.api.ws"),
+        client.websocket_connect("/v1/ws/agent/demo") as ws,
+    ):
+        ws.send_json({"query": "hola"})
+        events = _drain(ws)
 
     assert events[-1]["type"] == "done"
     dropped = [r for r in caplog.records if "queue full" in r.message]

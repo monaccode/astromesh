@@ -115,6 +115,11 @@ class ModelRegistry:
             with torch.no_grad():
                 return info.instance(input_data)
 
+        # `load` sólo instancia ONNX y PyTorch, pero marca READY igual. Sin este
+        # raise el formato restante devolvía None y el llamador no podía
+        # distinguirlo de una predicción vacía.
+        raise RuntimeError(f"Model '{name}:{version}' has no runner for format '{info.format.value}'")
+
     def unregister(self, name: str, version: str):
         key = f"{name}:{version}"
         self._models.pop(key, None)

@@ -48,8 +48,10 @@ class BuiltinTool(ABC):
     @abstractmethod
     async def execute(self, arguments: dict, context: ToolContext) -> ToolResult: ...
 
-    async def validate_config(self, config: dict) -> None:
-        pass
+    # No es @abstractmethod a propósito: validar la config es un gancho opcional
+    # y obligar a implementarlo rompería toda tool que no tenga nada que validar.
+    async def validate_config(self, config: dict) -> None:  # noqa: B027
+        """Gancho opcional: las subclases que validen su config lo sobrescriben."""
 
     async def health_check(self) -> bool:
         return True

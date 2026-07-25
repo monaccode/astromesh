@@ -46,7 +46,7 @@ def test_missing_argument_raises():
 
 
 def test_slash_rejected_in_path_by_default():
-    with pytest.raises(InterpolationError, match="barra|slash"):
+    with pytest.raises(InterpolationError, match=r"barra|slash"):
         interpolate("/{owner}/items", {"owner": "a/b"}, position="path")
 
 

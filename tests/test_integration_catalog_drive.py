@@ -81,7 +81,8 @@ async def test_upload_file_runs_the_resumable_session():
     )
     assert result.success is True
     assert result.data["id"] == "FILE1"
-    assert init.called and put.called
+    assert init.called
+    assert put.called
     assert init.calls[0].request.headers["Authorization"] == "Bearer T0K3N"
     assert put.calls[0].request.content == b"hola mundo"
 

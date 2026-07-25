@@ -411,12 +411,12 @@ async def test_send_text_calls_graph_api(monkeypatch):
 
     mock_post = AsyncMock(return_value=mock_response)
 
-    with patch("astromesh.channels.whatsapp.httpx.AsyncClient") as MockClient:
+    with patch("astromesh.channels.whatsapp.httpx.AsyncClient") as mock_client:
         instance = AsyncMock()
         instance.post = mock_post
         instance.__aenter__ = AsyncMock(return_value=instance)
         instance.__aexit__ = AsyncMock(return_value=False)
-        MockClient.return_value = instance
+        mock_client.return_value = instance
 
         result = await client.send_text("5511999999999", "Test message")
 
@@ -453,12 +453,12 @@ async def test_download_media_two_step_fetch():
     mock_media_resp.content = b"\xff\xd8\xff\xe0"
     mock_media_resp.raise_for_status = lambda: None
 
-    with patch("astromesh.channels.whatsapp.httpx.AsyncClient") as MockClient:
+    with patch("astromesh.channels.whatsapp.httpx.AsyncClient") as mock_client:
         instance = AsyncMock()
         instance.get = AsyncMock(side_effect=[mock_meta_resp, mock_media_resp])
         instance.__aenter__ = AsyncMock(return_value=instance)
         instance.__aexit__ = AsyncMock(return_value=False)
-        MockClient.return_value = instance
+        mock_client.return_value = instance
 
         result = await client.download_media(att)
 

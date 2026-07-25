@@ -100,8 +100,7 @@ class TestChannelMessage:
 
 def _make_adapter() -> ChannelAdapter:
     """Create a mock ChannelAdapter."""
-    adapter = AsyncMock(spec=ChannelAdapter)
-    return adapter
+    return AsyncMock(spec=ChannelAdapter)
 
 
 def _make_message(
