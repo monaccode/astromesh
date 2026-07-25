@@ -32,11 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Graph API.
 - Integración `google_drive`: listar, buscar y leer metadatos de archivos, y subida por
   sesión resumable.
+- Span `integration.call` con slug, acción, status y `error_kind`.
 
 ### Fixed
 
 - `GET /v1/tools` devolvía una lista vacía fija; ahora reporta builtins y acciones de
   integración.
+- `docs/CONFIGURATION_GUIDE.md` no documentaba el tipo de tool `integration`.
 
 ### Changed
 

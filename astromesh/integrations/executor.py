@@ -19,6 +19,7 @@ from astromesh.integrations.interpolation import (
     interpolate_structure,
 )
 from astromesh.integrations.manifest import ActionSpec, IntegrationManifest
+from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.tools.base import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -168,6 +169,13 @@ class HttpActionExecutor:
         except InterpolationError as exc:
             return _fail(errors.BAD_REQUEST, str(exc))
 
+        # El span lleva slug, acción y status. Nunca headers, body ni credencial:
+        # los spans se persisten y este es el mismo camino que la traza de tools.
+        tracing = TracingContext(agent_name="", session_id="")
+        span = tracing.start_span(
+            "integration.call",
+            {"integration.slug": manifest.slug, "integration.action": action.name},
+        )
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.request(
@@ -180,9 +188,17 @@ class HttpActionExecutor:
         # Ídem: httpx puede levantar por red, DNS, TLS o timeout. `tool_fn`
         # re-lanza lo que reciba, así que nada puede salir de acá como excepción.
         except Exception as exc:  # noqa: BLE001
+            span.set_attribute("error_kind", errors.classify_exception(exc))
+            tracing.finish_span(span, status=SpanStatus.ERROR)
             logger.warning("%s.%s falló: %s", manifest.slug, action.name, exc)
             return _fail(errors.classify_exception(exc), f"{type(exc).__name__}: {exc}")
 
+        span.set_attribute("http.status_code", response.status_code)
+        if response.status_code >= 400:
+            span.set_attribute("error_kind", errors.classify_status(response.status_code))
+            tracing.finish_span(span, status=SpanStatus.ERROR)
+        else:
+            tracing.finish_span(span)
         return self._to_result(action, response, args)
 
     @staticmethod

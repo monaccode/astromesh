@@ -74,9 +74,13 @@ async def test_delete_unknown_agent_returns_404(client):
 
 
 async def test_list_tools(client):
+    """Hasta 0.36.0 devolvía `[]` fijo; ahora reporta builtins e integraciones."""
     resp = await client.get("/v1/tools")
     assert resp.status_code == 200
-    assert resp.json()["tools"] == []
+    body = resp.json()
+    assert body["count"] == len(body["tools"])
+    types = {t["type"] for t in body["tools"]}
+    assert {"builtin", "integration"} <= types
 
 
 async def test_rag_query_unknown_pipeline(client):
