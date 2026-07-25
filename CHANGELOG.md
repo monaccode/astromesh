@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integración `google_drive`: listar, buscar y leer metadatos de archivos, y subida por
   sesión resumable.
 - Span `integration.call` con slug, acción, status y `error_kind`.
+- Integración `instagram`: listar y leer media, comentarios, y publicar fotos
+  (contenedor + publicación encadenados en un handler).
+- Integración `facebook`: publicaciones y comentarios de una página, y publicar en el feed.
+- Integración `gmail`: listar y leer mensajes, etiquetas, y enviar correo (MIME RFC 5322
+  en base64url vía handler).
+- Integración `google_sheets`: leer, sobrescribir y agregar filas. Enteramente declarativa.
+- Integración `tiktok`: perfil, listado de videos y publicación por URL.
+- `pagination.cursor_in`: el cursor puede viajar en el cuerpo, no sólo en la query
+  (lo necesita TikTok y cualquier API que pagine sobre POST).
 
 ### Fixed
 
@@ -41,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/CONFIGURATION_GUIDE.md` no documentaba el tipo de tool `integration`.
 
 ### Changed
+
+- `writes` en el manifest pasa a ser tri-estado (`true`/`false`/no declarado). Las acciones
+  con método mutante deben declararlo explícitamente; leer por POST es legítimo y ya no
+  obliga a marcar una escritura falsa. Los consumidores usan `ActionSpec.mutates`.
+- Un campo opcional del body o de la query cuyo argumento no llegó ahora se omite en vez
+  de fallar la acción entera.
 
 - Normalización de parámetros de tools mudada a `astromesh/core/schema.py` para compartirla
   entre el loader de agentes y el marco de integraciones.

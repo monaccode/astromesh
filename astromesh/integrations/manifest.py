@@ -62,6 +62,14 @@ class PaginationSpec(BaseModel):
     cursor_path: str | None = None
     limit_param: str | None = None
     offset_param: str | None = None
+    cursor_in: Literal["query", "body"] = "query"
+    """Dónde viaja el cursor hacia el proveedor.
+
+    La mayoría lo espera en la query. Las APIs que paginan sobre POST con
+    cuerpo (TikTok, y en general cualquier búsqueda con body) lo esperan
+    adentro del JSON; mandarlo en la query ahí no pagina nada y el error es
+    mudo — se recibe la primera página una y otra vez.
+    """
 
     @model_validator(mode="after")
     def _needs_fields(self):
@@ -90,7 +98,15 @@ class ActionSpec(BaseModel):
     handler: str | None = None
     response: ResponseSpec | None = None
     pagination: PaginationSpec | None = None
-    writes: bool = False
+    writes: bool | None = None
+    """Si la acción muta algo del lado del proveedor.
+
+    Tri-estado a propósito: `None` es "no declarado", y eso permite exigir
+    una declaración explícita a las acciones con método mutante sin obligar
+    a mentir a las que leen por POST — que existen y son comunes (búsquedas
+    con cuerpo, GraphQL, la Display API de TikTok). Los consumidores usan
+    `mutates`, que colapsa None a False.
+    """
     rate_limit: dict | None = None
     timeout_seconds: int | None = None
     allow_slash: list[str] = Field(default_factory=list)
@@ -110,6 +126,11 @@ class ActionSpec(BaseModel):
         if self.request is None and self.handler is None:
             raise ValueError(f"acción '{self.name}': necesita 'request' o 'handler'")
         return self
+
+    @property
+    def mutates(self) -> bool:
+        """Lo que consumen el registro, el catálogo y la API. `None` es False."""
+        return bool(self.writes)
 
     def tool_parameters(self) -> dict:
         """Esquema JSON que ve el modelo: taquigrafía normalizada + cursor."""

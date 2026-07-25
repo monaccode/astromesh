@@ -33,7 +33,7 @@ async def list_tools():
                     "description": action.description,
                     "type": "integration",
                     "integration": manifest.slug,
-                    "writes": action.writes,
+                    "writes": action.mutates,
                 }
             )
     return {"tools": tools, "count": len(tools)}

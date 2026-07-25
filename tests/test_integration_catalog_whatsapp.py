@@ -31,7 +31,7 @@ def test_send_actions_are_marked_as_writes():
     actions = {a.name: a for a in _whatsapp().actions}
     assert actions["send_text"].writes is True
     assert actions["send_template"].writes is True
-    assert actions["get_media"].writes is False
+    assert actions["get_media"].mutates is False
 
 
 @respx.mock

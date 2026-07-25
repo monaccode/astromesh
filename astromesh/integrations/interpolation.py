@@ -74,28 +74,58 @@ def interpolate(template: str, args: dict, *, position: str, allow_slash: bool =
     return _PLACEHOLDER.sub(_replace, template)
 
 
+class _Omit:
+    """Marca 'este campo no tenía argumento'.
+
+    Un centinela y no `None`, porque `None` es un valor legítimo que una API
+    puede querer recibir explícitamente (`{"parent": null}` para desasignar).
+    """
+
+    def __repr__(self):
+        return "<OMIT>"
+
+
+OMIT = _Omit()
+
+
 def interpolate_structure(value: Any, args: dict, *, allow_slash_params: set[str]) -> Any:
     """Interpola recursivamente dicts, listas y strings de un body o unas headers.
 
-    Un string que es exactamente un placeholder conserva el tipo del
-    argumento: `{"limit": "{limit}"}` con limit=25 produce `{"limit": 25}`,
-    no `{"limit": "25"}`. Una API que valida tipos rechaza lo segundo.
+    Dos comportamientos que importan:
+
+    **El tipo se conserva.** Un string que es exactamente un placeholder
+    devuelve el argumento tal cual: `{"limit": "{limit}"}` con limit=25
+    produce `{"limit": 25}`, no `{"limit": "25"}`. Una API que valida tipos
+    rechaza lo segundo.
+
+    **Un campo opcional sin argumento se omite, no falla.** `{"link":
+    "{link}"}` sin `link` produce `{}`. Un manifest declara los campos que la
+    API *acepta*, no los que el modelo va a completar siempre; hacer
+    obligatorio todo lo declarado obligaría a partir cada acción en una
+    variante por combinación de opcionales. Lo que de verdad no puede faltar
+    se marca `required` y lo ataja el esquema antes de llegar acá.
+
+    Devuelve `OMIT` si el valor entero es un placeholder sin argumento; quien
+    llama decide qué significa (para un body de nivel superior, "sin body").
     """
     if isinstance(value, dict):
-        return {
-            k: interpolate_structure(v, args, allow_slash_params=allow_slash_params)
-            for k, v in value.items()
-        }
+        rendered = {}
+        for k, v in value.items():
+            out = interpolate_structure(v, args, allow_slash_params=allow_slash_params)
+            if out is not OMIT:
+                rendered[k] = out
+        return rendered
     if isinstance(value, list):
-        return [
+        items = [
             interpolate_structure(v, args, allow_slash_params=allow_slash_params) for v in value
         ]
+        return [item for item in items if item is not OMIT]
     if isinstance(value, str):
         lone = _LONE_PLACEHOLDER.match(value)
         if lone:
             param = lone.group(1)
             if param not in args:
-                raise InterpolationError(f"falta el argumento '{param}'")
+                return OMIT
             return args[param]
         return interpolate(value, args, position="raw")
     return value

@@ -1,6 +1,7 @@
 import pytest
 
 from astromesh.integrations.interpolation import (
+    OMIT,
     InterpolationError,
     interpolate,
     interpolate_structure,
@@ -86,3 +87,30 @@ def test_interpolate_structure_keeps_whole_value_type_for_lone_placeholder():
     # Un body {"limit": "{limit}"} con limit=25 debe mandar 25, no "25".
     out = interpolate_structure({"limit": "{limit}"}, {"limit": 25}, allow_slash_params=set())
     assert out == {"limit": 25}
+
+
+def test_optional_field_without_argument_is_dropped():
+    """Un manifest declara lo que la API acepta, no lo que el modelo siempre manda."""
+    out = interpolate_structure(
+        {"message": "{message}", "link": "{link}"}, {"message": "hola"}, allow_slash_params=set()
+    )
+    assert out == {"message": "hola"}
+
+
+def test_omission_reaches_nested_structures():
+    out = interpolate_structure(
+        {"post_info": {"title": "{title}", "tag": "{tag}"}},
+        {"title": "t"},
+        allow_slash_params=set(),
+    )
+    assert out == {"post_info": {"title": "t"}}
+
+
+def test_whole_value_omission_is_signalled_with_the_sentinel():
+    assert interpolate_structure("{body}", {}, allow_slash_params=set()) is OMIT
+
+
+def test_explicit_none_is_kept_not_omitted():
+    """None es un valor que una API puede querer recibir; no es 'ausente'."""
+    out = interpolate_structure({"parent": "{parent}"}, {"parent": None}, allow_slash_params=set())
+    assert out == {"parent": None}

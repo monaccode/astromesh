@@ -73,7 +73,7 @@ def test_declarative_action_fields(tmp_path):
     assert action.pagination.style == "cursor"
     assert action.pagination.cursor_path == "paging.next"
     assert action.handler is None
-    assert action.writes is False
+    assert action.mutates is False
 
 
 def test_handler_action_fields(tmp_path):

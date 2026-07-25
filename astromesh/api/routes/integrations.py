@@ -15,7 +15,7 @@ def _action_payload(action) -> dict:
     return {
         "name": action.name,
         "description": action.description,
-        "writes": action.writes,
+        "writes": action.mutates,
         "parameters": action.tool_parameters(),
         "paginated": action.pagination is not None,
     }

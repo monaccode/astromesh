@@ -145,14 +145,31 @@ def test_descriptions_are_useful(path):
 
 
 @pytest.mark.parametrize("path", MANIFEST_PATHS, ids=_ids(MANIFEST_PATHS))
-def test_write_actions_are_declared_as_such(path):
-    """Un método mutante sin `writes: true` deja al cliente sin la señal."""
+def test_mutating_methods_declare_writes_explicitly(path):
+    """Un método mutante tiene que decir si muta — sí o no, pero dicho.
+
+    No se exige `writes: true` a rajatabla: leer por POST es común y legítimo
+    (búsquedas con cuerpo, GraphQL, la Display API de TikTok). Lo que no se
+    permite es el silencio, que deja al cliente sin señal y se parece
+    demasiado a un olvido.
+    """
     manifest = load_manifest(path)
     for action in manifest.actions:
         if action.request and action.request.method in ("POST", "PUT", "PATCH", "DELETE"):
-            assert action.writes, (
-                f"{manifest.slug}.{action.name} usa {action.request.method} pero no "
-                f"declara 'writes: true'"
+            assert action.writes is not None, (
+                f"{manifest.slug}.{action.name} usa {action.request.method} y no declara "
+                f"'writes'. Poné 'writes: true' si muta, o 'writes: false' si sólo lee."
+            )
+
+
+@pytest.mark.parametrize("path", MANIFEST_PATHS, ids=_ids(MANIFEST_PATHS))
+def test_handler_actions_declare_writes_explicitly(path):
+    """Un handler es opaco al validador: sólo su autor sabe si muta."""
+    manifest = load_manifest(path)
+    for action in manifest.actions:
+        if action.handler:
+            assert action.writes is not None, (
+                f"{manifest.slug}.{action.name} es un handler y no declara 'writes'."
             )
 
 

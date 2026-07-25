@@ -164,7 +164,7 @@ class ToolRegistry:
             description=action.description,
             tool_type=ToolType.INTEGRATION,
             parameters=action.tool_parameters(),
-            requires_approval=action.writes,
+            requires_approval=action.mutates,
             timeout_seconds=action.timeout_seconds or manifest.defaults.timeout_seconds,
             integration_config={
                 "slug": manifest.slug,

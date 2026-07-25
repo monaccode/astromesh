@@ -14,6 +14,7 @@ from astromesh.integrations.auth import CredentialMissing, apply_auth
 from astromesh.integrations.credentials import ResolvedConnection
 from astromesh.integrations.handlers import HandlerError, load_handler
 from astromesh.integrations.interpolation import (
+    OMIT,
     InterpolationError,
     interpolate,
     interpolate_structure,
@@ -148,10 +149,19 @@ class HttpActionExecutor:
             path = self._render_path(action.request.path, args, allow_slash)
             # "raw", no "query": httpx percent-encodea los params al armar la URL.
             # Codificar acá también daría doble codificación.
+            #
+            # interpolate_structure, no interpolate, para que un query param
+            # opcional sin argumento se omita en vez de reventar — mismo criterio
+            # que en el body.
             params = {
-                key: interpolate(str(value), args, position="raw")
-                for key, value in (action.request.query or {}).items()
+                key: value
+                for key, value in (
+                    interpolate_structure(
+                        dict(action.request.query or {}), args, allow_slash_params=allow_slash
+                    )
+                ).items()
             }
+            params = {k: str(v) for k, v in params.items()}
             params.update(auth_params)
             params.update(self._pagination_params(action, args))
             request_headers = {
@@ -166,6 +176,10 @@ class HttpActionExecutor:
                 if action.request.body is not None
                 else None
             )
+            # El body entero era un placeholder sin argumento (`body: "{body}"`
+            # en la integración http, llamada sin cuerpo): se manda sin body.
+            if body is OMIT:
+                body = None
         except InterpolationError as exc:
             return _fail(errors.BAD_REQUEST, str(exc))
 
@@ -210,7 +224,10 @@ class HttpActionExecutor:
         número de items ya consumidos.
         """
         pagination = action.pagination
-        if pagination is None:
+        if pagination is None or pagination.cursor_in != "query":
+            # cursor_in='body': el manifest lo coloca él mismo con `{cursor}`
+            # dentro de `request.body`, y interpolate_structure lo omite solo
+            # cuando no hay cursor.
             return {}
         params: dict = {}
         cursor = args.get("cursor")

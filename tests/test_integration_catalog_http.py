@@ -24,7 +24,7 @@ def test_exposes_the_four_verbs():
 
 def test_write_verbs_are_marked_as_writes():
     actions = {a.name: a for a in _http().actions}
-    assert actions["get"].writes is False
+    assert actions["get"].mutates is False
     assert actions["post"].writes is True
     assert actions["put"].writes is True
     assert actions["delete"].writes is True

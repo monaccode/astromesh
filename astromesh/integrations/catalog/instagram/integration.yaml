@@ -1,0 +1,114 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: instagram
+  version: 0.1.0
+  description: >
+    Instagram Graph API para cuentas business y creator. Leer el media
+    publicado y publicar fotos. Comparte base_url y esquema de auth con
+    whatsapp y facebook: las tres son Meta Graph.
+spec:
+  base_url: "https://graph.facebook.com/v21.0"
+  auth:
+    scheme: bearer
+    credential: access_token
+  defaults:
+    timeout_seconds: 60
+    rate_limit:
+      window_seconds: 3600
+      max_calls: 200
+  actions:
+    - name: list_media
+      description: "Lista el media publicado de una cuenta business de Instagram"
+      parameters:
+        ig_user_id:
+          type: string
+          description: "ID de la cuenta business de Instagram"
+          required: true
+        limit:
+          type: integer
+          description: "Cantidad de items por página"
+          default: 25
+      request:
+        method: GET
+        path: "/{ig_user_id}/media"
+        query:
+          fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count"
+          limit: "{limit}"
+      response:
+        select: "data"
+      pagination:
+        style: cursor
+        cursor_param: after
+        cursor_path: "paging.cursors.after"
+
+    - name: get_media
+      description: "Devuelve los detalles de una publicación por su ID"
+      parameters:
+        media_id:
+          type: string
+          description: "ID de la publicación en Instagram"
+          required: true
+      request:
+        method: GET
+        path: "/{media_id}"
+        query:
+          fields: "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count"
+
+    - name: list_comments
+      description: "Lista los comentarios de una publicación"
+      parameters:
+        media_id:
+          type: string
+          description: "ID de la publicación en Instagram"
+          required: true
+      request:
+        method: GET
+        path: "/{media_id}/comments"
+        query:
+          fields: "id,text,username,timestamp"
+      response:
+        select: "data"
+      pagination:
+        style: cursor
+        cursor_param: after
+        cursor_path: "paging.cursors.after"
+
+    - name: publish_photo
+      description: >
+        Publica una foto: crea el contenedor de media y lo publica. Necesita
+        dos llamadas encadenadas, por eso es un handler y no declarativa.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.instagram.handlers:publish_photo"
+      parameters:
+        ig_user_id:
+          type: string
+          description: "ID de la cuenta business de Instagram"
+          required: true
+        image_url:
+          type: string
+          description: "URL pública de la imagen, accesible por los servidores de Meta"
+          required: true
+        caption:
+          type: string
+          description: "Texto que acompaña la publicación"
+
+    - name: publish_container
+      description: >
+        Publica un contenedor de media ya creado. Sirve para reintentar cuando
+        publish_photo creó el contenedor pero la publicación falló.
+      writes: true
+      parameters:
+        ig_user_id:
+          type: string
+          description: "ID de la cuenta business de Instagram"
+          required: true
+        creation_id:
+          type: string
+          description: "ID del contenedor devuelto al crear el media"
+          required: true
+      request:
+        method: POST
+        path: "/{ig_user_id}/media_publish"
+        query:
+          creation_id: "{creation_id}"

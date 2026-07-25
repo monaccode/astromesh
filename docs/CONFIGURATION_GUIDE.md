@@ -142,8 +142,26 @@ spec:
 ## Integraciones
 
 Una integración es un servicio externo descrito por un manifest en
-`astromesh/integrations/catalog/<slug>/integration.yaml`. Un agente habilita
-las acciones que necesita:
+`astromesh/integrations/catalog/<slug>/integration.yaml`.
+
+### Catálogo
+
+| Slug | Qué cubre | Auth |
+|---|---|---|
+| `http` | APIs internas y legacy; base_url y auth vienen de la conexión | configurable |
+| `whatsapp` | WhatsApp Business Cloud: enviar texto y plantillas, leer media | bearer (Meta) |
+| `instagram` | Media y comentarios de cuentas business; publicar fotos | bearer (Meta) |
+| `facebook` | Publicaciones y comentarios de página; publicar en el feed | bearer (Meta) |
+| `gmail` | Listar y leer mensajes y etiquetas; enviar correo | bearer (Google) |
+| `google_drive` | Listar, buscar y leer archivos; subir por sesión resumable | bearer (Google) |
+| `google_sheets` | Leer, sobrescribir y agregar filas | bearer (Google) |
+| `tiktok` | Perfil, listado de videos, publicar por URL | bearer (TikTok) |
+
+Las tres de Meta comparten base_url y esquema de auth; las tres de Google
+comparten esquema y difieren sólo en base_url. Por eso una integración nueva de
+cualquiera de las dos familias es copiar la vecina y cambiar las acciones.
+
+Un agente habilita las acciones que necesita:
 
 ```yaml
 tools:
@@ -195,6 +213,15 @@ con un `error_kind` en `metadata`, que es parte del contrato:
 | `upstream_error` | 5xx, timeout, red | reintentable |
 | `bad_request` | 4xx restantes | el modelo corrigió mal los argumentos |
 
+### Declarar `writes`
+
+`writes` es tri-estado: `true`, `false`, o no declarado. Una acción con método
+mutante (POST, PUT, PATCH, DELETE) **tiene que declararlo**, y el test de
+conformidad la rechaza si no lo hace. No se exige que sea `true`: leer por POST
+es común y legítimo (búsquedas con cuerpo, GraphQL, la Display API de TikTok), y
+esas acciones ponen `writes: false`. Lo que no se acepta es el silencio, que deja
+al cliente sin señal y se parece demasiado a un olvido.
+
 `writes: true` marca una acción mutante. **En esta versión informa, no bloquea**:
 se refleja en `requires_approval`, se publica en el catálogo y viaja en el evento
 `tool_call` para que un cliente lo interponga. El runtime no frena la llamada.
@@ -213,10 +240,16 @@ Una carpeta con un `integration.yaml`. El test de conformidad
 aceptados por los proveedores, placeholders declarados, handlers resolubles y
 descripciones útiles. No hay que escribir tests.
 
-Si una acción necesita más de un request (subidas resumables, publicar tras
-polear un estado), se declara `handler: python:modulo:funcion` en vez de
-`request:`. Las dos formas son mutuamente excluyentes y el manifest falla al
-cargar si se declaran ambas.
+Los campos opcionales se declaran sin más: un `{param}` del body o de la query
+cuyo argumento no llegó se **omite**, no falla. Sólo lo marcado `required` es
+obligatorio, y eso lo ataja el esquema antes de llegar al ejecutor.
+
+Si una acción necesita más de un request (subidas resumables, encadenar la
+creación de un contenedor con su publicación, construir un MIME), se declara
+`handler: python:modulo:funcion` en vez de `request:`. Las dos formas son
+mutuamente excluyentes y el manifest falla al cargar si se declaran ambas.
+Hoy 3 de 32 acciones del catálogo usan el escape: si esa proporción se
+invierte, la decisión de hacerlo declarativo hay que revisarla.
 
 ```yaml
   # --- Memory ---
