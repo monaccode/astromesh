@@ -1,6 +1,6 @@
 # tests/test_dashboard_api.py
-from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 
 from astromesh.api.routes.dashboard import router
 

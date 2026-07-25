@@ -1,6 +1,7 @@
 # tests/test_workflow_engine.py
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from astromesh.workflow import WorkflowEngine
 from astromesh.workflow.models import WorkflowRunResult

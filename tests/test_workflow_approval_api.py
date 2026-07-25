@@ -70,13 +70,15 @@ async def test_approve_endpoint(client, wired):
     a = await client.post(
         f"/v1/workflows/runs/{run_id}/approve", json={"approver": "u:jc", "comment": "ok"}
     )
-    assert a.status_code == 200 and a.json()["status"] == "completed"
+    assert a.status_code == 200
+    assert a.json()["status"] == "completed"
 
 
 async def test_reject_endpoint(client, wired):
     run_id = (await client.post("/v1/workflows/wf/run", json={"trigger": {}})).json()["run_id"]
     a = await client.post(f"/v1/workflows/runs/{run_id}/reject", json={"approver": "u:jc"})
-    assert a.status_code == 200 and a.json()["status"] == "rejected"
+    assert a.status_code == 200
+    assert a.json()["status"] == "rejected"
 
 
 async def test_approve_unknown_run_404(client, wired):

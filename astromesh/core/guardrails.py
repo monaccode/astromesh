@@ -40,15 +40,15 @@ class GuardrailsEngine:
                 if _HAS_NATIVE_GUARDRAILS and not os.environ.get("ASTROMESH_FORCE_PYTHON"):
                     tf = RustTopicFilter(blocked)
                     found = tf.contains_blocked(result)
-                    if found is not None:
-                        if rule.get("action", "warn") == "block":
-                            raise ValueError(f"Blocked topic detected: {found}")
+                    if found is not None and rule.get("action", "warn") == "block":
+                        raise ValueError(f"Blocked topic detected: {found}")
                 else:
                     for topic in blocked:
-                        if topic.lower() in result.lower():
-                            if rule.get("action", "warn") == "block":
-                                raise ValueError(f"Blocked topic detected: {topic}")
-                            result = result  # warn but allow
+                        if topic.lower() in result.lower() and (
+                            rule.get("action", "warn") == "block"
+                        ):
+                            raise ValueError(f"Blocked topic detected: {topic}")
+                        # action == "warn": el texto pasa sin tocar
             elif rule_type == "max_length":
                 max_len = rule.get("max_chars", 10000)
                 if len(result) > max_len:
@@ -86,5 +86,4 @@ class GuardrailsEngine:
         # SSN
         text = re.sub(r"\b\d{3}-\d{2}-\d{4}\b", "[REDACTED_SSN]", text)
         # Credit card (basic)
-        text = re.sub(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b", "[REDACTED_CC]", text)
-        return text
+        return re.sub(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b", "[REDACTED_CC]", text)

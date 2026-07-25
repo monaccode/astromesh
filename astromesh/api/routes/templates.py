@@ -29,7 +29,7 @@ def _bundled_templates_root() -> Path | None:
         if repo_path.is_dir():
             return repo_path
         return None
-    except Exception:
+    except Exception:  # noqa: BLE001  (best-effort: este camino nunca puede levantar)
         return None
 
 
@@ -66,7 +66,7 @@ def _load_templates() -> list[dict]:
     by_name: dict[str, dict] = {}
     for root in _iter_template_root_dirs():
         for f in sorted(root.glob("*.template.yaml")):
-            with open(f, encoding="utf-8") as fh:
+            with f.open(encoding="utf-8") as fh:
                 data = yaml.safe_load(fh)
             if not isinstance(data, dict):
                 continue

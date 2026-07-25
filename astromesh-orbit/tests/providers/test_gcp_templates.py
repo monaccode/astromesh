@@ -1,11 +1,11 @@
 """Tests for GCP Terraform template rendering."""
 
 from pathlib import Path
+
 import pytest
 from jinja2 import Environment, FileSystemLoader
 
 from astromesh_orbit.config import OrbitConfig
-
 
 TEMPLATES_DIR = (
     Path(__file__).resolve().parent.parent.parent

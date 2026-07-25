@@ -4,6 +4,7 @@ App-side (the engine knows which agent makes each provider call), reusing the sa
 traces (4.3). Off by default; enabled only when observability.otlp.enabled.
 """
 
+import contextlib
 import os
 from dataclasses import dataclass
 
@@ -47,9 +48,9 @@ class MetricsManager:
         if not self._enabled:
             return
         try:
+            from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
             from opentelemetry.sdk.metrics import MeterProvider
             from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-            from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
             from opentelemetry.sdk.resources import Resource
 
             exporter = OTLPMetricExporter(endpoint=self._endpoint)
@@ -78,10 +79,8 @@ class MetricsManager:
 
     def record(self, agent: str, model: str, nbytes: int) -> None:
         if self._counter is not None and nbytes > 0:
-            try:
+            with contextlib.suppress(Exception):
                 self._counter.add(nbytes, {"agent": agent, "model": model or "unknown"})
-            except Exception:
-                pass
 
     def record_run(self, ctx) -> None:
         """4.3b: derive the engine metric set from a completed TracingContext. Best-effort; never raises."""
@@ -125,15 +124,13 @@ class MetricsManager:
                     tool = attrs.get("tool", "unknown")
                     if self._tools is not None:
                         self._tools.add(1, {"tool": tool, "status": status})
-        except Exception:
+        except Exception:  # noqa: BLE001, S110  (telemetría: loguear el fallo del exportador arriesga realimentar este mismo camino)
             pass
 
     def flush(self, timeout_millis: int = 5000) -> None:
         if self._provider is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._provider.force_flush(timeout_millis=timeout_millis)
-            except Exception:
-                pass
 
 
 _manager: "MetricsManager | None" = None

@@ -1,17 +1,18 @@
 """Tests for core data types and OrbitProvider protocol."""
 
+from pathlib import Path
+
 from astromesh_orbit.core.provider import (
-    CheckResult,
-    ValidationResult,
-    PlanResult,
     ApplyResult,
-    ProvisionResult,
-    ResourceStatus,
+    CheckResult,
     DeploymentStatus,
     OrbitProvider,
+    PlanResult,
+    ProvisionResult,
+    ResourceStatus,
+    ValidationResult,
 )
-from astromesh_orbit.core.resources import ComputeSpec, DatabaseSpec, CacheSpec, ImagesSpec
-from pathlib import Path
+from astromesh_orbit.core.resources import CacheSpec, ComputeSpec, DatabaseSpec, ImagesSpec
 
 
 def test_check_result_pass():

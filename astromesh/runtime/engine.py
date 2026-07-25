@@ -14,16 +14,19 @@ from astromesh.core.tools import ToolRegistry
 from astromesh.integrations import default_catalog
 from astromesh.integrations.credentials import CredentialResolver
 from astromesh.orchestration.patterns import (
-    ReActPattern,
-    PlanAndExecutePattern,
     ParallelFanOutPattern,
     PipelinePattern,
+    PlanAndExecutePattern,
+    ReActPattern,
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
 
 logger = logging.getLogger(__name__)
+
+# Colores del DFS que detecta ciclos entre agentes: sin visitar / en la pila / cerrado.
+_WHITE, _GRAY, _BLACK = 0, 1, 2
 
 
 def _emit(on_event, event: dict) -> None:
@@ -216,7 +219,7 @@ def build_candidate_provider(block: dict):
 
         try:
             _llm._import_litellm()
-        except Exception:
+        except Exception:  # noqa: BLE001  (best-effort: este camino nunca puede levantar)
             logger.warning(
                 "litellm not installed; skipping candidate model %r (install the 'litellm' extra)",
                 model,
@@ -260,7 +263,7 @@ class AgentRuntime:
         self._config_dir = Path(config_dir)
         self._provider_registry = load_provider_registry(self._config_dir)
         self._rag_specs = {}
-        self._agents: dict[str, "Agent"] = {}
+        self._agents: dict[str, Agent] = {}
         self._agent_status: dict[str, str] = {}
         self._agent_configs: dict[str, dict] = {}
         self._prompt_engine = PromptEngine()
@@ -289,9 +292,7 @@ class AgentRuntime:
         agents_dir = self._config_dir / "agents"
         if not agents_dir.exists():
             return
-        configs = []
-        for f in agents_dir.glob("*.agent.yaml"):
-            configs.append(yaml.safe_load(f.read_text()))
+        configs = [yaml.safe_load(f.read_text()) for f in agents_dir.glob("*.agent.yaml")]
         self._detect_circular_refs(configs)
         for config in configs:
             name = config.get("metadata", {}).get("name", "<unknown>")
@@ -319,23 +320,22 @@ class AgentRuntime:
             graph[name] = agent_tools
 
         # DFS cycle detection
-        WHITE, GRAY, BLACK = 0, 1, 2
-        color = {name: WHITE for name in graph}
+        color = dict.fromkeys(graph, _WHITE)
 
         def dfs(node, path):
-            color[node] = GRAY
+            color[node] = _GRAY
             for neighbor in graph.get(node, []):
                 if neighbor not in color:
                     continue  # references external agent, skip
-                if color[neighbor] == GRAY:
-                    cycle = path + [neighbor]
+                if color[neighbor] == _GRAY:
+                    cycle = [*path, neighbor]
                     raise ValueError(f"Circular agent reference detected: {' -> '.join(cycle)}")
-                if color[neighbor] == WHITE:
-                    dfs(neighbor, path + [neighbor])
-            color[node] = BLACK
+                if color[neighbor] == _WHITE:
+                    dfs(neighbor, [*path, neighbor])
+            color[node] = _BLACK
 
         for node in graph:
-            if color[node] == WHITE:
+            if color[node] == _WHITE:
                 dfs(node, [node])
 
     def _normalize_model_spec(self, model_spec: dict) -> dict[str, dict]:
@@ -370,9 +370,11 @@ class AgentRuntime:
                 candidates.append(block)
         extras = model_spec.get("extra")
         if isinstance(extras, dict):
-            for block in extras.values():
-                if isinstance(block, dict) and (block.get("provider") or block.get("source")):
-                    candidates.append(block)
+            candidates.extend(
+                block
+                for block in extras.values()
+                if isinstance(block, dict) and (block.get("provider") or block.get("source"))
+            )
         strategy = (model_spec.get("routing") or {}).get("strategy", "cost_optimized")
         roles["default"] = {"candidates": candidates, "strategy": strategy}
         return roles
@@ -384,8 +386,8 @@ class AgentRuntime:
         for role_name, cfg in roles.items():
             router = ModelRouter({"strategy": cfg.get("strategy", "cost_optimized")})
             registered = 0
-            for i, block in enumerate(cfg.get("candidates", [])):
-                block = resolve_block(block, self._provider_registry)
+            for i, raw_block in enumerate(cfg.get("candidates", [])):
+                block = resolve_block(raw_block, self._provider_registry)
                 try:
                     prov = build_candidate_provider(block)
                 except Exception:
@@ -777,9 +779,10 @@ class Agent:
         on_event=None,
         connections=None,
     ):
-        from datetime import datetime
+        from datetime import UTC, datetime
+
         from astromesh.core.memory import ConversationTurn
-        from astromesh.observability.tracing import TracingContext, SpanStatus
+        from astromesh.observability.tracing import SpanStatus, TracingContext
 
         tracing = TracingContext(agent_name=self.name, session_id=session_id)
         if parent_trace_id:
@@ -835,7 +838,7 @@ class Agent:
 
             async def model_fn(messages, tools, role=None):
                 llm_span = tracing.start_span("llm.complete", parent_span_id=root_span.span_id)
-                full_messages = [{"role": "system", "content": rendered_prompt}] + messages
+                full_messages = [{"role": "system", "content": rendered_prompt}, *messages]
                 resolved_role = self._role_map.get(role, role) if role else "default"
                 router = self._routers.get(resolved_role) or self._routers["default"]
                 llm_span.set_attribute("role", role or "default")
@@ -845,13 +848,14 @@ class Agent:
                     # Fase 4.4c: attribute the outbound provider-request bytes to this agent.
                     try:
                         import json as _json
+
                         from astromesh.observability.metrics_export import get_manager as _gm
 
                         _m = _gm()
                         if _m is not None:
                             _req_bytes = len(_json.dumps(full_messages, default=str))
                             _m.record(self.name, getattr(response, "model", "unknown"), _req_bytes)
-                    except Exception:
+                    except Exception:  # noqa: BLE001, S110  (métrica best-effort: no puede alterar ni ensuciar la corrida)
                         pass
                     if hasattr(response, "usage") and response.usage:
                         llm_span.set_attribute(
@@ -972,7 +976,12 @@ class Agent:
                 ConversationTurn(
                     role="user",
                     content=user_content,
-                    timestamp=datetime.utcnow(),
+                    # Aware, no naive: esto termina en una columna TIMESTAMPTZ de
+                    # Postgres, que hasta acá recibía un naive y lo asumía UTC sin
+                    # que nadie lo dijera. Los backends de texto guardan ahora un
+                    # isoformat con `+00:00`; `fromisoformat` lee las dos formas,
+                    # así que las filas viejas se siguen leyendo.
+                    timestamp=datetime.now(UTC),
                     metadata=user_metadata,
                 ),
             )
@@ -981,7 +990,7 @@ class Agent:
                 ConversationTurn(
                     role="assistant",
                     content=result.get("answer", ""),
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(UTC),
                 ),
             )
             tracing.finish_span(persist_span)

@@ -1,5 +1,7 @@
 """Fase 4.4c: per-agent egress byte attribution exported as OTLP metrics."""
 
+import contextlib
+
 
 def test_metrics_manager_record_and_global():
     from astromesh.observability import metrics_export as mx
@@ -61,9 +63,7 @@ spec:
 
     agent._routers["default"].route = fake_route
 
-    try:
+    with contextlib.suppress(Exception):
         await rt.run("rec-agent", "hello there", "s1")
-    except Exception:
-        pass
 
     assert any(a == "rec-agent" and n > 0 for (a, mdl, n) in recorded)

@@ -38,6 +38,8 @@ def use_native(monkeypatch):
 
 @pytest.fixture
 async def client():
-    async with LifespanManager(app):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            yield c
+    async with (
+        LifespanManager(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        yield c

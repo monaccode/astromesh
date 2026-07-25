@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod
 import asyncio as aio
-from dataclasses import dataclass
 import json as json_mod
 import os
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 try:
     from astromesh._native import rust_json_loads as _native_json_loads
@@ -37,7 +37,7 @@ class ReActPattern(OrchestrationPattern):
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         history = context.get("_history_messages", []) if isinstance(context, dict) else []
-        messages = list(history) + [{"role": "user", "content": query}]
+        messages = [*list(history), {"role": "user", "content": query}]
         steps: list[AgentStep] = []
         for _ in range(max_iterations):
             response = await model_fn(messages, tools, role="reasoner")
@@ -162,7 +162,10 @@ class ParallelFanOutPattern(OrchestrationPattern):
             subtasks = _loads(decompose_resp.content)
             if not isinstance(subtasks, list):
                 subtasks = [query]
-        except (json_mod.JSONDecodeError, Exception):
+        # El modelo puede devolver cualquier cosa: si no es una lista de subtareas
+        # se sigue con la consulta original. Decía `(JSONDecodeError, Exception)`,
+        # una tupla donde el segundo miembro ya cubría al primero.
+        except Exception:  # noqa: BLE001
             subtasks = [query]
 
         # Execute subtasks in parallel

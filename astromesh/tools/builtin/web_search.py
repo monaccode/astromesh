@@ -1,6 +1,7 @@
 """Web search, web scrape, and Wikipedia built-in tools."""
 
 import re
+from typing import ClassVar
 
 import httpx
 
@@ -10,7 +11,7 @@ from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 class WebSearchTool(BuiltinTool):
     name = "web_search"
     description = "Search the web using a search API (Tavily, Brave, or SearXNG)"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "query": {"type": "string", "description": "Search query"},
@@ -43,14 +44,14 @@ class WebSearchTool(BuiltinTool):
                     data={"results": data.get("results", [])},
                     metadata={"provider": "tavily"},
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
 
 
 class WebScrapeTool(BuiltinTool):
     name = "web_scrape"
     description = "Extract text content from a URL (HTML converted to plain text)"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "url": {"type": "string"},
@@ -75,14 +76,14 @@ class WebScrapeTool(BuiltinTool):
                     data={"content": text, "url": url, "length": len(text)},
                     metadata={"status_code": resp.status_code},
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
 
 
 class WikipediaTool(BuiltinTool):
     name = "wikipedia"
     description = "Get a summary of a Wikipedia article"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "topic": {"type": "string"},
@@ -111,5 +112,5 @@ class WikipediaTool(BuiltinTool):
                     },
                     metadata={},
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))

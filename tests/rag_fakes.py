@@ -6,8 +6,7 @@ class FakeEmbedder(EmbeddingProvider):
     """Deterministic: vector length = min(len(text), 8), padded — no external service."""
 
     async def embed(self, text: str) -> list[float]:
-        v = [float(len(text) % 7 + 1)] * 8
-        return v
+        return [float(len(text) % 7 + 1)] * 8
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return [await self.embed(t) for t in texts]

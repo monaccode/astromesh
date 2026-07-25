@@ -1,7 +1,7 @@
 import json
 from io import StringIO
 
-from astromesh.observability.tracing import TracingContext, Span, SpanStatus
+from astromesh.observability.tracing import Span, SpanStatus, TracingContext
 
 
 class TestSpan:

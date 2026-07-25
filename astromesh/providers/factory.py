@@ -17,12 +17,12 @@ def create_provider(provider_name: str, api_key: str):
                 "api_key": api_key,
             }
         )
-    elif provider_name == "ollama":
+    if provider_name == "ollama":
         from astromesh.providers.ollama_provider import OllamaProvider
 
         # OllamaProvider does not use an API key; pass through for future use.
         return OllamaProvider(config={})
-    elif provider_name == "centinela":
+    if provider_name == "centinela":
         from astromesh.providers.centinela import CentinelaProvider
 
         # BYOK stub: without an endpoint + contract (labels) this instance cannot emit
@@ -30,5 +30,4 @@ def create_provider(provider_name: str, api_key: str):
         # functional path is build_candidate_provider() in runtime/engine.py, which
         # threads endpoint/contract from the agent spec.model block.
         return CentinelaProvider(config={})
-    else:
-        raise ValueError(f"Unknown provider: {provider_name}")
+    raise ValueError(f"Unknown provider: {provider_name}")

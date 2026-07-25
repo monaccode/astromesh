@@ -1,9 +1,10 @@
 import os
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Callable
+from enum import StrEnum
+from typing import Any
 
 try:
     from astromesh._native import RustRateLimiter
@@ -15,7 +16,7 @@ except ImportError:
     _HAS_NATIVE_RL = False
 
 
-class ToolType(str, Enum):
+class ToolType(StrEnum):
     INTERNAL = "internal"
     CLIENT = "client"
     MCP_STDIO = "mcp_stdio"
@@ -56,8 +57,8 @@ class _DotDict(dict):
     def __getattr__(self, key):
         try:
             return self[key]
-        except KeyError:
-            raise AttributeError(f"No attribute '{key}'")
+        except KeyError as exc:
+            raise AttributeError(f"No attribute '{key}'") from exc
 
 
 class ToolRegistry:
@@ -185,18 +186,18 @@ class ToolRegistry:
             return {"error": f"Rate limit exceeded for '{tool_name}'"}
         if tool.tool_type == ToolType.INTERNAL and tool.handler:
             return await tool.handler(**arguments)
-        elif tool.tool_type == ToolType.CLIENT:
+        if tool.tool_type == ToolType.CLIENT:
             # Announced, not executed. {"ok": True} is the only honest answer:
             # ReAct needs an observation to continue, the model already wrote the
             # arguments, and the runtime cannot know whether a consumer listened.
             return {"ok": True}
-        elif tool.tool_type.value.startswith("mcp_"):
+        if tool.tool_type.value.startswith("mcp_"):
             server_name = tool.mcp_config["server"]
             client = self._mcp_clients.get(server_name)
             if not client:
                 return {"error": f"MCP server '{server_name}' not connected"}
             return await client.call_tool(tool.mcp_config["tool_name"], arguments)
-        elif tool.tool_type == ToolType.AGENT:
+        if tool.tool_type == ToolType.AGENT:
             if not self._runtime:
                 return {"error": "AgentRuntime not set — cannot execute agent tool"}
             agent_name = tool.agent_config["agent_name"]
@@ -205,9 +206,9 @@ class ToolRegistry:
             transform_ctx = None
             if tool.context_transform and tool.context_transform.strip():
                 try:
-                    from jinja2 import Environment, BaseLoader
-
                     import json as json_mod
+
+                    from jinja2 import BaseLoader, Environment
 
                     env = Environment(loader=BaseLoader())
                     # Quote bare dict keys: {score: ...} -> {'score': ...}
@@ -220,7 +221,7 @@ class ToolRegistry:
                     template = env.from_string(tpl_str)
                     rendered = template.render(data=_DotDict(arguments))
                     transform_ctx = json_mod.loads(rendered)
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     return {"error": f"Context transform failed: {exc}"}
             parent_trace_id = (context or {}).get("trace_id")
             return await self._runtime.run(
@@ -231,7 +232,7 @@ class ToolRegistry:
                 parent_trace_id=parent_trace_id,
                 connections=(context or {}).get("connections") or {},
             )
-        elif tool.tool_type == ToolType.INTEGRATION:
+        if tool.tool_type == ToolType.INTEGRATION:
             from astromesh.integrations import errors as integration_errors
             from astromesh.integrations.executor import HttpActionExecutor
 
@@ -264,9 +265,12 @@ class ToolRegistry:
     def get_tool_schemas(self, agent_permissions=None) -> list[dict]:
         schemas = []
         for name, tool in self._tools.items():
-            if agent_permissions and tool.permissions:
-                if not any(p in agent_permissions for p in tool.permissions):
-                    continue
+            if (
+                agent_permissions
+                and tool.permissions
+                and not any(p in agent_permissions for p in tool.permissions)
+            ):
+                continue
             schemas.append(
                 {
                     "type": "function",

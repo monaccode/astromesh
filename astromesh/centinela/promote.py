@@ -197,8 +197,10 @@ def render_pr_body(plan: PromotionPlan, version: str) -> str:
         lines += [
             "## ⚠️ Missing endpoint bindings",
             "",
-            "A stub was added to `config/centinela/bindings.yaml`. "
-            "Provide the live endpoint URL before merge:",
+            (
+                "A stub was added to `config/centinela/bindings.yaml`. "
+                "Provide the live endpoint URL before merge:"
+            ),
             "",
         ]
         for mb in plan.missing_bindings:

@@ -1,14 +1,15 @@
 """Benchmarks for token budget strategy."""
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
+
 from astromesh.core.memory import ConversationTurn
 
 
 def make_history(n_turns):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         ConversationTurn(
             role="user",

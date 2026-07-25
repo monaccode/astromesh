@@ -1,7 +1,8 @@
 """Tests for communication tools: send_webhook, send_slack, send_email."""
 
-import respx
 import httpx
+import respx
+
 from astromesh.tools.base import ToolContext
 
 
@@ -134,8 +135,9 @@ class TestSendEmailTool:
 
     async def test_smtp_sends_message(self, monkeypatch):
         """Test that email is sent when SMTP config is provided."""
-        from astromesh.tools.builtin.communication import SendEmailTool
         import asyncio
+
+        from astromesh.tools.builtin.communication import SendEmailTool
 
         sent = {}
 

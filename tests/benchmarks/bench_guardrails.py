@@ -1,6 +1,7 @@
 """Benchmarks for guardrails."""
 
 import os
+
 import pytest
 
 
@@ -9,10 +10,9 @@ def make_pii_text(density="low"):
     pii = "Contact john@example.com or call 555-123-4567. SSN: 123-45-6789. Card: 4111 1111 1111 1111. "
     if density == "low":
         return (base * 20) + pii
-    elif density == "medium":
+    if density == "medium":
         return (base * 5 + pii) * 10
-    else:
-        return (base + pii) * 50
+    return (base + pii) * 50
 
 
 @pytest.mark.benchmark

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import AsyncIterator, Protocol, runtime_checkable
+from enum import StrEnum
+from typing import Protocol, runtime_checkable
 
 
-class RoutingStrategy(str, Enum):
+class RoutingStrategy(StrEnum):
     """Strategy used by the model router to select a provider."""
 
     COST_OPTIMIZED = "cost_optimized"

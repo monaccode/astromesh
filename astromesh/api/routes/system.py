@@ -2,6 +2,7 @@
 
 import os
 import time
+from pathlib import Path
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -41,7 +42,7 @@ class DoctorResponse(BaseModel):
 
 
 def _detect_mode() -> str:
-    if os.path.exists("/etc/astromesh/runtime.yaml"):
+    if Path("/etc/astromesh/runtime.yaml").exists():
         return "system"
     return "dev"
 
@@ -108,7 +109,7 @@ async def system_doctor():
                             status="ok" if healthy else "degraded",
                             message=f"Provider {name} health check",
                         )
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001  (cualquier fallo del sondeo significa 'no sano')
                         checks[f"provider:{key}"] = CheckResult(status="error", message=str(e))
 
     # Check peers

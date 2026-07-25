@@ -6,9 +6,9 @@ import time
 import uuid
 from typing import Any
 
-from jinja2 import Environment, BaseLoader, Undefined
+from jinja2 import BaseLoader, Environment, Undefined
 
-from astromesh.workflow.models import StepSpec, StepResult, StepStatus, StepType
+from astromesh.workflow.models import StepResult, StepSpec, StepStatus, StepType
 
 
 class _SilentUndefined(Undefined):
@@ -45,9 +45,9 @@ class StepExecutor:
                 else:
                     result = await coro
                 return result
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = f"Step '{step.name}' timed out after {step.timeout_seconds}s"
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  (el fallo del paso se reporta como estado, no se propaga)
                 last_error = str(exc)
 
             if attempt < max_attempts - 1:
@@ -60,13 +60,13 @@ class StepExecutor:
         start = time.time()
         if step.step_type == StepType.AGENT:
             return await self._run_agent(step, context, start)
-        elif step.step_type == StepType.TOOL:
+        if step.step_type == StepType.TOOL:
             return await self._run_tool(step, context, start)
-        elif step.step_type == StepType.SWITCH:
+        if step.step_type == StepType.SWITCH:
             return await self._run_switch(step, context, start)
-        elif step.step_type == StepType.WAIT:
+        if step.step_type == StepType.WAIT:
             return self._run_wait(step)
-        elif step.step_type == StepType.APPROVAL:
+        if step.step_type == StepType.APPROVAL:
             return self._run_approval(step)
         raise ValueError(f"Unknown step type for step '{step.name}'")
 

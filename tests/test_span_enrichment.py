@@ -1,4 +1,4 @@
-from astromesh.runtime.engine import _parse_args, _truncate, _normalize_tool_calls
+from astromesh.runtime.engine import _normalize_tool_calls, _parse_args, _truncate
 
 
 def test_truncate_none():

@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class StepType(str, Enum):
+class StepType(StrEnum):
     AGENT = "agent"
     TOOL = "tool"
     SWITCH = "switch"
@@ -14,7 +14,7 @@ class StepType(str, Enum):
     APPROVAL = "approval"
 
 
-class StepStatus(str, Enum):
+class StepStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"

@@ -1,7 +1,8 @@
 # tests/test_workflow_loader.py
 import pytest
+
 from astromesh.workflow.loader import WorkflowLoader
-from astromesh.workflow.models import WorkflowSpec, StepType
+from astromesh.workflow.models import StepType, WorkflowSpec
 
 
 @pytest.fixture

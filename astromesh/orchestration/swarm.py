@@ -1,5 +1,6 @@
-from astromesh.orchestration.patterns import OrchestrationPattern, AgentStep
 import json as json_mod
+
+from astromesh.orchestration.patterns import AgentStep, OrchestrationPattern
 
 
 class SwarmPattern(OrchestrationPattern):
@@ -22,7 +23,7 @@ class SwarmPattern(OrchestrationPattern):
                 '{"handoff": "agent_name", "context": "..."}'
             )
 
-            full_messages = [{"role": "system", "content": agent_prompt}] + messages
+            full_messages = [{"role": "system", "content": agent_prompt}, *messages]
             response = await model_fn(full_messages, tools, role="reasoner")
 
             try:

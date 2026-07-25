@@ -1,4 +1,5 @@
 import pytest
+
 from astromesh.memory.factory import build_conversation_backend
 
 
@@ -27,5 +28,5 @@ def test_redis_defaults_ttl():
 
 
 def test_unknown_backend_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown conversational backend"):
         build_conversation_backend({"backend": "cassandra"})

@@ -139,9 +139,9 @@ def test_descriptions_are_useful(path):
             f"modelo elija bien"
         )
         for param_name, spec in (action.parameters or {}).items():
-            assert isinstance(spec, dict) and spec.get("description", "").strip(), (
-                f"{manifest.slug}.{action.name}.{param_name}: falta description"
-            )
+            where = f"{manifest.slug}.{action.name}.{param_name}"
+            assert isinstance(spec, dict), f"{where}: el parámetro no es un mapping"
+            assert spec.get("description", "").strip(), f"{where}: falta description"
 
 
 @pytest.mark.parametrize("path", MANIFEST_PATHS, ids=_ids(MANIFEST_PATHS))

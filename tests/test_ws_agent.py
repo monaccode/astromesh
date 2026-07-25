@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import logging
-
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -120,10 +119,12 @@ def test_a_full_queue_drops_the_event_and_logs_a_warning(client, mock_runtime, m
 
     mock_runtime.run = AsyncMock(side_effect=run_that_floods)
 
-    with caplog.at_level(logging.WARNING, logger="astromesh.api.ws"):
-        with client.websocket_connect("/v1/ws/agent/demo") as ws:
-            ws.send_json({"query": "hola"})
-            events = _drain(ws)
+    with (
+        caplog.at_level(logging.WARNING, logger="astromesh.api.ws"),
+        client.websocket_connect("/v1/ws/agent/demo") as ws,
+    ):
+        ws.send_json({"query": "hola"})
+        events = _drain(ws)
 
     assert events[-1]["type"] == "done"
     dropped = [r for r in caplog.records if "queue full" in r.message]
@@ -223,7 +224,8 @@ async def test_a_client_that_vanishes_mid_run_cancels_the_run():
 
     from fastapi import WebSocketDisconnect
 
-    from astromesh.api.ws import _run_and_stream, set_runtime as set_ws_runtime
+    from astromesh.api.ws import _run_and_stream
+    from astromesh.api.ws import set_runtime as set_ws_runtime
 
     cancelled = asyncio.Event()
 
@@ -275,7 +277,8 @@ async def test_events_stream_while_the_run_is_still_in_flight():
     """
     import asyncio
 
-    from astromesh.api.ws import _run_and_stream, set_runtime as set_ws_runtime
+    from astromesh.api.ws import _run_and_stream
+    from astromesh.api.ws import set_runtime as set_ws_runtime
 
     delivered = asyncio.Event()
 
@@ -317,8 +320,8 @@ async def test_the_app_lifespan_wires_the_ws_runtime():
     from asgi_lifespan import LifespanManager
 
     from astromesh.api import ws as ws_module
-    from astromesh.api.routes import agents as agents_route
     from astromesh.api.main import app
+    from astromesh.api.routes import agents as agents_route
 
     sentinel = MagicMock()
     agents_route.set_runtime(sentinel)  # take main.py's pre-injected branch
@@ -344,7 +347,8 @@ async def test_a_non_disconnect_exception_still_deregisters_the_socket():
     """
     import json as json_mod
 
-    from astromesh.api.ws import agent_websocket, manager, set_runtime as set_ws_runtime
+    from astromesh.api.ws import agent_websocket, manager
+    from astromesh.api.ws import set_runtime as set_ws_runtime
 
     rt = MagicMock()
     rt.run = AsyncMock(return_value={"answer": "listo", "steps": [], "trace": {}})
@@ -396,7 +400,8 @@ async def test_run_task_is_retrieved_even_if_it_misbehaves_during_cancellation()
 
     from fastapi import WebSocketDisconnect
 
-    from astromesh.api.ws import _run_and_stream, set_runtime as set_ws_runtime
+    from astromesh.api.ws import _run_and_stream
+    from astromesh.api.ws import set_runtime as set_ws_runtime
 
     async def run_that_misbehaves_on_cancel(
         agent_name, query, session_id, context=None, on_event=None, **kw

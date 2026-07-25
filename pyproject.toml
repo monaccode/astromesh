@@ -46,14 +46,10 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=5.0",
     "respx>=0.21.0",
-    # Techo deliberado. ruff 0.16.0 amplió su ruleset por defecto y este repo no
-    # declara `[tool.ruff.lint] select`, así que hereda el default: el salto trae
-    # 259 hallazgos nuevos (I001, BLE001, DTZ003, SIM102, UP035) sin que cambie
-    # una línea de código. Como `uv.lock` está en .gitignore, CI resuelve fresco
-    # en cada corrida y el gate se pone rojo por calendario, no por commits.
-    # 0.9, 0.12, 0.14 y 0.15 pasan limpio.
-    # Adoptar 0.16 y sanear los 259 es su propio PR: ver docs/DEBT.md.
-    "ruff>=0.6.0,<0.16",
+    # Sin techo a propósito: el ruleset que corre el gate está declarado en
+    # `[tool.ruff.lint] select`, no heredado del default de ruff. Una versión
+    # nueva ya no puede ampliar el gate sola (que fue lo que rompió CI con 0.16).
+    "ruff>=0.16",
     "pytest-benchmark>=4.0",
     "asgi-lifespan>=2.1.0",
     "pytest-mock>=3.15.1",
@@ -91,6 +87,57 @@ markers = ["benchmark: marks tests as benchmarks (deselect with '-m \"not benchm
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+# El gate se declara acá, no se hereda del default de ruff. Antes este bloque no
+# existía: ruff 0.16 amplió su ruleset por defecto y CI se puso rojo sin que
+# cambiara una línea de código. Con `select` explícito, una versión nueva ya no
+# puede ampliar el gate sola — para endurecerlo hay que editar esta lista.
+[tool.ruff.lint]
+select = [
+    "F",                      # pyflakes
+    "E4", "E7", "E9",         # pycodestyle: errores reales (E501 lo cubre el formateador)
+    "W",                      # pycodestyle warnings
+    "I",                      # orden de imports
+    "UP",                     # pyupgrade (target py312)
+    "B",                      # bugbear: clases de bug reales
+    "C4",                     # comprehensions
+    "SIM",                    # simplificaciones
+    "RET",                    # returns
+    "PERF", "FURB", "PIE", "FLY",
+    "DTZ",                    # datetimes sin tz
+    "ASYNC",                  # todo el runtime es async
+    "LOG", "G",               # logging
+    "PT",                     # estilo pytest
+    "N",                      # naming
+    "PTH",                    # pathlib
+    "ISC",                    # concatenación implícita
+    "RUF",
+    "BLE",                    # except Exception sin acotar
+    "PLE", "PLW",             # pylint: errores y warnings
+    "S102", "S110", "S112",   # exec, except-pass, except-continue
+    "TRY002", "TRY004",
+]
+
+# Dos reglas del set de arriba chocan con decisiones deliberadas del repo. Se
+# apagan acá, con el motivo, en vez de repartir `noqa` que nadie sabría revisar.
+ignore = [
+    # Los módulos de rutas exponen `router` + `set_runtime(runtime)` y guardan el
+    # runtime en un singleton de módulo: es la arquitectura que documenta
+    # CLAUDE.md y la usan los 16 sitios que PLW0603 marca. Sacar el `global`
+    # significa rediseñar el cableado de la API, no callar un linter.
+    "PLW0603",
+    # Renombrar `CredentialMissing` -> `CredentialMissingError` (y equivalentes)
+    # toca 45 referencias, entre ellas la spec aprobada del marco de
+    # integraciones. Es un cambio de nombres públicos: se decide aparte.
+    "N818",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Los tests difieren del código de librería por diseño: bloquear el loop no
+# molesta a nadie, las fechas ingenuas alcanzan, y atrapar todo o dejar pasar
+# una excepción suele ser el montaje del caso, no un descuido.
+"tests/**" = ["ASYNC230", "ASYNC240", "DTZ001", "DTZ005", "BLE001", "S110", "SIM105", "TRY002", "RUF012"]
+
 
 [tool.commitizen]
 name = "cz_conventional_commits"

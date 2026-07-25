@@ -15,16 +15,16 @@ from astromesh.api.routes import (
     dashboard,
     integrations,
     memory,
-    tools,
+    mesh,
+    metrics,
     rag,
     rag_resources,
-    whatsapp,
     system,
-    mesh,
-    traces,
-    metrics,
-    workflows,
     templates,
+    tools,
+    traces,
+    whatsapp,
+    workflows,
 )
 from astromesh.logging_config import setup_logging
 
@@ -53,7 +53,7 @@ def _resolve_config_dir() -> str:
         repo_config = pkg_dir.parent / "config"
         if repo_config.is_dir():
             return str(repo_config)
-    except Exception:
+    except Exception:  # noqa: BLE001, S110  (sondeo del layout de instalación: si no se puede inspeccionar, se cae al default)
         pass
     return "config"
 
