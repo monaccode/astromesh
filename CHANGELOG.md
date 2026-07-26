@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.37.0] - 2026-07-25
+
+Marco de integraciones declarativas: un `integration.yaml` se convierte en tools de agente,
+con credenciales inyectadas por corrida (el core nunca las almacena ni las refresca). Ocho
+integraciones en el catálogo. Además, el gate de CI deja de moverse solo: ruleset de ruff
+declarado y `uv.lock` versionado.
 
 ### Added (Backend)
 
