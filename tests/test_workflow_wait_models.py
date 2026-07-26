@@ -16,9 +16,9 @@ def test_wait_step_type():
 
 
 def test_exactly_one_step_type_still_enforced():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="exactly one of"):
         StepSpec(name="bad", agent="a", wait={"resume_key": "k"})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="exactly one of"):
         StepSpec(name="none")
 
 
@@ -39,4 +39,6 @@ def test_workflow_run_dataclass():
         current_index=0,
         context={"trigger": {}, "steps": {}},
     )
-    assert run.status == "running" and run.resume_key is None and run.error is None
+    assert run.status == "running"
+    assert run.resume_key is None
+    assert run.error is None

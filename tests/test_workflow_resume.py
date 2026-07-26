@@ -65,5 +65,5 @@ async def test_resume_non_suspended_raises():
     eng = _engine(store)
     r1 = await eng.run("wf", trigger={})
     await eng.resume(r1.run_id, payload={})  # completa
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not suspended"):
         await eng.resume(r1.run_id, payload={})  # ya no está suspended

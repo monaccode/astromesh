@@ -32,5 +32,4 @@ class EmbeddingTrainer:
         }
 
     async def export(self, output_path: str | None = None) -> str:
-        path = output_path or self._config.output_dir
-        return path
+        return output_path or self._config.output_dir

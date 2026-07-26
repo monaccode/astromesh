@@ -33,7 +33,7 @@ async def clear_history(agent_name: str, session_id: str):
         await agent.memory_manager.clear_history(session_id)
         return {"status": "cleared", "agent": agent_name, "session_id": session_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/memory/{agent_name}/semantic")

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 
 _MIN_SUMMARIZE_LENGTH = 500
@@ -10,7 +12,7 @@ _MIN_SUMMARIZE_LENGTH = 500
 class TextSummarizeTool(BuiltinTool):
     name = "text_summarize"
     description = "Summarize long text using the agent's language model"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "text": {"type": "string"},
@@ -51,5 +53,5 @@ class TextSummarizeTool(BuiltinTool):
                     "output_tokens": usage.get("output_tokens", 0),
                 },
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))

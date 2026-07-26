@@ -1,5 +1,6 @@
-from astromesh.orchestration.patterns import OrchestrationPattern, AgentStep
 import json as json_mod
+
+from astromesh.orchestration.patterns import AgentStep, OrchestrationPattern
 
 
 class SupervisorPattern(OrchestrationPattern):
@@ -12,7 +13,7 @@ class SupervisorPattern(OrchestrationPattern):
         steps = []
         worker_names = list(self._workers.keys()) or ["default"]
 
-        for iteration in range(max_iterations):
+        for _iteration in range(max_iterations):
             supervisor_prompt = (
                 f"You are a supervisor managing workers: {worker_names}\n"
                 f"Task: {query}\n"

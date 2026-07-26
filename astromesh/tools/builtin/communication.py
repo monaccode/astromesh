@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import smtplib
 from email.mime.text import MIMEText
+from typing import ClassVar
 
 import httpx
 
@@ -14,7 +15,7 @@ from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 class SendWebhookTool(BuiltinTool):
     name = "send_webhook"
     description = "Send an HTTP POST to a webhook URL with a JSON payload"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "url": {"type": "string"},
@@ -37,14 +38,14 @@ class SendWebhookTool(BuiltinTool):
                     data={"status_code": resp.status_code, "response": resp.text},
                     metadata={"url": arguments["url"]},
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
 
 
 class SendSlackTool(BuiltinTool):
     name = "send_slack"
     description = "Send a message to Slack via webhook"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "message": {"type": "string"},
@@ -65,14 +66,14 @@ class SendSlackTool(BuiltinTool):
                     data={"response": resp.text},
                     metadata={"method": "webhook"},
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
 
 
 class SendEmailTool(BuiltinTool):
     name = "send_email"
     description = "Send an email via SMTP"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "to": {"type": "string"},
@@ -111,5 +112,5 @@ class SendEmailTool(BuiltinTool):
                 data={"to": arguments["to"], "subject": arguments["subject"]},
                 metadata={},
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))

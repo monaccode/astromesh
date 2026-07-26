@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
+
 from astromesh.channels.event_bus import ChannelEvent, ChannelEventBus
 
 

@@ -3,11 +3,11 @@ import time
 import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class SpanStatus(str, Enum):
+class SpanStatus(StrEnum):
     UNSET = "unset"
     OK = "ok"
     ERROR = "error"

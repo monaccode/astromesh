@@ -1,8 +1,9 @@
 import hashlib
 import hmac
-import httpx
 import logging
 import os
+
+import httpx
 
 from astromesh.channels.base import ChannelAdapter, ChannelMessage, MediaAttachment
 

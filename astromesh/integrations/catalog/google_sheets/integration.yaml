@@ -1,0 +1,100 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: google_sheets
+  version: 0.1.0
+  description: >
+    Google Sheets API v4: leer, escribir y agregar filas a una planilla.
+    Enteramente declarativa — ninguna de sus operaciones necesita más de un
+    request. Mismo esquema de auth que google_drive y gmail.
+spec:
+  base_url: "https://sheets.googleapis.com/v4"
+  auth:
+    scheme: bearer
+    credential: access_token
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: get_spreadsheet
+      description: "Devuelve los metadatos de una planilla y la lista de sus hojas"
+      parameters:
+        spreadsheet_id:
+          type: string
+          description: "ID de la planilla, el tramo largo de su URL"
+          required: true
+      request:
+        method: GET
+        path: "/spreadsheets/{spreadsheet_id}"
+        query:
+          fields: "spreadsheetId,properties.title,sheets.properties"
+
+    - name: get_values
+      description: >
+        Lee un rango de celdas en notación A1, por ejemplo "Hoja1!A1:D20".
+      parameters:
+        spreadsheet_id:
+          type: string
+          description: "ID de la planilla, el tramo largo de su URL"
+          required: true
+        range:
+          type: string
+          description: "Rango en notación A1, por ejemplo Hoja1!A1:D20"
+          required: true
+      request:
+        method: GET
+        path: "/spreadsheets/{spreadsheet_id}/values/{range}"
+      response:
+        select: "values"
+
+    - name: update_values
+      description: >
+        Sobrescribe un rango de celdas. `values` es una lista de filas, cada
+        fila una lista de celdas.
+      writes: true
+      parameters:
+        spreadsheet_id:
+          type: string
+          description: "ID de la planilla, el tramo largo de su URL"
+          required: true
+        range:
+          type: string
+          description: "Rango en notación A1 a sobrescribir, por ejemplo Hoja1!A1:D20"
+          required: true
+        values:
+          type: array
+          description: "Lista de filas; cada fila es una lista de valores de celda"
+          required: true
+      request:
+        method: PUT
+        path: "/spreadsheets/{spreadsheet_id}/values/{range}"
+        query:
+          valueInputOption: "USER_ENTERED"
+        body:
+          values: "{values}"
+
+    - name: append_values
+      description: >
+        Agrega filas al final de la tabla del rango indicado, sin pisar lo que
+        ya está.
+      writes: true
+      parameters:
+        spreadsheet_id:
+          type: string
+          description: "ID de la planilla, el tramo largo de su URL"
+          required: true
+        range:
+          type: string
+          description: "Rango que identifica la tabla, por ejemplo Hoja1!A:D"
+          required: true
+        values:
+          type: array
+          description: "Lista de filas a agregar; cada fila es una lista de valores"
+          required: true
+      request:
+        method: POST
+        path: "/spreadsheets/{spreadsheet_id}/values/{range}:append"
+        query:
+          valueInputOption: "USER_ENTERED"
+          insertDataOption: "INSERT_ROWS"
+        body:
+          values: "{values}"

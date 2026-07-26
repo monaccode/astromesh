@@ -13,17 +13,18 @@ from astromesh.api.routes import (
     agent_channels,
     agents,
     dashboard,
+    integrations,
     memory,
-    tools,
+    mesh,
+    metrics,
     rag,
     rag_resources,
-    whatsapp,
     system,
-    mesh,
-    traces,
-    metrics,
-    workflows,
     templates,
+    tools,
+    traces,
+    whatsapp,
+    workflows,
 )
 from astromesh.logging_config import setup_logging
 
@@ -52,7 +53,7 @@ def _resolve_config_dir() -> str:
         repo_config = pkg_dir.parent / "config"
         if repo_config.is_dir():
             return str(repo_config)
-    except Exception:
+    except Exception:  # noqa: BLE001, S110  (sondeo del layout de instalación: si no se puede inspeccionar, se cae al default)
         pass
     return "config"
 
@@ -138,6 +139,8 @@ app.add_middleware(
 app.include_router(agents.router, prefix="/v1")
 app.include_router(memory.router, prefix="/v1")
 app.include_router(tools.router, prefix="/v1")
+# El catálogo de integraciones es estático: no necesita set_runtime.
+app.include_router(integrations.router, prefix="/v1")
 app.include_router(rag.router, prefix="/v1")
 app.include_router(rag_resources.router, prefix="/v1")
 app.include_router(ws.router, prefix="/v1")

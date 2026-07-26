@@ -1,9 +1,10 @@
 import os
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Callable
+from enum import StrEnum
+from typing import Any
 
 try:
     from astromesh._native import RustRateLimiter
@@ -15,7 +16,7 @@ except ImportError:
     _HAS_NATIVE_RL = False
 
 
-class ToolType(str, Enum):
+class ToolType(StrEnum):
     INTERNAL = "internal"
     CLIENT = "client"
     MCP_STDIO = "mcp_stdio"
@@ -24,6 +25,7 @@ class ToolType(str, Enum):
     WEBHOOK = "webhook"
     RAG = "rag"
     AGENT = "agent"
+    INTEGRATION = "integration"
 
 
 @dataclass
@@ -40,6 +42,7 @@ class ToolDefinition:
     permissions: list[str] = field(default_factory=list)
     agent_config: dict | None = None
     context_transform: str | None = None
+    integration_config: dict | None = None
 
 
 class _DotDict(dict):
@@ -54,8 +57,8 @@ class _DotDict(dict):
     def __getattr__(self, key):
         try:
             return self[key]
-        except KeyError:
-            raise AttributeError(f"No attribute '{key}'")
+        except KeyError as exc:
+            raise AttributeError(f"No attribute '{key}'") from exc
 
 
 class ToolRegistry:
@@ -138,6 +141,43 @@ class ToolRegistry:
             **kwargs,
         )
 
+    def register_integration_tool(
+        self,
+        name: str,
+        manifest,
+        action,
+        connection: str,
+        resolver=None,
+        **kwargs,
+    ):
+        """Registra una acción de integración como tool invocable.
+
+        El nombre lo compone quien llama como `<slug>_<accion>` — con guion
+        bajo, no punto: OpenAI y Anthropic validan los nombres de función
+        contra `^[a-zA-Z0-9_-]{1,64}$` y un punto hace 400 la request entera.
+
+        Las credenciales NO se capturan acá: se resuelven en cada `execute`
+        desde el bundle de la corrida. El registro es por agente, el bundle
+        es por corrida, y mezclarlos filtraría credenciales entre corridas.
+        """
+        self._tools[name] = ToolDefinition(
+            name=name,
+            description=action.description,
+            tool_type=ToolType.INTEGRATION,
+            parameters=action.tool_parameters(),
+            requires_approval=action.mutates,
+            timeout_seconds=action.timeout_seconds or manifest.defaults.timeout_seconds,
+            integration_config={
+                "slug": manifest.slug,
+                "action": action.name,
+                "connection": connection,
+                "manifest": manifest,
+                "action_spec": action,
+                "resolver": resolver,
+            },
+            **kwargs,
+        )
+
     async def execute(self, tool_name, arguments, context=None) -> dict:
         tool = self._tools.get(tool_name)
         if not tool:
@@ -146,18 +186,18 @@ class ToolRegistry:
             return {"error": f"Rate limit exceeded for '{tool_name}'"}
         if tool.tool_type == ToolType.INTERNAL and tool.handler:
             return await tool.handler(**arguments)
-        elif tool.tool_type == ToolType.CLIENT:
+        if tool.tool_type == ToolType.CLIENT:
             # Announced, not executed. {"ok": True} is the only honest answer:
             # ReAct needs an observation to continue, the model already wrote the
             # arguments, and the runtime cannot know whether a consumer listened.
             return {"ok": True}
-        elif tool.tool_type.value.startswith("mcp_"):
+        if tool.tool_type.value.startswith("mcp_"):
             server_name = tool.mcp_config["server"]
             client = self._mcp_clients.get(server_name)
             if not client:
                 return {"error": f"MCP server '{server_name}' not connected"}
             return await client.call_tool(tool.mcp_config["tool_name"], arguments)
-        elif tool.tool_type == ToolType.AGENT:
+        if tool.tool_type == ToolType.AGENT:
             if not self._runtime:
                 return {"error": "AgentRuntime not set — cannot execute agent tool"}
             agent_name = tool.agent_config["agent_name"]
@@ -166,9 +206,9 @@ class ToolRegistry:
             transform_ctx = None
             if tool.context_transform and tool.context_transform.strip():
                 try:
-                    from jinja2 import Environment, BaseLoader
-
                     import json as json_mod
+
+                    from jinja2 import BaseLoader, Environment
 
                     env = Environment(loader=BaseLoader())
                     # Quote bare dict keys: {score: ...} -> {'score': ...}
@@ -181,7 +221,7 @@ class ToolRegistry:
                     template = env.from_string(tpl_str)
                     rendered = template.render(data=_DotDict(arguments))
                     transform_ctx = json_mod.loads(rendered)
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     return {"error": f"Context transform failed: {exc}"}
             parent_trace_id = (context or {}).get("trace_id")
             return await self._runtime.run(
@@ -190,15 +230,47 @@ class ToolRegistry:
                 session_id=session_id,
                 context=transform_ctx,
                 parent_trace_id=parent_trace_id,
+                connections=(context or {}).get("connections") or {},
             )
+        if tool.tool_type == ToolType.INTEGRATION:
+            from astromesh.integrations import errors as integration_errors
+            from astromesh.integrations.executor import HttpActionExecutor
+
+            config = tool.integration_config or {}
+            resolver = config.get("resolver")
+            bundle = (context or {}).get("connections") or {}
+            connection_name = config["connection"]
+            resolved = resolver.resolve(connection_name, bundle) if resolver is not None else None
+            if resolved is None:
+                return {
+                    "success": False,
+                    "data": None,
+                    "metadata": {"error_kind": integration_errors.CREDENTIAL_MISSING},
+                    "error": (
+                        f"la conexión '{connection_name}' no está configurada para la "
+                        f"integración '{config['slug']}'"
+                    ),
+                }
+            result = await HttpActionExecutor().execute(
+                config["manifest"],
+                config["action_spec"],
+                arguments,
+                resolved,
+                agent_name=(context or {}).get("agent", ""),
+                session_id=(context or {}).get("session", ""),
+            )
+            return result.to_dict()
         return {"error": f"Unsupported tool type: {tool.tool_type}"}
 
     def get_tool_schemas(self, agent_permissions=None) -> list[dict]:
         schemas = []
         for name, tool in self._tools.items():
-            if agent_permissions and tool.permissions:
-                if not any(p in agent_permissions for p in tool.permissions):
-                    continue
+            if (
+                agent_permissions
+                and tool.permissions
+                and not any(p in agent_permissions for p in tool.permissions)
+            ):
+                continue
             schemas.append(
                 {
                     "type": "function",

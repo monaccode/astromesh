@@ -1,6 +1,7 @@
-import pytest
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
+
+import pytest
 
 from astromesh.orchestration.patterns import ReActPattern
 

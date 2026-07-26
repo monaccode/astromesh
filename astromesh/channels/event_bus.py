@@ -8,7 +8,7 @@ import threading
 import uuid
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 logger = logging.getLogger(__name__)
@@ -34,10 +34,10 @@ class ChannelEvent:
         sender: str,
         text: str | None = None,
         media: dict | None = None,
-    ) -> "ChannelEvent":
+    ) -> ChannelEvent:
         return cls(
             id=str(uuid.uuid4()),
-            ts=datetime.now(timezone.utc).isoformat(),
+            ts=datetime.now(UTC).isoformat(),
             agent=agent,
             channel=channel,
             direction=direction,

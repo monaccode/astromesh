@@ -40,7 +40,7 @@ async def build_multimodal_query(
         if attachment.content is None:
             try:
                 attachment.content = await adapter.download_media(attachment)
-            except Exception:
+            except Exception:  # noqa: BLE001  (best-effort: este camino nunca puede levantar)
                 logger.warning(
                     "Failed to download media %s (%s), skipping",
                     attachment.source_id,

@@ -87,4 +87,5 @@ async def test_durabilidad_entre_instancias():
     store2 = PgRunStore(DSN)
     await store2.initialize()
     loaded = await store2.load("r1")
-    assert loaded is not None and loaded.run_id == "r1"
+    assert loaded is not None
+    assert loaded.run_id == "r1"

@@ -22,7 +22,9 @@ htmlcov/
 .coverage
 *.log
 .uv/
-uv.lock
+# uv.lock se versiona a propósito: sin él CI resolvía dependencias frescas en
+# cada corrida y el gate podía romperse por calendario en vez de por commits
+# (pasó con ruff 0.16). Para actualizar una dependencia: `uv lock --upgrade-package <nombre>`.
 target/
 native/target/
 *.so
@@ -40,3 +42,4 @@ docs-site/.astro/
 
 # SDD scratch
 .superpowers/
+config/connections.yaml

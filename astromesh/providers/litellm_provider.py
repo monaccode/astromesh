@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from .base import CompletionChunk, CompletionResponse
 from .openai_compat import _normalize_tool_calls
@@ -18,7 +19,7 @@ from .openai_compat import _normalize_tool_calls
 
 def _import_litellm():
     """Import litellm lazily. Isolated for monkeypatching in tests."""
-    import litellm  # noqa: PLC0415
+    import litellm
 
     return litellm
 

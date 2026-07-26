@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -47,7 +46,7 @@ def _get_provider(config: OrbitConfig):
 @orbit_app.command()
 def init(
     provider: str = typer.Option("gcp", help="Cloud provider"),
-    preset: Optional[str] = typer.Option(None, help="Preset: starter or pro"),
+    preset: str | None = typer.Option(None, help="Preset: starter or pro"),
 ):
     """Interactive setup — generates orbit.yaml."""
     run_wizard()
@@ -102,7 +101,7 @@ def plan(config: str = typer.Option("orbit.yaml", help="Path to orbit.yaml")):
                 console.print(f"  Estimated cost: ~${result.estimated_monthly_cost}/month")
         except TerraformNotFoundError as e:
             console.print(f"\n  [red]{e}[/]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
     asyncio.run(_plan())
 
@@ -125,7 +124,7 @@ def apply(
             result = await prov.provision(cfg, GENERATED_DIR)
         except RuntimeError as e:
             console.print(f"  [red]Error:[/] {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
         console.print("\n  [green bold]OK Deployment complete![/]\n")
 

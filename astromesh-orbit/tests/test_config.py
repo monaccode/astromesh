@@ -1,8 +1,10 @@
 """Tests for OrbitConfig parsing."""
 
 from pathlib import Path
+
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from astromesh_orbit.config import OrbitConfig
 
@@ -80,7 +82,7 @@ def test_missing_provider(tmp_path: Path):
     }
     path = tmp_path / "bad.yaml"
     path.write_text(yaml.dump(data))
-    with pytest.raises(Exception):  # Pydantic ValidationError
+    with pytest.raises(ValidationError):
         OrbitConfig.from_yaml(path)
 
 

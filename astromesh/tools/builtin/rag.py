@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 
 
 class RagQueryTool(BuiltinTool):
     name = "rag_query"
     description = "Query the RAG pipeline for relevant documents"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "query": {"type": "string"},
@@ -28,14 +30,14 @@ class RagQueryTool(BuiltinTool):
 
             raw = await pipeline.query(arguments["query"], top_k=arguments.get("top_k", 5))
             return ToolResult(success=True, data={"results": result_to_list(raw)}, metadata={})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
 
 
 class RagIngestTool(BuiltinTool):
     name = "rag_ingest"
     description = "Ingest a document into the RAG pipeline"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "document": {"type": "string"},
@@ -53,5 +55,5 @@ class RagIngestTool(BuiltinTool):
         try:
             await pipeline.ingest(arguments["document"], metadata=arguments.get("metadata", {}))
             return ToolResult(success=True, data={"ingested": True}, metadata={})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))

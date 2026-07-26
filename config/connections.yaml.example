@@ -1,0 +1,21 @@
+# Conexiones de integraciones para despliegues self-hosted.
+#
+# En un despliegue con Nexus este archivo no hace falta: Nexus custodia las
+# credenciales e inyecta un bundle `connections` en cada corrida, que tiene
+# prioridad sobre lo que haya acá.
+#
+# Copiar a config/connections.yaml (que va en .gitignore) y completar.
+# Los ${VAR} se resuelven contra el entorno, igual que en channels.yaml.
+
+connections:
+  # Nombre libre; es lo que el YAML del agente pone en `connection:`.
+  wa_main:
+    access_token: "${WHATSAPP_ACCESS_TOKEN}"
+
+  drive_main:
+    access_token: "${GOOGLE_ACCESS_TOKEN}"
+
+  # La integración `http` toma base_url de la conexión, no del manifest.
+  crm_interno:
+    api_key: "${CRM_API_KEY}"
+    base_url: "${CRM_BASE_URL}"

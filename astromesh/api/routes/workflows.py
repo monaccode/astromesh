@@ -72,8 +72,8 @@ async def resume_run(run_id: str, request: ResumeRequest):
     except ValueError as e:
         msg = str(e)
         if "not found" in msg:
-            raise HTTPException(status_code=404, detail=msg)
-        raise HTTPException(status_code=409, detail=msg)
+            raise HTTPException(status_code=404, detail=msg) from e
+        raise HTTPException(status_code=409, detail=msg) from e
     if result.status == "suspended":
         return {"run_id": result.run_id, "status": result.status}
     return {
@@ -117,8 +117,8 @@ async def _decide_endpoint(run_id: str, request: DecisionRequest, approved: bool
     except ValueError as e:
         msg = str(e)
         if "not found" in msg:
-            raise HTTPException(status_code=404, detail=msg)
-        raise HTTPException(status_code=409, detail=msg)
+            raise HTTPException(status_code=404, detail=msg) from e
+        raise HTTPException(status_code=409, detail=msg) from e
     return {"run_id": result.run_id, "status": result.status}
 
 
@@ -153,7 +153,7 @@ async def register_blueprint(request: RegisterBlueprintRequest):
         spec = WorkflowLoader("")._parse(request.workflow)
         _engine.register_workflow(spec)
     except (ValueError, KeyError) as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return {"workflow_name": spec.name, "agents": agent_names, "rag_pipelines": rag_names}
 
 
@@ -183,9 +183,9 @@ async def run_workflow(name: str, request: WorkflowRunRequest):
     try:
         result = await _engine.run(name, trigger=trigger)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     if result.status == "suspended":
         return {"run_id": result.run_id, "status": result.status}
     return {

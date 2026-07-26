@@ -1,7 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock
+
+from astromesh.core.tools import ToolRegistry
 from astromesh.mcp.client import MCPClient, MCPToolInfo
 from astromesh.mcp.server import MCPServer
-from astromesh.core.tools import ToolRegistry
 
 
 async def test_mcp_client_call_tool():
@@ -27,8 +28,8 @@ async def test_mcp_client_get_tools():
 
 
 async def test_mcp_server_tools_list():
-    from httpx import AsyncClient, ASGITransport
     from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
 
     runtime = MagicMock()
     runtime.list_agents.return_value = [

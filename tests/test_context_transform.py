@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 from astromesh.core.tools import ToolRegistry
 
 
@@ -37,6 +39,7 @@ class TestContextTransform:
             session_id="s1",
             context=None,
             parent_trace_id=None,
+            connections={},
         )
 
     @pytest.mark.asyncio
@@ -116,4 +119,5 @@ class TestContextTransform:
             session_id="s5",
             context=None,
             parent_trace_id=None,
+            connections={},
         )

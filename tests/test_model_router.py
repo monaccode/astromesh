@@ -9,9 +9,11 @@ from astromesh.errors import ModelProviderError
 from astromesh.providers.base import (
     CompletionChunk,
     CompletionResponse,
-    CompletionResponse as CR,
     ProviderHealth,
     RoutingStrategy,
+)
+from astromesh.providers.base import (
+    CompletionResponse as Completion,
 )
 
 
@@ -128,7 +130,7 @@ def _make_mock_provider(
     cost: float = 0.01,
     supports_tools: bool = True,
     supports_vision: bool = False,
-    complete_response: CR | None = None,
+    complete_response: Completion | None = None,
     complete_side_effect=None,
 ):
     """Return an AsyncMock that satisfies ProviderProtocol."""
@@ -138,7 +140,7 @@ def _make_mock_provider(
     provider.estimated_cost = MagicMock(return_value=cost)
 
     if complete_response is None:
-        complete_response = CR(
+        complete_response = Completion(
             content="ok",
             model="test-model",
             provider=name,

@@ -57,16 +57,18 @@ async def worker_node(tmp_path):
     await runtime.bootstrap()
     system.set_runtime(runtime)
 
-    async with LifespanManager(app):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            yield client, runtime
+    async with (
+        LifespanManager(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        yield client, runtime
 
     system.set_runtime(None)
     await pc.close()
 
 
 async def test_worker_node_status(worker_node):
-    client, runtime = worker_node
+    client, _runtime = worker_node
     resp = await client.get("/v1/system/status")
     assert resp.status_code == 200
     data = resp.json()
@@ -80,7 +82,7 @@ async def test_worker_node_status(worker_node):
 
 
 async def test_worker_node_doctor(worker_node):
-    client, runtime = worker_node
+    client, _runtime = worker_node
     resp = await client.get("/v1/system/doctor")
     assert resp.status_code == 200
     data = resp.json()
@@ -109,16 +111,18 @@ async def gateway_node(tmp_path):
     await runtime.bootstrap()
     system.set_runtime(runtime)
 
-    async with LifespanManager(app):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            yield client, runtime
+    async with (
+        LifespanManager(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        yield client, runtime
 
     system.set_runtime(None)
     await pc.close()
 
 
 async def test_gateway_node_no_agents(gateway_node):
-    client, runtime = gateway_node
+    client, _runtime = gateway_node
     resp = await client.get("/v1/system/status")
     assert resp.status_code == 200
     data = resp.json()

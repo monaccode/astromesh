@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 
@@ -193,7 +194,7 @@ class OpenAICompatProvider:
             client = await self._get_client()
             resp = await client.get("/models")
             return resp.status_code == 200
-        except Exception:
+        except Exception:  # noqa: BLE001  (cualquier fallo del sondeo significa 'no sano')
             return False
 
     def supports_tools(self) -> bool:

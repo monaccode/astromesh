@@ -63,9 +63,9 @@ spec:
 async def test_engine_emits_trace_to_collector(otel_config_dir):
     """A run whose LLM call fails (unreachable provider) must STILL emit the pre-LLM spans to the
     active collector — the emit is in `engine.run`'s `finally`."""
-    from astromesh.runtime.engine import AgentRuntime
     from astromesh.api.routes import traces as traces_route
     from astromesh.observability.collector import InternalCollector
+    from astromesh.runtime.engine import AgentRuntime
 
     coll = InternalCollector()
     traces_route.set_collector(coll)

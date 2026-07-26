@@ -35,7 +35,7 @@ def _try_gcs_python(project: str, region: str, bucket_name: str) -> bool | None:
     if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
         return None
     try:
-        from google.cloud import storage  # lazy import – optional dep
+        from google.cloud import storage  # lazy import - optional dep
     except ImportError:
         return None
 
@@ -50,7 +50,7 @@ def _try_gcs_python(project: str, region: str, bucket_name: str) -> bool | None:
         new_bucket.patch()
         console.print(f"  [green]OK[/] State bucket created: gs://{bucket_name}")
         return True
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  (sondeo del bucket: cualquier fallo se reporta, no se propaga)
         console.print(f"  [yellow]WARN[/] GCS API error: {exc}")
         return False
 
@@ -89,7 +89,7 @@ async def ensure_gcs_state_bucket(project: str, region: str, name: str) -> str:
         )
 
     # Try to create via gsutil
-    code, _, stderr = await _run_gsutil(
+    code, _, _ = await _run_gsutil(
         "mb",
         "-p",
         project,
@@ -107,7 +107,7 @@ async def ensure_gcs_state_bucket(project: str, region: str, name: str) -> str:
     # Naming collision — try with hash suffix
     suffix = hashlib.sha256(f"{project}-{name}".encode()).hexdigest()[:6]
     bucket_name = f"{project}-astromesh-orbit-state-{suffix}"
-    code, _, stderr = await _run_gsutil(
+    code, _, _ = await _run_gsutil(
         "mb",
         "-p",
         project,

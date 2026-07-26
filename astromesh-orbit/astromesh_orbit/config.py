@@ -90,7 +90,9 @@ class OrbitMetadata(BaseModel):
 
 
 class OrbitConfig(BaseModel):
-    apiVersion: str
+    # camelCase a propósito: es el nombre del campo en el YAML de Orbit
+    # (mismo estilo que Kubernetes). Renombrarlo rompería todo config existente.
+    apiVersion: str  # noqa: N815
     kind: str
     metadata: OrbitMetadata
     spec: OrbitSpec

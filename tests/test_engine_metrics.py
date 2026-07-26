@@ -1,5 +1,7 @@
 """Fase 4.3b: engine metrics derived from the TracingContext span tree."""
 
+import contextlib
+
 
 class _FakeInstr:
     def __init__(self, name, sink):
@@ -30,7 +32,7 @@ def _mgr_with_fakes(sink):
 
 
 def _build_ctx():
-    from astromesh.observability.tracing import TracingContext, SpanStatus
+    from astromesh.observability.tracing import SpanStatus, TracingContext
 
     ctx = TracingContext(agent_name="rec-agent", session_id="s1")
     root = ctx.start_span("agent.run", {"agent": "rec-agent", "session": "s1"})
@@ -136,10 +138,8 @@ spec:
 
     agent._routers["default"].route = fake_route
 
-    try:
+    with contextlib.suppress(Exception):
         await rt.run("rec-agent", "hello there", "s1")
-    except Exception:
-        pass
 
     assert seen["record_run"] >= 1
     assert seen["agent_run_span"] is True

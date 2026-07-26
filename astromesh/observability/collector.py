@@ -74,9 +74,8 @@ class OTLPCollector(InternalCollector):
                     for k, v in span_data.get("attributes", {}).items():
                         # OTel attributes accept only str/bool/int/float (or sequences thereof);
                         # coerce anything else (lists of dicts, etc.) to str so the span still exports.
-                        if not isinstance(v, (str, bool, int, float)):
-                            v = str(v)
-                        otel_span.set_attribute(k, v)
+                        value = v if isinstance(v, (str, bool, int, float)) else str(v)
+                        otel_span.set_attribute(k, value)
             # The BatchSpanProcessor's background timer does not reliably flush under the node's
             # sandboxed unit, and a cold gRPC channel needs a waited export — flush explicitly.
             self._telemetry.flush()

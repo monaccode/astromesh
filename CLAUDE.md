@@ -10,6 +10,21 @@ uv sync --extra all                  # Install all optional backends
 uv run uvicorn astromesh.api.main:app --reload  # Run API server (port 8000)
 ```
 
+### Dependencias: `uv.lock` está versionado
+
+Hay cuatro proyectos uv independientes, cada uno con su lock: la raíz,
+`astromesh-node/`, `astromesh-cli/` y `astromesh-orbit/`. CI los instala con
+`uv sync --locked`, que **falla** si el lock quedó desincronizado de su
+`pyproject.toml`.
+
+Si cambiás dependencias en un `pyproject.toml`, corré `uv lock` **en ese mismo
+directorio** y commiteá el lock junto al cambio. Para subir una dependencia a
+propósito: `uv lock --upgrade-package <nombre>`.
+
+Esto es deliberado: antes CI resolvía fresco en cada corrida y el gate se rompía
+por calendario, no por commits — ruff 0.16 entró solo y dejó rojo cualquier PR
+sin que cambiara una línea de código. Ver `docs/DEBT.md`.
+
 The API app runs an ASGI **lifespan** that bootstraps `AgentRuntime` and wires route modules (same idea as `astromeshd`). Use `ASTROMESH_CONFIG_DIR` to point at a config tree; set `ASTROMESH_SKIP_RUNTIME=1` to skip bootstrap (tests).
 
 **Logging:** `astromesh.logging_config.setup_logging()` runs on API import. Default `ASTROMESH_LOG_LEVEL=DEBUG` (detailed). Quieter: `INFO` or `WARNING`. Third-party noise capped with `ASTROMESH_LOG_THIRDPARTY_LEVEL` (default `WARNING`). Disable setup: `ASTROMESH_LOG_CONFIGURE=0`. Uvicorn access/error log level is still controlled by `uvicorn --log-level`.
@@ -115,8 +130,13 @@ other — only bump what actually changed.
 - `astromesh/__init__.py` → `__version__`
 
 Then add the `CHANGELOG.md` section (`## [vX.Y.Z] - YYYY-MM-DD`, moving what sits under
-`[Unreleased]`) and tag `vX.Y.Z` (annotated). Pushing the tag publishes to PyPI. A core release
-touches exactly those three files.
+`[Unreleased]`) and tag `vX.Y.Z` (annotated). Pushing the tag publishes to PyPI.
+
+**Los lockfiles también se mueven.** Desde que `uv.lock` está versionado, bumpear el core
+cambia además `uv.lock`, `astromesh-node/uv.lock` y `astromesh-cli/uv.lock`, porque los tres
+registran la versión de `astromesh` (los dos últimos lo referencian como editable `../`).
+Corré `uv lock` en esos tres directorios y commitealos con el release, o CI falla en
+`uv sync --locked`. `astromesh-orbit` no lo referencia y no se toca.
 
 **Sub-packages release on their own cadence**, each with its own version file and release commit
 (e.g. `chore(release): astromesh-adk 0.1.9`) — do not bump them just because the core moved:

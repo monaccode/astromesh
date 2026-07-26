@@ -24,8 +24,8 @@ class TorchModelServer:
             device = torch.device(self._config.device)
             self._model = self._model.to(device)
             self._model.eval()
-        except ImportError:
-            raise RuntimeError("torch not installed")
+        except ImportError as exc:
+            raise RuntimeError("torch not installed") from exc
 
     async def predict(self, inputs: Any) -> Any:
         if not self._model:

@@ -30,8 +30,8 @@ class ONNXModelServer:
             if self._config.device == "cuda":
                 providers.insert(0, "CUDAExecutionProvider")
             self._session = ort.InferenceSession(self._config.model_path, opts, providers=providers)
-        except ImportError:
-            raise RuntimeError("onnxruntime not installed")
+        except ImportError as exc:
+            raise RuntimeError("onnxruntime not installed") from exc
 
     async def predict(self, inputs: dict) -> Any:
         if not self._session:

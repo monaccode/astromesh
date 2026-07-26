@@ -5,7 +5,101 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.37.0] - 2026-07-25
+
+Marco de integraciones declarativas: un `integration.yaml` se convierte en tools de agente,
+con credenciales inyectadas por corrida (el core nunca las almacena ni las refresca). Ocho
+integraciones en el catálogo. Además, el gate de CI deja de moverse solo: ruleset de ruff
+declarado y `uv.lock` versionado.
+
+### Added (Backend)
+
+- Marco de integraciones: modelos y validación del manifest `integration.yaml`.
+- Marco de integraciones: interpolación restringida de `{param}` con guardia anti-traversal.
+- Marco de integraciones: esquemas de autenticación bearer, header, query, basic y none.
+- Marco de integraciones: clasificación de errores (`error_kind`) del contrato con Nexus.
+- Marco de integraciones: carga del escape `handler: python:modulo:funcion`.
+- Marco de integraciones: catálogo auto-descubierto en `astromesh/integrations/catalog/`.
+- Marco de integraciones: resolución de credenciales por corrida (bundle de Nexus) con
+  respaldo en `config/connections.yaml`.
+- Marco de integraciones: ejecutor HTTP declarativo con paginación cursor/offset, selección
+  de respuesta y escape a handlers Python.
+- `ToolType.INTEGRATION`: las acciones de integración se registran y ejecutan como tools,
+  resolviendo credenciales por corrida.
+- YAML de agentes: `type: integration` con `connection` y allowlist de `actions`.
+- `AgentRuntime.run()` acepta `connections`: bundle de credenciales por corrida, propagado
+  a los agentes-como-tool.
+- `GET /v1/integrations` y `GET /v1/integrations/{slug}`: catálogo con acciones y
+  credenciales requeridas.
+- `POST /v1/agents/{name}/run` acepta `connections`.
+- Integración `http`: cliente genérico para APIs internas, con base_url y auth por conexión.
+- Integración `whatsapp`: envío de texto y plantillas, y resolución de media, sobre Meta
+  Graph API.
+- Integración `google_drive`: listar, buscar y leer metadatos de archivos, y subida por
+  sesión resumable.
+- Span `integration.call` con slug, acción, status y `error_kind`.
+- Integración `instagram`: listar y leer media, comentarios, y publicar fotos
+  (contenedor + publicación encadenados en un handler).
+- Integración `facebook`: publicaciones y comentarios de una página, y publicar en el feed.
+- Integración `gmail`: listar y leer mensajes, etiquetas, y enviar correo (MIME RFC 5322
+  en base64url vía handler).
+- Integración `google_sheets`: leer, sobrescribir y agregar filas. Enteramente declarativa.
+- Integración `tiktok`: perfil, listado de videos y publicación por URL.
+- `pagination.cursor_in`: el cursor puede viajar en el cuerpo, no sólo en la query
+  (lo necesita TikTok y cualquier API que pagine sobre POST).
+
+### Fixed
+
+- **`uv.lock` se versiona** (raíz, `astromesh-node/`, `astromesh-cli/`, `astromesh-orbit/`) y
+  CI instala con `uv sync --locked` en los seis sitios que resolvían dependencias. Sin lock,
+  CI resolvía fresco en cada corrida y cualquier dependencia podía romper el gate sin que
+  nadie tocara el código. `--locked` además falla si un `pyproject.toml` cambió sin
+  re-lockear, en vez de resolver por su cuenta y ocultarlo.
+- CI se ponía en rojo por calendario y no por commits: `uv.lock` estaba en `.gitignore` y CI
+  resolvía dependencias frescas en cada corrida, así que ruff 0.16.0 —que amplió su ruleset
+  por defecto— entró solo y sumó 259 hallazgos sin que cambiara una línea. El core y Orbit
+  declaran ahora `[tool.ruff.lint] select` explícito: el gate deja de heredarse del default
+  del linter, así que una versión nueva no puede ampliarlo sola. Se adoptó 0.16 y se quitó
+  el techo. Las dos reglas excluidas (`PLW0603`, `N818`) llevan el motivo escrito al lado.
+- Los loaders de RAG, de recursos RAG y de workflows descartaban en silencio cualquier
+  archivo inválido: un YAML mal escrito hacía desaparecer el pipeline sin dejar rastro
+  para diagnosticarlo. Ahora registran cuál se omitió y por qué.
+- `predict()` del registro de modelos devolvía `None` para un formato que `load` no
+  instancia (`SAFETENSORS` llega a `READY` sin instancia), así que el llamador no podía
+  distinguirlo de una predicción vacía. Ahora levanta.
+- Las tools de archivo leían y escribían bloqueando el event loop que además atiende la
+  API: un archivo grande frenaba a todas las corridas en vuelo. Pasan por
+  `asyncio.to_thread`.
+- Los turnos de conversación se fechaban con `datetime.utcnow()` (naive). La columna de
+  Postgres es `TIMESTAMPTZ` y venía asumiendo UTC en silencio. Ahora se usa
+  `datetime.now(UTC)`; los backends de texto guardan el offset explícito y
+  `fromisoformat` sigue leyendo las filas viejas.
+- Dos `except` mentían sobre lo que atrapaban: `(KeyError, Exception)` y
+  `(json.JSONDecodeError, Exception)`, donde el segundo miembro absorbe al primero.
+- 24 excepciones se re-lanzaban dentro de un `except` sin encadenar, perdiendo el
+  traceback original.
+- Orbit: `provision`/`eject` creaban el directorio con un `mkdir` bloqueante dentro de la
+  corrutina, y el test de config esperaba `Exception` a secas —cualquier fallo del parseo
+  lo daba por bueno—; ahora espera `ValidationError`.
+
+- `GET /v1/tools` devolvía una lista vacía fija; ahora reporta builtins y acciones de
+  integración.
+- `docs/CONFIGURATION_GUIDE.md` no documentaba el tipo de tool `integration`.
+
+### Changed
+
+- `writes` en el manifest pasa a ser tri-estado (`true`/`false`/no declarado). Las acciones
+  con método mutante deben declararlo explícitamente; leer por POST es legítimo y ya no
+  obliga a marcar una escritura falsa. Los consumidores usan `ActionSpec.mutates`.
+- Un campo opcional del body o de la query cuyo argumento no llegó ahora se omite en vez
+  de fallar la acción entera.
+
+- Normalización de parámetros de tools mudada a `astromesh/core/schema.py` para compartirla
+  entre el loader de agentes y el marco de integraciones.
+- `pytest.raises(ValueError)` sin `match=` en 8 tests: cualquier `ValueError` del camino los
+  daba por buenos. Ahora verifican el mensaje real.
+- Los esquemas de tools (`parameters`, `config_schema`) se anotan `ClassVar`, que es lo que
+  son. Los enums `str, Enum` pasan a `StrEnum`.
 
 ## [v0.36.0] - 2026-07-21
 

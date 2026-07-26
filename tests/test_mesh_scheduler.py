@@ -32,7 +32,7 @@ def _make_node(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def cluster() -> ClusterState:
     cs = ClusterState()
     cs.add_node(_make_node("leader-node", "leader", services=["api"], agents=[]))
@@ -66,7 +66,7 @@ def cluster() -> ClusterState:
     return cs
 
 
-@pytest.fixture()
+@pytest.fixture
 def scheduler(cluster: ClusterState) -> Scheduler:
     mesh = MagicMock()
     mesh.cluster_state.return_value = cluster

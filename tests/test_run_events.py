@@ -143,7 +143,8 @@ async def test_ids_differ_across_calls():
     await agent.run("hola", "s1", on_event=events.append)
 
     ids = [e["id"] for e in events if e["type"] == "tool_call"]
-    assert len(ids) == 2 and ids[0] != ids[1]
+    assert len(ids) == 2
+    assert ids[0] != ids[1]
 
 
 async def test_a_raising_tool_emits_ok_false_and_still_propagates():

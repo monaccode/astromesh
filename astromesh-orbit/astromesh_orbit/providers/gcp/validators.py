@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
 from astromesh_orbit.core.provider import CheckResult
 from astromesh_orbit.providers.gcp.gcloud import run_gcloud as _run_gcloud
@@ -30,7 +31,7 @@ REQUIRED_APIS = [
 def _has_service_account_key() -> str | None:
     """Return the path if GOOGLE_APPLICATION_CREDENTIALS is set and the file exists."""
     path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if path and os.path.isfile(path):
+    if path and Path(path).is_file():
         return path
     return None
 
@@ -42,7 +43,7 @@ def _has_service_account_key() -> str | None:
 
 def _load_sa_credentials():
     """Load default credentials from GOOGLE_APPLICATION_CREDENTIALS."""
-    from google.auth import default  # lazy import – optional dep
+    from google.auth import default  # lazy import - optional dep
     from google.auth.transport.requests import Request
 
     creds, project = default(
@@ -63,7 +64,7 @@ def _sa_check_auth() -> CheckResult:
             passed=True,
             message=f"Authenticated via service account: {email}",
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  (un chequeo que revienta es un chequeo fallado, no un crash del comando)
         return CheckResult(
             name="gcloud_auth",
             passed=False,
@@ -84,7 +85,7 @@ def _sa_check_project(project: str) -> CheckResult:
             passed=True,
             message=f"Project {p.project_id} found",
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  (un chequeo que revienta es un chequeo fallado, no un crash del comando)
         return CheckResult(
             name="project_exists",
             passed=False,
@@ -108,7 +109,7 @@ def _sa_check_apis_enabled(project: str) -> list[CheckResult]:
         resp.raise_for_status()
         data = resp.json()
         enabled = {svc.get("config", {}).get("name", "") for svc in data.get("services", [])}
-    except Exception:
+    except Exception:  # noqa: BLE001  (un chequeo que revienta es un chequeo fallado, no un crash del comando)
         # If we can't query Service Usage, mark all as unknown/failed
         return [
             CheckResult(

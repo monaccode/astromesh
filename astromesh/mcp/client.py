@@ -1,6 +1,7 @@
 import asyncio
 import json
 from dataclasses import dataclass, field
+
 import httpx
 
 
@@ -59,12 +60,7 @@ class MCPClient:
             line = await self._process.stdout.readline()
             return json.loads(line.decode()).get("result", {})
 
-        elif self._transport == "http":
-            resp = await self._http_client.post(self._url, json=request, headers=self._headers)
-            resp.raise_for_status()
-            return resp.json().get("result", {})
-
-        elif self._transport == "sse":
+        if self._transport == "http" or self._transport == "sse":
             resp = await self._http_client.post(self._url, json=request, headers=self._headers)
             resp.raise_for_status()
             return resp.json().get("result", {})

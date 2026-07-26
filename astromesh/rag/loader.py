@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -27,19 +30,25 @@ def spec_from_raw(raw: dict) -> RAGPipelineSpec:
     (e.g. ``spec.vector_store: "faiss"`` as a scalar) would pass validation, get
     stored, and then raise AttributeError inside the summary serializer — turning
     one bad document into a 500 for the entire list endpoint.
+
+    Todo error de validación sale como ValueError, incluidos los de tipo. Es el
+    contrato que consumen los llamadores: `rag_resources` atrapa ValueError y lo
+    mapea a 4xx, y `engine._register_rag_pipeline` lo documenta. Por eso los
+    `isinstance` de abajo no levantan TypeError (TRY004): partir el contrato en
+    dos excepciones obligaría a cambiar cada sitio que hoy lo atrapa.
     """
     if not isinstance(raw, dict):
-        raise ValueError("RAGPipeline body must be a mapping")
+        raise ValueError("RAGPipeline body must be a mapping")  # noqa: TRY004
     if raw.get("kind") != "RAGPipeline":
         raise ValueError(f"Expected kind: RAGPipeline, got: {raw.get('kind')}")
     metadata = raw.get("metadata", {})
     if not isinstance(metadata, dict):
-        raise ValueError("RAGPipeline metadata must be a mapping")
+        raise ValueError("RAGPipeline metadata must be a mapping")  # noqa: TRY004
     if not metadata.get("name"):
         raise ValueError("RAGPipeline missing metadata.name")
     spec = raw.get("spec", {})
     if not isinstance(spec, dict):
-        raise ValueError("RAGPipeline spec must be a mapping")
+        raise ValueError("RAGPipeline spec must be a mapping")  # noqa: TRY004
     for section in _SPEC_SECTIONS:
         if section in spec and not isinstance(spec[section], dict):
             raise ValueError(f"RAGPipeline spec.{section} must be a mapping")
@@ -66,8 +75,10 @@ class RAGPipelineLoader:
         for f in self._dir.glob("*.rag.yaml"):
             try:
                 spec = self.load_file(f)
-            except Exception:
-                continue  # skip invalid files
+            # Igual que en la ruta de recursos: se salta, pero se deja rastro.
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("se omite %s: no se pudo cargar (%s)", f.name, exc)
+                continue
             out[spec.name] = spec
         return out
 

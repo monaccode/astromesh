@@ -185,7 +185,7 @@ class ModelRouter:
         for name, health in self._health.items():
             if health.circuit_open:
                 if now >= health.circuit_open_until:
-                    # Cooldown elapsed – allow a retry (half-open).
+                    # Cooldown elapsed - allow a retry (half-open).
                     health.circuit_open = False
                     health.consecutive_failures = 0
                     available.append(name)

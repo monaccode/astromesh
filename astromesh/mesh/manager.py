@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import random
 import time
@@ -118,7 +119,7 @@ class MeshManager:
                     len(self._cluster.nodes),
                 )
                 return
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  (un peer caído no puede cortar el ciclo)
                 logger.warning("Failed to join via seed %s: %s", seed_url, e)
                 continue
 
@@ -127,13 +128,11 @@ class MeshManager:
     async def leave(self) -> None:
         self._left = True
         for node in self.get_gossip_targets():
-            try:
+            with contextlib.suppress(Exception):
                 await self._http.post(
                     f"{node.url}/v1/mesh/leave",
                     json={"node_id": self.node_id},
                 )
-            except Exception:
-                pass
         logger.info("Left mesh")
 
     async def gossip_once(self) -> None:
@@ -154,7 +153,7 @@ class MeshManager:
                     data = resp.json()
                     incoming = [NodeState.from_dict(n) for n in data.get("nodes", [])]
                     self._cluster.merge(incoming)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  (un peer caído no puede cortar el ciclo)
                 logger.debug("Gossip to %s failed: %s", target.name, e)
 
     async def heartbeat_once(self) -> None:
@@ -163,13 +162,11 @@ class MeshManager:
         local.last_heartbeat = time.time()
         targets = self.get_gossip_targets()
         for target in targets:
-            try:
+            with contextlib.suppress(Exception):
                 await self._http.post(
                     f"{target.url}/v1/mesh/heartbeat",
                     json=local.to_dict(),
                 )
-            except Exception:
-                pass
 
     async def close(self) -> None:
         await self._http.aclose()

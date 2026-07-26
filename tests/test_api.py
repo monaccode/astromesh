@@ -29,7 +29,8 @@ async def test_get_agent_returns_full_config(client):
     assert detail.status_code == 200
     body = detail.json()
     assert body.get("kind") == "Agent"
-    assert "metadata" in body and "spec" in body
+    assert "metadata" in body
+    assert "spec" in body
     assert "identity" in body["spec"]
     assert "display_name" in body["spec"]["identity"]
 
@@ -74,9 +75,13 @@ async def test_delete_unknown_agent_returns_404(client):
 
 
 async def test_list_tools(client):
+    """Hasta 0.36.0 devolvía `[]` fijo; ahora reporta builtins e integraciones."""
     resp = await client.get("/v1/tools")
     assert resp.status_code == 200
-    assert resp.json()["tools"] == []
+    body = resp.json()
+    assert body["count"] == len(body["tools"])
+    types = {t["type"] for t in body["tools"]}
+    assert {"builtin", "integration"} <= types
 
 
 async def test_rag_query_unknown_pipeline(client):

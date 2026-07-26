@@ -30,4 +30,5 @@ async def test_build_context_never_raises_on_error():
 
 def test_format_knowledge_joins_chunks():
     out = format_knowledge([{"content": "uno"}, {"content": "dos"}])
-    assert "uno" in out and "dos" in out
+    assert "uno" in out
+    assert "dos" in out

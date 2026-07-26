@@ -1,11 +1,11 @@
 # tests/test_workflow_executor.py
 import asyncio
-
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
+
 from astromesh.workflow.executor import StepExecutor
-from astromesh.workflow.models import StepSpec, StepStatus, RetryConfig
+from astromesh.workflow.models import RetryConfig, StepSpec, StepStatus
 
 
 @pytest.fixture

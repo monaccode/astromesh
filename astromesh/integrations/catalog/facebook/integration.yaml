@@ -1,0 +1,97 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: facebook
+  version: 0.1.0
+  description: >
+    Facebook Graph API para páginas: leer publicaciones y comentarios, y
+    publicar en el feed. El token es de página, no de usuario. Comparte
+    base_url y esquema de auth con whatsapp e instagram.
+spec:
+  base_url: "https://graph.facebook.com/v21.0"
+  auth:
+    scheme: bearer
+    credential: access_token
+  defaults:
+    timeout_seconds: 30
+    rate_limit:
+      window_seconds: 3600
+      max_calls: 200
+  actions:
+    - name: list_page_posts
+      description: "Lista las publicaciones del feed de una página, más recientes primero"
+      parameters:
+        page_id:
+          type: string
+          description: "ID de la página de Facebook"
+          required: true
+        limit:
+          type: integer
+          description: "Cantidad de publicaciones por página"
+          default: 25
+      request:
+        method: GET
+        path: "/{page_id}/posts"
+        query:
+          fields: "id,message,created_time,permalink_url,shares"
+          limit: "{limit}"
+      response:
+        select: "data"
+      pagination:
+        style: cursor
+        cursor_param: after
+        cursor_path: "paging.cursors.after"
+
+    - name: get_post
+      description: "Devuelve los detalles de una publicación por su ID"
+      parameters:
+        post_id:
+          type: string
+          description: "ID de la publicación en Facebook"
+          required: true
+      request:
+        method: GET
+        path: "/{post_id}"
+        query:
+          fields: "id,message,created_time,permalink_url,shares,reactions.summary(true)"
+
+    - name: list_comments
+      description: "Lista los comentarios de una publicación"
+      parameters:
+        post_id:
+          type: string
+          description: "ID de la publicación en Facebook"
+          required: true
+      request:
+        method: GET
+        path: "/{post_id}/comments"
+        query:
+          fields: "id,message,created_time,from"
+      response:
+        select: "data"
+      pagination:
+        style: cursor
+        cursor_param: after
+        cursor_path: "paging.cursors.after"
+
+    - name: create_post
+      description: "Publica un mensaje de texto en el feed de una página"
+      writes: true
+      parameters:
+        page_id:
+          type: string
+          description: "ID de la página de Facebook"
+          required: true
+        message:
+          type: string
+          description: "Texto de la publicación"
+          required: true
+        link:
+          type: string
+          description: "URL a adjuntar a la publicación"
+      request:
+        method: POST
+        path: "/{page_id}/feed"
+        body:
+          message: "{message}"
+          link: "{link}"

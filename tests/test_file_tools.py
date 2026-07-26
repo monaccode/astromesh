@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from astromesh.tools.base import ToolContext
 
 
@@ -39,7 +41,7 @@ class TestWriteFileTool:
         tool = WriteFileTool(config={"allowed_paths": [str(tmp_path)]})
         result = await tool.execute({"path": target, "content": "hello"}, _ctx())
         assert result.success is True
-        assert open(target).read() == "hello"
+        assert Path(target).read_text() == "hello"
 
     async def test_blocked_write(self):
         from astromesh.tools.builtin.files import WriteFileTool

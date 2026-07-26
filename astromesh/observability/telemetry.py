@@ -1,3 +1,4 @@
+import contextlib
 import os
 from dataclasses import dataclass
 
@@ -48,10 +49,10 @@ class TelemetryManager:
 
         try:
             from opentelemetry import trace
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+            from opentelemetry.sdk.resources import Resource
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
-            from opentelemetry.sdk.resources import Resource
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
             resource = Resource.create({"service.name": self._config.service_name})
             self._provider = TracerProvider(resource=resource)
@@ -77,10 +78,8 @@ class TelemetryManager:
         timer is unreliable under the node's sandboxed systemd unit (and a cold gRPC channel needs a
         waited export), so callers flush explicitly after emitting a trace."""
         if self._provider is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._provider.force_flush(timeout_millis=timeout_millis)
-            except Exception:
-                pass
 
     def trace_agent_run(self, agent_name: str, session_id: str):
         """Context manager decorator for tracing agent runs."""

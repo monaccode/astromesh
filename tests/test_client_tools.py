@@ -12,7 +12,6 @@ import yaml
 from astromesh.core.tools import ToolRegistry, ToolType
 from astromesh.runtime.engine import Agent, AgentRuntime
 
-
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -62,7 +61,8 @@ async def test_a_client_tool_does_not_claim_delivery():
     tools = ToolRegistry()
     tools.register_client_tool(name="show_thing", description="d", parameters=PARAMS)
     result = await tools.execute("show_thing", {"label": "hola"})
-    assert "delivered" not in result and "sent" not in result
+    assert "delivered" not in result
+    assert "sent" not in result
 
 
 def test_register_client_tool_defaults_its_parameters():
@@ -257,7 +257,7 @@ def _template_files():
     return sorted((REPO_ROOT / "config" / "templates").glob("*.template.yaml"))
 
 
-def _template_tools(path: "pathlib.Path") -> list:
+def _template_tools(path: pathlib.Path) -> list:
     """Templates nest the real agent spec under template.agent_config.spec.tools,
     not spec.tools directly — a different shape than config/agents/*.agent.yaml."""
     spec = yaml.safe_load(path.read_text())

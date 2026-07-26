@@ -1,5 +1,6 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import ClassVar
 from zoneinfo import ZoneInfo
 
 from jinja2 import BaseLoader, Environment, TemplateSyntaxError, UndefinedError
@@ -10,7 +11,7 @@ from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 class DatetimeNowTool(BuiltinTool):
     name = "datetime_now"
     description = "Get the current date and time with optional timezone"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "timezone": {
@@ -24,8 +25,11 @@ class DatetimeNowTool(BuiltinTool):
         tz_name = arguments.get("timezone", "UTC")
         try:
             tz = ZoneInfo(tz_name)
-        except (KeyError, Exception):
-            tz = timezone.utc
+        # ZoneInfoNotFoundError hereda de KeyError; un nombre mal formado da
+        # ValueError. La tupla anterior decía `(KeyError, Exception)`, donde el
+        # segundo miembro se tragaba todo y volvía inútil al primero.
+        except (KeyError, ValueError):
+            tz = UTC
             tz_name = "UTC"
         now = datetime.now(tz)
         return ToolResult(
@@ -42,7 +46,7 @@ class DatetimeNowTool(BuiltinTool):
 class JsonTransformTool(BuiltinTool):
     name = "json_transform"
     description = "Transform JSON data using a Jinja2 template that outputs JSON"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "data": {"description": "The input data to transform"},
@@ -70,7 +74,7 @@ class JsonTransformTool(BuiltinTool):
 class CacheStoreTool(BuiltinTool):
     name = "cache_store"
     description = "Temporary key-value cache for sharing data between tool calls"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "action": {
@@ -91,13 +95,13 @@ class CacheStoreTool(BuiltinTool):
         if action == "set":
             cache[key] = arguments.get("value")
             return ToolResult(success=True, data=None, metadata={"action": "set", "key": key})
-        elif action == "get":
+        if action == "get":
             return ToolResult(
                 success=True,
                 data=cache.get(key),
                 metadata={"action": "get", "key": key},
             )
-        elif action == "delete":
+        if action == "delete":
             cache.pop(key, None)
             return ToolResult(success=True, data=None, metadata={"action": "delete", "key": key})
         return ToolResult(success=False, data=None, error=f"Unknown action: {action}")

@@ -1,0 +1,90 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: whatsapp
+  version: 0.1.0
+  description: >
+    WhatsApp Business Cloud API (Meta Graph) — lado saliente. El webhook
+    entrante y la verificación de firma siguen siendo del canal
+    astromesh/channels/whatsapp.py; esta integración no lo reemplaza.
+    Es también la plantilla de instagram y facebook: misma base_url y
+    mismo esquema de auth.
+spec:
+  base_url: "https://graph.facebook.com/v21.0"
+  auth:
+    scheme: bearer
+    credential: access_token
+  defaults:
+    timeout_seconds: 30
+    rate_limit:
+      window_seconds: 60
+      max_calls: 30
+  actions:
+    - name: send_text
+      description: "Envía un mensaje de texto de WhatsApp a un número"
+      writes: true
+      parameters:
+        phone_number_id:
+          type: string
+          description: "ID del número emisor registrado en Meta"
+          required: true
+        to:
+          type: string
+          description: "Número destino en formato internacional, sin + ni espacios"
+          required: true
+        text:
+          type: string
+          description: "Texto del mensaje"
+          required: true
+      request:
+        method: POST
+        path: "/{phone_number_id}/messages"
+        body:
+          messaging_product: "whatsapp"
+          to: "{to}"
+          type: "text"
+          text:
+            body: "{text}"
+
+    - name: send_template
+      description: "Envía una plantilla aprobada de WhatsApp a un número"
+      writes: true
+      parameters:
+        phone_number_id:
+          type: string
+          description: "ID del número emisor registrado en Meta"
+          required: true
+        to:
+          type: string
+          description: "Número destino en formato internacional, sin + ni espacios"
+          required: true
+        template_name:
+          type: string
+          description: "Nombre de la plantilla aprobada"
+          required: true
+        language_code:
+          type: string
+          description: "Código de idioma de la plantilla, por ejemplo es_AR"
+          default: "es"
+      request:
+        method: POST
+        path: "/{phone_number_id}/messages"
+        body:
+          messaging_product: "whatsapp"
+          to: "{to}"
+          type: "template"
+          template:
+            name: "{template_name}"
+            language:
+              code: "{language_code}"
+
+    - name: get_media
+      description: "Resuelve la URL de descarga y los metadatos de un media recibido"
+      parameters:
+        media_id:
+          type: string
+          description: "ID del media que llegó en el webhook"
+          required: true
+      request:
+        method: GET
+        path: "/{media_id}"

@@ -1,6 +1,7 @@
 """Tests for RAG wrapper tools: rag_query, rag_ingest."""
 
 from unittest.mock import AsyncMock, MagicMock
+
 from astromesh.tools.base import ToolContext
 
 

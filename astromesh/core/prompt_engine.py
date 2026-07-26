@@ -1,4 +1,4 @@
-from jinja2 import Environment, BaseLoader, Undefined
+from jinja2 import BaseLoader, Environment, Undefined
 
 
 class SilentUndefined(Undefined):

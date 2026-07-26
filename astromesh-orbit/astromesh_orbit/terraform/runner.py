@@ -15,7 +15,7 @@ from astromesh_orbit.core.provider import ApplyResult, PlanResult
 def _resolve_binary() -> str:
     """Resolve the IaC binary: TOFU_PATH env > tofu in PATH > terraform in PATH > 'tofu'."""
     tofu_path = os.environ.get("TOFU_PATH")
-    if tofu_path and os.path.isfile(tofu_path):
+    if tofu_path and Path(tofu_path).is_file():
         return tofu_path
     found = shutil.which("tofu") or shutil.which("terraform")
     if found:
@@ -53,8 +53,8 @@ class TerraformRunner:
         """Check tofu/terraform is installed. Returns version string."""
         try:
             code, stdout, _ = await self._run([self._bin, "version", "-json"])
-        except FileNotFoundError:
-            raise TerraformNotFoundError()
+        except FileNotFoundError as exc:
+            raise TerraformNotFoundError() from exc
         if code != 0:
             raise TerraformNotFoundError()
         try:
@@ -73,7 +73,7 @@ class TerraformRunner:
             raise RuntimeError(f"init failed:\n{stderr or stdout}")
 
     async def plan(self, work_dir: Path) -> PlanResult:
-        code, stdout, stderr = await self._run(
+        _code, stdout, stderr = await self._run(
             [self._bin, "plan", "-input=false", "-lock=false", "-no-color"], cwd=work_dir
         )
         combined = stdout + stderr

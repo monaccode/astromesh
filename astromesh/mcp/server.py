@@ -27,27 +27,27 @@ class MCPServer:
             elif method == "tools/list":
                 tools = []
                 if self._runtime:
-                    for agent_info in self._runtime.list_agents():
-                        tools.append(
-                            {
-                                "name": f"agent_{agent_info['name']}",
-                                "description": f"Run agent: {agent_info['name']}",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "query": {
-                                            "type": "string",
-                                            "description": "The query to send",
-                                        },
-                                        "session_id": {
-                                            "type": "string",
-                                            "description": "Session ID",
-                                        },
+                    tools.extend(
+                        {
+                            "name": f"agent_{agent_info['name']}",
+                            "description": f"Run agent: {agent_info['name']}",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "description": "The query to send",
                                     },
-                                    "required": ["query"],
+                                    "session_id": {
+                                        "type": "string",
+                                        "description": "Session ID",
+                                    },
                                 },
-                            }
-                        )
+                                "required": ["query"],
+                            },
+                        }
+                        for agent_info in self._runtime.list_agents()
+                    )
                 result = {"tools": tools}
             elif method == "tools/call":
                 tool_name = params.get("name", "")
@@ -62,7 +62,7 @@ class MCPServer:
                         result = {"content": [{"type": "text", "text": response.get("answer", "")}]}
                     else:
                         result = {"content": [{"type": "text", "text": "No runtime configured"}]}
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     result = {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
             else:
                 result = {}

@@ -39,5 +39,4 @@ class ClassifierTrainer:
 
     async def export_onnx(self, output_path: str | None = None) -> str:
         """Export trained model to ONNX format."""
-        path = output_path or f"{self._config.output_dir}/model.onnx"
-        return path
+        return output_path or f"{self._config.output_dir}/model.onnx"

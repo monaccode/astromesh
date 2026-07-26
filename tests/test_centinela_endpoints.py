@@ -93,7 +93,9 @@ def test_plan_placeholder_sha_is_not_ready():
 def test_plan_defaults_serving_when_absent():
     plan = plan_endpoints(_lock([_model()]), _bindings([_binding(serving=None)]))
     d = plan[0]
-    assert d.vendor == "aws" and d.scale_to_zero is True and d.api_key_env == "HF_TOKEN"
+    assert d.vendor == "aws"
+    assert d.scale_to_zero is True
+    assert d.api_key_env == "HF_TOKEN"
 
 
 def test_plan_unknown_model_raises():

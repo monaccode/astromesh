@@ -1,7 +1,8 @@
 import json
-import pytest
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
+
+import pytest
 
 from astromesh.orchestration.swarm import SwarmPattern
 

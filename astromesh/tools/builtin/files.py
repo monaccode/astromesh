@@ -1,7 +1,15 @@
-"""File read and write built-in tools with path restriction support."""
+"""File read and write built-in tools with path restriction support.
 
+La lectura y la escritura van por `asyncio.to_thread`: son llamadas bloqueantes
+y estas tools corren dentro del loop que además atiende la API. Un archivo
+grande en un disco lento frenaba a todas las corridas en vuelo, no sólo a la
+que pidió el archivo.
+"""
+
+import asyncio
 import os
 from pathlib import Path
+from typing import ClassVar
 
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 
@@ -17,7 +25,7 @@ def _is_path_allowed(path: str, allowed_paths: list[str]) -> bool:
 class ReadFileTool(BuiltinTool):
     name = "read_file"
     description = "Read the contents of a local file (text, CSV, JSON)"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "path": {"type": "string"},
@@ -33,7 +41,7 @@ class ReadFileTool(BuiltinTool):
         if allowed and not _is_path_allowed(path, allowed):
             return ToolResult(success=False, data=None, error=f"Path not allowed: {path}")
         try:
-            content = Path(path).read_text(encoding=encoding)
+            content = await asyncio.to_thread(Path(path).read_text, encoding=encoding)
             return ToolResult(
                 success=True,
                 data={"content": content, "path": path, "size": len(content)},
@@ -41,14 +49,14 @@ class ReadFileTool(BuiltinTool):
             )
         except FileNotFoundError:
             return ToolResult(success=False, data=None, error=f"File not found: {path}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
 
 
 class WriteFileTool(BuiltinTool):
     name = "write_file"
     description = "Write content to a local file"
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "path": {"type": "string"},
@@ -67,12 +75,12 @@ class WriteFileTool(BuiltinTool):
             return ToolResult(success=False, data=None, error=f"Path not allowed: {path}")
         try:
             p = Path(path)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(content, encoding=encoding)
+            await asyncio.to_thread(p.parent.mkdir, parents=True, exist_ok=True)
+            await asyncio.to_thread(p.write_text, content, encoding=encoding)
             return ToolResult(
                 success=True,
                 data={"path": path, "bytes_written": len(content.encode(encoding))},
                 metadata={},
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
             return ToolResult(success=False, data=None, error=str(e))
