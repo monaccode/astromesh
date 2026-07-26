@@ -130,8 +130,13 @@ other — only bump what actually changed.
 - `astromesh/__init__.py` → `__version__`
 
 Then add the `CHANGELOG.md` section (`## [vX.Y.Z] - YYYY-MM-DD`, moving what sits under
-`[Unreleased]`) and tag `vX.Y.Z` (annotated). Pushing the tag publishes to PyPI. A core release
-touches exactly those three files.
+`[Unreleased]`) and tag `vX.Y.Z` (annotated). Pushing the tag publishes to PyPI.
+
+**Los lockfiles también se mueven.** Desde que `uv.lock` está versionado, bumpear el core
+cambia además `uv.lock`, `astromesh-node/uv.lock` y `astromesh-cli/uv.lock`, porque los tres
+registran la versión de `astromesh` (los dos últimos lo referencian como editable `../`).
+Corré `uv lock` en esos tres directorios y commitealos con el release, o CI falla en
+`uv sync --locked`. `astromesh-orbit` no lo referencia y no se toca.
 
 **Sub-packages release on their own cadence**, each with its own version file and release commit
 (e.g. `chore(release): astromesh-adk 0.1.9`) — do not bump them just because the core moved:
