@@ -9,7 +9,7 @@ description = "CLI tool for managing Astromesh nodes and clusters"
 requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
-    "astromesh>=0.18.0",
+    "astromesh>=0.36.0",
     "typer>=0.12.0",
     "rich>=13.0.0",
     "jinja2>=3.1.0",
