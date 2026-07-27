@@ -17,9 +17,11 @@ def _format_run_output(data: dict) -> tuple[str, str, list[dict]]:
 
     Prefiere el contrato del core v0.36.0 (answer + usage{tokens_in, tokens_out,
     by_model}); cae a los campos legacy (response + tokens_used) si no está.
+    El trace_id se extrae de `trace.trace_id` (el trace anidado), no de un
+    campo top-level, y también se usa para armar el subtítulo.
     """
     text = data.get("answer") or data.get("response", "")
-    trace_id = data.get("trace_id", "N/A")
+    trace_id = (data.get("trace") or {}).get("trace_id", "N/A")
     usage = data.get("usage")
     if isinstance(usage, dict):
         tin = usage.get("tokens_in", 0)
