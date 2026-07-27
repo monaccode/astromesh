@@ -12,6 +12,28 @@ from astromesh_cli.client import api_post_with_timeout
 from astromesh_cli.output import console, print_error, print_json
 
 
+def _format_run_output(data: dict) -> tuple[str, str, list[dict]]:
+    """Extrae (texto, subtítulo, filas by_model) de la respuesta de /run.
+
+    Prefiere el contrato del core v0.36.0 (answer + usage{tokens_in, tokens_out,
+    by_model}); cae a los campos legacy (response + tokens_used) si no está.
+    """
+    text = data.get("answer") or data.get("response", "")
+    trace_id = data.get("trace_id", "N/A")
+    usage = data.get("usage")
+    if isinstance(usage, dict):
+        tin = usage.get("tokens_in", 0)
+        tout = usage.get("tokens_out", 0)
+        tokens = tin + tout
+        by_model = usage.get("by_model") or []
+    else:
+        tokens = data.get("tokens_used", "N/A")
+        by_model = []
+    rows = [m for m in by_model if isinstance(m, dict)]
+    subtitle = f"trace: {trace_id} | tokens: {tokens}"
+    return text, subtitle, rows
+
+
 def run_command(
     name: str = typer.Argument(..., help="Agent or workflow name to run"),
     query: str = typer.Argument("", help="Query to send to the agent"),
@@ -48,18 +70,27 @@ def run_command(
         print_json(data)
         return
 
-    response_text = data.get("response", "")
-    trace_id = data.get("trace_id", "N/A")
-    tokens = data.get("tokens_used", "N/A")
-
+    text, subtitle, by_model_rows = _format_run_output(data)
     console.print(
         Panel(
-            response_text,
+            text,
             title=f"[cyan]{name}[/cyan]",
-            subtitle=f"trace: {trace_id} | tokens: {tokens}",
+            subtitle=subtitle,
             border_style="blue",
         )
     )
+    if by_model_rows:
+        table = Table(title="Por modelo", show_header=True)
+        for col in ("Provider", "Model", "Role", "Calls", "In", "Out", "Cost"):
+            table.add_column(col, style="cyan" if col == "Provider" else None)
+        for r in by_model_rows:
+            cost = r.get("cost", 0.0) or 0.0
+            table.add_row(
+                r.get("provider", ""), r.get("model", ""), r.get("role", ""),
+                str(r.get("calls", 0)), str(r.get("tokens_in", 0)), str(r.get("tokens_out", 0)),
+                f"${cost:.4f}" if cost else "—",
+            )
+        console.print(table)
 
 
 def _run_workflow(
