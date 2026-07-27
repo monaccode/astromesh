@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CI job `test-adk` runs the `astromesh-adk` test suite with `--cov-fail-under=60` for `astromesh_adk/`, closing a process-debt gap where the suite was never executed in CI (`.github/workflows/ci.yml`)
+
+### Fixed
+
+- `test_public_api.py::test_version` no longer asserts the stale `0.1.9` version (the package has been on `0.2.0` since the v0.1.9 release commit was bumped); this pre-existing failure would have made the new `test-adk` gate red on arrival
+
 ## [0.1.9] - 2026-07-10
 
 ### Added
