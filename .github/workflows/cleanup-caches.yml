@@ -1,0 +1,33 @@
+name: Cleanup old caches
+
+on:
+  schedule:
+    # Domingos a las 03:00 UTC.
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    name: Remove stale caches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete caches older than 7 days
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          ids=$(gh cache list --limit 1000 --json id,key,lastAccessedAt \
+            | jq -r --arg cutoff "$cutoff" \
+              '.[] | select(.lastAccessedAt < $cutoff) | .id')
+
+          if [ -z "$ids" ]; then
+            echo "No stale caches to delete."
+            exit 0
+          fi
+
+          echo "Deleting $(echo "$ids" | wc -l) stale cache entries..."
+          echo "$ids" | xargs -r -n1 gh cache delete
