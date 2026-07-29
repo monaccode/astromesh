@@ -11,16 +11,16 @@ You can use just the core runtime with YAML config files, or combine it with the
 
 | Component | What it does | Package / Repo | Version |
 |-----------|-------------|----------------|---------|
-| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns, per-role model routing, memory, tools, and guardrails | `astromesh` | v0.35.0 |
+| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns, per-role model routing, declarative agent chaining, memory, tools, and guardrails | `astromesh` | v0.38.1 |
 | **ADK** | Python-first agent SDK with decorators, CLI, and hot reload | `astromesh-adk` | v0.2.0 |
-| **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.1.1 |
+| **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.2.0 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.1 |
-| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.4.0 (Phase 4) |
+| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.10.1 (Phase 4 + post-4) |
 | **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.24.0 |
-| **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.12.0 |
+| **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.17.0 |
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.0 |
-| **Nexus** | Multi-tenant Kubernetes control plane (operator + REST API) | `astromesh-nexus` | v0.3.0 |
-| **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.1.0 |
+| **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.9.0 |
+| **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.4.0 |
 | **Nebula** | Open-model foundry — trains, gates, and publishes the ecosystem's own models | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | v0.1.0 (preview) |
 
 ## How They Relate
@@ -45,7 +45,7 @@ flowchart LR
     subgraph manage["DEPLOY / MANAGE"]
         mgmt["`CLI (astromeshctl)
         Orbit (GCP IaC)
-        Nexus (K8s plane)`"]
+        Nexus (managed plane)`"]
         tenants["`Nexus tenants
         (per-tenant Node instances)`"]
     end
@@ -61,7 +61,7 @@ flowchart LR
 - **Core Runtime** is the engine that executes agents.
 - **Node** installs the runtime as a native system service (`astromeshd`); **OS** ships it as a sealed appliance image; **Docker/Helm** package it for containers.
 - **CLI** is the `astromeshctl` management interface.
-- **Orbit** provisions cloud infrastructure with Terraform; **Nexus** is the multi-tenant control plane that runs a Node per tenant in Kubernetes.
+- **Orbit** provisions cloud infrastructure with Terraform; **Nexus** is the multi-tenant managed control plane — it keeps agent specs in PostgreSQL with versioning and dispatches runs to a shared runtime pool, metering and billing what each one consumes.
 - **[Nebula](/astromesh/nebula/introduction/)** sits *upstream* of the runtime: it's the open-model foundry that trains, gates, and publishes the ecosystem's own models (the [Models](/astromesh/models/) catalog the runtime routes to).
 
 ## Forge vs Cortex

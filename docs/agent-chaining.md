@@ -1,5 +1,7 @@
 # Encadenamiento de agentes (`spec.chain`)
 
+Disponible desde astromesh **v0.38.1**.
+
 Un agente declara, en su propio YAML, qué otros agentes disparar cuando termina — y bajo qué
 condiciones.
 

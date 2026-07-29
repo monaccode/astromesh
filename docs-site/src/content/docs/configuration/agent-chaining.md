@@ -16,7 +16,7 @@ spec:
         when: "{{ output.data.score > 7 }}"
 ```
 
-Available since astromesh **v0.38.0**.
+Available since astromesh **v0.38.1**.
 
 ## Why not just a Workflow
 
