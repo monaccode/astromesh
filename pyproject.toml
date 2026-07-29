@@ -1,6 +1,6 @@
 [project]
 name = "astromesh"
-version = "0.37.0"
+version = "0.38.0"
 description = "Astromesh Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -141,7 +141,7 @@ ignore = [
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.37.0"
+version = "0.38.0"
 version_files = [
     "pyproject.toml:version",
     "astromesh/__init__.py:__version__",

@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.38.0] - 2026-07-29
+
+Encadenamiento declarativo de agentes: un agente declara en su propio YAML qué otros
+disparar al terminar y bajo qué condiciones, y eso se compila a un workflow que el motor
+existente ejecuta. Para que las condiciones sean confiables se suma `spec.output_schema`,
+la salida estructurada y validada del agente. Además, el `WorkflowEngine` —que existía,
+estaba testeado y no se instanciaba nunca fuera de los tests— por fin queda cableado.
+
 
 ### Added (Backend)
 
