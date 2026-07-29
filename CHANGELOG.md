@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.38.1] - 2026-07-29
+
+### Fixed
+
+- **Import circular que impedía publicar v0.38.0.** `chain.compiler` importaba
+  `workflow.models`, lo que ejecuta `workflow/__init__`, que importa `workflow.loader`, que
+  volvía a `chain.compiler` por el prefijo reservado — y lo encontraba a medio inicializar.
+  `from astromesh.runtime.engine import AgentRuntime` como primer import reventaba con
+  `ImportError`. El prefijo vive ahora en `astromesh/chain/naming.py`, un módulo sin un solo
+  import. La suite no lo veía porque para cuando corre el primer test el orden de imports ya
+  está resuelto: se agrega `tests/test_import_entrypoints.py`, que importa cada entrada
+  pública en un intérprete limpio, igual que el smoke test del release.
+
 ## [v0.38.0] - 2026-07-29
 
 Encadenamiento declarativo de agentes: un agente declara en su propio YAML qué otros

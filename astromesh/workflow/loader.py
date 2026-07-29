@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from astromesh.chain.compiler import CHAIN_PREFIX
+from astromesh.chain.naming import CHAIN_PREFIX
 from astromesh.workflow.models import RetryConfig, StepSpec, WorkflowSpec
 
 logger = logging.getLogger(__name__)

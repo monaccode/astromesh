@@ -59,6 +59,7 @@ export default defineConfig({
             { label: 'Forge, API & on-disk agents', slug: 'configuration/forge-api-storage' },
             { label: 'Profiles Reference', slug: 'configuration/profiles' },
             { label: 'Multi-agent Composition', slug: 'configuration/multi-agent' },
+            { label: 'Agent Chaining', slug: 'configuration/agent-chaining' },
             { label: 'Channels', slug: 'configuration/channels' },
           ],
         },

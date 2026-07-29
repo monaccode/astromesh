@@ -11,18 +11,20 @@ from __future__ import annotations
 import re
 
 from astromesh.chain.models import ChainLink, ChainSpec
+from astromesh.chain.naming import CHAIN_PREFIX, chain_workflow_name
 from astromesh.workflow.models import RetryConfig, StepSpec, WorkflowSpec
 
-CHAIN_PREFIX = "__chain__"
+__all__ = [
+    "CHAIN_PREFIX",
+    "chain_graph",
+    "chain_workflow_name",
+    "compile_chain",
+]
 
 # `output.` en una cadena refiere al agente inmediatamente anterior. En el
 # contexto del workflow eso vive en `steps.<agente>.output`, así que se reescribe
 # al compilar. Con borde de palabra para no tocar un `mi_output.x`.
 _OUTPUT_REF = re.compile(r"\boutput\.")
-
-
-def chain_workflow_name(agent_name: str) -> str:
-    return f"{CHAIN_PREFIX}{agent_name}"
 
 
 def _chain_of(agent_name: str, agent_configs: dict) -> ChainSpec | None:
