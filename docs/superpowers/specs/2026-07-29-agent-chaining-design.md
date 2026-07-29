@@ -185,9 +185,20 @@ Compilar en bootstrap y no en runtime da tres cosas:
 
 - **un ciclo, un `max_depth` excedido o un agente inexistente explotan al arrancar**, con la
   ruta completa en el mensaje — no a mitad de una corrida en producción
-- el `WorkflowEngine` sigue siendo secuencial con `goto` y no necesita saber que las cadenas
-  existen
+- el `WorkflowEngine` no necesita saber que las cadenas existen: recibe un `WorkflowSpec`
+  normal y lo ejecuta como cualquier otro
 - la cadena expandida es **inspeccionable sin ejecutar nada**
+
+**Corrección sobre la estrategia de compilación.** La primera lectura asumía compilar a
+`switch` + `goto`. No sirve: en `_drive`, el `goto` de un `switch` ejecuta el paso destino y
+**corta el workflow** (`break`). Sirve para ramificar a una rama y terminar, no para "disparan
+todos los que matcheen".
+
+La compilación correcta es **un paso por eslabón, con guarda**: se agrega `when: str | None` a
+`StepSpec`, evaluado antes de despachar; si da falso el paso devuelve `StepStatus.SKIPPED` y el
+run sigue. `SKIPPED` ya está declarado en el enum de `models.py` y no lo usa nadie — la
+intención ya estaba, faltaba el mecanismo. Es una adición más chica y más general que
+`switch`/`goto`, y le sirve a cualquier workflow escrito a mano.
 
 Esa tercera propiedad es la que diferencia esto de un grafo in-process: la cadena es un
 artefacto declarado, versionado en YAML y visualizable, no código que hay que correr para

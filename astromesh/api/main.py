@@ -58,6 +58,38 @@ def _resolve_config_dir() -> str:
     return "config"
 
 
+async def _bootstrap_workflow_engine(app: FastAPI, runtime, config_dir: str) -> None:
+    """Instancia el WorkflowEngine y lo deja disponible para las rutas.
+
+    El motor existía desde hacía varias versiones pero nunca se instanciaba fuera
+    de los tests: `set_workflow_engine` no se llamaba desde acá, así que
+    /v1/workflows/ devolvía [] siempre y ningún workflow corría en producción.
+    """
+    app.state.workflow_engine = None
+    try:
+        from astromesh.core.tools import ToolRegistry
+        from astromesh.workflow import WorkflowEngine
+
+        engine = WorkflowEngine(
+            workflows_dir=str(Path(config_dir) / "workflows"),
+            runtime=runtime,
+            tool_registry=ToolRegistry(),
+        )
+        await engine.bootstrap()
+        for wf_spec in runtime.compiled_chains().values():
+            engine.register_workflow(wf_spec)
+        workflows.set_workflow_engine(engine)
+        app.state.workflow_engine = engine
+        logger.info(
+            "WorkflowEngine listo: workflows_cargados=%d",
+            len(engine.list_workflows()),
+        )
+    except Exception:
+        # Un workflow mal escrito no puede impedir que arranque la API: los agentes
+        # siguen sirviendo aunque el motor de workflows quede fuera.
+        logger.exception("WorkflowEngine bootstrap falló (config_dir=%s)", config_dir)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Bootstrap AgentRuntime for `uvicorn astromesh.api.main:app` (astromeshd sets runtime before serve)."""
@@ -109,6 +141,8 @@ async def lifespan(app: FastAPI):
     agent_channels_route.set_runtime(runtime)
     ws.set_runtime(runtime)
 
+    await _bootstrap_workflow_engine(app, runtime, config_dir)
+
     try:
         yield
     finally:
@@ -118,6 +152,8 @@ async def lifespan(app: FastAPI):
         whatsapp_route.set_runtime(None)
         agent_channels_route.set_runtime(None)
         ws.set_runtime(None)
+        workflows.set_workflow_engine(None)
+        app.state.workflow_engine = None
 
 
 app = FastAPI(

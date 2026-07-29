@@ -182,6 +182,13 @@ class WorkflowEngine:
             "workflow.run", {"workflow": run.workflow_name, "trigger_type": wf.trigger}
         )
 
+        # Un executor por corrida: lleva el trace_id y la sesión del run, para que
+        # todos los pasos cuelguen del mismo árbol en vez de abrir uno cada uno.
+        # Un executor inyectado que no sepa atarse (los stubs de test) se usa tal cual.
+        executor = self._executor
+        if hasattr(executor, "bind"):
+            executor = executor.bind(parent_trace_id=tracing.trace_id, session_id=run.run_id)
+
         start = time.time()
         step_results: dict[str, Any] = {}
         context = run.context
@@ -200,7 +207,7 @@ class WorkflowEngine:
                     parent_span_id=root_span.span_id,
                 )
 
-                result = await self._executor.execute_step(step, context)
+                result = await executor.execute_step(step, context)
                 step_results[step.name] = result
 
                 if result.status == WfStepStatus.SUSPENDED:
@@ -260,7 +267,7 @@ class WorkflowEngine:
                             {"step_type": goto_step.step_type.value},
                             parent_span_id=root_span.span_id,
                         )
-                        goto_result = await self._executor.execute_step(goto_step, context)
+                        goto_result = await executor.execute_step(goto_step, context)
                         step_results[goto_step.name] = goto_result
                         if goto_result.status == WfStepStatus.SUSPENDED:
                             tracing.finish_span(goto_span)

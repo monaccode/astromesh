@@ -6,7 +6,7 @@ import time
 import uuid
 from typing import Any
 
-from jinja2 import BaseLoader, Environment, Undefined
+from jinja2 import BaseLoader, Environment, StrictUndefined, Undefined
 
 from astromesh.workflow.models import StepResult, StepSpec, StepStatus, StepType
 
@@ -25,10 +25,29 @@ class _SilentUndefined(Undefined):
 class StepExecutor:
     """Dispatches individual workflow steps: agent, tool, or switch."""
 
-    def __init__(self, runtime, tool_registry):
+    def __init__(self, runtime, tool_registry, parent_trace_id=None, session_id=None):
         self._runtime = runtime
         self._tool_registry = tool_registry
         self._jinja = Environment(loader=BaseLoader(), undefined=_SilentUndefined)
+        # Entorno estricto para las guardas que lo pidan: un `when` con un campo
+        # inexistente tiene que gritar, no rendir vacío y saltear en silencio.
+        self._jinja_strict = Environment(loader=BaseLoader(), undefined=StrictUndefined)
+        # Hasta acá cada paso `agent` abría su propia sesión y su propio árbol de
+        # trazas, así que un workflow se veía en el timeline como N corridas sueltas
+        # sin relación entre sí.
+        self._parent_trace_id = parent_trace_id
+        self._session_id = session_id
+
+    def bind(self, parent_trace_id, session_id) -> StepExecutor:
+        """Devuelve un executor igual a este pero atado al trace y la sesión de una
+        corrida. `_drive` lo llama por run; los stubs de test que no lo implementan
+        se usan tal cual."""
+        return StepExecutor(
+            runtime=self._runtime,
+            tool_registry=self._tool_registry,
+            parent_trace_id=parent_trace_id,
+            session_id=session_id,
+        )
 
     async def execute_step(self, step: StepSpec, context: dict[str, Any]) -> StepResult:
         """Execute a single step with retry and timeout handling."""
@@ -72,8 +91,13 @@ class StepExecutor:
 
     async def _run_agent(self, step: StepSpec, ctx: dict, start: float) -> StepResult:
         rendered_input = self._render(step.input_template or "", ctx)
-        session_id = str(uuid.uuid4())
-        result = await self._runtime.run(step.agent, rendered_input, session_id=session_id)
+        session_id = self._session_id or str(uuid.uuid4())
+        result = await self._runtime.run(
+            step.agent,
+            rendered_input,
+            session_id=session_id,
+            parent_trace_id=self._parent_trace_id,
+        )
         elapsed = (time.time() - start) * 1000
         return StepResult(
             name=step.name, status=StepStatus.SUCCESS, output=result, duration_ms=elapsed

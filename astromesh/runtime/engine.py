@@ -266,6 +266,7 @@ class AgentRuntime:
         self._agents: dict[str, Agent] = {}
         self._agent_status: dict[str, str] = {}
         self._agent_configs: dict[str, dict] = {}
+        self._compiled_chains: dict[str, object] = {}
         self._prompt_engine = PromptEngine()
         self.service_manager = service_manager
         self.peer_client = peer_client
@@ -307,6 +308,10 @@ class AgentRuntime:
             self._agents[agent.name] = agent
             self._agent_configs[name] = config
             self._agent_status[name] = "deployed"
+
+    def compiled_chains(self) -> dict:
+        """{nombre de workflow: WorkflowSpec} de las cadenas compiladas."""
+        return dict(self._compiled_chains)
 
     def _detect_circular_refs(self, configs: list[dict]):
         """Detect circular agent-as-tool references. Raises ValueError if cycle found."""

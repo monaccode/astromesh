@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Workflows**: el `WorkflowEngine` ahora se instancia en el lifespan de la API. Antes nunca
+  se cableaba fuera de los tests, así que `/v1/workflows/` devolvía una lista vacía y ningún
+  workflow definido en `config/workflows/` llegaba a ejecutarse.
+- **Workflows**: los pasos de tipo `agent` heredan el `trace_id` y la sesión de la corrida.
+  Antes cada paso generaba una sesión nueva y no propagaba `parent_trace_id`, así que un
+  workflow aparecía en el timeline como corridas sueltas sin relación entre sí.
+
 ## [v0.37.0] - 2026-07-25
 
 Marco de integraciones declarativas: un `integration.yaml` se convierte en tools de agente,
