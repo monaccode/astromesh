@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- **Agentes**: nuevo `spec.output_schema` — el agente declara la forma de su salida y el
+  runtime la parsea y valida en `result["data"]`, junto a la `answer` en prosa que queda
+  intacta. Acepta la misma taquigrafía YAML que los `parameters` de las tools. Un fallo de
+  validación no corta la corrida: deja `data` en `None` y describe el problema en
+  `data_error`.
+- **Workflows**: los pasos aceptan `when`, una condición Jinja que si da falso deja el paso
+  en `skipped` y sigue con el resto. A diferencia de `switch` + `goto` (que ejecuta una rama
+  y termina el workflow), permite que varios pasos condicionales convivan en una corrida.
+  Con `strict_conditions: true` una condición que referencia un campo inexistente falla el
+  paso en vez de evaluarse como falsa en silencio.
+- **Workflows**: `on_error: continue` registra el error del paso y sigue con el resto de la
+  corrida, para efectos secundarios opcionales. El default sin declarar sigue cortando.
+- **Workflows**: nuevo tipo de paso `parallel` — corre una lista de sub-pasos a la vez y
+  mergea sus salidas al contexto, cada una direccionable por su nombre. Los sub-pasos son
+  pasos completos, así que `when`, `retry`, `timeout_seconds` y `on_error` andan por rama.
+
 ### Fixed
 
 - **Workflows**: el `WorkflowEngine` ahora se instancia en el lifespan de la API. Antes nunca

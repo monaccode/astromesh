@@ -12,6 +12,7 @@ class StepType(StrEnum):
     SWITCH = "switch"
     WAIT = "wait"
     APPROVAL = "approval"
+    PARALLEL = "parallel"
 
 
 class StepStatus(StrEnum):
@@ -43,22 +44,28 @@ class StepSpec:
     context_transform: str | None = None
     retry: RetryConfig | None = None
     timeout_seconds: int | None = None
-    on_error: str | None = None  # step name to goto, or "fail"
+    on_error: str | None = None  # step name to goto, "continue", or "fail"
+    when: str | None = None
+    strict_conditions: bool = False
+    parallel: list[StepSpec] | None = None
 
     def __post_init__(self):
         # Coerce retry dict to RetryConfig
         if isinstance(self.retry, dict):
             self.retry = RetryConfig(**self.retry)
+        # Los sub-pasos pueden venir como dicts (YAML) o ya construidos (compilador).
+        if self.parallel is not None:
+            self.parallel = [p if isinstance(p, StepSpec) else StepSpec(**p) for p in self.parallel]
         # Validate exactly one step type
         type_count = sum(
             1
-            for x in [self.agent, self.tool, self.switch, self.wait, self.approval]
+            for x in [self.agent, self.tool, self.switch, self.wait, self.approval, self.parallel]
             if x is not None
         )
         if type_count != 1:
             raise ValueError(
                 f"Step '{self.name}' must have exactly one of: agent, tool, switch, wait, "
-                f"approval (got {type_count})"
+                f"approval, parallel (got {type_count})"
             )
 
     @property
@@ -71,6 +78,8 @@ class StepSpec:
             return StepType.WAIT
         if self.approval is not None:
             return StepType.APPROVAL
+        if self.parallel is not None:
+            return StepType.PARALLEL
         return StepType.SWITCH
 
 
@@ -81,6 +90,9 @@ class StepResult:
     output: Any = None
     error: str | None = None
     duration_ms: float | None = None
+    # None cuando el paso no declara `when`; True/False cuando sí, para que
+    # `_drive` lo publique en el slot `when` del contexto.
+    condition_matched: bool | None = None
 
 
 @dataclass

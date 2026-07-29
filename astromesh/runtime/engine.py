@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 
+from astromesh.chain.output import build_data, normalize_output_schema, schema_prompt_block
 from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
@@ -604,6 +605,7 @@ class AgentRuntime:
             permissions=spec.get("permissions", {}),
             orchestration_config=spec.get("orchestration", {}),
             rag=rag,
+            output_schema=normalize_output_schema(spec.get("output_schema")),
         )
 
     async def run(
@@ -758,6 +760,7 @@ class Agent:
         permissions,
         orchestration_config,
         rag=None,
+        output_schema=None,
     ):
         self.name = name
         self.version = version
@@ -773,6 +776,7 @@ class Agent:
         self._prompt_engine = prompt_engine
         self._guardrails = guardrails
         self._permissions = permissions
+        self._output_schema = output_schema
         self._orchestration_config = orchestration_config
 
     async def run(
@@ -818,6 +822,10 @@ class Agent:
                 self._system_prompt,
                 {**(context or {}), "memory": memory_context, "knowledge": knowledge_context},
             )
+            if self._output_schema:
+                # Ningún provider del repo soporta response_format/json_schema, así
+                # que la forma se pide por prompt y se parsea de la respuesta.
+                rendered_prompt += schema_prompt_block(self._output_schema)
             tracing.finish_span(prompt_span)
 
             tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
@@ -1001,6 +1009,14 @@ class Agent:
             tracing.finish_span(persist_span)
 
             tracing.finish_span(root_span)
+            if self._output_schema:
+                data, data_error = build_data(result.get("answer", ""), self._output_schema)
+                result["data"] = data
+                result["data_error"] = data_error
+                root_span.set_attribute("output_data_ok", data_error is None)
+                if data_error:
+                    root_span.set_attribute("output_data_error", data_error)
+
             result["trace"] = tracing.to_dict()
             logger.debug(
                 "agent.run %s finished answer_chars=%d steps=%d",

@@ -210,6 +210,29 @@ class WorkflowEngine:
                 result = await executor.execute_step(step, context)
                 step_results[step.name] = result
 
+                if step.step_type == StepType.PARALLEL and isinstance(result.output, dict):
+                    # Cada rama queda direccionable por su propio nombre, igual que
+                    # si hubiera sido un paso suelto: `steps.<rama>` y el resultado
+                    # de la corrida las listan una por una.
+                    for sub_name, sub_result in (result.output.get("_sub_results") or {}).items():
+                        step_results[sub_name] = sub_result
+                        context["steps"][sub_name] = {"output": sub_result.output}
+                    context.setdefault("when", {}).update(result.output.get("_when") or {})
+
+                if result.condition_matched is not None:
+                    # Slot dedicado: el compilador de cadenas lo lee para armar la
+                    # regla `default` (dispara sólo si ningún `when` matcheó).
+                    context.setdefault("when", {})[step.name] = result.condition_matched
+
+                if result.status == WfStepStatus.SKIPPED:
+                    tracing.finish_span(step_span)
+                    context["steps"][step.name] = {"output": None, "skipped": True}
+                    run.current_index = i + 1
+                    run.updated_at = datetime.now(UTC).isoformat()
+                    await self._store.save(run)
+                    i += 1
+                    continue
+
                 if result.status == WfStepStatus.SUSPENDED:
                     tracing.finish_span(step_span)
                     run.status = "suspended"
@@ -237,6 +260,16 @@ class WorkflowEngine:
 
                 if result.status == WfStepStatus.ERROR:
                     tracing.finish_span(step_span, status=SpanStatus.ERROR)
+                    if step.on_error == "continue":
+                        # Efecto secundario opcional: se registra el fallo y la
+                        # corrida sigue. Sin esto, "continue" caía al goto, no
+                        # existía como paso, y tumbaba el workflow entero.
+                        context["steps"][step.name] = {"output": None, "error": result.error}
+                        run.current_index = i + 1
+                        run.updated_at = datetime.now(UTC).isoformat()
+                        await self._store.save(run)
+                        i += 1
+                        continue
                     if step.on_error and step.on_error != "fail":
                         # Jump to error handler step
                         context["steps"][step.name] = {
