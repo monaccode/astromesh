@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 
+from astromesh.chain.compiler import CHAIN_PREFIX
 from astromesh.workflow.models import RetryConfig, StepSpec, WorkflowSpec
 
 logger = logging.getLogger(__name__)
@@ -42,9 +43,15 @@ class WorkflowLoader:
     def _parse(self, raw: dict) -> WorkflowSpec:
         metadata = raw.get("metadata", {})
         spec = raw.get("spec", {})
+        nombre = metadata["name"]
+        if nombre.startswith(CHAIN_PREFIX):
+            raise ValueError(
+                f"el prefijo '{CHAIN_PREFIX}' está reservado para las cadenas compiladas "
+                f"de los agentes; renombrá el workflow '{nombre}'"
+            )
         steps = [self._parse_step(step_raw) for step_raw in spec.get("steps", [])]
         return WorkflowSpec(
-            name=metadata["name"],
+            name=nombre,
             version=metadata.get("version", "0.1.0"),
             namespace=metadata.get("namespace", "default"),
             description=spec.get("description", ""),

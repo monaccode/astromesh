@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 
+from astromesh.chain.compiler import chain_workflow_name, compile_chain
 from astromesh.chain.output import build_data, normalize_output_schema, schema_prompt_block
 from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
@@ -309,6 +310,29 @@ class AgentRuntime:
             self._agents[agent.name] = agent
             self._agent_configs[name] = config
             self._agent_status[name] = "deployed"
+
+        self._compile_chains()
+
+    def _compile_chains(self) -> None:
+        """Compila la cadena de cada agente que declare `spec.chain`.
+
+        Deliberadamente NO se atrapa la excepción: un ciclo, un max_depth excedido
+        o un agente inexistente tienen que impedir el arranque, con la ruta en el
+        mensaje. Descubrirlo a mitad de una corrida en producción sería peor.
+        """
+        self._compiled_chains = {}
+        for name in self._agent_configs:
+            wf = compile_chain(name, self._agent_configs)
+            if wf is not None:
+                self._compiled_chains[chain_workflow_name(name)] = wf
+
+    def has_chain(self, agent_name: str) -> bool:
+        return chain_workflow_name(agent_name) in self._compiled_chains
+
+    @property
+    def agent_configs(self) -> dict:
+        """Configs crudos de los agentes; los usa la ruta para leer `spec.chain`."""
+        return self._agent_configs
 
     def compiled_chains(self) -> dict:
         """{nombre de workflow: WorkflowSpec} de las cadenas compiladas."""
@@ -704,6 +728,8 @@ class AgentRuntime:
         self._agents[agent.name] = agent
         self._agent_status[name] = "deployed"
         self._persist_agent_yaml(name, config)
+        # Una cadena registrada en caliente tiene que quedar disponible sin reiniciar.
+        self._compile_chains()
 
     def pause_agent(self, name: str) -> None:
         """Pause a deployed agent, removing it from active execution."""

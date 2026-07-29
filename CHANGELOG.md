@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Workflows**: nuevo tipo de paso `parallel` — corre una lista de sub-pasos a la vez y
   mergea sus salidas al contexto, cada una direccionable por su nombre. Los sub-pasos son
   pasos completos, así que `when`, `retry`, `timeout_seconds` y `on_error` andan por rama.
+- **Agentes**: nuevo `spec.chain` — un agente declara qué otros agentes disparar al terminar
+  y bajo qué condiciones. Disparan todos los eslabones que matcheen; `mode: sequential |
+  parallel` decide cuándo corren y una regla `default` cubre el caso en que ningún `when`
+  matcheó. Se compila a un workflow al arrancar, así que un ciclo, un `max_depth` excedido o
+  un agente inexistente impiden el arranque con la ruta completa en el mensaje, en vez de
+  fallar a mitad de una corrida.
+- **API**: `POST /v1/agents/{name}/run` ejecuta la cadena del agente y devuelve el bloque
+  `chain` con el estado de cada eslabón (`success`, `error`, `skipped` con su motivo). La
+  `answer` sigue siendo la del agente invocado, así que los clientes existentes no cambian.
+- **API**: nuevo `GET /v1/agents/{name}/chain` — el grafo expandido de la cadena, sin
+  ejecutar nada. Es un artefacto de tiempo de compilación.
 
 ### Fixed
 
@@ -33,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Workflows**: los pasos de tipo `agent` heredan el `trace_id` y la sesión de la corrida.
   Antes cada paso generaba una sesión nueva y no propagaba `parent_trace_id`, así que un
   workflow aparecía en el timeline como corridas sueltas sin relación entre sí.
+- **Ejemplos**: el `when` de `config/workflows/example.workflow.yaml` referenciaba
+  `output.data.score` sin que ningún agente declarara `data`, así que nunca podía dar
+  verdadero y —por `_SilentUndefined`— caía al `default` sin señalar el problema.
+  `sales-qualifier` ahora declara ese campo en su `output_schema`. El mismo workflow
+  referenciaba `web-researcher` y `email-composer`, que tampoco existían: se agregaron.
 
 ## [v0.37.0] - 2026-07-25
 

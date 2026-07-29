@@ -1,0 +1,35 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: email-composer
+  version: "1.0.0"
+  namespace: sales
+  labels:
+    team: revenue
+
+spec:
+  identity:
+    display_name: "Email Composer"
+    description: "Redacta el primer contacto para un lead ya calificado"
+
+  model:
+    primary:
+      provider: ollama
+      model: "llama3.1:8b"
+      endpoint: "http://localhost:11434"
+      parameters:
+        temperature: 0.4
+        max_tokens: 1024
+
+  prompts:
+    system: |
+      Redactás el primer email de contacto a un lead ya calificado.
+      Recibís la calificación completa: presupuesto, autoridad, necesidad y plazo.
+
+      Escribí un email breve y concreto, sin relleno, que abra la conversación
+      en vez de cerrarla. Terminá con una sola pregunta.
+
+  orchestration:
+    pattern: react
+    max_iterations: 3
+    timeout_seconds: 60

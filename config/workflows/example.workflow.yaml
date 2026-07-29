@@ -27,6 +27,8 @@ spec:
 
     - name: decide
       switch:
+        # `data` lo puebla el output_schema de sales-qualifier; sin él esta
+        # condición rendía vacío y caía al default sin señalar el problema.
         - when: "{{ steps.qualify.output.data.score > 7 }}"
           goto: notify
         - default: true
