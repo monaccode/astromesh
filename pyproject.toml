@@ -37,8 +37,12 @@ litellm = ["litellm>=1.50.0"]
 # Centinela work: `uv pip install -e ../astromesh-nebula`. Kept out of the dependency
 # graph so the universal lock/CI does not require the sibling checkout.
 centinela = ["huggingface_hub>=0.24"]
+# Glyph — lenguaje de acción para `pattern: glyph`. Extra opcional a propósito:
+# `astromesh/api/main.py` tiene que seguir importando sin extras o la imagen de
+# astromesh-os no bootea. El import vive dentro de `_build_pattern`.
+glyph = ["astromesh-glyph>=0.1.0"]
 all = [
-    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh,litellm,centinela]",
+    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh,litellm,centinela,glyph]",
 ]
 [dependency-groups]
 dev = [
@@ -60,6 +64,10 @@ dev = [
 
 [tool.uv.sources]
 astromesh-adk = { path = "astromesh-adk", editable = true }
+# Ojo: pip ignora esta sección. Un `pip install astromesh[glyph]` va a buscar
+# astromesh-glyph en PyPI, así que el extra sólo resuelve fuera del monorepo una
+# vez publicado. astromesh-os no instala extras, con lo cual no lo afecta.
+astromesh-glyph = { path = "astromesh-glyph", editable = true }
 
 [build-system]
 requires = ["hatchling"]
