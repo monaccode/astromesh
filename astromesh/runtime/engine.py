@@ -600,17 +600,7 @@ class AgentRuntime:
                     tool_def.get("name"),
                     tool_type,
                 )
-        pattern_map = {
-            "react": ReActPattern,
-            "plan_and_execute": PlanAndExecutePattern,
-            "parallel_fan_out": ParallelFanOutPattern,
-            "pipeline": PipelinePattern,
-            "supervisor": SupervisorPattern,
-            "swarm": SwarmPattern,
-        }
-        pattern_name = spec.get("orchestration", {}).get("pattern", "react")
-        pattern_cls = pattern_map.get(pattern_name, ReActPattern)
-        pattern = pattern_cls()
+        pattern = self._build_pattern(spec)
         prompts = spec.get("prompts", {})
         for name, tmpl in prompts.get("templates", {}).items():
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
@@ -631,6 +621,35 @@ class AgentRuntime:
             rag=rag,
             output_schema=normalize_output_schema(spec.get("output_schema")),
         )
+
+    def _build_pattern(self, spec: dict):
+        """Instancia el patrón de orquestación declarado en el YAML.
+
+        `glyph` se importa acá adentro y no arriba: `astromesh_glyph` es un extra
+        opcional, y `astromesh/api/main.py` tiene que seguir importando sin extras
+        o la imagen de astromesh-os no bootea.
+        """
+        pattern_map = {
+            "react": ReActPattern,
+            "plan_and_execute": PlanAndExecutePattern,
+            "parallel_fan_out": ParallelFanOutPattern,
+            "pipeline": PipelinePattern,
+            "supervisor": SupervisorPattern,
+            "swarm": SwarmPattern,
+        }
+        pattern_name = spec.get("orchestration", {}).get("pattern", "react")
+
+        if pattern_name == "glyph":
+            try:
+                return _import_glyph_pattern(pattern_name)()
+            except ImportError:
+                logger.warning(
+                    "el agente pide pattern=glyph pero el extra no está instalado "
+                    "(pip install 'astromesh[glyph]'); se usa react",
+                )
+                return ReActPattern()
+
+        return pattern_map.get(pattern_name, ReActPattern)()
 
     async def run(
         self,
@@ -1077,3 +1096,10 @@ class Agent:
                     _m2.flush()
             except Exception:
                 logger.debug("agent-egress flush failed", exc_info=True)
+
+
+def _import_glyph_pattern(_name: str):
+    """Import indirecto para que los tests puedan simular la ausencia del extra."""
+    from astromesh.orchestration.glyph_pattern import GlyphPattern
+
+    return GlyphPattern
