@@ -29,7 +29,7 @@ elige un dominio: elige el dominio que **fuerza el diseño completo del núcleo*
 
 ## Fase 1 — Agente + tools · v0.1.0
 
-**Estado:** en implementación
+**Estado:** implementada — falta la corrida real del benchmark
 **Objetivo:** un agente puede declarar `pattern: glyph` y correr, y sabemos con
 números cuánto ahorra.
 
@@ -61,6 +61,19 @@ que hacen falta, entran en v0.2.0 con evidencia detrás.
 **Cómo se cierra:** se corre el benchmark contra un proveedor real y sus números se
 escriben en el spec. No hay umbral automático de aprobación — la decisión de
 avanzar a la fase 2 se toma con los datos delante.
+
+**Lo único pendiente de la fase 1 es esa corrida**, porque gasta dinero real contra
+un proveedor. El harness ya está y produce el reporte; falta apretar el botón:
+
+```bash
+ASTROMESH_CONFIG_DIR=config uv run python -m bench.glyph.run
+```
+
+Una corrida de humo con modelo scripted (tokens simulados, ejecución real) ya
+confirma la parte estructural: en `support-agent` la ejecución tarda 305 ms contra
+454 ms de ReAct, porque `find_order` y `refund_policy` caen en la misma ola del DAG
+y ReAct las hace en serie por construcción. Lo que falta medir de verdad son los
+tokens y la tasa de programas inválidos, que son las dos incógnitas del proyecto.
 
 **Qué mirar en esos números:**
 
