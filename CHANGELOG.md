@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pattern: glyph` disponible en `spec.orchestration` de cualquier agente. Si el extra
   `glyph` no está instalado, el agente cae a `react` con un warning en vez de fallar
   el bootstrap.
+- Benchmark `bench/glyph/`: mide `pattern: glyph` contra `pattern: react` sobre
+  escenarios de `autolink-parts` y `support-agent` con tools mockeadas deterministas,
+  reportando tokens, llamadas al modelo, latencia, correctitud y tasa de programas
+  inválidos. Corre nightly.
 
 ## [v0.38.1] - 2026-07-29
 
