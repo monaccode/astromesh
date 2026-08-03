@@ -65,6 +65,17 @@ def test_pipe_is_an_operator():
     assert values == ["|"]
 
 
+def test_a_leading_minus_is_part_of_the_number():
+    """Glyph no tiene aritmética, así que `-` sólo puede iniciar un negativo."""
+    tok = next(t for t in tokenize("x = -12\n") if t.type == TokenType.NUMBER)
+    assert tok.value == "-12"
+
+
+def test_a_minus_not_followed_by_a_digit_is_rejected():
+    with pytest.raises(GlyphSyntaxError, match="inesperado"):
+        tokenize("x = a - b\n")
+
+
 def test_strings_keep_their_content_without_quotes():
     tok = next(t for t in tokenize('x = "hola mundo"\n') if t.type == TokenType.STRING)
     assert tok.value == "hola mundo"

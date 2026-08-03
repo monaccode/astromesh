@@ -71,8 +71,10 @@ def _tokenize_line(text: str, lineno: int, offset: int) -> list[Token]:
             i = end + 1
             continue
 
-        if ch.isdigit():
-            j = i
+        # El `-` sólo puede iniciar un número negativo: Glyph no tiene aritmética,
+        # así que no hay resta con la que confundirlo.
+        if ch.isdigit() or (ch == "-" and i + 1 < len(text) and text[i + 1].isdigit()):
+            j = i + 1 if ch == "-" else i
             while j < len(text) and (text[j].isdigit() or text[j] == "."):
                 j += 1
             tokens.append(Token(TokenType.NUMBER, text[i:j], lineno, col))
