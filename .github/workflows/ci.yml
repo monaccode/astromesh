@@ -118,6 +118,33 @@ jobs:
         working-directory: astromesh-orbit
         run: uv run pytest -v -m "not orbit_gcp"
 
+  test-glyph:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
+      - name: Install dependencies
+        working-directory: astromesh-glyph
+        run: uv sync --locked --extra dev
+
+      - name: Lint
+        working-directory: astromesh-glyph
+        run: uv run ruff check astromesh_glyph/ tests/
+
+      - name: Format check
+        working-directory: astromesh-glyph
+        run: uv run ruff format --check astromesh_glyph/ tests/
+
+      - name: Tests
+        working-directory: astromesh-glyph
+        run: uv run pytest -v
+
   test-forge:
     runs-on: ubuntu-latest
     steps:
