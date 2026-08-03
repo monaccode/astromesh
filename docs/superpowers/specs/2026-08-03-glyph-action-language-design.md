@@ -1,0 +1,312 @@
+# Glyph — lenguaje de acción para agentes (`astromesh-glyph`)
+
+**Fecha:** 2026-08-03
+**Estado:** diseño aprobado, pendiente de plan de implementación
+**Alcance:** repo nuevo `astromesh-glyph` (agnóstico) + integración en el core (`astromesh/orchestration/`, `astromesh/runtime/engine.py`)
+
+## Problema
+
+Un agente con tools gasta la mayor parte de sus tokens en **vueltas**, no en contenido.
+
+El loop ReAct (`astromesh/orchestration/patterns.py:35`) llama al modelo una vez por tool.
+Cada llamada reenvía el system prompt, los schemas de todas las tools y el historial
+acumulado hasta ese punto. Un agente como `autolink-parts` que busca, filtra, cotiza y
+agenda hace 4-6 iteraciones: el mismo contexto viaja 4-6 veces, creciendo en cada una.
+
+Además el loop es **secuencial por construcción**. Dos tools que no dependen entre sí
+—buscar repuestos OEM y buscar alternativos— se ejecutan una después de la otra porque
+el patrón sólo puede pedir una acción por vuelta.
+
+La hipótesis de este diseño: si el modelo emite **un programa** en vez de N acciones, el
+runtime lo ejecuta localmente encadenando tools sin volver al LLM, y devuelve sólo el
+resultado. El ahorro viene de eliminar round-trips, no de acortar sintaxis.
+
+## Qué NO es esto
+
+Descartado explícitamente durante el brainstorming, porque es la trampa obvia de la idea:
+
+**Glyph no es una sintaxis comprimida.** Inventar notación densa (símbolos cortos, menos
+separadores) ahorra ~15% de tokens de salida y cuesta precisión, porque el modelo nunca vio
+esa sintaxis. Un programa que no parsea cuesta un round-trip de reparación — justamente lo
+que el lenguaje vino a eliminar. Con 10% de tasa de error de sintaxis, el margen se evapora
+entero. La superficie de Glyph es deliberadamente **familiar**.
+
+## Decisiones de diseño
+
+| # | Decisión | Alternativa descartada |
+|---|---|---|
+| 1 | Lenguaje de **acción** que el LLM emite y el runtime ejecuta | Formato compacto de datos/schemas; DSL para *definir* agentes |
+| 2 | Sintaxis **familiar** (estructura tipo Python) + pipe declarativo | Notación densa propia; Python restringido validado por AST |
+| 3 | Repo **agnóstico**: `astromesh-glyph` no importa `astromesh` | Acoplado al core; o núcleo agnóstico + pack oficial en el mismo repo |
+| 4 | Hay **fase de compilación**, y su producto es un DAG de ejecución | Intérprete puro sobre el AST |
+| 5 | Fallo → **cortar y devolver al LLM** con estado parcial | Saga con compensaciones; o tools clasificadas lectura/escritura |
+| 6 | `ask(...)` es capacidad de primera clase | Sin escape semántico: cortar el programa para cualquier razonamiento |
+| 7 | **Sin loops** ni funciones de usuario en v0.1.0 | Gramática completa desde el principio |
+| 8 | Primera labor: **agente + tools**; RAG, coreografía y ETL son packs posteriores | Empezar por coreografía dinámica |
+| 9 | Benchmark obligatorio, **sin umbral fijo** de aprobación | Gate automático (−40% o −60% de tokens) |
+
+Las decisiones 2 y 4 comparten razón: la precisión del modelo vale más que la densidad, y
+todo lo que se pueda detectar sin ejecutar hay que detectarlo sin ejecutar.
+
+### Por qué la decisión 8 va contra la intuición
+
+La coreografía dinámica —que el agente escriba su propia cadena en runtime— es el mejor
+diferenciador del ecosistema, pero el **peor** vehículo para ahorrar tokens: se genera pocas
+veces y mueve datos chicos. El ahorro depende de *frecuencia de generación* × *tamaño de los
+datos intermedios*:
+
+| Labor | Frecuencia | Datos intermedios | Ahorro esperado |
+|---|---|---|---|
+| Agente + tools | Altísima (cada conversación) | Medianos | Grande, y medible hoy |
+| RAG | Alta (cada consulta) | Enormes (chunks) | Muy grande en corpus grandes |
+| Coreografía | Baja (se escribe una vez) | Chicos | Bajo — el valor es de producto |
+| ETL | Muy baja (pipeline estable) | Enormes, pero ya no pasan por el contexto | Casi nulo |
+
+Agente+tools es además el caso que **fuerza el diseño completo del núcleo**: el modelo tiene
+que anticipar ramificaciones sin ver los datos, lo que obliga a condicionales y manejo de
+error de verdad. Si el lenguaje resuelve esto, los otros tres packs salen encima sin cambiar
+la gramática.
+
+## La superficie del lenguaje
+
+```
+v = search_parts(make="Toyota", model="Corolla",
+                 year=2019, part="pastillas")
+
+oem = v | where(kind == "oem") | top(3, by=rating)
+alt = v | where(kind == "aftermarket", stock > 0)
+          | top(3, by=price)
+
+if oem.empty:
+    eta = check_restock(v.first.sku)
+
+return {oem, alt, eta}
+```
+
+Cinco construcciones y nada más: asignación, llamada con kwargs, pipe, `if/else`, `return`.
+
+Dos aclaraciones de gramática que el ejemplo deja implícitas:
+
+- `{oem, alt, eta}` es un **dict con claves inferidas** del nombre de la variable —
+  equivale a `{"oem": oem, "alt": alt, "eta": eta}`. No hay literal de set en el lenguaje.
+- Varios argumentos en un `where(...)` se combinan con **AND**: `where(kind == "oem",
+  stock > 0)` filtra por ambas. No hay `or` implícito.
+
+El **pipe** es la única construcción no-Python, y no entra por densidad sino por capacidad.
+`retrieve(...) | where(score > 0.75) | top(5)` es declarativo: el runtime puede empujar el
+filtro al store y traer 5 filas en vez de 40. Una comprensión de lista obliga a materializar
+las 40 primero. (El pushdown en sí es fase 2 — la gramática lo habilita desde v0.1.0.)
+
+Los mismos cinco constructos cubren los cuatro dominios; lo que cambia entre packs es qué
+capacidades se exponen, no la gramática:
+
+```
+# RAG
+d = retrieve("política de devoluciones", k=40) | where(score > 0.75) | rerank(model="bge") | top(5)
+return ask("resumí plazos y excepciones", context=d)
+
+# Coreografía
+r = agent.sales_qualifier(lead)
+if r.score >= 8:
+    agent.email_composer(lead, tone="warm")
+else:
+    crm.tag(lead, "cold")
+
+# ETL
+rows = hubspot.contacts(updated_since="7d") | map({email, name: full_name}) | where(email != null)
+postgres.upsert("contacts", rows, key="email")
+```
+
+## Arquitectura
+
+Repo `astromesh-glyph`, cuatro capas, sin dependencia de `astromesh`:
+
+- **`glyph/syntax/`** — lexer + parser → AST. Gramática cerrada. Sin `eval`, sin Turing
+  completo, sin imports.
+- **`glyph/plan/`** — el compilador: AST → `PlanGraph`, un grafo de dependencias entre
+  variables con nodos condicionales. Resuelve qué puede correr concurrente y valida contra el
+  catálogo de capacidades (existe, aridad, tipos donde se pueda).
+- **`glyph/runtime/`** — ejecutor async del `PlanGraph` contra un `CapabilityProvider`.
+  Concurrencia, timeout por nodo, captura de estado parcial al fallar.
+- **`glyph/prompt/`** — genera el bloque de sistema que le enseña Glyph al modelo: gramática
+  mínima + catálogo de capacidades.
+
+### La frontera
+
+```python
+@runtime_checkable
+class CapabilityProvider(Protocol):
+    def list_capabilities(self) -> list[CapabilitySpec]: ...
+    async def invoke(self, name: str, args: dict) -> Any: ...
+```
+
+Dos métodos. Mismo idioma que `ProviderProtocol` (`astromesh/providers/base.py:62`), que ya
+es un `Protocol` runtime-checkable en este repo.
+
+`CapabilitySpec` lleva `name`, `description`, `parameters` (JSON Schema) y un flag
+`is_semantic` que marca las capacidades que invocan un modelo — necesario para contabilizar
+round-trips en el benchmark.
+
+### Por qué compilar
+
+Parsear 95 tokens son microsegundos y el tiempo real de un programa lo domina el I/O; el
+compilador no existe para acelerar instrucciones. Existe por dos razones:
+
+1. **Concurrencia.** `oem` y `alt` del ejemplo no dependen entre sí; el `PlanGraph` las corre
+   en paralelo. ReAct no puede hacerlo nunca. Esto baja la latencia por un factor distinto y
+   multiplicativo respecto del ahorro de tokens.
+2. **Fallar antes de gastar.** Una capacidad inexistente o un argumento que no matchea se
+   detectan sin ejecutar nada, y el error vuelve al modelo con el mensaje exacto. Un
+   intérprete puro lo descubriría a mitad de camino, con efectos ya hechos.
+
+Consecuencia útil para la fase 3: un `PlanGraph` es un DAG, y `WorkflowSpec`
+(`astromesh/workflow/models.py`) también. La coreografía dinámica sale de mapear uno al otro
+—en el adapter del core, no en el núcleo agnóstico.
+
+### Integración en el core
+
+Menos invasiva de lo esperado, porque la interfaz de patrones ya encaja:
+
+```python
+# astromesh/orchestration/patterns.py:28
+async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10) -> dict
+```
+
+`tool_fn(name, args)` (`astromesh/runtime/engine.py:939`) tiene exactamente la forma de
+`CapabilityProvider.invoke`, y `tools` ya son los schemas de función que necesita
+`list_capabilities()`. El adapter `ToolRegistryCapabilities` es un envoltorio delgado sobre
+ambos, heredando permisos, rate limits y `requires_approval` que ya viven en `ToolRegistry`
+sin duplicarlos.
+
+Cambios en el core:
+
+1. `GlyphPattern(OrchestrationPattern)` nuevo, en `astromesh/orchestration/glyph_pattern.py`.
+2. Una entrada `"glyph": GlyphPattern` en el `pattern_map` de `engine.py:603`.
+3. `astromesh-glyph` como **extra opcional** — `api.main` tiene que seguir importando sin
+   extras (restricción de la imagen de `astromesh-os`), así que el import va dentro de la
+   rama que construye el patrón, no en el módulo.
+
+Nada más. Los agentes lo activan con `spec.orchestration.pattern: glyph`.
+
+## Flujo de ejecución
+
+```
+query
+  → prompt (gramática + catálogo de capacidades)
+  → el LLM emite un .glyph
+  → parse          ─┐ error acá: vuelve al modelo
+  → compile        ─┘ sin haber ejecutado nada
+  → ejecutar PlanGraph (nodos independientes en paralelo)
+  → resultado
+  → el LLM redacta la respuesta final
+```
+
+Dos llamadas al modelo en el caso feliz, contra las 6-7 de ReAct.
+
+`GlyphPattern.execute()` devuelve el mismo `dict` que los demás patrones —con `steps` como
+lista de `AgentStep`, un nodo del plan por step— para que el tracing, la contabilidad de uso
+(`astromesh/api/usage.py`) y los eventos de WebSocket sigan funcionando sin cambios.
+
+## El primitivo `ask`
+
+`ask(prompt, context=...)` invoca al modelo dentro del programa. Es la válvula para pasos
+semánticos: resumir, clasificar un tono, decidir con criterio. Sin esto, cualquier
+razonamiento obliga a cortar el programa y volver, y el pack de RAG directamente no existe.
+
+La contrapartida es explícita: cada `ask` es un round-trip que el programa **eligió** pagar.
+El benchmark los contabiliza aparte de los round-trips de reparación, porque son gasto útil,
+no desperdicio.
+
+## Manejo de errores
+
+Un fallo en el nodo N corta la ejecución. El runtime serializa:
+
+- las variables ya ligadas, con sus valores
+- qué nodos se ejecutaron y cuáles no
+- el error, con el nombre de la capacidad y los argumentos que recibió
+
+Eso vuelve al LLM, que emite un programa nuevo continuando desde ahí. El prompt de
+reparación dice explícitamente qué efectos ya ocurrieron y que no los repita.
+
+Sin transacciones ni compensaciones: exigir que todo el catálogo de tools declare su
+operación inversa es mucho trabajo y muchas no tienen inversa real. La contrapartida se
+asume: los efectos de los nodos 1..N-1 quedan hechos, y el modelo tiene que saberlo.
+
+## Testing
+
+- **Parser** — property-based (Hypothesis): todo AST válido serializa y re-parsea idéntico.
+- **Compilador** — casos de dependencias con el `PlanGraph` esperado; errores de compilación
+  con los mensajes exactos verificados, porque esos mensajes son la interfaz de reparación
+  con el modelo y un mensaje malo cuesta round-trips.
+- **Runtime** — capabilities mockeadas deterministas; tests de concurrencia real (dos nodos
+  independientes corren solapados) y de fallo parcial (el estado serializado es correcto).
+- **Integración (core)** — `GlyphPattern` contra un `ToolRegistry` real con tools mockeadas;
+  verificar que permisos y rate limits siguen aplicando a través del adapter.
+
+### Benchmark
+
+Harness aparte en `bench/`, corriendo `pattern: glyph` contra `pattern: react` sobre
+`autolink-parts` y `support-agent`, mismo modelo y mismas tools mockeadas deterministas.
+
+Métricas publicadas por corrida:
+
+| Métrica | Por qué |
+|---|---|
+| Tokens de entrada / salida | El objetivo primario |
+| Round-trips al modelo | La causa del ahorro; separando `ask` de reparación |
+| Latencia wall-clock | Captura la ganancia de concurrencia, invisible en tokens |
+| Correctitud de la tarea | Sin esto el ahorro no significa nada |
+| Tasa de programas inválidos | Valida o refuta la apuesta de la decisión 2 |
+
+Corre nightly en CI, no en el gate de PR: gasta dinero real.
+
+**No hay umbral automático de aprobación.** Los números se publican y la decisión de avanzar
+a la fase 3 se toma con los datos en la mano.
+
+## Alcance de v0.1.0
+
+**Entra:**
+
+- Gramática núcleo: asignación, llamada con kwargs, pipe, `if/else`, `return`, literales,
+  dict, list, acceso por atributo
+- Compilador con planificación de concurrencia y validación contra el catálogo
+- Runtime async con timeout por nodo y estado parcial en fallo
+- `ask` como capacidad de primera clase
+- Capability pack de tools vía `ToolRegistryCapabilities`
+- `GlyphPattern` y su entrada en `pattern_map`
+- Benchmark
+
+**Queda afuera, deliberadamente:**
+
+- Loops, funciones de usuario, imports, recursión
+- Pushdown de pipes al store — fase 2, con el pack de RAG
+- Durabilidad y mapeo a `WorkflowSpec` — fase 3, con coreografía
+- Packs de RAG, coreografía y ETL
+
+Sin loops es la decisión más discutible del alcance y se sostiene: `map` sobre el pipe cubre
+la enorme mayoría de los casos, y un `for` abre la puerta a programas no acotados que hay que
+limitar por tiempo de ejecución. Si el benchmark muestra que hacen falta, entran en v0.2.0
+con evidencia detrás.
+
+## Fases posteriores
+
+| Fase | Contenido | Depende de |
+|---|---|---|
+| 2 | Pack de RAG + pushdown de pipes al store | v0.1.0 con benchmark publicado |
+| 3 | Coreografía dinámica: `PlanGraph` → `WorkflowSpec`, durabilidad, permisos sobre qué agentes puede invocar un programa | Fase 2, y la decisión explícita de avanzar |
+| 4 | Pack de ETL sobre el catálogo de `astromesh/integrations/` | Fase 3 |
+
+## Riesgos
+
+**El modelo escribe Glyph mal.** Es el riesgo central y la razón de la decisión 2. Lo mide
+directamente la tasa de programas inválidos del benchmark. Si es alta con sintaxis familiar,
+la hipótesis del proyecto está mal y hay que saberlo temprano — por eso el benchmark es parte
+de v0.1.0 y no de después.
+
+**El bloque de gramática infla el prompt.** Es el único costo fijo por turno que agrega
+Glyph, y compite directamente con el ahorro. Hay que mantenerlo chico y medirlo como parte de
+los tokens de entrada, no aparte.
+
+**Ramificación a ciegas.** El modelo escribe el programa sin ver los datos. Si la decisión
+requiere mirar un resultado intermedio con criterio semántico, el programa tiene que usar
+`ask` (round-trip elegido) o cortar. Cuánto pasa esto en la práctica lo dice el benchmark.
