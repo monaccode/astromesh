@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Extra opcional `glyph` y adapter `PatternCapabilities`, que expone las tools de un
   agente y una capacidad sintética `ask` al lenguaje de acción `astromesh-glyph`.
+- `GlyphPattern`: patrón de orquestación que pide un programa Glyph al modelo, lo
+  compila, lo ejecuta con las sentencias independientes en paralelo y repara hasta
+  dos veces devolviendo el estado parcial al modelo.
 
 ## [v0.38.1] - 2026-07-29
 

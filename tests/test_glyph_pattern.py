@@ -1,7 +1,7 @@
 import pytest
 
 from astromesh.core.tools import ToolRegistry
-from astromesh.orchestration.glyph_pattern import PatternCapabilities
+from astromesh.orchestration.glyph_pattern import GlyphPattern, PatternCapabilities
 
 TOOLS = [
     {
@@ -139,3 +139,110 @@ def test_a_program_calling_an_unavailable_capability_fails_at_compile_time():
     caps = _make().list_capabilities()
     with pytest.raises(GlyphCompileError, match="no existe"):
         compile_program(parse("x = restringida()\n"), caps)
+
+
+class ScriptedModel:
+    """Devuelve respuestas prefijadas, en orden, y registra qué se le mandó."""
+
+    def __init__(self, *responses):
+        self._responses = list(responses)
+        self.calls = []
+
+    async def __call__(self, messages, tools, role=None):
+        self.calls.append({"messages": messages, "tools": tools, "role": role})
+        return FakeResponse(self._responses.pop(0))
+
+
+PROGRAM = '```glyph\nv = search_parts(make="Toyota")\nreturn v\n```'
+
+
+async def _run(model, tool_fn=None, **kwargs):
+    async def _default_tool_fn(name, args):
+        return [{"sku": "A"}]
+
+    return await GlyphPattern(**kwargs).execute(
+        query="necesito pastillas",
+        context={},
+        model_fn=model,
+        tool_fn=tool_fn or _default_tool_fn,
+        tools=TOOLS,
+        max_iterations=6,
+    )
+
+
+async def test_the_happy_path_uses_exactly_two_model_calls():
+    model = ScriptedModel(PROGRAM, "Encontré una opción.")
+    result = await _run(model)
+    assert result["answer"] == "Encontré una opción."
+    assert len(model.calls) == 2
+
+
+async def test_the_first_call_carries_the_grammar_and_the_catalog():
+    model = ScriptedModel(PROGRAM, "listo")
+    await _run(model)
+    content = model.calls[0]["messages"][-1]["content"]
+    assert "```glyph" in content
+    assert "search_parts" in content
+    assert "necesito pastillas" in content
+
+
+async def test_the_first_call_offers_no_tools():
+    """Si se le ofrecen tools, el modelo emite tool_calls en vez de un programa."""
+    model = ScriptedModel(PROGRAM, "listo")
+    await _run(model)
+    assert model.calls[0]["tools"] == []
+
+
+async def test_steps_carry_one_entry_per_capability_call():
+    model = ScriptedModel(PROGRAM, "listo")
+    result = await _run(model)
+    tool_steps = [s for s in result["steps"] if s.action]
+    assert [s.action for s in tool_steps] == ["search_parts"]
+    assert tool_steps[0].action_input == {"make": "Toyota"}
+
+
+async def test_the_final_step_carries_the_answer():
+    model = ScriptedModel(PROGRAM, "listo")
+    result = await _run(model)
+    assert result["steps"][-1].result == "listo"
+
+
+async def test_a_syntax_error_triggers_one_repair():
+    model = ScriptedModel("```glyph\nv = = 1\n```", PROGRAM, "reparado")
+    result = await _run(model)
+    assert result["answer"] == "reparado"
+    assert len(model.calls) == 3
+    assert "línea 1" in model.calls[1]["messages"][-1]["content"]
+
+
+async def test_a_compile_error_names_the_missing_capability():
+    model = ScriptedModel("```glyph\nv = inventada(x=1)\n```", PROGRAM, "reparado")
+    await _run(model)
+    assert "no existe" in model.calls[1]["messages"][-1]["content"]
+
+
+async def test_repairs_are_capped_and_the_failure_is_reported():
+    bad = "```glyph\nv = = 1\n```"
+    model = ScriptedModel(bad, bad, bad)
+    result = await _run(model, max_repairs=2)
+    assert "no pudo" in result["answer"].lower()
+    assert result["glyph"]["repairs"] == 2
+
+
+async def test_an_execution_failure_sends_the_partial_state_to_the_model():
+    async def tool_fn(name, args):
+        raise RuntimeError("503 del proveedor")
+
+    model = ScriptedModel(PROGRAM, PROGRAM, "reparado")
+    await _run(model, tool_fn=tool_fn)
+    repair_prompt = model.calls[1]["messages"][-1]["content"]
+    assert "503" in repair_prompt
+
+
+async def test_the_result_reports_counters_for_the_benchmark():
+    model = ScriptedModel(PROGRAM, "listo")
+    result = await _run(model)
+    assert result["glyph"]["model_calls"] == 2
+    assert result["glyph"]["capability_calls"] == 1
+    assert result["glyph"]["semantic_calls"] == 0
+    assert result["glyph"]["repairs"] == 0
