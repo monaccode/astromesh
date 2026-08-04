@@ -145,6 +145,30 @@ jobs:
         working-directory: astromesh-glyph
         run: uv run pytest -v
 
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # La imagen se rompió una vez sin que nadie lo viera —un path source nuevo
+      # en [tool.uv.sources] dejó `uv sync` fallando— porque CI no la construía.
+      # No se publica nada acá: sólo se comprueba que construya y que bootee.
+      - name: Build
+        run: docker build -f docker/Dockerfile -t astromesh:ci .
+
+      - name: El runtime bootea y carga sus agentes
+        run: |
+          docker run --rm -e ASTROMESH_CONFIG_DIR=config astromesh:ci python -c "
+          import asyncio
+          from astromesh.runtime.engine import AgentRuntime
+          async def main():
+              runtime = AgentRuntime()
+              await runtime.bootstrap()
+              rotos = [a for a in runtime.list_agents() if a.get('status') == 'draft']
+              assert not rotos, f'agentes que no cargaron: {rotos}'
+              print(f'{len(runtime.list_agents())} agentes cargados')
+          asyncio.run(main())
+          "
+
   test-forge:
     runs-on: ubuntu-latest
     steps:
