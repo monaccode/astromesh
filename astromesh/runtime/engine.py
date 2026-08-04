@@ -1003,7 +1003,16 @@ class Agent:
             )
             result = await self._pattern.execute(
                 query=query,
-                context=memory_context,
+                # El context del llamador viaja al patrón dentro del dict que ya
+                # va, bajo una clave reservada — misma convención que
+                # `_history_messages`. Antes se perdía acá: sólo llegaba a
+                # renderizar el prompt, así que un patrón no podía leer los
+                # parámetros de la invocación.
+                context=(
+                    {**memory_context, "_caller_context": context or {}}
+                    if isinstance(memory_context, dict)
+                    else memory_context
+                ),
                 model_fn=model_fn,
                 tool_fn=tool_fn,
                 tools=tool_schemas,

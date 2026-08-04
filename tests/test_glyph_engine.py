@@ -76,3 +76,98 @@ def test_glyph_falls_back_to_react_when_the_extra_is_missing(monkeypatch):
     monkeypatch.setattr("astromesh.runtime.engine._import_glyph_pattern", _boom)
     pattern = runtime._build_pattern({"orchestration": {"pattern": "glyph"}})
     assert isinstance(pattern, ReActPattern)
+
+
+async def test_the_caller_context_reaches_the_pattern():
+    """Hoy no llega: agent.run pasa memory_context al patrón, no el del llamador.
+
+    Sin esto un programa fijo no tiene de dónde sacar sus parámetros, y la
+    regresión sería invisible porque ningún patrón existente lo usa.
+    """
+    from astromesh.orchestration.patterns import OrchestrationPattern
+
+    visto = {}
+
+    class Espia(OrchestrationPattern):
+        async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
+            visto["context"] = context
+            return {"answer": "ok", "steps": []}
+
+    runtime = AgentRuntime()
+    await runtime.bootstrap()
+    agent = next(iter(runtime._agents.values()))
+    agent._pattern = Espia()
+
+    await agent.run("hola", session_id="s1", context={"order_id": "A-77"})
+
+    assert visto["context"]["_caller_context"] == {"order_id": "A-77"}
+
+
+async def test_a_run_without_caller_context_still_gets_the_key():
+    """Vacío, no ausente: así el patrón no tiene que distinguir dos casos."""
+    from astromesh.orchestration.patterns import OrchestrationPattern
+
+    visto = {}
+
+    class Espia(OrchestrationPattern):
+        async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
+            visto["context"] = context
+            return {"answer": "ok", "steps": []}
+
+    runtime = AgentRuntime()
+    await runtime.bootstrap()
+    agent = next(iter(runtime._agents.values()))
+    agent._pattern = Espia()
+
+    await agent.run("hola", session_id="s2")
+
+    assert visto["context"]["_caller_context"] == {}
+
+
+async def test_the_memory_context_survives_the_new_key():
+    """La clave nueva se agrega, no reemplaza: lo que trae el memory context sigue ahí.
+
+    El plan asertaba `_history_messages`, pero MemoryManager.build_context nunca lo
+    escribe: sólo lo leen ReActPattern y GlyphPattern, así que hoy es un camino
+    muerto. Se verifica contra las claves que build_context sí produce.
+    """
+    from astromesh.orchestration.patterns import OrchestrationPattern
+
+    visto = {}
+
+    class Espia(OrchestrationPattern):
+        async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
+            visto["context"] = context
+            return {"answer": "ok", "steps": []}
+
+    runtime = AgentRuntime()
+    await runtime.bootstrap()
+    agent = next(iter(runtime._agents.values()))
+    agent._pattern = Espia()
+
+    await agent.run("hola", session_id="s3", context={"a": 1})
+
+    assert {"conversation", "semantic", "episodic"} <= visto["context"].keys()
+    assert visto["context"]["_caller_context"] == {"a": 1}
+
+
+async def test_react_still_works_with_the_new_context_key():
+    """La clave nueva la reciben TODOS los patrones; ninguno puede atragantarse."""
+    from astromesh.orchestration.patterns import ReActPattern
+
+    class Respuesta:
+        content = "listo"
+        tool_calls = None
+        usage = {"input_tokens": 5, "output_tokens": 2}
+
+    async def model_fn(messages, tools, role=None):
+        return Respuesta()
+
+    result = await ReActPattern().execute(
+        query="q",
+        context={"_history_messages": [], "_caller_context": {"a": 1}},
+        model_fn=model_fn,
+        tool_fn=None,
+        tools=[],
+    )
+    assert result["answer"] == "listo"

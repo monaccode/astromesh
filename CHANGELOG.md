@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reportando tokens, llamadas al modelo, latencia, correctitud y tasa de programas
   inválidos. Corre nightly.
 
+### Fixed
+
+- El `context` que recibe `agent.run()` ahora llega a los patrones de orquestación,
+  bajo la clave reservada `_caller_context`. Antes sólo se usaba para renderizar el
+  prompt, así que un patrón no tenía forma de leer los parámetros de la invocación.
+
 ## [v0.38.1] - 2026-07-29
 
 ### Fixed
