@@ -33,6 +33,47 @@ def test_there_is_a_scenario_that_forces_long_chaining():
     assert long_ones, "ningún escenario obliga a encadenar"
 
 
+def test_the_rag_scenario_shares_everything_but_knowledge_with_its_twin():
+    """Es el test que sostiene el experimento.
+
+    Si los dos escenarios divergen en algo más que el knowledge, el delta del
+    reporte deja de ser puro multiplicador y los números siguen pareciendo
+    válidos. El fallo sería silencioso.
+    """
+    from bench.glyph.fixtures import SUPPORT, SUPPORT_RAG
+
+    assert SUPPORT_RAG.query == SUPPORT.query
+    assert SUPPORT_RAG.tools == SUPPORT.tools
+    assert SUPPORT_RAG.tool_impl == SUPPORT.tool_impl
+    assert SUPPORT_RAG.expected is SUPPORT.expected
+    assert SUPPORT_RAG.reference_program == SUPPORT.reference_program
+    assert SUPPORT_RAG.name != SUPPORT.name
+
+
+def test_only_the_rag_scenario_declares_knowledge():
+    """Los escenarios viejos no cambian: las corridas versionadas siguen comparables."""
+    from bench.glyph.fixtures import SUPPORT_RAG
+
+    with_knowledge = [s.name for s in SCENARIOS if s.knowledge]
+    assert with_knowledge == [SUPPORT_RAG.name]
+
+
+def test_the_knowledge_block_is_the_size_of_a_real_retrieval():
+    """5 chunks, que es el top_k de config/rag/product-knowledge.rag.yaml."""
+    from bench.glyph.fixtures import KNOWLEDGE_POLITICAS
+
+    assert KNOWLEDGE_POLITICAS.count("\n\n") == 4  # 5 chunks separados por línea en blanco
+    assert 3000 < len(KNOWLEDGE_POLITICAS) < 6000  # ~750-1500 tokens
+
+
+def test_the_knowledge_uses_the_production_renderer():
+    """Si el formato de producción cambia, el benchmark cambia con él."""
+    from astromesh.rag.agent_rag import format_knowledge
+    from bench.glyph.fixtures import KNOWLEDGE_POLITICAS, POLITICAS_CHUNKS
+
+    assert format_knowledge(POLITICAS_CHUNKS) == KNOWLEDGE_POLITICAS
+
+
 async def test_the_long_chain_reference_program_runs_and_answers_correctly():
     from bench.glyph.fixtures import LONG_CHAIN
 

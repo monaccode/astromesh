@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
+
+from astromesh.rag.agent_rag import format_knowledge
 
 TOOL_LATENCY_S = 0.15
 
@@ -41,6 +43,10 @@ class Scenario:
     tool_impl: dict[str, Callable]
     expected: Callable[[str], bool]
     reference_program: str
+    # Lo que AgentRAG.build_context() inyectaría en el prompt. Vacío en los
+    # escenarios que no simulan RAG, para que sigan comparables con las corridas
+    # ya versionadas en results-*.md.
+    knowledge: str = ""
 
 
 # ---- autolink-parts ----------------------------------------------------------
@@ -269,4 +275,123 @@ LONG_CHAIN = Scenario(
     ),
 )
 
-SCENARIOS = [AUTOLINK, SUPPORT, LONG_CHAIN]
+# ---- el mismo escenario, con knowledge ---------------------------------------
+#
+# `rendered_prompt` lleva los chunks y se antepone como system en CADA llamada al
+# modelo (astromesh/runtime/engine.py:906). Un agente RAG con ReAct y seis vueltas
+# paga sus chunks seis veces. Este escenario mide cuánto pesa eso.
+#
+# Clona a SUPPORT a propósito: es donde Glyph pierde peor (+382% en tokens con
+# kimi-k2.7-code-highspeed), porque con dos tools el costo fijo de la gramática
+# domina. Si el knowledge da vuelta ESE caso, el multiplicador es fuerte de verdad.
+
+POLITICAS_CHUNKS = [
+    {
+        "content": (
+            "Política de devoluciones — plazo general. El cliente dispone de 30 días "
+            "corridos desde la fecha de entrega para solicitar la devolución de un "
+            "producto. El plazo se cuenta desde que la orden figura como entregada en "
+            "el sistema, no desde la fecha de compra, porque es el dato que el cliente "
+            "puede verificar sin ambigüedad y el que registra el courier al confirmar "
+            "la recepción. Pasados los 30 días la solicitud se rechaza automáticamente "
+            "salvo que aplique alguna de las excepciones detalladas más abajo. El "
+            "plazo es el mismo para compras en tienda física y en el canal online, y "
+            "no se extiende por feriados ni por fines de semana: si el día 30 cae en "
+            "un día no hábil, la solicitud igual debe quedar iniciada antes de la "
+            "medianoche de ese día. El sistema envía un recordatorio automático al "
+            "cliente cinco días antes de que venza el plazo si la orden no tiene "
+            "todavía una solicitud de devolución asociada, para reducir los reclamos "
+            "por vencimiento sorpresivo. Las devoluciones parciales, cuando la orden "
+            "tiene varios ítems, siguen la misma regla de 30 días por ítem individual, "
+            "contados desde la entrega de ese ítem puntual y no desde la entrega del "
+            "pedido completo si se despachó en más de un envío."
+        )
+    },
+    {
+        "content": (
+            "Política de devoluciones — requisitos. Toda devolución exige el "
+            "comprobante de compra, que puede ser el ticket físico o el número de "
+            "orden asociado a la cuenta del cliente; no se acepta como comprobante "
+            "válido una captura de pantalla del carrito ni un correo de confirmación "
+            "sin número de orden legible. El producto debe estar en su empaque "
+            "original, con todos sus accesorios, manuales y regalos promocionales que "
+            "hayan venido incluidos, y sin señales de uso más allá de lo necesario "
+            "para probarlo o evaluarlo, tal como se permite en una tienda física. Los "
+            "productos de higiene personal y la ropa interior no se aceptan una vez "
+            "abiertos, por normativa sanitaria vigente, y esta restricción no admite "
+            "excepciones aunque el producto esté con falla. Los electrodomésticos "
+            "grandes deben devolverse con el precinto de seguridad intacto cuando "
+            "aplique, y el cliente es responsable de retirar sus datos personales de "
+            "cualquier dispositivo con memoria antes de iniciar el trámite. Si falta "
+            "algún accesorio, el equipo de control de calidad puede aprobar la "
+            "devolución con un descuento proporcional en el reembolso en lugar de "
+            "rechazarla directamente."
+        )
+    },
+    {
+        "content": (
+            "Política de devoluciones — excepciones al plazo. Un producto con falla de "
+            "fábrica se puede devolver durante todo el período de garantía, que es de "
+            "12 meses desde la fecha de entrega, y en ese caso no aplican los "
+            "requisitos de empaque original ni de accesorios completos, porque la "
+            "devolución se tramita como reclamo de garantía y no como arrepentimiento "
+            "de compra. Los productos comprados durante las liquidaciones de fin de "
+            "temporada tienen un plazo reducido de 15 días, informado explícitamente "
+            "en la ficha del producto al momento de la compra, y este plazo corto no "
+            "se extiende aunque el cliente alegue no haber visto el aviso. Las compras "
+            "hechas como regalo pueden extender el plazo hasta 60 días si se declara "
+            "al momento de la compra marcando la opción correspondiente en el "
+            "checkout; si no se declaró como regalo, rige el plazo general de 30 días "
+            "aunque el destinatario final no sea quien pagó. Las compras corporativas "
+            "con factura A siguen un circuito distinto, gestionado por el equipo de "
+            "cuentas empresariales, y no pasan por este flujo de autoservicio."
+        )
+    },
+    {
+        "content": (
+            "Reembolsos — plazos y medios. El reembolso se acredita en el mismo medio "
+            "de pago usado en la compra, sin excepciones, incluso si el cliente pide "
+            "explícitamente que se le acredite en otro medio o en saldo a favor. En "
+            "tarjeta de crédito puede demorar hasta dos ciclos de facturación, según "
+            "el emisor, por lo que el resumen del cliente puede no reflejar el "
+            "reembolso inmediatamente después de que el sistema lo procese. En "
+            "transferencia y débito el plazo es de 5 a 10 días hábiles desde que se "
+            "aprueba la devolución, contados desde la aprobación de control de "
+            "calidad y no desde el momento en que el cliente despachó el paquete. No "
+            "se emiten reembolsos en efectivo por compras online bajo ninguna "
+            "circunstancia, ni siquiera en sucursales físicas, porque el medio de "
+            "pago original queda registrado en el sistema de facturación. Si la "
+            "compra se hizo combinando saldo a favor y tarjeta, el reembolso "
+            "prioriza devolver primero el saldo a favor y luego, si corresponde, el "
+            "remanente a la tarjeta."
+        )
+    },
+    {
+        "content": (
+            "Proceso de devolución — pasos. El agente verifica la orden y la fecha de "
+            "entrega, confirma que se cumplan los requisitos de plazo y de estado del "
+            "producto, y abre un ticket de devolución que queda asociado a la orden "
+            "original para que cualquier agente pueda dar seguimiento sin pedirle al "
+            "cliente que repita la explicación. El ticket genera una etiqueta de "
+            "envío prepaga que se manda al correo del cliente, junto con instrucciones "
+            "de embalaje para minimizar el riesgo de daño en el transporte. El "
+            "cliente tiene 10 días corridos desde que recibe la etiqueta para "
+            "despachar el paquete; si no lo hace en ese plazo, el ticket se cierra "
+            "automáticamente y debe iniciarse uno nuevo. Una vez recibido el producto "
+            "en depósito, control de calidad tiene 3 días hábiles para aprobarlo y "
+            "disparar el reembolso, o para rechazarlo si no cumple los requisitos, en "
+            "cuyo caso el producto se reenvía al cliente sin reembolso y con una "
+            "notificación explicando el motivo del rechazo."
+        )
+    },
+]
+
+KNOWLEDGE_POLITICAS = format_knowledge(POLITICAS_CHUNKS)
+
+SUPPORT_RAG = replace(
+    SUPPORT,
+    name="support-agent-rag/devolucion",
+    knowledge=KNOWLEDGE_POLITICAS,
+)
+
+SCENARIOS = [AUTOLINK, SUPPORT, SUPPORT_RAG, LONG_CHAIN]
