@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   escenarios de `autolink-parts` y `support-agent` con tools mockeadas deterministas,
   reportando tokens, llamadas al modelo, latencia, correctitud y tasa de programas
   inválidos. Corre nightly.
+- `GlyphPattern(program=...)`: un agente puede traer su programa Glyph ya escrito y
+  ejecutarlo con **cero llamadas al modelo**. El 98% del costo del patrón era el
+  modelo reescribiendo el mismo programa en cada corrida. El programa lee `query` y
+  `context` (el del llamador) como variables predefinidas.
+- El resultado del patrón expone `glyph.program` con el texto del programa que
+  corrió, para poder capturar el que el modelo generó y fijarlo en el YAML.
 
 ### Fixed
 

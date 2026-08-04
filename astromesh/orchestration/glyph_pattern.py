@@ -111,60 +111,81 @@ class GlyphPattern(OrchestrationPattern):
     gasta una por tool más la final.
     """
 
-    def __init__(self, max_repairs: int = 2, narrate: bool = True) -> None:
+    def __init__(
+        self, max_repairs: int = 2, narrate: bool = True, program: str | None = None
+    ) -> None:
         self._max_repairs = max_repairs
         # `narrate=False` corta la segunda llamada al modelo y devuelve el
         # resultado del programa como JSON. Un agente encadenado consume
         # `output.data`, no prosa: pedirle al modelo que redacte algo que nadie
         # va a leer es una llamada entera de puro desperdicio.
         self._narrate = narrate
+        # Un programa fijo salta la generación entera. Es donde está el 98% del
+        # costo del patrón: el modelo reescribiendo el mismo programa en cada
+        # corrida. Con esto, una corrida hace cero llamadas al modelo.
+        # `max_repairs` se ignora en este modo — no hay nada que reparar, porque
+        # un programa que no compila impide que el agente cargue.
+        self._program = program
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         capabilities = PatternCapabilities(tools=tools, tool_fn=tool_fn, model_fn=model_fn)
         catalog = capabilities.list_capabilities()
         history = context.get("_history_messages", []) if isinstance(context, dict) else []
+        caller_context = context.get("_caller_context", {}) if isinstance(context, dict) else {}
+        # Las dos variables que ve un programa. Van siempre, aunque el programa no
+        # las use: el compilador las acepta como predefinidas y no cuesta nada.
+        env = {"query": query, "context": caller_context}
 
-        # El bloque de gramática va **antes** de la consulta y en su propio
-        # mensaje: es idéntico en cada corrida del agente, así que como prefijo
-        # estable lo puede cachear el proveedor. Metido junto a la consulta, cada
-        # query distinta rompía la coincidencia de prefijo.
-        block = build_system_block(catalog)
-        messages = [
-            *list(history),
-            {"role": "user", "content": block},
-            {"role": "user", "content": query},
-        ]
         steps: list[AgentStep] = []
         model_calls = 0
         repairs = 0
         result = None
         failure = None
-        source = ""
+        source = self._program or ""
 
-        # max_iterations describe vueltas de ReAct; acá no hay loop, así que se
-        # reinterpreta como techo de intentos.
-        budget = max(0, min(self._max_repairs, max_iterations - 1))
-
-        while True:
-            response = await model_fn(messages, [], role="reasoner")
-            model_calls += 1
-            source = extract_program(response.content or "")
-
+        if self._program is not None:
             try:
-                graph = compile_program(parse(source), catalog)
-                result = await execute(graph, capabilities)
-                break
+                graph = compile_program(parse(source), catalog, predefined=env)
+                result = await execute(graph, capabilities, initial_env=env)
             except (GlyphSyntaxError, GlyphCompileError, GlyphExecutionError) as exc:
                 failure = exc
-                if repairs >= budget:
+        else:
+            # El bloque de gramática va **antes** de la consulta y en su propio
+            # mensaje: es idéntico en cada corrida del agente, así que como
+            # prefijo estable lo puede cachear el proveedor. Metido junto a la
+            # consulta, cada query distinta rompía la coincidencia de prefijo.
+            block = build_system_block(catalog)
+            messages = [
+                *list(history),
+                {"role": "user", "content": block},
+                {"role": "user", "content": query},
+            ]
+            # max_iterations describe vueltas de ReAct; acá no hay loop, así que
+            # se reinterpreta como techo de intentos.
+            budget = max(0, min(self._max_repairs, max_iterations - 1))
+
+            while True:
+                response = await model_fn(messages, [], role="reasoner")
+                model_calls += 1
+                source = extract_program(response.content or "")
+
+                try:
+                    graph = compile_program(parse(source), catalog, predefined=env)
+                    result = await execute(graph, capabilities, initial_env=env)
                     break
-                repairs += 1
-                logger.info("glyph: reparación %d/%d tras %s", repairs, budget, type(exc).__name__)
-                messages = [
-                    *messages,
-                    {"role": "assistant", "content": response.content},
-                    {"role": "user", "content": _repair_prompt(exc)},
-                ]
+                except (GlyphSyntaxError, GlyphCompileError, GlyphExecutionError) as exc:
+                    failure = exc
+                    if repairs >= budget:
+                        break
+                    repairs += 1
+                    logger.info(
+                        "glyph: reparación %d/%d tras %s", repairs, budget, type(exc).__name__
+                    )
+                    messages = [
+                        *messages,
+                        {"role": "assistant", "content": response.content},
+                        {"role": "user", "content": _repair_prompt(exc)},
+                    ]
 
         if result is None:
             answer = (
@@ -180,6 +201,7 @@ class GlyphPattern(OrchestrationPattern):
                     "semantic_calls": capabilities.semantic_calls,
                     "repairs": repairs,
                     "failed": True,
+                    "program": source,
                 },
             }
 
@@ -205,6 +227,7 @@ class GlyphPattern(OrchestrationPattern):
                     "semantic_calls": capabilities.semantic_calls,
                     "repairs": repairs,
                     "failed": False,
+                    "program": source,
                 },
             }
 
@@ -240,6 +263,7 @@ class GlyphPattern(OrchestrationPattern):
                 "semantic_calls": capabilities.semantic_calls,
                 "repairs": repairs,
                 "failed": False,
+                "program": source,
             },
         }
 

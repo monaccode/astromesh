@@ -292,3 +292,102 @@ async def test_the_result_reports_counters_for_the_benchmark():
     assert result["glyph"]["capability_calls"] == 1
     assert result["glyph"]["semantic_calls"] == 0
     assert result["glyph"]["repairs"] == 0
+
+
+PROGRAMA_FIJO = 'v = search_parts(make="Toyota")\nreturn v\n'
+
+
+async def _run_fijo(program, context=None, tool_fn=None, **kwargs):
+    async def _default_tool_fn(name, args):
+        return [{"sku": "A"}]
+
+    async def _explota(messages, tools, role=None):
+        raise AssertionError("el programa fijo no debe llamar al modelo")
+
+    return await GlyphPattern(program=program, narrate=False, **kwargs).execute(
+        query="necesito pastillas",
+        context={"_caller_context": context or {}},
+        model_fn=_explota,
+        tool_fn=tool_fn or _default_tool_fn,
+        tools=TOOLS,
+        max_iterations=6,
+    )
+
+
+async def test_a_fixed_program_never_calls_the_model():
+    """Es la afirmación central del diseño: cero llamadas al modelo."""
+    result = await _run_fijo(PROGRAMA_FIJO)
+    assert result["glyph"]["model_calls"] == 0
+    assert result["answer"] == '[{"sku": "A"}]'
+
+
+async def test_a_fixed_program_still_runs_its_capabilities():
+    vistas = []
+
+    async def tool_fn(name, args):
+        vistas.append((name, args))
+        return [{"sku": "A"}]
+
+    await _run_fijo(PROGRAMA_FIJO, tool_fn=tool_fn)
+    assert vistas == [("search_parts", {"make": "Toyota"})]
+
+
+async def test_the_program_can_read_the_caller_context():
+    result = await _run_fijo(
+        "v = search_parts(make=context.marca)\nreturn v\n", context={"marca": "Honda"}
+    )
+    assert result["glyph"]["capability_calls"] == 1
+
+
+async def test_the_program_can_read_the_query():
+    vistas = []
+
+    async def tool_fn(name, args):
+        vistas.append(args)
+        return [{"sku": "A"}]
+
+    await _run_fijo("v = search_parts(make=query)\nreturn v\n", tool_fn=tool_fn)
+    assert vistas == [{"make": "necesito pastillas"}]
+
+
+async def test_a_failing_capability_reports_failure_without_falling_back():
+    async def tool_fn(name, args):
+        raise RuntimeError("503 del proveedor")
+
+    result = await _run_fijo(PROGRAMA_FIJO, tool_fn=tool_fn)
+    assert result["glyph"]["failed"] is True
+    assert result["glyph"]["model_calls"] == 0
+    assert "503" in result["answer"]
+
+
+async def test_the_result_carries_the_program_that_ran():
+    result = await _run_fijo(PROGRAMA_FIJO)
+    assert result["glyph"]["program"] == PROGRAMA_FIJO
+
+
+async def test_a_generated_run_also_exposes_its_program():
+    """Es lo que cierra el ciclo de autoría: sin esto el programa se descarta."""
+    model = ScriptedModel(PROGRAM, "listo")
+    result = await _run(model)
+    assert 'search_parts(make="Toyota")' in result["glyph"]["program"]
+
+
+async def test_narration_still_works_with_a_fixed_program():
+    """Con `narrate: true` hay UNA llamada —la redacción—, no dos."""
+
+    async def model_fn(messages, tools, role=None):
+        return FakeResponse("Encontré una opción.")
+
+    async def tool_fn(name, args):
+        return [{"sku": "A"}]
+
+    result = await GlyphPattern(program=PROGRAMA_FIJO, narrate=True).execute(
+        query="q",
+        context={"_caller_context": {}},
+        model_fn=model_fn,
+        tool_fn=tool_fn,
+        tools=TOOLS,
+        max_iterations=6,
+    )
+    assert result["answer"] == "Encontré una opción."
+    assert result["glyph"]["model_calls"] == 1
