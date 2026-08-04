@@ -269,6 +269,16 @@ class _Parser:
                     key_tok.line,
                     key_tok.column,
                 )
+            elif self._check(TokenType.OP, "."):
+                # Forma corta punteada: {cliente.nombre} equivale a
+                # {nombre: cliente.nombre}. La clave es el último tramo, que es lo
+                # que cualquiera esperaría al leerlo.
+                node: n.Node = n.Name(line=key_tok.line, id=key_tok.value)
+                attr = key_tok.value
+                while self._accept(TokenType.OP, "."):
+                    attr = self._expect(TokenType.NAME).value
+                    node = n.Attribute(line=key_tok.line, value=node, attr=attr)
+                items.append((attr, node))
             else:
                 # Forma corta: {oem} equivale a {oem: oem}.
                 items.append((key_tok.value, n.Name(line=key_tok.line, id=key_tok.value)))

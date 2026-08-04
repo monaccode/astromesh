@@ -89,6 +89,22 @@ def test_dict_keys_may_be_quoted():
     assert isinstance(items["oem"], n.Name)
 
 
+def test_dotted_shorthand_uses_the_last_segment_as_key():
+    """{cliente.nombre} equivale a {nombre: cliente.nombre}."""
+    program = parse("return {cliente.nombre, total}\n")
+    items = dict(program.body[0].value.items)
+    assert sorted(items) == ["nombre", "total"]
+    assert isinstance(items["nombre"], n.Attribute)
+    assert items["nombre"].attr == "nombre"
+
+
+def test_deeply_dotted_shorthand_keeps_the_final_segment():
+    program = parse("return {a.b.c}\n")
+    key, value = program.body[0].value.items[0]
+    assert key == "c"
+    assert isinstance(value, n.Attribute)
+
+
 def test_quoted_and_bare_keys_can_be_mixed():
     program = parse('return {"oem": a, alt}\n')
     assert [k for k, _ in program.body[0].value.items] == ["oem", "alt"]

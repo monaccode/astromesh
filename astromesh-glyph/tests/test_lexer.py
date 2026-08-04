@@ -150,6 +150,28 @@ def test_strings_keep_their_content_without_quotes():
     assert tok.value == "hola mundo"
 
 
+def test_escaped_quotes_inside_a_string():
+    """Una comilla escapada es lo más común cuando el argumento es prosa."""
+    tok = next(t for t in tokenize('x = f(t="dice \\"hola\\"")\n') if t.type == TokenType.STRING)
+    assert tok.value == 'dice "hola"'
+
+
+def test_common_escape_sequences_are_resolved():
+    tok = next(t for t in tokenize('x = "a\\nb\\tc\\\\d"\n') if t.type == TokenType.STRING)
+    assert tok.value == "a\nb\tc\\d"
+
+
+def test_an_unknown_escape_is_kept_literal():
+    """Romper por `\\d` de una expresión regular sería castigar de más."""
+    tok = next(t for t in tokenize('x = "\\d+"\n') if t.type == TokenType.STRING)
+    assert tok.value == "\\d+"
+
+
+def test_a_string_ending_in_an_escaped_quote_is_still_unterminated():
+    with pytest.raises(GlyphSyntaxError, match="sin cerrar"):
+        tokenize('x = "abc\\"\n')
+
+
 def test_unterminated_string_raises_with_position():
     with pytest.raises(GlyphSyntaxError) as exc:
         tokenize('x = "sin cerrar\n')

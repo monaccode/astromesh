@@ -88,6 +88,35 @@ def _track_brackets(line_tokens: list[Token], open_stack: list[Token]) -> None:
             open_stack.pop()
 
 
+_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", '"': '"', "'": "'"}
+
+
+def _read_string(text: str, start: int, lineno: int, col: int) -> tuple[str, int]:
+    """Lee un literal de string desde `start`, resolviendo escapes.
+
+    Sin esto, `f(t="dice \\"hola\\"")` moría con «carácter inesperado '\\'» — y una
+    comilla escapada dentro de un texto es lo más común que hay cuando el
+    argumento es prosa.
+    """
+    quote = text[start]
+    out: list[str] = []
+    i = start + 1
+    while i < len(text):
+        ch = text[i]
+        if ch == "\\" and i + 1 < len(text):
+            nxt = text[i + 1]
+            # Un escape desconocido se conserva literal, como hace JSON-lenient:
+            # romper por `\d` en una expresión regular sería castigar de más.
+            out.append(_ESCAPES.get(nxt, "\\" + nxt))
+            i += 2
+            continue
+        if ch == quote:
+            return "".join(out), i + 1
+        out.append(ch)
+        i += 1
+    raise GlyphSyntaxError("string sin cerrar", lineno, col)
+
+
 def _tokenize_line(text: str, lineno: int, offset: int) -> list[Token]:
     tokens: list[Token] = []
     i = 0
@@ -102,11 +131,9 @@ def _tokenize_line(text: str, lineno: int, offset: int) -> list[Token]:
             break
 
         if ch in {'"', "'"}:
-            end = text.find(ch, i + 1)
-            if end == -1:
-                raise GlyphSyntaxError("string sin cerrar", lineno, col)
-            tokens.append(Token(TokenType.STRING, text[i + 1 : end], lineno, col))
-            i = end + 1
+            value, end = _read_string(text, i, lineno, col)
+            tokens.append(Token(TokenType.STRING, value, lineno, col))
+            i = end
             continue
 
         # El `-` sólo puede iniciar un número negativo: Glyph no tiene aritmética,
