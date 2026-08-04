@@ -81,6 +81,36 @@ def test_dict_with_explicit_keys():
     assert items["tier"].value == 2
 
 
+def test_dict_keys_may_be_quoted():
+    """El modelo escribe JSON y Python; en los dos las claves llevan comillas."""
+    program = parse('return {"oem": a, "alt": b}\n')
+    items = dict(program.body[0].value.items)
+    assert sorted(items) == ["alt", "oem"]
+    assert isinstance(items["oem"], n.Name)
+
+
+def test_quoted_and_bare_keys_can_be_mixed():
+    program = parse('return {"oem": a, alt}\n')
+    assert [k for k, _ in program.body[0].value.items] == ["oem", "alt"]
+
+
+def test_a_quoted_key_without_a_value_is_rejected_with_a_useful_message():
+    with pytest.raises(GlyphSyntaxError, match="necesita un valor"):
+        parse('return {"oem"}\n')
+
+
+def test_python_constants_are_accepted_as_aliases():
+    """None/True/False no son sintaxis de Glyph, pero el modelo escribe Python."""
+    program = parse("x = [None, True, False]\n")
+    assert [e.value for e in program.body[0].value.items] == [None, True, False]
+
+
+def test_python_constants_are_not_treated_as_variables():
+    program = parse("x = None\n")
+    assert isinstance(program.body[0].value, n.Literal)
+    assert program.body[0].value.value is None
+
+
 def test_list_literal():
     program = parse("x = [1, 2, 3]\n")
     assert [e.value for e in program.body[0].value.items] == [1, 2, 3]

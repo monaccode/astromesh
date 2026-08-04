@@ -14,7 +14,19 @@ from astromesh_glyph.syntax.lexer import tokenize
 from astromesh_glyph.syntax.tokens import Token, TokenType
 
 _COMPARISONS = frozenset({"==", "!=", ">", "<", ">=", "<="})
-_KEYWORDS = frozenset({"if", "else", "return", "and", "or", "true", "false", "null"})
+
+# `None`/`True`/`False` son alias de Python. No son sintaxis de Glyph, pero el
+# modelo los escribe porque escribe Python, y castigarlo con un round-trip de
+# reparación cobra caro un error puramente cosmético.
+_CONSTANTS = {
+    "true": True,
+    "false": False,
+    "null": None,
+    "True": True,
+    "False": False,
+    "None": None,
+}
+_KEYWORDS = frozenset({"if", "else", "return", "and", "or", *_CONSTANTS})
 
 
 def parse(source: str) -> n.Program:
@@ -188,11 +200,9 @@ class _Parser:
             return inner
 
         if tok.type is TokenType.NAME:
-            if tok.value in {"true", "false", "null"}:
+            if tok.value in _CONSTANTS:
                 self._advance()
-                return n.Literal(
-                    line=tok.line, value={"true": True, "false": False, "null": None}[tok.value]
-                )
+                return n.Literal(line=tok.line, value=_CONSTANTS[tok.value])
             return self._parse_name_chain()
 
         raise GlyphSyntaxError(f"expresión inesperada: {tok.value!r}", tok.line, tok.column)
@@ -245,9 +255,20 @@ class _Parser:
         items: list[tuple[str, n.Node]] = []
 
         while not self._check(TokenType.OP, "}"):
-            key_tok = self._expect(TokenType.NAME)
+            # La clave puede venir entre comillas: el modelo escribe JSON y
+            # Python, y en los dos las claves llevan comillas. Rechazarlas costaba
+            # un round-trip de reparación por un detalle cosmético.
+            key_tok = self._accept(TokenType.STRING) or self._expect(TokenType.NAME)
+            quoted = key_tok.type is TokenType.STRING
+
             if self._accept(TokenType.OP, ":"):
                 items.append((key_tok.value, self._parse_expression()))
+            elif quoted:
+                raise GlyphSyntaxError(
+                    f'la clave "{key_tok.value}" necesita un valor: {{"{key_tok.value}": ...}}',
+                    key_tok.line,
+                    key_tok.column,
+                )
             else:
                 # Forma corta: {oem} equivale a {oem: oem}.
                 items.append((key_tok.value, n.Name(line=key_tok.line, id=key_tok.value)))
