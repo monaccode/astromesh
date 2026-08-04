@@ -125,12 +125,16 @@ def build_provider_fn():
     if (temperature := os.environ.get("BENCH_TEMPERATURE")) is not None:
         parameters["temperature"] = float(temperature)
 
+    # 600 s por llamada, contra los 120 s de default: un modelo de razonamiento
+    # escribiendo un programa entero tarda minutos, y un timeout no se distingue
+    # de un fallo del lenguaje en las métricas.
     provider = build_candidate_provider(
         {
             "source": "openai_compat",
             "model": model,
             "endpoint": os.environ.get("BENCH_ENDPOINT", "https://api.openai.com/v1"),
             "api_key_env": key_env,
+            "timeout": float(os.environ.get("BENCH_TIMEOUT", "600")),
             "parameters": parameters or None,
         }
     )

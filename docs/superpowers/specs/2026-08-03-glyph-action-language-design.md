@@ -375,6 +375,100 @@ La apuesta sigue sin evaluarse. Para evaluarla hace falta, en orden: continuaci�
 de línea dentro de corchetes, forma de salida en el catálogo, un escenario con
 encadenamiento largo, y una segunda corrida contra un modelo sin razonamiento.
 
+## Resultados del benchmark — segunda corrida (2026-08-03)
+
+Con los cuatro arreglos aplicados: continuación de línea entre corchetes, `returns`
+en el catálogo, un escenario de cadena larga, y un segundo modelo sin razonamiento.
+
+### `kimi-k2.5` (razonamiento)
+
+| escenario | tokens ReAct | tokens Glyph | Δ | correcta | inválidos |
+|---|---:|---:|---:|:---:|---:|
+| autolink-parts | 1.174 | 5.982 | +410% | sí / **sí** | **0** |
+| support-agent | 1.035 | 3.479 | +236% | sí / sí | 0 |
+| cadena larga | 3.894 | 15.235 | +291% | no / no | 2 |
+
+### `moonshot-v1-32k` (sin razonamiento)
+
+| escenario | tokens ReAct | tokens Glyph | Δ | correcta | inválidos |
+|---|---:|---:|---:|:---:|---:|
+| autolink-parts | 1.574 | 3.551 | +126% | sí / no | 2 |
+| support-agent | 924 | 2.626 | +184% | sí / no | 2 |
+| cadena larga | 3.001 | 4.101 | +37% | no / no | 2 |
+
+**Los arreglos funcionaron**: con `kimi-k2.5`, autolink pasó de fallar entero a
+responder bien con **cero programas inválidos**. La apuesta de la sintaxis
+familiar se sostiene cuando el parser efectivamente acepta sintaxis familiar.
+
+**Y aun así Glyph pierde en tokens en las seis mediciones.** El motivo no es el
+que el diseño anticipaba.
+
+### Hallazgo central — la premisa del spec es falsa
+
+El planteo del problema dice: *"El loop ReAct llama al modelo una vez por tool."*
+Medido sobre el escenario de cadena larga con `kimi-k2.5`, las tool calls emitidas
+por respuesta fueron:
+
+```
+[1, 2, 2, 1, 0]   →   6 tools en 5 llamadas al modelo
+```
+
+**ReAct ya paraleliza.** `ReActPattern` itera sobre `response.tool_calls`, en
+plural, y los modelos modernos emiten varias tools independientes en una sola
+respuesta. No hay 6 round-trips que eliminar: hay 5, y Glyph gasta 4.
+
+El ahorro que justificaba el proyecto —eliminar vueltas— ya estaba capturado por
+el parallel tool calling del proveedor. Lo que Glyph agrega encima es marginal, y
+lo paga caro:
+
+| Costo | Magnitud medida |
+|---|---|
+| Bloque de gramática en cada prompt | +900 a +2.200 tokens de entrada |
+| El modelo escribiendo un programa | 4.362 tokens de salida contra 615 de ReAct |
+
+El segundo costo es el que decide, y sorprende: escribir un programa en un
+lenguaje que el modelo nunca vio le cuesta mucho más razonamiento que emitir tool
+calls, que sí vio millones de veces. Con `moonshot-v1-32k` la brecha se achica
+(+126% en vez de +410%) pero no se da vuelta, y ese modelo además no logra
+escribir Glyph válido.
+
+### Modos de fallo que quedan abiertos
+
+`moonshot-v1-32k` falló los tres escenarios. Los programas son estructuralmente
+correctos —el modelo entendió el lenguaje— y lo que rompe es superficie:
+
+1. **Claves de dict entre comillas**: `return {"oem": x}`. El parser sólo acepta
+   identificadores pelados. Misma clase de bug que el multilínea.
+2. **Literales de Python**: `ticket = None` en vez de `null`.
+3. **Llamada a capacidad dentro de `map`**: `active | map({g: warranty(sku=sku)})`.
+
+El tercero refuta la **decisión 7** y su defensa en el plan (*"`map` sobre el pipe
+cubre el 95% de los casos"*). No los cubre: el uso natural de `map` es "corré esta
+tool por cada ítem", lo pidieron los dos modelos, y Glyph no puede expresarlo. Los
+stages se evalúan sincrónicos a propósito y no pueden invocar capacidades.
+
+### Qué se concluye
+
+**La tesis de ahorro de tokens para el caso agente+tools no se sostiene**, y no por
+un defecto de implementación sino porque el problema que atacaba ya estaba
+resuelto por otro lado. Arreglar los tres modos de fallo restantes mejoraría la
+tasa de programas válidos, no el balance de tokens: el costo está en la gramática
+en el prompt y en el razonamiento de escritura, y ninguno de los dos se va con más
+parser.
+
+Lo que sigue teniendo valor, y no fue medido acá:
+
+- **Ramificar sin round-trip.** Un `if` sobre datos que ReAct sólo puede resolver
+  volviendo al modelo. Los escenarios usados tienen ramas triviales.
+- **Datos que no entran al contexto.** Es el corazón de la fase 2 (RAG): acá los
+  resultados de las tools son de tres filas y no hay nada que ahorrar. Con 40
+  chunks la aritmética es otra.
+- **Coreografía declarativa** (fase 3), cuyo valor siempre fue de producto y no de
+  tokens.
+
+La decisión de seguir, y con qué alcance, queda abierta con estos números a la
+vista.
+
 ## Riesgos
 
 **El modelo escribe Glyph mal.** Es el riesgo central y la razón de la decisión 2. Lo mide
