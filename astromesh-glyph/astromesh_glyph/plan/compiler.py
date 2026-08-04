@@ -74,12 +74,25 @@ def _walk_statement(
                 _walk_expression(value, catalog, reads)
         case n.If(test=test, body=body, orelse=orelse):
             _walk_expression(test, catalog, reads)
-            inner_writes: list[str] = []
-            for inner in [*body, *orelse]:
-                _walk_statement(inner, catalog, reads, inner_writes)
+            # Las ramas se recorren por separado y sus escrituras se unen. Ligar
+            # el mismo nombre en el `if` y en el `else` NO es reasignar: corre una
+            # sola de las dos. Aplanarlas en una lista lo hacía ver como
+            # duplicado y rechazaba el patrón más natural del lenguaje.
+            branch_writes: list[str] = []
+            for branch in (body, orelse):
+                seen: list[str] = []
+                for inner in branch:
+                    _walk_statement(inner, catalog, reads, seen)
+                # Dentro de UNA rama, repetir un nombre sí es reasignar.
+                for index, name in enumerate(seen):
+                    if name in seen[:index]:
+                        raise GlyphCompileError(
+                            f"`{name}` ya está ligada: Glyph no permite reasignar", stmt.line
+                        )
+                branch_writes.extend(name for name in seen if name not in branch_writes)
             # Lo que el cuerpo escribe no cuenta como lectura pendiente del nodo.
-            reads -= set(inner_writes)
-            writes.extend(inner_writes)
+            reads -= set(branch_writes)
+            writes.extend(branch_writes)
         case _:
             raise GlyphCompileError(f"sentencia no soportada: {type(stmt).__name__}", stmt.line)
 

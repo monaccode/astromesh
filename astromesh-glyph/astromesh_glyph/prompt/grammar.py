@@ -22,14 +22,17 @@ Sintaxis (esto es todo el lenguaje):
       z = capacidad()
   return {x, y}                      # {x} equivale a {"x": x}
 
-Sobre una colección podés leer .empty, .first y .count.
-Sobre un registro, sus campos con punto: v.first.sku
+Sobre una colección podés leer .empty, .first y .count — son propiedades, se leen
+con punto y NUNCA con `|`. Sobre un registro, sus campos con punto: v.first.sku
 
 Reglas:
-- Cada nombre se asigna UNA sola vez. No reasignes.
+- Cada nombre se asigna UNA sola vez. Podés usar el mismo nombre en el `if` y en
+  el `else`, porque corre una sola rama.
+- Las capacidades SIEMPRE se llaman con paréntesis y sus argumentos. No son
+  tablas: `buscar | where(...)` está mal, va `buscar(arg=v) | where(...)`.
+- Las únicas etapas de `|` son where, top y map. No hay otras.
 - No hay bucles, funciones, imports ni aritmética.
 - Las líneas independientes se ejecutan en paralelo: no encadenes sin necesidad.
-- Sólo podés llamar a las capacidades listadas abajo.
 - Usá SÓLO los campos que cada capacidad declara devolver. Un campo inventado no
   da error: filtra a vacío en silencio.
 """

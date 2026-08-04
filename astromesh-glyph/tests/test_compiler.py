@@ -60,6 +60,35 @@ def test_an_if_declares_everything_its_branches_may_write():
     assert graph.nodes[1].produces == frozenset({"r", "s"})
 
 
+def test_the_same_name_may_be_bound_in_both_branches():
+    """No es reasignar: corre una rama sola. Es el patrón más natural que hay."""
+    graph = _compile(
+        'v = search(make="T")\n'
+        "if v.empty:\n"
+        '    r = restock(sku="a")\n'
+        "else:\n"
+        '    r = restock(sku="b")\n'
+        "return {r}\n"
+    )
+    assert graph.nodes[1].produces == frozenset({"r"})
+    assert graph.nodes[2].depends_on == frozenset({"r"})
+
+
+def test_reassignment_inside_a_single_branch_is_still_rejected():
+    with pytest.raises(GlyphCompileError, match="ya está ligada"):
+        _compile(
+            'v = search(make="T")\n'
+            "if v.empty:\n"
+            '    r = restock(sku="a")\n'
+            '    r = restock(sku="b")\n'
+        )
+
+
+def test_a_branch_cannot_rebind_a_name_from_an_outer_statement():
+    with pytest.raises(GlyphCompileError, match="ya está ligada"):
+        _compile('v = search(make="T")\nif v.empty:\n    v = search(make="H")\n')
+
+
 def test_if_depends_on_the_variables_of_its_test_and_its_body():
     graph = _compile('v = search(make="T")\nif v.empty:\n    r = restock(sku="a")\n')
     assert graph.nodes[1].depends_on == frozenset({"v"})
