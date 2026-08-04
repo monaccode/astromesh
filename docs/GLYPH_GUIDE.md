@@ -37,6 +37,25 @@ agrega al prompt cuesta más que las vueltas que ahorra.
 Es una decisión **por agente**, no global. Un agente de FAQ va con `react`; uno que
 encadena seis sistemas va con `glyph`.
 
+### El umbral baja si el agente tiene RAG
+
+Un knowledge block viaja en el system prompt, y el system se reenvía en **cada**
+llamada al modelo. Cuantas menos vueltas dé el patrón, menos veces se paga.
+
+Medido sobre el mismo escenario de dos tools, con y sin un knowledge de 5 chunks
+(~1.340 tokens):
+
+| tokens de entrada vs ReAct | sin knowledge | con knowledge |
+|---|---:|---:|
+| `glyph` | +103% | +75% |
+| `glyph` + `narrate: false` | +46% | **−35%** |
+
+Con RAG, un agente de **dos** tools ya gana en entrada. Sin RAG hacían falta seis.
+
+El total sigue siendo positivo (+46%) porque el knowledge sólo toca la entrada, y
+en Glyph la salida —escribir el programa— es el 60-70% del costo. **El knowledge
+corre el umbral, no cambia la naturaleza del trade-off.**
+
 ### Por qué el umbral existe
 
 Glyph paga un costo fijo y cobra un beneficio variable.
@@ -70,6 +89,9 @@ sugiere.
   garantia(sku=sku)})` dispara N llamadas concurrentes desde una sola vuelta.
 - **Alimenta a otro agente** en vez de a una persona. Ahí `narrate: false` corta la
   segunda llamada al modelo entera.
+- **Tiene un knowledge block de RAG.** El bloque viaja en el system prompt y se
+  reenvía en cada vuelta, así que menos vueltas lo multiplican por menos. Baja el
+  umbral de seis tools a dos — ver §1.
 
 **No, si tu agente:**
 
