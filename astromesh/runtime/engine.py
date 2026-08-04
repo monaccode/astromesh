@@ -641,7 +641,14 @@ class AgentRuntime:
 
         if pattern_name == "glyph":
             try:
-                return _import_glyph_pattern(pattern_name)()
+                orchestration = spec.get("orchestration", {})
+                # `narrate: false` ahorra la segunda llamada al modelo devolviendo
+                # el resultado del programa como JSON. Un agente que alimenta a
+                # otro eslabón consume `output.data`, no prosa.
+                return _import_glyph_pattern(pattern_name)(
+                    max_repairs=int(orchestration.get("max_repairs", 2)),
+                    narrate=bool(orchestration.get("narrate", True)),
+                )
             except ImportError:
                 logger.warning(
                     "el agente pide pattern=glyph pero el extra no está instalado "

@@ -180,7 +180,7 @@ async def test_the_happy_path_uses_exactly_two_model_calls():
 async def test_the_first_call_carries_the_grammar_and_the_catalog():
     model = ScriptedModel(PROGRAM, "listo")
     await _run(model)
-    content = model.calls[0]["messages"][-1]["content"]
+    content = "\n".join(m["content"] for m in model.calls[0]["messages"])
     assert "```glyph" in content
     assert "search_parts" in content
     assert "necesito pastillas" in content
@@ -237,6 +237,52 @@ async def test_an_execution_failure_sends_the_partial_state_to_the_model():
     await _run(model, tool_fn=tool_fn)
     repair_prompt = model.calls[1]["messages"][-1]["content"]
     assert "503" in repair_prompt
+
+
+async def test_the_grammar_block_is_its_own_message_before_the_query():
+    """Prefijo estable = cacheable. Pegado a la query, cada consulta lo invalida."""
+    model = ScriptedModel(PROGRAM, "listo")
+    await _run(model)
+    contents = [m["content"] for m in model.calls[0]["messages"]]
+    assert "```glyph" in contents[0]
+    assert contents[1] == "necesito pastillas"
+
+
+async def test_the_narration_call_does_not_resend_the_grammar_block():
+    """Redactar la respuesta no necesita la gramática: arrastrarla duplicaba el costo fijo."""
+    model = ScriptedModel(PROGRAM, "listo")
+    await _run(model)
+    narration = "\n".join(m["content"] for m in model.calls[1]["messages"])
+    assert "```glyph" not in narration
+    assert "search_parts:" not in narration
+    assert "necesito pastillas" in narration
+
+
+async def test_the_narration_call_omits_the_repair_exchange():
+    """Los mensajes de reparación hablan de errores ya resueltos."""
+    model = ScriptedModel("```glyph\nv = = 1\n```", PROGRAM, "reparado")
+    await _run(model)
+    narration = "\n".join(m["content"] for m in model.calls[2]["messages"])
+    assert "no es válido" not in narration
+
+
+async def test_narrate_false_skips_the_second_model_call():
+    model = ScriptedModel(PROGRAM)
+    result = await _run(model, narrate=False)
+    assert len(model.calls) == 1
+    assert result["glyph"]["model_calls"] == 1
+
+
+async def test_narrate_false_returns_the_program_result_as_json():
+    model = ScriptedModel(PROGRAM)
+    result = await _run(model, narrate=False)
+    assert result["answer"] == '[{"sku": "A"}]'
+
+
+async def test_narrate_false_still_reports_the_capability_calls():
+    model = ScriptedModel(PROGRAM)
+    result = await _run(model, narrate=False)
+    assert [s.action for s in result["steps"] if s.action] == ["search_parts"]
 
 
 async def test_the_result_reports_counters_for_the_benchmark():

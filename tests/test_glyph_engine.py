@@ -40,6 +40,23 @@ def test_the_engine_builds_a_glyph_pattern_from_the_yaml_spec():
     assert isinstance(pattern, GlyphPattern)
 
 
+def test_the_yaml_can_turn_off_narration():
+    """Un agente encadenado consume output.data: la prosa es una llamada de más."""
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    pattern = runtime._build_pattern(
+        {"orchestration": {"pattern": "glyph", "narrate": False, "max_repairs": 1}}
+    )
+    assert pattern._narrate is False
+    assert pattern._max_repairs == 1
+
+
+def test_narration_is_on_by_default():
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    pattern = runtime._build_pattern({"orchestration": {"pattern": "glyph"}})
+    assert pattern._narrate is True
+    assert pattern._max_repairs == 2
+
+
 def test_an_unknown_pattern_still_falls_back_to_react():
     runtime = AgentRuntime.__new__(AgentRuntime)
     assert isinstance(runtime._build_pattern({"orchestration": {"pattern": "vaca"}}), ReActPattern)

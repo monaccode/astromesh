@@ -111,17 +111,28 @@ class GlyphPattern(OrchestrationPattern):
     gasta una por tool más la final.
     """
 
-    def __init__(self, max_repairs: int = 2) -> None:
+    def __init__(self, max_repairs: int = 2, narrate: bool = True) -> None:
         self._max_repairs = max_repairs
+        # `narrate=False` corta la segunda llamada al modelo y devuelve el
+        # resultado del programa como JSON. Un agente encadenado consume
+        # `output.data`, no prosa: pedirle al modelo que redacte algo que nadie
+        # va a leer es una llamada entera de puro desperdicio.
+        self._narrate = narrate
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         capabilities = PatternCapabilities(tools=tools, tool_fn=tool_fn, model_fn=model_fn)
         catalog = capabilities.list_capabilities()
         history = context.get("_history_messages", []) if isinstance(context, dict) else []
 
+        # El bloque de gramática va **antes** de la consulta y en su propio
+        # mensaje: es idéntico en cada corrida del agente, así que como prefijo
+        # estable lo puede cachear el proveedor. Metido junto a la consulta, cada
+        # query distinta rompía la coincidencia de prefijo.
+        block = build_system_block(catalog)
         messages = [
             *list(history),
-            {"role": "user", "content": f"{build_system_block(catalog)}\n\n{query}"},
+            {"role": "user", "content": block},
+            {"role": "user", "content": query},
         ]
         steps: list[AgentStep] = []
         model_calls = 0
@@ -181,15 +192,35 @@ class GlyphPattern(OrchestrationPattern):
             for call in result.calls
         )
 
+        rendered = json.dumps(result.value, ensure_ascii=False, default=str)
+
+        if not self._narrate:
+            steps.append(AgentStep(result=rendered))
+            return {
+                "answer": rendered,
+                "steps": steps,
+                "glyph": {
+                    "model_calls": model_calls,
+                    "capability_calls": len(result.calls),
+                    "semantic_calls": capabilities.semantic_calls,
+                    "repairs": repairs,
+                    "failed": False,
+                },
+            }
+
+        # La narración NO lleva el bloque de gramática ni el catálogo: para
+        # redactar la respuesta con el resultado no hacen falta, y arrastrarlos
+        # duplicaba el costo fijo del patrón en cada corrida. Tampoco van los
+        # mensajes de reparación, que sólo hablan de errores ya resueltos.
         final = await model_fn(
             [
-                *messages,
+                *list(history),
+                {"role": "user", "content": query},
                 {"role": "assistant", "content": f"Ejecuté este programa:\n{source}"},
                 {
                     "role": "user",
                     "content": (
-                        "Resultado de la ejecución:\n"
-                        f"{json.dumps(result.value, ensure_ascii=False, default=str)}\n\n"
+                        f"Resultado de la ejecución:\n{rendered}\n\n"
                         "Respondé la consulta original con este resultado."
                     ),
                 },
