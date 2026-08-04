@@ -57,13 +57,26 @@ def render_report(metrics: list[RunMetrics]) -> str:
             continue
 
         header = " | ".join(name for name, _ in others)
-        lines.extend(
+        rows = [
+            f"| Métrica | ReAct | {header} |",
+            "|---" * (2 + len(others)) + "|",
+            _row("Tokens de entrada", react.input_tokens, [m.input_tokens for _, m in others]),
+            _row("Tokens de salida", react.output_tokens, [m.output_tokens for _, m in others]),
+            _row("Tokens totales", _total(react), [_total(m) for _, m in others]),
+        ]
+        # Sólo cuando el escenario simula RAG: en los demás la fila sería una
+        # columna de ceros, y el reporte de las corridas ya versionadas cambiaría
+        # sin motivo.
+        if react.knowledge_tokens_resent or any(m.knowledge_tokens_resent for _, m in others):
+            rows.append(
+                _row(
+                    "Knowledge reenviado (est.)",
+                    react.knowledge_tokens_resent,
+                    [m.knowledge_tokens_resent for _, m in others],
+                )
+            )
+        rows.extend(
             [
-                f"| Métrica | ReAct | {header} |",
-                "|---" * (2 + len(others)) + "|",
-                _row("Tokens de entrada", react.input_tokens, [m.input_tokens for _, m in others]),
-                _row("Tokens de salida", react.output_tokens, [m.output_tokens for _, m in others]),
-                _row("Tokens totales", _total(react), [_total(m) for _, m in others]),
                 _row("Llamadas al modelo", react.model_calls, [m.model_calls for _, m in others]),
                 _row("Llamadas a tools", react.tool_calls, [m.tool_calls for _, m in others]),
                 _row("Latencia (ms)", round(react.wall_ms), [round(m.wall_ms) for _, m in others]),
@@ -76,6 +89,7 @@ def render_report(metrics: list[RunMetrics]) -> str:
                 "",
             ]
         )
+        lines.extend(rows)
         regressions = [name for name, m in others if react.correct and not m.correct]
         if regressions:
             lines.extend(

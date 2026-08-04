@@ -288,6 +288,37 @@ def test_a_scenario_measured_for_only_one_pattern_is_reported_as_incomplete():
     assert "incompleto" in report
 
 
+def test_the_report_shows_the_resent_knowledge_when_there_is_any():
+    report = render_report(
+        [
+            _metrics("react", knowledge_tokens_resent=6000),
+            _metrics("glyph", knowledge_tokens_resent=2000),
+        ]
+    )
+    assert "| Knowledge reenviado (est.) | 6000 | 2000 (-67%) |" in report
+
+
+def test_the_report_omits_the_row_when_no_scenario_has_knowledge():
+    """Las corridas versionadas no tienen knowledge; su reporte no debería cambiar."""
+    report = render_report([_metrics("react"), _metrics("glyph")])
+    assert "Knowledge reenviado" not in report
+
+
+def test_the_knowledge_row_sits_next_to_the_token_rows():
+    """Va después de los totales, que es donde se lee como parte del gasto."""
+    report = render_report(
+        [
+            _metrics("react", knowledge_tokens_resent=6000),
+            _metrics("glyph", knowledge_tokens_resent=2000),
+        ]
+    )
+    lines = report.splitlines()
+    totales = next(i for i, x in enumerate(lines) if "Tokens totales" in x)
+    knowledge = next(i for i, x in enumerate(lines) if "Knowledge reenviado" in x)
+    llamadas = next(i for i, x in enumerate(lines) if "Llamadas al modelo" in x)
+    assert totales < knowledge < llamadas
+
+
 # ---- tasa de validez ---------------------------------------------------------
 
 
