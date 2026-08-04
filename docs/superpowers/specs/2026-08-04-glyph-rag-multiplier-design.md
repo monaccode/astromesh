@@ -82,8 +82,13 @@ Nada de pack RAG. Nada de pushdown. Eso se decide después, con el número.
 ### Por qué la decisión 3
 
 `support-agent-rag` comparte **query y tools** con `support-agent`; lo único que
-cambia es el knowledge. Comparar las dos filas del reporte aísla la variable de
-forma exacta: el delta es puro multiplicador, sin nada más moviéndose.
+cambia es el knowledge. Comparar las dos filas del reporte aísla la única variable
+de *entrada* que se movió.
+
+Lo que el diseño gemelo **no** garantiza es que la trayectoria sea la misma. Los
+gemelos comparten entradas, no ejecuciones: en la corrida real las llamadas a tools
+divergieron en las tres variantes (ReAct 2→1, `glyph` 2→3, `glyph-datos` 3→2). El
+delta no es puro multiplicador; incluye lo que el modelo decidió hacer distinto.
 
 Agregarle knowledge al escenario existente habría roto la comparabilidad con las
 cuatro corridas ya versionadas en `bench/glyph/results-*.md`.
@@ -228,77 +233,156 @@ es determinista ni con `temperature=0`, y diferencias menores a ~2x están dentr
 del ruido. El multiplicador esperado es de 3x o más, así que debería sobresalir —
 si el resultado queda por debajo de 2x, no es concluyente y hay que repetirlo.
 
+> **Esta regla se aplicó.** El resultado quedó por debajo del umbral: tres de las
+> cuatro comparaciones no superan el piso de ruido de su propia celda. El desenlace
+> es **no concluyente** y el paso siguiente es repetir con N corridas. Ver
+> `## Resultado`.
+
 ## Resultado (2026-08-04, `kimi-k2.7-code-highspeed`)
 
 Salida cruda en `bench/glyph/results-2026-08-04-rag-multiplier.md`.
 
-**El desenlace es el segundo de los tres previstos: el multiplicador achica la
-penalidad de forma grande, pero no da vuelta el total.** Y hay un matiz que importa
-más que el titular.
+**Aplicando la regla pre-registrada en la sección Riesgos, el desenlace es: no
+concluyente. Hay que repetirlo con N corridas.**
+
+El mecanismo del hallazgo 2 **existe y se observó directamente** — eso no está en
+duda. Lo que no se sostiene con n=1 es el tamaño del efecto, ni que se traduzca en
+una ganancia neta. En tokens absolutos, con knowledge Glyph salió **más caro**, no
+más barato.
+
+### Lo que sí se midió: el mecanismo
+
+| Knowledge reenviado (est.) | ReAct | glyph | glyph-datos |
+|---|---:|---:|---:|
+| | 2.678 | 4.017 (+50%) | 1.339 (−50%) |
+
+ReAct hizo 2 llamadas al modelo y pagó el bloque dos veces; `glyph-datos` hizo 1 y
+lo pagó una. El bloque se reenvía una vez por llamada, tal como el hallazgo 2 lo
+predijo. Esa parte es directa y no depende de n.
+
+**Pero `glyph` —la configuración por defecto— pagó el bloque 3 veces: +50% sobre
+ReAct.** Con `narrate: true` Glyph hizo *más* llamadas al modelo que ReAct, así que
+en el default el mecanismo corrió **al revés**. El beneficio, donde lo hay, no
+viene de `pattern: glyph`: viene de `narrate: false`.
+
+Sobre la estimación: el bloque estimado por caracteres/4 da 1.339 tokens. El
+conteo real del proveedor lo pone en ~1.484 — (3.449 − 482) / 2, la diferencia de
+entrada de ReAct con y sin knowledge repartida entre sus 2 llamadas. La estimación
+corre ~10% baja en español. El signo no cambia; la magnitud sí, y la fila va
+rotulada «(est.)» por eso.
 
 ### Los dos escenarios gemelos, misma corrida
 
 | | `support-agent` (sin knowledge) | `support-agent-rag` (con knowledge) |
 |---|---:|---:|
-| **Tokens de entrada** — glyph | +103% | **+75%** |
-| **Tokens de entrada** — glyph-datos | +46% | **−35%** |
-| **Tokens totales** — glyph | +292% | **+117%** |
-| **Tokens totales** — glyph-datos | +997% | **+46%** |
+| **Entrada** — glyph | +103% (+495 t) | +75% (+2.572 t) |
+| **Entrada** — glyph-datos | +46% (+222 t) | −35% (−1.220 t) |
+| **Totales** — glyph | +292% (+2.220 t) | +117% (+4.382 t) |
+| **Totales** — glyph-datos | +997% (+7.568 t) | +46% (+1.731 t) |
 
-El diseño de escenario gemelo rindió exactamente para lo que se eligió: la
-comparación vive dentro de una sola corrida, así que la varianza entre corridas
-—que en la fase 1 llegó a 5x— no la contamina. Comparar contra el +382% de la
-corrida del 2026-08-04 anterior habría sido comparar ruido.
+**Los porcentajes de las dos columnas no son comparables entre sí.** El knowledge
+infló la base de ReAct 4,9x (759 → 3.737 tokens totales). Por eso el «+292% →
++117%» de `glyph` **no** es una penalidad partida a la mitad: es un artefacto del
+denominador. En tokens absolutos el exceso de `glyph` sobre ReAct **subió**, de
+2.220 a 4.382. En entrada, lo mismo: de 495 a 2.572. Quien paga por token está
+peor con RAG, no mejor.
 
-### Lo que sí se dio vuelta
+### El umbral está definido sobre totales, y nada lo cruzó
 
-**Los tokens de entrada de `glyph-datos` cruzaron a negativo: −35%.** 2.229 contra
-3.449 de ReAct. Es la primera vez en todo el proyecto que Glyph gana en entrada en
-un escenario de cadena corta, que es justo donde venía perdiendo peor.
+En el escenario con knowledge, en **tokens totales**, las dos variantes de Glyph
+perdieron: `glyph` +117%, `glyph-datos` +46%. Ninguna cruzó cero.
 
-La fila nueva del reporte lo hace explícito:
+Lo único que cruzó a negativo son los tokens de **entrada** de `glyph-datos`:
+2.229 contra 3.449 (−35%). Cualquier lectura que convierta eso en «con RAG el
+umbral baja a dos tools» está cambiando de métrica en el camino, porque el umbral
+de la guía está definido sobre totales.
 
-| Knowledge reenviado (est.) | ReAct | glyph | glyph-datos |
-|---|---:|---:|---:|
-| | 2.678 | 4.017 (+50%) | **1.339 (−50%)** |
+### De qué depende ese −35%: de un entero
 
-ReAct hizo 2 llamadas y pagó el bloque dos veces; `glyph-datos` hizo 1 y lo pagó
-una. El mecanismo funciona tal como el hallazgo 2 lo predijo.
+`glyph-datos` hizo **1** llamada al modelo en esta corrida y pagó el bloque una
+vez. En la corrida inmediatamente anterior —mismo escenario, mismo modelo,
+`results-2026-08-04-kimi-k2.7-code-highspeed.md`— `glyph-datos` hizo **2**.
 
-### Por qué el total sigue positivo
+Con 2 llamadas el knowledge reenviado habría sido 2 × 1.339 = 2.678, idéntico a
+ReAct, y la entrada quedaría en ~3.570 contra 3.449: **≈ +3%, con el signo dado
+vuelta.**
 
-Porque el knowledge sólo toca la entrada, y en Glyph **la salida es el 60-70% del
-costo**: escribir el programa sigue costando 2.098 tokens de salida contra 288 de
-ReAct. El multiplicador no puede compensar un componente que no afecta.
+El titular no descansa en un efecto medido. Descansa en que un conteo estocástico
+de llamadas salió 1 y no 2.
 
-O sea: **el knowledge no cambia la naturaleza del trade-off, corre el umbral.** Un
-agente con RAG necesita una cadena más corta que uno sin RAG para que Glyph le
-convenga, porque arranca con una ventaja de entrada que antes no tenía.
+### El piso de ruido
 
-### Un dato que no hay que leer
+El diseño gemelo controla el drift del proveedor entre corridas. **No controla el
+muestreo por invocación, que es el término dominante**, así que «la misma corrida
+no la contamina» no se sostiene.
 
-`glyph-datos` en `support-agent` dio +997%, con **7.623 tokens de salida en una
-sola llamada al modelo**. Es un valor atípico —el modelo se fue de tema escribiendo
-el programa— y hace parecer que el knowledge mejora las cosas 20x. No: la
-comparación honesta es la de `glyph` con narración, +292% → +117%, que es una
-penalidad partida a la mitad. Ya es un resultado fuerte sin necesidad de inflarlo.
+La evidencia está en las propias corridas versionadas: la celda `support-agent` /
+`glyph` / entrada, sin knowledge y sin que cambiara absolutamente nada entre las
+dos corridas del 2026-08-04, osciló **+164% → +103%: 61 puntos porcentuales.** El
+efecto que este spec reclama en esa misma celda es de 28 puntos (+103% → +75%):
+menos de la mitad del ruido.
+
+| comparación | piso de ruido | efecto | ¿sobrevive? |
+|---|---|---|---|
+| Entrada — glyph | 61 pp (+164→+103) | 28 pp | **no** — por debajo del ruido |
+| Entrada — glyph-datos | 22 pp (+68→+46) | 81 pp | **sí** (única) |
+| Totales — glyph | no evaluable | no evaluable | **no** — el denominador se movió 4,9x; en absolutos el exceso *subió* |
+| Totales — glyph-datos | no evaluable | no evaluable | **no** — es la celda que este mismo spec declara inadmisible |
+
+**Una sola de las cuatro comparaciones supera su propio piso de ruido**, y esa una
+es la que depende del conteo de llamadas del punto anterior.
+
+Esto también retira el «monotónico en las cuatro comparaciones»: dos de las cuatro
+no son lecturas válidas, y una de esas dos es precisamente el +997% → +46% que el
+propio spec dice que no hay que leer (7.623 tokens de salida en una sola llamada,
+el modelo se fue de tema escribiendo el programa).
+
+### La salida no explica el total en este escenario
+
+El argumento de que el total sigue positivo «porque en Glyph la salida es el 60-70%
+del costo» está contradicho por el número de al lado: en el escenario con
+knowledge, `glyph` tiene 2.098 de salida sobre 8.119 totales = **26%**. Ese 60-70%
+sale de los escenarios sin knowledge y no aplica acá. (`glyph-datos` sí queda en
+59%: 3.239 sobre 5.468.)
+
+La razón real por la que `glyph` pierde en totales es más simple: hizo **3**
+llamadas al modelo contra las 2 de ReAct, así que pagó más knowledge *y* más
+salida.
+
+### Lo que no era una primicia
+
+«Es la primera vez en todo el proyecto que Glyph gana en entrada en un escenario de
+cadena corta» es falso. En `results-2026-08-04-moonshot-v1-32k-optimizado.md`, el
+mismo `support-agent` de dos tools y **sin** knowledge, `glyph-datos` dio **−17%**
+en entrada (654 contra 790). Esa corrida tiene otro problema —la respuesta fue
+incorrecta— pero la afirmación de primicia no se sostiene igual.
 
 ### Qué se decide
 
-**La fase 2 no hay que construirla: ya está construida.** El beneficio de RAG sale
-del mismo mecanismo de la fase 1 —menos vueltas, menos contexto reenviado— y llega
-gratis con `pattern: glyph`. No hace falta un pack de capacidades RAG para
-obtenerlo.
+**La afirmación «la fase 2 ya está construida» se retira: no está sostenida.** Con
+una corrida no se puede decidir ni construirla ni cerrarla.
 
-Queda pendiente de decidir, con este número a la vista, si vale la pena convertir
-retrieval en una capacidad del programa (lo que permitiría traer 40 candidatos y
-filtrar a 3 localmente, atacando **la entrada** una segunda vez) o si conviene
-pasar directo a la fase 3. El pushdown al store sigue siendo lo que menos rinde de
-las tres opciones.
+Lo que sí queda establecido:
 
-### La advertencia, otra vez
+1. **El mecanismo existe y es medible.** El knowledge se reenvía una vez por
+   llamada al modelo y la fila `Knowledge reenviado` lo hace visible. No depende
+   de n.
+2. **El efecto favorable requiere `narrate: false`.** Con el default el mecanismo
+   corre al revés: +50% de knowledge reenviado contra ReAct.
+3. **En tokens absolutos, con RAG Glyph salió más caro**, en entrada y en totales,
+   en la configuración por defecto.
+4. **El tamaño del efecto no está medido.** Tres de las cuatro comparaciones no
+   superan su propio piso de ruido, y la cuarta depende de un conteo de llamadas
+   que la corrida anterior midió distinto.
 
-Esto es **n=1**. Lo que se sostiene es el signo y el orden de magnitud del efecto en
-la entrada, que es grande (−35% contra +46%) y monotónico en las cuatro
-comparaciones. Los totales están contaminados por la varianza de la salida, que en
-la fase 1 llegó a 5x entre corridas idénticas.
+**El paso siguiente es la repetición, no el diseño.** N corridas del par gemelo,
+reportando mediana y rango por celda, separando `narrate: true` de `narrate:
+false`, y midiendo el bloque de knowledge con un conteo real en vez de
+caracteres/4. Recién con eso se puede decir si el multiplicador se traduce en
+ahorro, cuánto, y bajo qué configuración.
+
+Lo que ya se puede afirmar sin repetir: el pushdown al store sigue siendo lo que
+menos rinde de las tres opciones, porque en un programa Glyph los chunks nunca
+entran al contexto del LLM (hallazgo 3). Convertir retrieval en una capacidad del
+programa sigue siendo la opción interesante, pero **este spec no aporta evidencia a
+favor ni en contra**.

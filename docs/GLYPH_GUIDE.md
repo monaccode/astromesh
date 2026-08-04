@@ -25,11 +25,17 @@ compruebo?** y **¿con qué modelo?**
 **El ahorro crece con el largo de la cadena.** Medido sobre
 `kimi-k2.7-code-highspeed`:
 
-| escenario | tools que necesita | Δ tokens vs ReAct | ¿conviene? |
+| escenario | tools que necesita | Δ tokens **totales** vs ReAct | ¿conviene? |
 |---|---:|---:|---|
 | consulta simple | 2 | **+382%** | no |
 | búsqueda y comparación | 4 | **+14%** | indistinto |
 | encadenamiento real | 6 | **−19%** | **sí** |
+
+> Las tres celdas son de una sola corrida
+> (`results-2026-08-04-kimi-k2.7-code-highspeed.md`). Para calibrar cuánto ruido
+> hay: la celda de 2 tools, remedida en la corrida siguiente sin cambiar nada, dio
+> **+292%**. La varianza entre corridas idénticas es del orden del efecto que se
+> mide.
 
 El umbral está **entre 4 y 6 tools**. Por debajo, el bloque de gramática que Glyph
 agrega al prompt cuesta más que las vueltas que ahorra.
@@ -37,24 +43,44 @@ agrega al prompt cuesta más que las vueltas que ahorra.
 Es una decisión **por agente**, no global. Un agente de FAQ va con `react`; uno que
 encadena seis sistemas va con `glyph`.
 
-### El umbral baja si el agente tiene RAG
+### RAG y el knowledge block: mecanismo identificado, efecto sin medir
 
 Un knowledge block viaja en el system prompt, y el system se reenvía en **cada**
-llamada al modelo. Cuantas menos vueltas dé el patrón, menos veces se paga.
+llamada al modelo. Cuantas menos vueltas dé el patrón, menos veces se paga. Ese
+mecanismo se observó directamente
+(`results-2026-08-04-rag-multiplier.md`, escenario de dos tools con un knowledge de
+5 chunks): ReAct hizo 2 llamadas y pagó el bloque **2 veces**; `glyph` +
+`narrate: false` hizo 1 y lo pagó **1 vez**.
 
-Medido sobre el mismo escenario de dos tools, con y sin un knowledge de 5 chunks
-(~1.340 tokens):
+**Pero el mecanismo no se tradujo en ahorro.** En la misma corrida, en tokens
+totales —la métrica de la tabla de arriba— las dos variantes perdieron:
 
-| tokens de entrada vs ReAct | sin knowledge | con knowledge |
+| tokens **totales** vs ReAct, escenario de 2 tools | sin knowledge | con knowledge |
 |---|---:|---:|
-| `glyph` | +103% | +75% |
-| `glyph` + `narrate: false` | +46% | **−35%** |
+| `glyph` (default) | +292% | **+117%** |
+| `glyph` + `narrate: false` | +997% ⚠ | **+46%** |
 
-Con RAG, un agente de **dos** tools ya gana en entrada. Sin RAG hacían falta seis.
+⚠ El +997% incluye una salida atípica de 7.623 tokens en una sola llamada; esa
+celda no es una lectura confiable.
 
-El total sigue siendo positivo (+46%) porque el knowledge sólo toca la entrada, y
-en Glyph la salida —escribir el programa— es el 60-70% del costo. **El knowledge
-corre el umbral, no cambia la naturaleza del trade-off.**
+Tres cosas que hay que leer junto con esa tabla:
+
+- **La caída del porcentaje es del denominador, no del numerador.** El knowledge
+  infló la base de ReAct 4,9x. En tokens absolutos el exceso de `glyph` sobre
+  ReAct **subió**: de 2.220 a 4.382. Quien paga por token está peor.
+- **Con el default `narrate: true` el mecanismo corre al revés.** `glyph` hizo 3
+  llamadas contra las 2 de ReAct, así que reenvió el knowledge **+50% más veces**.
+  El beneficio, donde lo hay, viene de `narrate: false`, no de `pattern: glyph`.
+- **Lo único que cruzó a negativo fue la entrada** de `glyph` + `narrate: false`
+  (−35%), y ese número depende de que esa corrida hiciera 1 llamada al modelo. La
+  corrida anterior, mismo escenario y mismo modelo, hizo 2 — con 2 el mismo cálculo
+  da **≈ +3%**, con el signo dado vuelta.
+
+**Qué hacer con esto:** si tu agente tiene RAG, **medilo** (§5). No hay todavía un
+número que justifique bajar el umbral de tools por tener knowledge block. Es n=1,
+y tres de las cuatro comparaciones no superan la varianza medida entre corridas
+idénticas. El desglose completo está en
+[`docs/superpowers/specs/2026-08-04-glyph-rag-multiplier-design.md`](superpowers/specs/2026-08-04-glyph-rag-multiplier-design.md).
 
 ### Por qué el umbral existe
 
@@ -89,19 +115,28 @@ sugiere.
   garantia(sku=sku)})` dispara N llamadas concurrentes desde una sola vuelta.
 - **Alimenta a otro agente** en vez de a una persona. Ahí `narrate: false` corta la
   segunda llamada al modelo entera.
-- **Tiene un knowledge block de RAG.** El bloque viaja en el system prompt y se
-  reenvía en cada vuelta, así que menos vueltas lo multiplican por menos. Baja el
-  umbral de seis tools a dos — ver §1.
 
 **No, si tu agente:**
 
-- **Resuelve con una o dos tools.** El costo fijo lo domina; medimos +382%.
+- **Resuelve con una o dos tools.** El costo fijo lo domina; medimos +382% y +292%
+  en dos corridas del mismo escenario.
 - **Necesita ver los datos para decidir qué hacer después.** Glyph escribe el
   programa a ciegas. Hay un escape (`ask`, que consulta al modelo desde adentro
   del programa) pero cada uso es una vuelta que el programa eligió pagar, y si la
   decisión es siempre semántica no queda nada que ahorrar.
 - **Corre sobre un modelo con razonamiento explícito.** Ver sección 4.
 - **Es conversacional.** El costo fijo se paga en cada turno del chat.
+
+**Sin decidir todavía: el agente tiene un knowledge block de RAG.**
+
+El bloque viaja en el system prompt y se reenvía en cada vuelta, así que menos
+vueltas lo multiplican por menos — ese mecanismo está medido y es real. Lo que
+**no** está medido es que se traduzca en ahorro: la única corrida que lo probó, en
+un agente de dos tools, dio **pérdida en tokens totales** (+117% con el default,
++46% con `narrate: false`), y con `narrate: true` el knowledge se reenvió 50% *más*
+veces que en ReAct.
+
+No bajes el umbral de tools por tener RAG. Medilo con §5 — ver el detalle en §1.
 
 ---
 
