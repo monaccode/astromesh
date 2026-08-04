@@ -75,31 +75,37 @@ el mismo núcleo sin tocar la gramática.
 a programas no acotados que habría que limitar por tiempo. Si el benchmark muestra
 que hacen falta, entran en v0.2.0 con evidencia detrás.
 
-**Cómo se cierra:** se corre el benchmark contra un proveedor real y sus números se
-escriben en el spec. No hay umbral automático de aprobación — la decisión de
-avanzar a la fase 2 se toma con los datos delante.
-
-**Lo único pendiente de la fase 1 es esa corrida**, porque gasta dinero real contra
-un proveedor. El harness ya está y produce el reporte; falta apretar el botón:
+**Cómo se corre:**
 
 ```bash
-ASTROMESH_CONFIG_DIR=config uv run python -m bench.glyph.run
+BENCH_MODEL=kimi-k2.7-code-highspeed \
+BENCH_ENDPOINT=https://api.moonshot.ai/v1 \
+BENCH_API_KEY_ENV=MOONSHOT_API_KEY \
+uv run python -m bench.glyph.run
 ```
 
-Una corrida de humo con modelo scripted (tokens simulados, ejecución real) ya
-confirma la parte estructural: en `support-agent` la ejecución tarda 305 ms contra
-454 ms de ReAct, porque `find_order` y `refund_policy` caen en la misma ola del DAG
-y ReAct las hace en serie por construcción. Lo que falta medir de verdad son los
-tokens y la tasa de programas inválidos, que son las dos incógnitas del proyecto.
+Gasta dinero real, así que corre nightly y no en el gate de PR. Las salidas de
+cada corrida quedan versionadas en `bench/glyph/results-*.md`.
 
-**Qué mirar en esos números:**
+### Lo que el benchmark encontró y los tests no
 
-| Señal | Qué significa | Dónde se arregla |
-|---|---|---|
-| Tasa alta de programas inválidos | La apuesta de la sintaxis familiar falla | `prompt/grammar.py`, mensajes del compilador |
-| Ahorro bajo con correctitud igual | El bloque de gramática infla demasiado el prompt | acortar `GRAMMAR` |
-| Correctitud peor que ReAct | El modelo no puede ramificar a ciegas en estos casos | más uso de `ask`, o bucles en v0.2.0 |
-| Latencia sin mejora | Los programas no tienen sentencias independientes | revisar los escenarios, no el motor |
+Ocho bugs, todos de la misma clase: **el modelo escribe Glyph como escribiría
+Python o JSON, y el parser lo rechazaba.** Ninguno lo habrían encontrado los 132
+tests unitarios, porque todos escribían Glyph como lo imaginaba el diseño.
+
+1. Sin continuación de línea dentro de corchetes
+2. El catálogo no publicaba la forma de salida (`returns`)
+3. Claves de dict con comillas rechazadas
+4. `None`/`True`/`False` rechazados
+5. `if`/`else` ligando el mismo nombre tomado como reasignación
+6. `map` sin poder invocar capacidades
+7. Escapes dentro de strings
+8. Shorthand de dict punteado (`{cliente.nombre}`)
+
+"Sintaxis familiar" resultó mucho más trabajo del que asumió el diseño, y era su
+apuesta central. **La lección para las fases 2-4: cada capacidad nueva se valida
+contra un modelo real antes de darla por hecha, no contra tests escritos por quien
+diseñó la gramática.**
 
 ---
 
