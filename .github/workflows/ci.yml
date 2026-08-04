@@ -50,6 +50,29 @@ jobs:
       - name: Tests
         run: uv run pytest -v
 
+  test-adk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
+      # ADK no tiene uv.lock propio: se instala como dependencia editable
+      # desde la raíz (root dev group + [tool.uv.sources]). Usar el lock
+      # versionado de la raíz con --locked, igual que el job `test`.
+      - name: Install dependencies
+        run: uv sync --locked --extra all
+      - name: Tests
+        run: |
+          uv run pytest astromesh-adk/tests \
+            --cov=astromesh_adk \
+            --cov-report=term-missing \
+            --cov-fail-under=60
+
   test-node:
     runs-on: ${{ matrix.os }}
     strategy:
