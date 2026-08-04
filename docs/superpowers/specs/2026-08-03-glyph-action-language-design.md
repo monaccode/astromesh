@@ -553,6 +553,60 @@ debe leerse como señal. Las conclusiones que sí se sostienen son las que
 aparecieron de forma consistente: los seis bugs, el reparto entrada/salida, y el
 0/6 de `autolink` con un único error repetido.
 
+## Cuarta corrida — el modelo importa más que el lenguaje (2026-08-04)
+
+Las dos corridas anteriores midieron las dos esquinas malas del espacio de
+modelos. Faltaba el cuadrante que decide.
+
+| modelo | validez (n=6) | tokens vs ReAct | qué pasa |
+|---|---|---|---|
+| `moonshot-v1-32k` (viejo, sin razonamiento) | 38% | −20% cuando es válido | barato, escribe mal |
+| `kimi-k2.5` (razonamiento) | alta | **+621% a +1000%** | escribe bien, paga carísimo |
+| `kimi-k2.7-code-highspeed` | **88%** | ver abajo | el cuadrante que faltaba |
+
+`kimi-k2.5` gastó **30.608 tokens de salida** para producir ocho líneas de
+programa: escribir código en un lenguaje que nunca vio dispara un
+chain-of-thought enorme. Un modelo bueno en código y sin razonamiento explícito no
+paga ese peaje.
+
+### `kimi-k2.7-code-highspeed` — el ahorro aparece, y crece con la cadena
+
+| escenario | tools | tokens ReAct | tokens Glyph | Δ | correcta |
+|---|---:|---:|---:|---:|---|
+| support-agent | 2 | 791 | 3.814 | **+382%** | sí / sí |
+| autolink-parts | 4 | 2.683 | 3.057 | **+14%** | sí / sí |
+| service-agent | 6 | 4.567 | **3.701** | **−19%** | **no / sí** |
+
+Cero programas inválidos en los tres.
+
+**El signo del Δ sigue al largo de la cadena.** En la tarea trivial de dos tools el
+bloque de gramática domina y Glyph pierde feo; en la de cuatro empata; en la de
+seis gana, y encima acierta donde ReAct se equivoca.
+
+El detalle que lo explica está en la entrada: **−66% de tokens de entrada** en la
+cadena larga. Eso es exactamente el mecanismo que el diseño planteaba —menos
+llamadas significa no reenviar el contexto— y es la primera vez que se ve
+funcionando, porque hacía falta un escenario donde ReAct necesitara varias vueltas
+y un modelo que escribiera el programa bien y barato.
+
+### Conclusión operativa
+
+Glyph no es más barato que ReAct en general: **es más barato a partir de cierta
+longitud de cadena, y sólo con modelos que escriben código sin razonar de más.**
+El umbral medido está entre 4 y 6 tools; por debajo conviene ReAct.
+
+Eso lo vuelve una decisión por agente, no una decisión global — y encaja con que
+`pattern` ya se declara por agente en el YAML.
+
+### La advertencia sigue en pie
+
+Todo lo de esta sección es **n=1** salvo la tasa de validez. La variante
+`glyph-datos` dio peor que `glyph` en dos de tres escenarios acá, lo cual
+contradice la medición anterior y confirma que la varianza entre corridas tapa
+diferencias de menos de ~2x. Los resultados que se sostienen son los grandes y
+consistentes: el 88% de validez, el −66% de entrada y el cruce de signo según el
+largo de la cadena.
+
 ## Riesgos
 
 **El modelo escribe Glyph mal.** Es el riesgo central y la razón de la decisión 2. Lo mide

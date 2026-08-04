@@ -29,9 +29,26 @@ elige un dominio: elige el dominio que **fuerza el diseño completo del núcleo*
 
 ## Fase 1 — Agente + tools · v0.1.0
 
-**Estado:** implementada — falta la corrida real del benchmark
+**Estado:** implementada y medida contra tres modelos reales
 **Objetivo:** un agente puede declarar `pattern: glyph` y correr, y sabemos con
 números cuánto ahorra.
+
+**Resultado (2026-08-04):** ahorra a partir de cierta longitud de cadena y sólo
+con modelos que escriben código sin razonar de más. Con
+`kimi-k2.7-code-highspeed`, 88% de programas válidos al primer intento y:
+
+| escenario | tools | Δ tokens vs ReAct |
+|---|---:|---:|
+| support-agent | 2 | +382% |
+| autolink-parts | 4 | +14% |
+| service-agent | 6 | **−19%**, y acierta donde ReAct falla |
+
+El umbral está entre 4 y 6 tools. Por debajo conviene `react`. Es una decisión por
+agente, no global — y `pattern` ya se declara por agente en el YAML.
+
+El costo se derrumba con modelos de razonamiento: `kimi-k2.5` gastó 30.608 tokens
+de salida para producir ocho líneas de programa. Los detalles y la advertencia
+sobre n=1 están en el spec.
 
 Por qué esta va primero: es el loop más caro y más frecuente del repo, y es el
 único caso que obliga a resolver lo difícil — el modelo tiene que anticipar
