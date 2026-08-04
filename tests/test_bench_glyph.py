@@ -1,4 +1,7 @@
+import pytest
+
 from astromesh.orchestration.glyph_pattern import GlyphPattern
+from astromesh.orchestration.patterns import ReActPattern
 from bench.glyph.fixtures import SCENARIOS
 from bench.glyph.harness import CountingModel, RunMetrics, run_scenario
 from bench.glyph.run import render_report
@@ -72,6 +75,85 @@ def test_the_knowledge_uses_the_production_renderer():
     from bench.glyph.fixtures import KNOWLEDGE_POLITICAS, POLITICAS_CHUNKS
 
     assert format_knowledge(POLITICAS_CHUNKS) == KNOWLEDGE_POLITICAS
+
+
+async def test_the_knowledge_is_prepended_as_system_on_every_model_call():
+    """Es el punto entero de la medición: producción lo reenvía en cada llamada.
+
+    Va con GlyphPattern y un programa válido a propósito: hace dos llamadas
+    (escribir y narrar), así el test comprueba «en cada llamada» y no sólo «en la
+    primera». Con un ReAct que responde de una, el aserto sería vacío.
+    """
+    from bench.glyph.fixtures import SUPPORT_RAG
+
+    seen = []
+    program = "```glyph\n" + SUPPORT_RAG.reference_program + "\n```"
+    responses = iter([program, "listo"])
+
+    async def provider_fn(messages, tools, role=None):
+        seen.append(messages)
+
+        class R:
+            content = next(responses)
+            tool_calls = None
+            usage = {"input_tokens": 10, "output_tokens": 5}
+
+        return R()
+
+    await run_scenario(SUPPORT_RAG, GlyphPattern(), CountingModel(provider_fn))
+
+    assert len(seen) == 2
+    for messages in seen:
+        assert messages[0]["role"] == "system"
+        assert "30 días corridos" in messages[0]["content"]
+
+
+async def test_a_scenario_without_knowledge_gets_no_system_message():
+    """Los escenarios viejos no cambian: las corridas versionadas siguen comparables."""
+    from bench.glyph.fixtures import SUPPORT
+
+    seen = []
+
+    async def provider_fn(messages, tools, role=None):
+        seen.append(messages)
+
+        class R:
+            content = "listo"
+            tool_calls = None
+            usage = {"input_tokens": 10, "output_tokens": 5}
+
+        return R()
+
+    await run_scenario(SUPPORT, ReActPattern(), CountingModel(provider_fn))
+    assert all(m[0]["role"] != "system" for m in seen)
+
+
+async def test_knowledge_tokens_resent_multiplies_by_model_calls():
+    from bench.glyph.fixtures import KNOWLEDGE_POLITICAS, SUPPORT_RAG
+
+    model = CountingModel(_scripted(["listo"] * 20))
+    metrics = await run_scenario(SUPPORT_RAG, ReActPattern(), model)
+
+    assert metrics.knowledge_tokens_resent == len(KNOWLEDGE_POLITICAS) // 4 * model.calls
+    assert metrics.knowledge_tokens_resent > 0
+
+
+async def test_a_scenario_without_knowledge_resends_nothing():
+    from bench.glyph.fixtures import SUPPORT
+
+    metrics = await run_scenario(SUPPORT, ReActPattern(), CountingModel(_scripted(["ok"] * 20)))
+    assert metrics.knowledge_tokens_resent == 0
+
+
+async def test_a_provider_failure_travels_through_the_wrapper():
+    """Un envoltorio que se traga la excepción convertiría un fallo en un resultado."""
+    from bench.glyph.fixtures import SUPPORT_RAG
+
+    async def provider_fn(messages, tools, role=None):
+        raise RuntimeError("503 del proveedor")
+
+    with pytest.raises(RuntimeError, match="503"):
+        await run_scenario(SUPPORT_RAG, ReActPattern(), CountingModel(provider_fn))
 
 
 async def test_the_long_chain_reference_program_runs_and_answers_correctly():

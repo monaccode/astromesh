@@ -26,6 +26,10 @@ class RunMetrics:
     wall_ms: float
     correct: bool
     invalid_programs: int
+    # Estimación por caracteres/4: no hay tokenizer en el repo y agregarlo por una
+    # fila de reporte no se justifica. El dato duro es `input_tokens`, que sale del
+    # `usage` del proveedor; esto existe para hacer visible el mecanismo.
+    knowledge_tokens_resent: int = 0
 
 
 class CountingModel:
@@ -54,11 +58,27 @@ async def run_scenario(scenario: Scenario, pattern: Any, model: CountingModel) -
         tool_calls += 1
         return await scenario.tool_impl[name](args)
 
+    # Producción antepone `rendered_prompt` —que lleva los chunks de RAG— como
+    # system en cada llamada (astromesh/runtime/engine.py:906). Reproducirlo es lo
+    # que hace medible el multiplicador.
+    #
+    # El envoltorio va ENTRE el patrón y CountingModel, no adentro: así el
+    # proveedor recibe el system y su `usage` lo cobra. Al revés, los tokens del
+    # knowledge no aparecerían en el conteo y la medición daría cero.
+    model_fn: Any = model
+    if scenario.knowledge:
+        system = {"role": "system", "content": scenario.knowledge}
+
+        async def with_knowledge(messages, tools, role=None):
+            return await model([system, *messages], tools, role=role)
+
+        model_fn = with_knowledge
+
     started = time.monotonic()
     result = await pattern.execute(
         query=scenario.query,
         context={},
-        model_fn=model,
+        model_fn=model_fn,
         tool_fn=tool_fn,
         tools=scenario.tools,
         max_iterations=8,
@@ -76,4 +96,5 @@ async def run_scenario(scenario: Scenario, pattern: Any, model: CountingModel) -
         wall_ms=wall_ms,
         correct=scenario.expected(result.get("answer") or ""),
         invalid_programs=glyph_info.get("repairs", 0),
+        knowledge_tokens_resent=len(scenario.knowledge) // 4 * model.calls,
     )
