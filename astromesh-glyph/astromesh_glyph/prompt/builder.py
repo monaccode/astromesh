@@ -19,6 +19,8 @@ def build_system_block(capabilities: Sequence[CapabilitySpec]) -> str:
         )
         lines.append(f"- {cap.name}: {cap.description}{suffix}")
         lines.extend(f"    {param}" for param in _render_parameters(cap))
+        if cap.returns:
+            lines.append(f"    → devuelve {cap.returns}")
     return "\n".join(lines)
 
 

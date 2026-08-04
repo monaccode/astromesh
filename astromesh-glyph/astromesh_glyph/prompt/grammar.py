@@ -30,4 +30,6 @@ Reglas:
 - No hay bucles, funciones, imports ni aritmética.
 - Las líneas independientes se ejecutan en paralelo: no encadenes sin necesidad.
 - Sólo podés llamar a las capacidades listadas abajo.
+- Usá SÓLO los campos que cada capacidad declara devolver. Un campo inventado no
+  da error: filtra a vacío en silencio.
 """

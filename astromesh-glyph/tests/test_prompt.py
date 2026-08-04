@@ -11,6 +11,7 @@ CAPS = [
             "properties": {"make": {"type": "string"}, "year": {"type": "integer"}},
             "required": ["make"],
         },
+        returns="lista de {sku, kind, price}",
     ),
     CapabilitySpec(name="ask", description="Consulta al modelo", parameters={}, is_semantic=True),
 ]
@@ -31,6 +32,20 @@ def test_parameters_are_rendered_with_type_and_requiredness():
 
 def test_semantic_capabilities_are_marked_as_costly():
     assert "cuesta una llamada al modelo" in build_system_block(CAPS)
+
+
+def test_the_return_shape_is_published():
+    """Sin esto el modelo inventa nombres de campo y el pipe filtra a vacío en silencio."""
+    assert "→ devuelve lista de {sku, kind, price}" in build_system_block(CAPS)
+
+
+def test_a_capability_without_a_declared_shape_renders_no_arrow():
+    block = build_system_block([CapabilitySpec(name="ping", description="d", parameters={})])
+    assert "→" not in block.split("Capacidades disponibles:")[1]
+
+
+def test_the_grammar_warns_that_invented_fields_fail_silently():
+    assert "filtra a vacío en silencio" in GRAMMAR
 
 
 def test_the_grammar_block_stays_small():

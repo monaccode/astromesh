@@ -68,11 +68,17 @@ class PatternCapabilities:
         self.semantic_calls = 0
 
     def list_capabilities(self) -> list[CapabilitySpec]:
+        # `returns` sale de una clave `function.returns` si el schema la trae.
+        # `ToolDefinition` todavía no la declara, así que hoy sólo la pueblan los
+        # schemas armados a mano (el benchmark). Mientras esté vacía, el modelo
+        # tiene que adivinar los nombres de campo de lo que devuelve una tool —
+        # y un campo inventado filtra a vacío en silencio, no da error.
         specs = [
             CapabilitySpec(
                 name=fn["name"],
                 description=fn.get("description", ""),
                 parameters=fn.get("parameters") or {},
+                returns=fn.get("returns", ""),
             )
             for tool in self._tools
             if (fn := tool.get("function"))

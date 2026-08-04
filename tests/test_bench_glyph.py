@@ -20,6 +20,29 @@ def test_every_scenario_tool_is_declared_in_its_schema_list():
         assert set(scenario.tool_impl) <= declared, scenario.name
 
 
+def test_every_tool_declares_the_shape_it_returns():
+    """Sin `returns` el modelo inventa nombres de campo y el pipe filtra a vacío."""
+    for scenario in SCENARIOS:
+        for tool in scenario.tools:
+            assert tool["function"].get("returns"), f"{scenario.name}/{tool['function']['name']}"
+
+
+def test_there_is_a_scenario_that_forces_long_chaining():
+    """Contra un ReAct de 2 llamadas no hay round-trips que eliminar."""
+    long_ones = [s for s in SCENARIOS if len(s.tools) >= 5]
+    assert long_ones, "ningún escenario obliga a encadenar"
+
+
+async def test_the_long_chain_reference_program_runs_and_answers_correctly():
+    from bench.glyph.fixtures import LONG_CHAIN
+
+    program = "```glyph\n" + LONG_CHAIN.reference_program + "\n```"
+    model = CountingModel(_scripted([program, "Reservé B-777 en SC-A."]))
+    metrics = await run_scenario(LONG_CHAIN, GlyphPattern(), model)
+    assert metrics.correct is True
+    assert metrics.tool_calls == 5
+
+
 def _scripted(responses):
     it = iter(responses)
 

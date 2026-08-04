@@ -65,6 +65,75 @@ def test_pipe_is_an_operator():
     assert values == ["|"]
 
 
+def test_a_dict_can_span_several_lines():
+    """Continuación implícita dentro de corchetes, como Python.
+
+    Sin esto la promesa de "sintaxis familiar" es falsa: el modelo escribe dicts
+    multilínea porque es lo natural, y el primer benchmark contra kimi-k2.5 falló
+    entero por esto.
+    """
+    assert _types("return {\n    a: 1,\n    b: 2\n}\n") == [
+        TokenType.NAME,  # return
+        TokenType.OP,  # {
+        TokenType.NAME,
+        TokenType.OP,
+        TokenType.NUMBER,  # a: 1
+        TokenType.OP,  # ,
+        TokenType.NAME,
+        TokenType.OP,
+        TokenType.NUMBER,  # b: 2
+        TokenType.OP,  # }
+        TokenType.NEWLINE,
+        TokenType.EOF,
+    ]
+
+
+def test_a_call_can_span_several_lines():
+    assert _types("v = f(\n    a=1,\n    b=2\n)\n") == [
+        TokenType.NAME,
+        TokenType.OP,  # v =
+        TokenType.NAME,
+        TokenType.OP,  # f (
+        TokenType.NAME,
+        TokenType.OP,
+        TokenType.NUMBER,  # a=1
+        TokenType.OP,  # ,
+        TokenType.NAME,
+        TokenType.OP,
+        TokenType.NUMBER,  # b=2
+        TokenType.OP,  # )
+        TokenType.NEWLINE,
+        TokenType.EOF,
+    ]
+
+
+def test_a_list_can_span_several_lines():
+    assert _types("x = [\n  1,\n  2\n]\n").count(TokenType.NEWLINE) == 1
+
+
+def test_indentation_inside_brackets_produces_no_indent_tokens():
+    """La sangría de una continuación es cosmética, no abre un bloque."""
+    types = _types("x = f(\n        a=1\n)\n")
+    assert TokenType.INDENT not in types
+    assert TokenType.DEDENT not in types
+
+
+def test_a_block_still_works_after_a_multiline_call():
+    types = _types("v = f(\n    a=1\n)\nif v.empty:\n    w = g()\n")
+    assert types.count(TokenType.INDENT) == 1
+    assert types.count(TokenType.DEDENT) == 1
+
+
+def test_an_unclosed_bracket_is_reported():
+    with pytest.raises(GlyphSyntaxError, match="sin cerrar"):
+        tokenize("x = f(\n    a=1\n")
+
+
+def test_a_stray_closing_bracket_is_reported():
+    with pytest.raises(GlyphSyntaxError, match="sin abrir"):
+        tokenize("x = 1)\n")
+
+
 def test_a_leading_minus_is_part_of_the_number():
     """Glyph no tiene aritmética, así que `-` sólo puede iniciar un negativo."""
     tok = next(t for t in tokenize("x = -12\n") if t.type == TokenType.NUMBER)

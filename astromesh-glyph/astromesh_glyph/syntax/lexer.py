@@ -13,41 +13,79 @@ from astromesh_glyph.syntax.tokens import Token, TokenType
 
 _TWO_CHAR_OPS = frozenset({"==", "!=", ">=", "<="})
 _ONE_CHAR_OPS = frozenset({"=", ">", "<", "|", "(", ")", "{", "}", "[", "]", ",", ":", "."})
+_OPENERS = {"(": ")", "{": "}", "[": "]"}
+_CLOSERS = {v: k for k, v in _OPENERS.items()}
 
 
 def tokenize(source: str) -> list[Token]:
+    """Tokeniza un programa Glyph.
+
+    Dentro de corchetes abiertos hay **continuación implícita**, igual que en
+    Python: no se emite NEWLINE ni se mira la indentación hasta que cierran. Sin
+    esto el modelo no puede escribir un dict o una llamada en varias líneas, que
+    es lo primero que hace — y era el motivo del fallo de la primera corrida del
+    benchmark contra kimi-k2.5.
+    """
     tokens: list[Token] = []
     indents = [0]
+    open_stack: list[Token] = []
     lines = source.splitlines()
 
     for lineno, raw in enumerate(lines, start=1):
         stripped = raw.lstrip(" ")
         indent = len(raw) - len(stripped)
+        continuing = bool(open_stack)
 
-        if "\t" in raw[:indent] or stripped.startswith("\t"):
+        if not continuing and ("\t" in raw[:indent] or stripped.startswith("\t")):
             raise GlyphSyntaxError("tabulador en la indentación: usá espacios", lineno, 1)
         if not stripped or stripped.startswith("#"):
             continue
 
-        if indent > indents[-1]:
-            indents.append(indent)
-            tokens.append(Token(TokenType.INDENT, "", lineno, indent + 1))
-        while indent < indents[-1]:
-            indents.pop()
-            tokens.append(Token(TokenType.DEDENT, "", lineno, indent + 1))
-        if indent != indents[-1]:
-            raise GlyphSyntaxError(
-                "indentación que no coincide con ningún bloque abierto", lineno, indent + 1
-            )
+        if not continuing:
+            if indent > indents[-1]:
+                indents.append(indent)
+                tokens.append(Token(TokenType.INDENT, "", lineno, indent + 1))
+            while indent < indents[-1]:
+                indents.pop()
+                tokens.append(Token(TokenType.DEDENT, "", lineno, indent + 1))
+            if indent != indents[-1]:
+                raise GlyphSyntaxError(
+                    "indentación que no coincide con ningún bloque abierto", lineno, indent + 1
+                )
 
-        tokens.extend(_tokenize_line(stripped, lineno, indent))
-        tokens.append(Token(TokenType.NEWLINE, "\n", lineno, len(raw) + 1))
+        line_tokens = _tokenize_line(stripped, lineno, indent)
+        _track_brackets(line_tokens, open_stack)
+        tokens.extend(line_tokens)
+        if not open_stack:
+            tokens.append(Token(TokenType.NEWLINE, "\n", lineno, len(raw) + 1))
+
+    if open_stack:
+        unclosed = open_stack[-1]
+        raise GlyphSyntaxError(f"`{unclosed.value}` sin cerrar", unclosed.line, unclosed.column)
 
     while len(indents) > 1:
         indents.pop()
         tokens.append(Token(TokenType.DEDENT, "", len(lines) + 1, 1))
     tokens.append(Token(TokenType.EOF, "", len(lines) + 1, 1))
     return tokens
+
+
+def _track_brackets(line_tokens: list[Token], open_stack: list[Token]) -> None:
+    """Actualiza la pila de corchetes abiertos, verificando que emparejen."""
+    for tok in line_tokens:
+        if tok.type is not TokenType.OP:
+            continue
+        if tok.value in _OPENERS:
+            open_stack.append(tok)
+        elif tok.value in _CLOSERS:
+            if not open_stack:
+                raise GlyphSyntaxError(f"`{tok.value}` sin abrir", tok.line, tok.column)
+            expected = _OPENERS[open_stack[-1].value]
+            if tok.value != expected:
+                raise GlyphSyntaxError(
+                    f"se esperaba `{expected}` y se encontró `{tok.value}`", tok.line, tok.column
+                )
+            open_stack.pop()
 
 
 def _tokenize_line(text: str, lineno: int, offset: int) -> list[Token]:
