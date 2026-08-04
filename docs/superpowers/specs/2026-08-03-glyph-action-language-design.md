@@ -469,6 +469,90 @@ Lo que sigue teniendo valor, y no fue medido acá:
 La decisión de seguir, y con qué alcance, queda abierta con estos números a la
 vista.
 
+## Tercera corrida — optimización (2026-08-04)
+
+Seis bugs corregidos, tres optimizaciones de costo, y la primera medición con
+repeticiones.
+
+### Dónde estaba realmente el gasto
+
+Medido, no estimado: el bloque de gramática son **466 tokens**, la entrada es el
+**27%** del costo total y la salida el **73%**, de la cual el **80-95% es
+razonamiento** del modelo mientras escribe el programa.
+
+| Optimización | Ahorro medido |
+|---|---|
+| La narración dejó de reenviar gramática y catálogo | −466 t de entrada por corrida |
+| `narrate: false` (agente encadenado) | una llamada al modelo entera |
+| Bloque como prefijo estable en su propio mensaje | habilita el caché del proveedor |
+| Menos reparaciones (bugs de parser) | una llamada con razonamiento cada una |
+
+**Los ajustes de prompt no dieron señal.** Un A/B de cuatro variantes (few-shot,
+"no expliques", ambas) sobre tres escenarios: la varianza dentro de un mismo
+escenario entre variantes fue **5,3x** y el rango de los totales **1,27x**. El
+ruido domina. Dos cosas sí quedaron firmes: la prosa son 3 tokens (así que
+suprimirla no ahorra nada) y pedir "sólo código" rompió la compilación dos veces
+— parece suprimir la planificación que el modelo necesita.
+
+### El primer caso donde Glyph gana
+
+`support-agent` con `moonshot-v1-32k` y `narrate: false`:
+
+| | ReAct | glyph-datos |
+|---|---:|---:|
+| tokens totales | 925 | **740 (−20%)** |
+| llamadas al modelo | 4 | **1 (−75%)** |
+| latencia | 5.764 ms | **3.093 ms (−46%)** |
+| correcta | sí | sí |
+
+Una llamada contra cuatro. **La economía funciona cuando el programa es válido.**
+El problema nunca fue la economía: es la tasa de validez.
+
+Esto también corrige el veredicto de la segunda corrida. "ReAct ya paraleliza y no
+hay round-trips que eliminar" era demasiado categórico: ReAct paraleliza
+*parcialmente* — gastó 4 llamadas para 3 tools donde Glyph gastó 1. El ahorro
+existe y es menor de lo que decía el planteo original, no inexistente.
+
+### Los seis bugs que el benchmark destapó
+
+Ninguno lo habrían encontrado los 126 tests unitarios, porque todos escribían
+Glyph como lo imaginaba el diseño en vez de como lo escribe un modelo:
+
+1. Sin continuación de línea dentro de corchetes
+2. El catálogo no publicaba la forma de salida (`returns`)
+3. Claves de dict con comillas rechazadas
+4. `None`/`True`/`False` rechazados
+5. `if`/`else` ligando el mismo nombre tomado como reasignación
+6. `map` sin poder invocar capacidades
+
+El sexto refutó la **decisión 7** y su defensa en el plan (*"`map` sobre el pipe
+cubre el 95% de los casos"*). `map` ahora invoca capacidades por elemento, en
+paralelo, con tope de 16 concurrentes.
+
+### Tasa de validez al primer intento — n=6, `moonshot-v1-32k`
+
+| escenario | válidos |
+|---|---|
+| support-agent | **6/6** |
+| autolink-parts | **0/6** |
+| cadena larga | 1/6 |
+| **global** | **38%** |
+
+`autolink` falla las seis veces con el **mismo** error: el modelo escribe
+`search_parts | where(make == "Toyota")`, tratando la capacidad como una tabla que
+se consulta con filtros en vez de con argumentos. La gramática lo prohíbe de forma
+explícita y el modelo lo hace igual. `kimi-k2.5` no comete este error nunca.
+
+### Advertencia sobre todas estas mediciones
+
+**Son n=1 salvo donde se indique, y el modelo no es determinista ni con
+`temperature=0`.** Evidencia directa: `support-agent` pasó de correcto a
+incorrecto entre dos corridas idénticas, y la cadena larga dio 1/6 en un lote y
+2/2 en otro. Cualquier Δ menor a ~2x en estas tablas está dentro del ruido y no
+debe leerse como señal. Las conclusiones que sí se sostienen son las que
+aparecieron de forma consistente: los seis bugs, el reparto entrada/salida, y el
+0/6 de `autolink` con un único error repetido.
+
 ## Riesgos
 
 **El modelo escribe Glyph mal.** Es el riesgo central y la razón de la decisión 2. Lo mide
