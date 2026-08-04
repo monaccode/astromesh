@@ -85,18 +85,69 @@ def _mark(ok: bool) -> str:
     return "sí" if ok else "**no**"
 
 
+def build_provider_fn():
+    """Arma el `model_fn` del benchmark desde variables de entorno.
+
+    No se toma el router de un agente del repo: `autolink-parts` está cableado a
+    ollama en localhost, así que correr el benchmark contra otro proveedor
+    obligaría a editar su YAML. Acá el proveedor es del benchmark, no del agente.
+
+    Cualquier endpoint compatible con OpenAI sirve — OpenAI, Groq, Together,
+    vLLM, un ollama local con `/v1`:
+
+        BENCH_MODEL=gpt-4o-mini
+        BENCH_ENDPOINT=https://api.openai.com/v1
+        BENCH_API_KEY_ENV=OPENAI_API_KEY
+    """
+    import os
+
+    from astromesh.runtime.engine import build_candidate_provider
+
+    model = os.environ.get("BENCH_MODEL")
+    if not model:
+        raise SystemExit(
+            "Falta BENCH_MODEL. Ejemplo:\n"
+            "  BENCH_MODEL=gpt-4o-mini BENCH_API_KEY_ENV=OPENAI_API_KEY \\\n"
+            "    uv run python -m bench.glyph.run"
+        )
+
+    key_env = os.environ.get("BENCH_API_KEY_ENV", "OPENAI_API_KEY")
+    if not os.environ.get(key_env):
+        raise SystemExit(
+            f"La variable {key_env} está vacía; exportá la credencial o cambiá BENCH_API_KEY_ENV."
+        )
+
+    # La temperatura no se fija por defecto: sería lo ideal para determinismo, pero
+    # hay modelos que rechazan cualquier valor distinto del suyo — kimi-k2.5
+    # devuelve 400 con "only 1 is allowed for this model". Se pide con
+    # BENCH_TEMPERATURE cuando el modelo la acepte.
+    parameters = {}
+    if (temperature := os.environ.get("BENCH_TEMPERATURE")) is not None:
+        parameters["temperature"] = float(temperature)
+
+    provider = build_candidate_provider(
+        {
+            "source": "openai_compat",
+            "model": model,
+            "endpoint": os.environ.get("BENCH_ENDPOINT", "https://api.openai.com/v1"),
+            "api_key_env": key_env,
+            "parameters": parameters or None,
+        }
+    )
+    if provider is None:
+        raise SystemExit(f"No se pudo construir un proveedor para el modelo {model!r}.")
+
+    async def provider_fn(messages, tools, role=None):
+        kwargs = {"tools": tools} if tools else {}
+        return await provider.complete(messages, **kwargs)
+
+    return provider_fn
+
+
 if __name__ == "__main__":
 
     async def _main() -> None:
-        from astromesh.runtime.engine import AgentRuntime
-
-        runtime = AgentRuntime()
-        await runtime.bootstrap()
-        agent = runtime.get_agent("autolink-parts")
-
-        async def provider_fn(messages, tools, role=None):
-            return await agent._routers["default"].route(messages, tools=tools)
-
+        provider_fn = build_provider_fn()
         metrics = await run_all(lambda: CountingModel(provider_fn))
         print(render_report(metrics))
 

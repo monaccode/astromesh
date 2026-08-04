@@ -296,6 +296,85 @@ con evidencia detrás.
 | 3 | Coreografía dinámica: `PlanGraph` → `WorkflowSpec`, durabilidad, permisos sobre qué agentes puede invocar un programa | Fase 2, y la decisión explícita de avanzar |
 | 4 | Pack de ETL sobre el catálogo de `astromesh/integrations/` | Fase 3 |
 
+## Resultados del benchmark — primera corrida (2026-08-03)
+
+Modelo `kimi-k2.5` vía Moonshot, tools mockeadas deterministas, `pattern: glyph`
+contra `pattern: react`.
+
+| | ReAct | Glyph | Δ |
+|---|---:|---:|---:|
+| **autolink-parts** — tokens totales | 1.143 | 10.736 | +839% |
+| llamadas al modelo | 2 | 3 | +50% |
+| latencia | 20,0 s | 227,6 s | +1040% |
+| respuesta correcta | sí | **no** | |
+| programas inválidos | — | **2** | |
+| **support-agent** — tokens totales | 1.031 | 3.267 | +217% |
+| llamadas al modelo | 2 | 3 | +50% |
+| latencia | 10,5 s | 41,4 s | +295% |
+| respuesta correcta | sí | sí | |
+| programas inválidos | — | 0 | |
+
+**Glyph perdió en las dos, y en una falló del todo.** El diagnóstico es preciso y
+no absuelve al lenguaje, pero tampoco confirma que la hipótesis esté mal: los
+números están dominados por dos bugs de implementación y dos confusiones de
+medición, ninguno de los cuales es la apuesta que el benchmark venía a evaluar.
+
+### Bug 1 — el parser rechaza todo lo multilínea
+
+El modelo escribió un programa idiomático y legible, con un `return` de un dict
+anidado repartido en varias líneas. El parser lo rechazó:
+
+```
+GlyphSyntaxError: línea 16, columna 9: se esperaba NAME y se encontró '\n'
+```
+
+Verificado después contra el parser local: **falla cualquier** construcción
+multilínea entre paréntesis o llaves — dict, llamada y lista. Python permite
+continuación implícita dentro de corchetes; Glyph decía tener sintaxis familiar y
+no la tiene. Es el bug que causó los 2 programas inválidos y el fallo total del
+escenario.
+
+Es un error de diseño del lexer, no un descuido: emite `NEWLINE` sin llevar cuenta
+de la profundidad de corchetes abiertos.
+
+### Bug 2 — el catálogo describe las entradas, no las salidas
+
+El programa filtraba por `where(is_oem == true)` y leía `.brand`, `.description`,
+`.relevance`. Ninguno de esos campos existe en los datos. `build_system_block()`
+publica el JSON Schema de los **parámetros** de cada capacidad y nada sobre la
+**forma de lo que devuelve**, así que el modelo tiene que inventar los nombres de
+campo — y en un lenguaje donde el pipe filtra por campo, inventarlos produce
+colecciones vacías en silencio.
+
+Con el bug 1 arreglado, este programa habría compilado y ejecutado, devolviendo
+resultados vacíos. Peor que un error: un fallo silencioso.
+
+### Confusión 1 — el modelo es de razonamiento
+
+`kimi-k2.5` emite chain-of-thought, y esa cadena cuenta como tokens de salida:
+8.148 contra 601 de ReAct en autolink. Pedirle un programa en un lenguaje que
+nunca vio dispara mucho más razonamiento que pedirle una tool call. Parte del
++839% es eso, no el lenguaje. Hay que medir también contra un modelo sin
+razonamiento explícito para separar las dos cosas.
+
+### Confusión 2 — ReAct no hizo el loop que el diseño ataca
+
+ReAct resolvió los escenarios con 2 llamadas y 1-2 tools. La hipótesis apunta a un
+loop de 4-6 iteraciones; contra un ReAct de 2 llamadas no hay round-trips que
+eliminar y Glyph sólo puede perder. Los escenarios son demasiado fáciles: hay que
+construir alguno que fuerce el encadenamiento largo que Glyph viene a colapsar.
+
+### Qué se concluye
+
+El benchmark hizo exactamente su trabajo en la primera corrida: encontró que la
+premisa central —"sintaxis familiar, el modelo la escribe bien"— está mal
+implementada, no mal elegida. El modelo escribió Glyph correcto; el parser no
+aceptaba Glyph correcto.
+
+La apuesta sigue sin evaluarse. Para evaluarla hace falta, en orden: continuación
+de línea dentro de corchetes, forma de salida en el catálogo, un escenario con
+encadenamiento largo, y una segunda corrida contra un modelo sin razonamiento.
+
 ## Riesgos
 
 **El modelo escribe Glyph mal.** Es el riesgo central y la razón de la decisión 2. Lo mide

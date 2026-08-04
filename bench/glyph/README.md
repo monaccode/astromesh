@@ -6,11 +6,32 @@ mockeadas deterministas. Aísla una sola variable: el patrón de orquestación.
 ## Correr
 
 ```bash
-ASTROMESH_CONFIG_DIR=config uv run python -m bench.glyph.run
+BENCH_MODEL=gpt-4o-mini \
+BENCH_API_KEY_ENV=OPENAI_API_KEY \
+uv run python -m bench.glyph.run
 ```
 
 Cuesta dinero real: sale a un proveedor. Por eso corre nightly en CI y no en el
 gate de PR.
+
+El proveedor es del benchmark, no de un agente del repo — `autolink-parts` está
+cableado a ollama en localhost, y tomar su router obligaría a editar su YAML para
+medir contra otra cosa. Sirve cualquier endpoint compatible con OpenAI:
+
+| Variable | Default | Para qué |
+|---|---|---|
+| `BENCH_MODEL` | — (requerida) | El modelo a medir |
+| `BENCH_ENDPOINT` | `https://api.openai.com/v1` | Groq, Together, vLLM, ollama con `/v1`… |
+| `BENCH_API_KEY_ENV` | `OPENAI_API_KEY` | Nombre de la variable que tiene la credencial |
+
+Contra un ollama local, que no cuesta nada:
+
+```bash
+BENCH_MODEL=llama3.1:8b \
+BENCH_ENDPOINT=http://localhost:11434/v1 \
+BENCH_API_KEY_ENV=OLLAMA_KEY OLLAMA_KEY=x \
+uv run python -m bench.glyph.run
+```
 
 ## Qué mide y por qué
 
