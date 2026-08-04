@@ -200,7 +200,10 @@ compila. Cada reparación cuesta una llamada entera al modelo, así que subirlo 
 sale gratis; si necesitás más de 2, el problema es el modelo o la gramática.
 
 Requiere el extra: `pip install 'astromesh[glyph]'`. Sin él, un agente que pida
-`pattern: glyph` cae a `react` con un warning en vez de fallar el arranque.
+`pattern: glyph` cae a `react` con un warning en vez de fallar el arranque —
+**salvo que declare `spec.program`**, en cuyo caso el agente no carga (ver §3b:
+degradar un programa fijo a `react` cambia el costo de la corrida en dos órdenes
+de magnitud, así que no puede pasar en silencio).
 
 ---
 
@@ -216,12 +219,17 @@ spec:
     pattern: glyph
     narrate: false
   program: |
-    orden = find_order(order_id=context.order_id)
-    politica = refund_policy()
-    if orden.days_since < politica.window_days:
-        ticket = open_ticket(order_id=context.order_id)
-    return {orden, politica, ticket}
+    local = datetime_now(timezone=context.zona)
+    utc = datetime_now(timezone="UTC")
+    acuse = json_transform(data={local, utc}, template="...")
+    return {local, utc, acuse}
 ```
+
+`local` y `utc` no dependen entre sí: el DAG las corre en paralelo. El ejemplo
+completo y ejecutable está en `config/agents/acuse-programa.agent.yaml`, con
+tools `builtin` a propósito — una tool `type: client` se anuncia pero **no se
+ejecuta** (devuelve `{"ok": true}` siempre), así que un programa fijo que lea sus
+campos falla en todas las corridas.
 
 Con `narrate: false` y sin `ask()`, **una corrida hace cero llamadas al modelo**:
 
@@ -229,14 +237,50 @@ Con `narrate: false` y sin `ask()`, **una corrida hace cero llamadas al modelo**
 |---|---:|---:|
 | ReAct | 0,00623 USD | — |
 | Glyph generando el programa | 0,03226 USD | +418% |
-| **`spec.program`** | **0,00000 USD** | **−100%** |
+| **`spec.program`** | **0,00000 USD**¹ | **−100%** |
+
+¹ **«Cero» tiene una condición: la del *modelo*, no la de la corrida entera.**
+`Agent.run` sigue llamando a `RAG.build_context(query)` y a
+`MemoryManager.build_context` antes del patrón. Un agente con programa fijo **y**
+RAG **o** memoria semántica paga los embeddings de esa consulta en cada corrida,
+más la latencia de la búsqueda. La fila de arriba vale para un agente sin RAG y
+sin memoria semántica; si tenés alguno de los dos, medí (§5.3).
+
+**De dónde salen los tres números.** Latencia, tokens y llamadas son la fila
+`service-agent/agendar-reparacion` de
+[`bench/glyph/results-2026-08-04-con-cache.md`](../bench/glyph/results-2026-08-04-con-cache.md),
+medida sobre `kimi-k2.7-code-highspeed`. Los USD no están en ese archivo: son
+derivados, con las tarifas de `kimi-k2.6` que declara
+`astromesh/providers/openai_compat.py` (`PRICING` + `CACHE_INPUT_PRICING`), en
+USD por 1.000 tokens:
+
+| | entrada | entrada cacheada | salida |
+|---|---:|---:|---:|
+| `kimi-k2.6` | 0,00095 | 0,00016 | 0,0040 |
+
+Con eso, ReAct = 1.827×0,00095 + 2.517×0,00016 + 1.023×0,0040 (por 1.000) =
+0,00623, y Glyph generando = 471×0,00095 + 841×0,00016 + 7.920×0,0040 (por 1.000)
+= 0,03226. Si cambiás de modelo, rehacé la cuenta: el veredicto es sensible al
+precio de los tokens de **salida**, que es donde está el 98% del costo.
 
 ### Las dos variables del programa
 
 | variable | qué es |
 |---|---|
-| `query` | el texto crudo de la consulta |
+| `query` | el texto de la consulta (una consulta multimodal llega aplanada a sus partes de texto) |
 | `context` | el dict que recibió `agent.run(...)`, con acceso por punto |
+
+**`context` sólo llega por `POST /v1/agents/{nombre}/run`.** Ni `spec.chain`, ni
+el WebSocket, ni los canales (WhatsApp y compañía) propagan hoy un context al
+agente: en cualquiera de esos caminos el programa recibe `context` **vacío** y
+sólo puede apoyarse en `query`. Si tu agente encadenado necesita parámetros,
+extraelos de `query` con `ask()` hasta que la propagación exista.
+
+Las claves con prefijo `_` del context **no** llegan al programa: son reservadas
+del runtime (`_provider_override`, `_history_messages`) y se filtran antes de
+entrar al patrón, para que una credencial de invocación no pueda terminar en los
+argumentos de una tool —que sí se escriben en la traza— ni serializada al
+proveedor por un `ask(..., context=context)`.
 
 Para sacar campos de texto libre está `ask()`, que cuesta ~30 tokens de salida
 contra los ~8.000 de escribir el programa:
@@ -260,9 +304,11 @@ El modelo es el autor, vos el revisor, el runtime el ejecutor.
 
 | cuándo | qué pasa |
 |---|---|
-| El programa no compila | **El agente no carga.** Error de despliegue con línea y mensaje. |
-| Una capacidad falla en ejecución | El agente devuelve error con el estado parcial. **No** cae a generar ni a `react`. |
-| `spec.program` con otro `pattern` | El agente no carga. |
+| El programa no compila, y el agente viene de `config/agents/` | **El agente no carga**: queda en `draft` y el motivo, con línea y mensaje del compilador, sale en `GET /v1/agents` bajo `error`. |
+| El programa no compila, y el agente se despliega por API | `POST /v1/agents/{n}/deploy` responde **400** con el mensaje del compilador en `detail`. |
+| Una capacidad falla en ejecución | El agente devuelve error **con el estado parcial**: `steps` trae las llamadas que sí corrieron y `glyph.capability_calls` las cuenta. **No** cae a generar ni a `react`. |
+| `spec.program` con otro `pattern` | El agente no carga (400 por API). |
+| `spec.program` sin el extra `glyph` instalado | El agente no carga (400 por API). No cae a `react`. |
 
 Fallar explícito es deliberado: caer a generar traería el costo de vuelta cuando
 menos se lo espera, y caer a `react` mezclaría dos modos que difieren 400x en costo
