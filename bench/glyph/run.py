@@ -9,22 +9,35 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from dataclasses import replace
 
 from astromesh.orchestration.patterns import ReActPattern
 from bench.glyph.fixtures import SCENARIOS
 from bench.glyph.harness import CountingModel, RunMetrics, run_scenario
 
 
-async def run_all(model_factory: Callable[[], CountingModel]) -> list[RunMetrics]:
+def _variants() -> list[tuple[str, object]]:
     from astromesh.orchestration.glyph_pattern import GlyphPattern
 
+    return [
+        ("react", ReActPattern()),
+        ("glyph", GlyphPattern()),
+        # Sin narración: el patrón devuelve el resultado del programa como JSON en
+        # vez de gastar una segunda llamada al modelo en redactarlo. Es la
+        # configuración de un agente encadenado, que consume output.data.
+        ("glyph-datos", GlyphPattern(narrate=False)),
+    ]
+
+
+async def run_all(model_factory: Callable[[], CountingModel]) -> list[RunMetrics]:
     # Secuencial a propósito: dos corridas en paralelo contra el mismo proveedor
     # se contaminan la latencia, que es una de las métricas que se están midiendo.
-    return [
-        await run_scenario(scenario, pattern, model_factory())
-        for scenario in SCENARIOS
-        for pattern in (ReActPattern(), GlyphPattern())
-    ]
+    results = []
+    for scenario in SCENARIOS:
+        for label, pattern in _variants():
+            metrics = await run_scenario(scenario, pattern, model_factory())
+            results.append(replace(metrics, pattern=label))
+    return results
 
 
 def render_report(metrics: list[RunMetrics]) -> str:
@@ -36,29 +49,41 @@ def render_report(metrics: list[RunMetrics]) -> str:
     for scenario, runs in by_scenario.items():
         lines.append(f"## {scenario}")
         lines.append("")
-        react, glyph = runs.get("react"), runs.get("glyph")
-        if react is None or glyph is None:
+        react = runs.get("react")
+        others = [(name, m) for name, m in runs.items() if name != "react"]
+        if react is None or not others:
             measured = ", ".join(sorted(runs))
             lines.extend([f"Resultado incompleto: sólo se midió `{measured}`.", ""])
             continue
 
+        header = " | ".join(name for name, _ in others)
         lines.extend(
             [
-                "| Métrica | ReAct | Glyph | Δ |",
-                "|---|---:|---:|---:|",
-                _row("Tokens de entrada", react.input_tokens, glyph.input_tokens),
-                _row("Tokens de salida", react.output_tokens, glyph.output_tokens),
-                _row("Tokens totales", _total(react), _total(glyph)),
-                _row("Llamadas al modelo", react.model_calls, glyph.model_calls),
-                _row("Llamadas a tools", react.tool_calls, glyph.tool_calls),
-                _row("Latencia (ms)", round(react.wall_ms), round(glyph.wall_ms)),
-                f"| Respuesta correcta | {_mark(react.correct)} | {_mark(glyph.correct)} | |",
-                f"| Programas inválidos | — | {glyph.invalid_programs} | |",
+                f"| Métrica | ReAct | {header} |",
+                "|---" * (2 + len(others)) + "|",
+                _row("Tokens de entrada", react.input_tokens, [m.input_tokens for _, m in others]),
+                _row("Tokens de salida", react.output_tokens, [m.output_tokens for _, m in others]),
+                _row("Tokens totales", _total(react), [_total(m) for _, m in others]),
+                _row("Llamadas al modelo", react.model_calls, [m.model_calls for _, m in others]),
+                _row("Llamadas a tools", react.tool_calls, [m.tool_calls for _, m in others]),
+                _row("Latencia (ms)", round(react.wall_ms), [round(m.wall_ms) for _, m in others]),
+                "| Respuesta correcta | "
+                + " | ".join([_mark(react.correct)] + [_mark(m.correct) for _, m in others])
+                + " |",
+                "| Programas inválidos | — | "
+                + " | ".join(str(m.invalid_programs) for _, m in others)
+                + " |",
                 "",
             ]
         )
-        if react.correct and not glyph.correct:
-            lines.extend(["**REGRESIÓN**: Glyph responde mal donde ReAct responde bien.", ""])
+        regressions = [name for name, m in others if react.correct and not m.correct]
+        if regressions:
+            lines.extend(
+                [
+                    f"**REGRESIÓN** en {', '.join(regressions)}: responde mal donde ReAct acierta.",
+                    "",
+                ]
+            )
 
     lines.extend(
         [
@@ -76,9 +101,15 @@ def _total(m: RunMetrics) -> int:
     return m.input_tokens + m.output_tokens
 
 
-def _row(label: str, react_value: float, glyph_value: float) -> str:
-    delta = f"{(glyph_value - react_value) / react_value * 100:+.0f}%" if react_value else "—"
-    return f"| {label} | {react_value} | {glyph_value} | {delta} |"
+def _row(label: str, baseline: float, values: list[float]) -> str:
+    """Cada columna muestra su valor y su Δ contra ReAct, que es la referencia."""
+
+    def cell(value: float) -> str:
+        if not baseline:
+            return str(value)
+        return f"{value} ({(value - baseline) / baseline * 100:+.0f}%)"
+
+    return f"| {label} | {baseline} | " + " | ".join(cell(v) for v in values) + " |"
 
 
 def _mark(ok: bool) -> str:

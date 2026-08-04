@@ -114,8 +114,24 @@ def _metrics(pattern, **overrides):
 
 def test_the_report_shows_both_patterns_side_by_side():
     report = render_report([_metrics("react"), _metrics("glyph")])
-    assert "| ReAct | Glyph |" in report
+    assert "| Métrica | ReAct | glyph |" in report
     assert "autolink-parts/cotizar-pastillas" in report
+
+
+def test_the_report_holds_more_than_one_glyph_variant():
+    """react vs glyph vs glyph-datos, en una sola tabla comparable."""
+    report = render_report(
+        [_metrics("react"), _metrics("glyph"), _metrics("glyph-datos", model_calls=1)]
+    )
+    assert "| Métrica | ReAct | glyph | glyph-datos |" in report
+    assert "| Llamadas al modelo | 6 | 2 (-67%) | 1 (-83%) |" in report
+
+
+def test_a_regression_names_the_variant_that_regressed():
+    report = render_report(
+        [_metrics("react"), _metrics("glyph"), _metrics("glyph-datos", correct=False)]
+    )
+    assert "**REGRESIÓN** en glyph-datos" in report
 
 
 def test_the_report_computes_the_token_delta_as_a_percentage():
