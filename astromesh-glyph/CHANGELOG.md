@@ -5,6 +5,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- `compile_program(..., predefined=)` y `execute(..., initial_env=)`: el host puede
+  ligar variables antes de que el programa corra. Es lo que permite que un programa
+  fijo lea el contexto de su invocación sin que el compilador lo rechace.
 - `map` puede invocar capacidades: `equipos | map({g: garantia(sku=sku)})` la llama
   una vez por elemento, en paralelo, con los campos del elemento en scope. Es el
   patrón que los modelos escriben apenas hay una colección y era el bloqueante para

@@ -148,3 +148,28 @@ async def test_an_if_branch_that_does_not_run_binds_its_names_to_null():
     result = await _run("a = echo(x=1)\nif a.x > 100:\n    b = echo(y=2)\nreturn {a, b}\n")
     assert result.value["b"] is None
     assert result.bindings["b"] is None
+
+
+async def test_initial_env_is_visible_to_the_program():
+    graph = compile_program(parse("a = echo(v=marca)\nreturn a\n"), CAPS, predefined=["marca"])
+    result = await execute(graph, Provider(), initial_env={"marca": "Toyota"})
+    assert result.value == {"v": "Toyota"}
+
+
+async def test_initial_env_values_are_wrapped_for_dot_access():
+    """Un dict inyectado tiene que soportar `context.campo`, como cualquier registro."""
+    graph = compile_program(parse("a = echo(v=ctx.orden)\nreturn a\n"), CAPS, predefined=["ctx"])
+    result = await execute(graph, Provider(), initial_env={"ctx": {"orden": "A-77"}})
+    assert result.value == {"v": "A-77"}
+
+
+async def test_initial_env_appears_in_the_result_bindings():
+    graph = compile_program(parse("a = echo(v=1)\n"), CAPS, predefined=["marca"])
+    result = await execute(graph, Provider(), initial_env={"marca": "Toyota"})
+    assert result.bindings["marca"] == "Toyota"
+
+
+async def test_without_initial_env_nothing_extra_is_bound():
+    graph = compile_program(parse("a = echo(v=1)\n"), CAPS)
+    result = await execute(graph, Provider())
+    assert set(result.bindings) == {"a"}

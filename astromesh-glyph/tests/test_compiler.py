@@ -169,3 +169,25 @@ def test_builtin_stages_are_not_looked_up_as_capabilities():
 def test_dependents_lists_the_nodes_that_read_a_node_output():
     graph = _compile('v = search(make="T")\nx = v | top(1)\n')
     assert graph.dependents(graph.nodes[0].id) == (graph.nodes[1].id,)
+
+
+def test_a_predefined_name_is_not_undefined():
+    """El host puede ligar variables antes de que el programa corra."""
+    graph = compile_program(parse("a = search(make=marca)\n"), CAPS, predefined=["marca"])
+    assert graph.nodes[0].depends_on == frozenset({"marca"})
+
+
+def test_a_predefined_name_that_was_not_declared_is_still_rejected():
+    with pytest.raises(GlyphCompileError, match="no está definida"):
+        compile_program(parse("a = search(make=marca)\n"), CAPS, predefined=["otra"])
+
+
+def test_a_program_cannot_rebind_a_predefined_name():
+    """Ligar `query` de nuevo escondería el valor que el host inyectó."""
+    with pytest.raises(GlyphCompileError, match="ya está ligada"):
+        compile_program(parse('query = search(make="T")\n'), CAPS, predefined=["query"])
+
+
+def test_predefined_defaults_to_nothing():
+    with pytest.raises(GlyphCompileError, match="no está definida"):
+        compile_program(parse("a = search(make=marca)\n"), CAPS)

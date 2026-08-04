@@ -8,7 +8,7 @@ ejecución, con efectos ya hechos.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from astromesh_glyph.capabilities import CapabilitySpec
 from astromesh_glyph.errors import GlyphCompileError
@@ -20,9 +20,21 @@ from astromesh_glyph.syntax import nodes as n
 BUILTIN_STAGES = frozenset({"where", "top", "map"})
 
 
-def compile_program(program: n.Program, capabilities: Sequence[CapabilitySpec]) -> PlanGraph:
+def compile_program(
+    program: n.Program,
+    capabilities: Sequence[CapabilitySpec],
+    predefined: Iterable[str] = (),
+) -> PlanGraph:
+    """Compila un programa contra un catálogo de capacidades.
+
+    `predefined` son nombres que el host liga antes de que el programa corra —
+    `query` y `context` en Astromesh. Sin esto, un programa fijo que lea el
+    contexto no compilaría: el compilador los vería como variables sin definir.
+    Siguen sujetos a la regla de no reasignar, así que un programa no puede
+    pisarlos y esconder el valor inyectado.
+    """
     catalog = {cap.name: cap for cap in capabilities}
-    bound: set[str] = set()
+    bound: set[str] = set(predefined)
     nodes: list[PlanNode] = []
 
     for index, stmt in enumerate(program.body):

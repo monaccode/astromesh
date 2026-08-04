@@ -20,7 +20,7 @@ from astromesh_glyph.errors import GlyphExecutionError
 from astromesh_glyph.plan.graph import PlanGraph, PlanNode
 from astromesh_glyph.runtime.evaluator import DEFAULT_MAX_FANOUT, RETURNED, Evaluator
 from astromesh_glyph.runtime.state import CallRecord, ExecutionResult, PartialState
-from astromesh_glyph.runtime.values import unwrap
+from astromesh_glyph.runtime.values import unwrap, wrap
 
 
 async def execute(
@@ -29,8 +29,12 @@ async def execute(
     *,
     node_timeout: float | None = None,
     max_fanout: int = DEFAULT_MAX_FANOUT,
+    initial_env: dict[str, Any] | None = None,
 ) -> ExecutionResult:
-    env: dict[str, Any] = {}
+    # Los valores del host se envuelven igual que lo que devuelve una capacidad,
+    # para que `context.campo` funcione sobre un dict inyectado como funciona
+    # sobre un resultado.
+    env: dict[str, Any] = {k: wrap(v) for k, v in (initial_env or {}).items()}
     calls: list[CallRecord] = []
     evaluator = Evaluator(provider, calls, max_fanout=max_fanout)
     executed: list[str] = []
