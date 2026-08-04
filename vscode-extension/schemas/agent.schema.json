@@ -159,7 +159,8 @@
                 "pipeline",
                 "parallel_fan_out",
                 "supervisor",
-                "swarm"
+                "swarm",
+                "glyph"
               ]
             },
             "max_iterations": {
@@ -176,6 +177,15 @@
               "type": "integer",
               "description": "Alias for timeout_seconds (deprecated — prefer timeout_seconds).",
               "minimum": 1
+            },
+            "narrate": {
+              "type": "boolean",
+              "description": "Only for pattern: glyph. Default true: a second model call turns the program's result into prose. false returns the result as JSON — no second call."
+            },
+            "max_repairs": {
+              "type": "integer",
+              "description": "Only for pattern: glyph. Default 2: retries when the model-generated program fails to compile.",
+              "minimum": 0
             }
           }
         },
@@ -439,6 +449,10 @@
         "output_schema": {
           "type": "object",
           "description": "Forma de la salida estructurada del agente. Acepta JSON Schema completo (type: object + properties) o la taquigrafía plana {campo: {type: ...}}, la misma que los `parameters` de las tools. El runtime la parsea de la respuesta y la deja validada en result.data."
+        },
+        "program": {
+          "type": "string",
+          "description": "Sólo con orchestration.pattern: glyph. Programa Glyph fijo, escrito de antemano: el runtime lo compila al arrancar contra `tools` y lo ejecuta en cada corrida sin llamar al modelo. Si no compila, el agente no carga."
         },
         "chain": {
           "type": "object",

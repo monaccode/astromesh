@@ -1,6 +1,7 @@
 """Registro de `pattern: glyph` en el engine, sin romper el import sin extras."""
 
 import os
+import pathlib
 import subprocess
 import sys
 
@@ -244,3 +245,32 @@ def test_an_agent_without_a_program_still_builds():
     pattern = runtime._build_pattern({"orchestration": {"pattern": "glyph"}}, _TOOLS_YAML)
     assert isinstance(pattern, GlyphPattern)
     assert pattern._program is None
+
+
+def test_the_example_agent_loads_and_carries_its_program():
+    """El ejemplo tiene que compilar de verdad, no ser prosa en un YAML."""
+    import yaml
+
+    from astromesh.orchestration.glyph_pattern import GlyphPattern
+
+    spec = yaml.safe_load(
+        pathlib.Path("config/agents/devoluciones-programa.agent.yaml").read_text()
+    )["spec"]
+
+    schemas = [
+        {
+            "type": "function",
+            "function": {
+                "name": t["name"],
+                "description": t.get("description", ""),
+                "parameters": {"type": "object", "properties": t.get("parameters", {})},
+            },
+        }
+        for t in spec["tools"]
+    ]
+
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    pattern = runtime._build_pattern(spec, schemas)
+    assert isinstance(pattern, GlyphPattern)
+    assert pattern._program is not None
+    assert pattern._narrate is False

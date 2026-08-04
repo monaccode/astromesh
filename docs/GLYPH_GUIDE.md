@@ -204,6 +204,78 @@ Requiere el extra: `pip install 'astromesh[glyph]'`. Sin él, un agente que pida
 
 ---
 
+## 3b · Programa fijo: el modelo escribe una vez
+
+El 98% de lo que cuesta Glyph es el modelo escribiendo el programa, y lo reescribe
+idéntico en cada corrida. Si la tarea del agente es estable, escribilo una vez y
+fijalo:
+
+```yaml
+spec:
+  orchestration:
+    pattern: glyph
+    narrate: false
+  program: |
+    orden = find_order(order_id=context.order_id)
+    politica = refund_policy()
+    if orden.days_since < politica.window_days:
+        ticket = open_ticket(order_id=context.order_id)
+    return {orden, politica, ticket}
+```
+
+Con `narrate: false` y sin `ask()`, **una corrida hace cero llamadas al modelo**:
+
+| | costo/corrida | vs ReAct |
+|---|---:|---:|
+| ReAct | 0,00623 USD | — |
+| Glyph generando el programa | 0,03226 USD | +418% |
+| **`spec.program`** | **0,00000 USD** | **−100%** |
+
+### Las dos variables del programa
+
+| variable | qué es |
+|---|---|
+| `query` | el texto crudo de la consulta |
+| `context` | el dict que recibió `agent.run(...)`, con acceso por punto |
+
+Para sacar campos de texto libre está `ask()`, que cuesta ~30 tokens de salida
+contra los ~8.000 de escribir el programa:
+
+```glyph
+id = ask("Devolvé sólo el número de orden, sin nada más.", context=query)
+orden = find_order(order_id=id)
+```
+
+### El ciclo de autoría
+
+1. Corré el agente **una vez** sin `program`, con una consulta representativa.
+2. El resultado trae `glyph.program`: el texto que el modelo escribió.
+3. Revisalo y **parametrizá lo que quedó hardcodeado** de esa consulta —
+   típicamente los identificadores, que hay que cambiar por `context.<campo>`.
+4. Pegalo en `spec.program`. A partir de ahí el agente corre sin modelo.
+
+El modelo es el autor, vos el revisor, el runtime el ejecutor.
+
+### Qué falla y cuándo
+
+| cuándo | qué pasa |
+|---|---|
+| El programa no compila | **El agente no carga.** Error de despliegue con línea y mensaje. |
+| Una capacidad falla en ejecución | El agente devuelve error con el estado parcial. **No** cae a generar ni a `react`. |
+| `spec.program` con otro `pattern` | El agente no carga. |
+
+Fallar explícito es deliberado: caer a generar traería el costo de vuelta cuando
+menos se lo espera, y caer a `react` mezclaría dos modos que difieren 400x en costo
+bajo un mismo agente.
+
+### Cuándo NO usarlo
+
+Si cada consulta necesita un plan distinto, este modo no aplica — el programa fijo
+es un contrato, no una sugerencia. Un agente con programa fijo **deja de ser
+conversacional**, y eso es consecuencia del diseño, no un defecto.
+
+---
+
 ## 4 · Qué modelo usar
 
 **El modelo importa más que el agente.** Un mismo escenario cambia de −19% a +1000%
