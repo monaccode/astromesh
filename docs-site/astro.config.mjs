@@ -60,6 +60,7 @@ export default defineConfig({
             { label: 'Profiles Reference', slug: 'configuration/profiles' },
             { label: 'Multi-agent Composition', slug: 'configuration/multi-agent' },
             { label: 'Agent Chaining', slug: 'configuration/agent-chaining' },
+            { label: 'Glyph — Action Language', slug: 'configuration/glyph' },
             { label: 'Channels', slug: 'configuration/channels' },
           ],
         },
