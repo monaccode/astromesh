@@ -117,6 +117,17 @@ def _walk_expression(
             _walk_expression(left, catalog, reads)
             _walk_expression(right, catalog, reads)
         case n.Pipe(left=left, stages=stages):
+            # Pipear una capacidad sin llamarla es el error más común del modelo:
+            # la trata como si fuera una tabla. El mensaje tiene que enseñar la
+            # forma correcta, porque es lo único que ve para reparar.
+            if isinstance(left, n.Name) and left.id in catalog:
+                spec = catalog[left.id]
+                args = ", ".join(f"{p}=..." for p in spec.parameters.get("properties", {}))
+                raise GlyphCompileError(
+                    f"`{left.id}` es una capacidad, no una colección: hay que llamarla "
+                    f"con paréntesis — `{left.id}({args})` y después pipear el resultado",
+                    left.line,
+                )
             _walk_expression(left, catalog, reads)
             for stage in stages:
                 if stage.func not in BUILTIN_STAGES:
@@ -127,7 +138,11 @@ def _walk_expression(
                     )
                 # Los argumentos de una etapa se evalúan por elemento, con los
                 # campos del elemento en scope, así que sus nombres libres no son
-                # dependencias del nodo.
+                # dependencias del nodo. Las capacidades que invoquen sí se
+                # validan: `map({g: garantia(sku=sku)})` la llama una vez por
+                # elemento y un nombre mal escrito tiene que fallar acá.
+                for arg in [*stage.args, *stage.kwargs.values()]:
+                    _validate_calls_within(arg, catalog)
         case n.Call() as call:
             _validate_call(call, catalog)
             for arg in call.args:
@@ -136,6 +151,35 @@ def _walk_expression(
                 _walk_expression(value, catalog, reads)
         case _:
             raise GlyphCompileError(f"expresión no soportada: {type(expr).__name__}", expr.line)
+
+
+def _validate_calls_within(expr: n.Node | None, catalog: dict[str, CapabilitySpec]) -> None:
+    """Valida las capacidades invocadas dentro del argumento de una etapa.
+
+    No acumula lecturas: los nombres libres de una etapa son campos del elemento,
+    no variables del programa.
+    """
+    match expr:
+        case n.Call() as call:
+            _validate_call(call, catalog)
+            for arg in [*call.args, *call.kwargs.values()]:
+                _validate_calls_within(arg, catalog)
+        case n.DictLit(items=items):
+            for _, value in items:
+                _validate_calls_within(value, catalog)
+        case n.ListLit(items=items):
+            for item in items:
+                _validate_calls_within(item, catalog)
+        case n.BinOp(left=left, right=right):
+            _validate_calls_within(left, catalog)
+            _validate_calls_within(right, catalog)
+        case n.Attribute(value=value):
+            _validate_calls_within(value, catalog)
+        case n.Pipe(left=left, stages=stages):
+            _validate_calls_within(left, catalog)
+            for stage in stages:
+                for arg in [*stage.args, *stage.kwargs.values()]:
+                    _validate_calls_within(arg, catalog)
 
 
 def _validate_call(call: n.Call, catalog: dict[str, CapabilitySpec]) -> None:

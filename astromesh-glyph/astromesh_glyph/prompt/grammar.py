@@ -16,6 +16,8 @@ Sintaxis (esto es todo el lenguaje):
   x = coleccion | where(campo == 1)  # filtra; varias condiciones se combinan con AND
   x = coleccion | top(3, by=campo)   # ordena descendente y trunca; asc=true invierte
   x = coleccion | map({a, b: otro})  # proyecta campos
+  x = coleccion | map({g: cap(id=id)})  # llama una capacidad por elemento,
+                                        # en paralelo, con sus campos en scope
   if condicion:                      # bloque indentado con 4 espacios
       y = capacidad()
   else:

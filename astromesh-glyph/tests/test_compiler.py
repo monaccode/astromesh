@@ -135,6 +135,32 @@ def test_unknown_pipe_stage_is_rejected():
         _compile('a = search(make="T")\nb = a | ordenar(1)\n')
 
 
+def test_piping_a_capability_teaches_how_to_call_it():
+    """El modelo trata las capacidades como tablas; el error tiene que enseñar."""
+    with pytest.raises(GlyphCompileError) as exc:
+        _compile('a = search | where(make == "T")\n')
+    mensaje = str(exc.value)
+    assert "es una capacidad, no una colección" in mensaje
+    assert "search(make=..., year=...)" in mensaje
+
+
+def test_a_capability_call_inside_a_stage_is_validated():
+    """`map({g: inventada(...)})` tiene que fallar en compilación, no en runtime."""
+    with pytest.raises(GlyphCompileError, match="no existe"):
+        _compile('v = search(make="T")\nx = v | map({g: inventada(sku=sku)})\n')
+
+
+def test_a_valid_capability_call_inside_a_stage_compiles():
+    graph = _compile('v = search(make="T")\nx = v | map({g: restock(sku=sku)})\n')
+    # Los campos del elemento no son dependencias del nodo: `sku` sale del ítem.
+    assert graph.nodes[1].depends_on == frozenset({"v"})
+
+
+def test_a_bad_argument_inside_a_stage_call_is_rejected():
+    with pytest.raises(GlyphCompileError, match="no acepta el argumento `color`"):
+        _compile('v = search(make="T")\nx = v | map({g: restock(color="rojo")})\n')
+
+
 def test_builtin_stages_are_not_looked_up_as_capabilities():
     graph = _compile('a = search(make="T")\nb = a | where(kind == "oem") | top(3, by=rating)\n')
     assert graph.nodes[1].depends_on == frozenset({"a"})

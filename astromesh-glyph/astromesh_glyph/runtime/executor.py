@@ -18,7 +18,7 @@ from typing import Any
 from astromesh_glyph.capabilities import CapabilityProvider
 from astromesh_glyph.errors import GlyphExecutionError
 from astromesh_glyph.plan.graph import PlanGraph, PlanNode
-from astromesh_glyph.runtime.evaluator import RETURNED, Evaluator
+from astromesh_glyph.runtime.evaluator import DEFAULT_MAX_FANOUT, RETURNED, Evaluator
 from astromesh_glyph.runtime.state import CallRecord, ExecutionResult, PartialState
 from astromesh_glyph.runtime.values import unwrap
 
@@ -28,10 +28,11 @@ async def execute(
     provider: CapabilityProvider,
     *,
     node_timeout: float | None = None,
+    max_fanout: int = DEFAULT_MAX_FANOUT,
 ) -> ExecutionResult:
     env: dict[str, Any] = {}
     calls: list[CallRecord] = []
-    evaluator = Evaluator(provider, calls)
+    evaluator = Evaluator(provider, calls, max_fanout=max_fanout)
     executed: list[str] = []
     pending = list(graph.nodes)
     returned: Any = None

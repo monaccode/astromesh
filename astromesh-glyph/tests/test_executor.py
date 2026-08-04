@@ -99,6 +99,50 @@ async def test_node_timeout_is_reported_as_an_execution_error():
         await _run("a = slow()\n", node_timeout=0.01)
 
 
+async def test_map_invokes_a_capability_once_per_item():
+    """El patrón que los modelos escriben apenas hay una colección.
+
+    `fast()` devuelve un elemento con campo `v`; el map lo proyecta llamando a
+    `echo` con ese campo del elemento en scope.
+    """
+    provider = Provider()
+    result = await _run(
+        "w = fast()\ng = w | map({res: echo(marca=v)})\nreturn g\n", provider=provider
+    )
+    assert provider.order.count("echo") == 1
+    assert result.value == [{"res": {"marca": 2}}]
+
+
+async def test_map_calls_run_concurrently_up_to_the_fanout_cap():
+    """Sin tope, un map sobre mil elementos tira abajo el servicio del otro lado."""
+    activos = 0
+    pico = 0
+
+    class Contador:
+        def list_capabilities(self):
+            return CAPS
+
+        async def invoke(self, name, args):
+            nonlocal activos, pico
+            if name == "muchos":
+                return [{"n": i} for i in range(20)]
+            activos += 1
+            pico = max(pico, activos)
+            await asyncio.sleep(0.02)
+            activos -= 1
+            return {"ok": args["n"]}
+
+    caps = [*CAPS, CapabilitySpec(name="muchos", description="", parameters={})]
+    graph = compile_program(parse("v = muchos()\ng = v | map({r: echo(n=n)})\nreturn g\n"), caps)
+
+    await execute(graph, Contador(), max_fanout=4)
+    assert pico <= 4
+
+    activos = pico = 0
+    await execute(graph, Contador(), max_fanout=16)
+    assert pico > 4
+
+
 async def test_an_if_branch_that_does_not_run_binds_its_names_to_null():
     """Sin esto, un nodo posterior que lea `b` espera para siempre."""
     result = await _run("a = echo(x=1)\nif a.x > 100:\n    b = echo(y=2)\nreturn {a, b}\n")
