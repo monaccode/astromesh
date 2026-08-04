@@ -580,3 +580,83 @@ def test_estimated_cost_cache_discount_k26():
 def test_cache_input_pricing_has_kimi():
     assert CACHE_INPUT_PRICING["kimi-k2.5"] == 0.0001
     assert CACHE_INPUT_PRICING["kimi-k2.6"] == 0.00016
+
+
+# ===================================================================
+# Lectura de tokens cacheados: cada proveedor los pone en otro lado
+# ===================================================================
+
+
+def test_reads_cached_tokens_from_the_openai_nested_shape():
+    """OpenAI los anida en prompt_tokens_details; leerlos de la raíz da 0 siempre.
+
+    El costo se sobreestima en silencio: estimated_cost() descuenta los cacheados,
+    así que un system prompt grande se factura entero en cada vuelta cuando en
+    realidad el proveedor lo cobró con descuento.
+    """
+    from astromesh.providers.base import read_cached_tokens
+
+    assert (
+        read_cached_tokens(
+            {"prompt_tokens": 4015, "prompt_tokens_details": {"cached_tokens": 4015}}
+        )
+        == 4015
+    )
+
+
+def test_reads_cached_tokens_from_the_moonshot_root_shape():
+    """Moonshot los duplica en la raíz — por eso el bug no se notaba acá."""
+    from astromesh.providers.base import read_cached_tokens
+
+    assert read_cached_tokens({"prompt_tokens": 4015, "cached_tokens": 4015}) == 4015
+
+
+def test_reads_cached_tokens_from_the_anthropic_shape():
+    """La clave que LiteLLM normaliza para Anthropic."""
+    from astromesh.providers.base import read_cached_tokens
+
+    assert read_cached_tokens({"cache_read_input_tokens": 900}) == 900
+
+
+def test_cached_tokens_defaults_to_zero_when_absent():
+    from astromesh.providers.base import read_cached_tokens
+
+    assert read_cached_tokens({"prompt_tokens": 100}) == 0
+    assert read_cached_tokens({}) == 0
+
+
+def test_the_nested_shape_wins_over_a_null_root_value():
+    """Un proveedor puede mandar la raíz en null y el valor real anidado."""
+    from astromesh.providers.base import read_cached_tokens
+
+    usage = {"cached_tokens": None, "prompt_tokens_details": {"cached_tokens": 512}}
+    assert read_cached_tokens(usage) == 512
+
+
+def test_a_malformed_details_block_does_not_explode():
+    from astromesh.providers.base import read_cached_tokens
+
+    assert read_cached_tokens({"prompt_tokens_details": None}) == 0
+    assert read_cached_tokens({"prompt_tokens_details": "raro"}) == 0
+
+
+@respx.mock
+async def test_complete_reads_cache_from_the_openai_nested_shape():
+    """El caso real de OpenAI/Azure, que antes se leía como 0."""
+    body = {
+        "choices": [{"message": {"content": "ok"}}],
+        "usage": {
+            "prompt_tokens": 2000,
+            "completion_tokens": 500,
+            "prompt_tokens_details": {"cached_tokens": 1000},
+        },
+    }
+    respx.post("https://api.moonshot.ai/v1/chat/completions").mock(
+        return_value=httpx.Response(200, json=body)
+    )
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k2.5", "api_key": "sk-test"}
+    )
+    result = await provider.complete(MESSAGES)
+    assert result.usage["cache_read_input_tokens"] == 1000
+    assert result.cost == pytest.approx(0.00195)

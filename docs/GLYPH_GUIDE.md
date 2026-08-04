@@ -20,10 +20,44 @@ compruebo?** y **¿con qué modelo?**
 
 ---
 
+## 0 · Lo primero: contá costo, no tokens
+
+**Los tokens de salida cuestan ~4x los de entrada** (kimi-k2.6: 0,0040 contra
+0,00095 por 1k). Glyph baja la entrada y sube la salida: cambia tokens baratos por
+tokens caros. Sumar «tokens totales» los trata como equivalentes y da la respuesta
+al revés.
+
+Medido en la misma corrida (`results-2026-08-04-con-cache.md`, tarifas de
+`kimi-k2.6` como proxy — `kimi-k2.7-code-highspeed` no tiene entrada en `PRICING`):
+
+| escenario | Δ tokens totales | **Δ costo** | salida como % del costo de Glyph |
+|---|---:|---:|---:|
+| autolink-parts | +14% | **+325%** | 97% |
+| support-agent | +292% | **+2839%** | 99% |
+| support-agent-rag | +94% | **+164%** | 81% |
+| service-agent (6 tools) | **−19%** ⚠ | **+418%** | 98% |
+
+⚠ Ese −19% es de una corrida anterior y en tokens. En la misma corrida donde se
+midió el costo, ese escenario dio **+72% en tokens y +418% en costo**.
+
+**Entre el 81% y el 99% de lo que cuesta Glyph es salida** — el modelo escribiendo
+el programa. Todo lo que pase en la entrada (bloque de gramática, knowledge block,
+caché de prefijo) es de segundo orden frente a eso.
+
+El caché lo confirma: en el escenario RAG, los tokens de entrada de Glyph a precio
+pleno bajan **−82%** contra ReAct gracias al caché de prefijo… y el costo total
+cambia del +164% al +164%. No mueve nada.
+
+**Las tablas de abajo están en tokens** porque así se midieron las fases 1 y 2.
+Leelas como lo que son —un proxy del que ahora sabemos que engaña— y usá la fila
+`Costo (USD)` del benchmark para decidir.
+
+---
+
 ## 1 · La regla corta
 
 **El ahorro crece con el largo de la cadena.** Medido sobre
-`kimi-k2.7-code-highspeed`:
+`kimi-k2.7-code-highspeed`, **en tokens** (ver §0 antes de usar esto para decidir):
 
 | escenario | tools que necesita | Δ tokens **totales** vs ReAct | ¿conviene? |
 |---|---:|---:|---|
@@ -104,6 +138,12 @@ sugiere.
 ---
 
 ## 2 · Cuándo conviene
+
+> **Antes de esta lista, leé §0.** Ningún escenario medido hasta hoy le gana a
+> ReAct **en costo** — el mejor caso quedó en +164%. Lo que sigue describe dónde
+> Glyph gana en *tokens* y en *latencia de round-trips*, que es información útil
+> pero no es la factura. Si tu criterio es el gasto, hoy la respuesta corta es
+> `react`, y lo que hay que hacer es medir tu caso con `Costo (USD)` (§5).
 
 **Sí, si tu agente:**
 
@@ -368,3 +408,30 @@ contra un modelo real antes de darla por hecha.**
 - [`docs/superpowers/specs/2026-08-03-glyph-action-language-design.md`](superpowers/specs/2026-08-03-glyph-action-language-design.md) — el diseño, las decisiones y todas las corridas con su contexto
 - [`astromesh-glyph/README.md`](../astromesh-glyph/README.md) — el lenguaje y su API
 - `bench/glyph/results-*.md` — las salidas crudas de cada corrida
+
+---
+
+## 7 · Lo que este proyecto enseñó sobre medir
+
+Tres errores propios, encontrados en cascada, todos de la misma forma: **verificar
+contra lo que uno espera en vez de contra lo que importa.**
+
+**Los tests no encontraron ocho bugs del parser.** Los escribió quien diseñó la
+gramática, y escribían Glyph como el diseño lo imaginaba. Los encontró correr un
+modelo real, que escribe Glyph como escribiría Python o JSON.
+
+**El benchmark en verde no impidió una conclusión falsa.** Los 37 tests pasaban y
+la interpretación de sus números estaba sobrevendida — porcentajes leídos donde
+había que leer absolutos, y «misma corrida» confundido con «sin varianza». Lo
+encontró un revisor comparando las afirmaciones contra los datos crudos.
+
+**Y todo se midió en la unidad equivocada.** Tokens totales, cuando la salida
+cuesta 4x la entrada y Glyph justamente cambia una por otra. Lo encontró revisar
+por qué el proveedor reportaba tokens cacheados que el código no leía.
+
+Cada capa estaba correctamente verificada contra la anterior. Ninguna estaba
+verificada contra la realidad de afuera.
+
+**Para quien siga:** medí con `Costo (USD)`, corré N veces y quedate con medianas
+—la varianza entre corridas idénticas llegó a 5x—, y antes de escribir una
+conclusión en una guía, releé los datos crudos buscando la celda que la contradice.

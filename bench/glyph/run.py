@@ -64,6 +64,17 @@ def render_report(metrics: list[RunMetrics]) -> str:
             _row("Tokens de salida", react.output_tokens, [m.output_tokens for _, m in others]),
             _row("Tokens totales", _total(react), [_total(m) for _, m in others]),
         ]
+        # Los cacheados ya están contados dentro de la entrada; se muestran aparte
+        # porque el proveedor los cobra con descuento y una comparación que los
+        # ignora sobreestima cualquier ahorro de prompt.
+        if react.cached_tokens or any(m.cached_tokens for _, m in others):
+            rows.append(
+                _row(
+                    "  de los cuales cacheados",
+                    react.cached_tokens,
+                    [m.cached_tokens for _, m in others],
+                )
+            )
         # Sólo cuando el escenario simula RAG: en los demás la fila sería una
         # columna de ceros, y el reporte de las corridas ya versionadas cambiaría
         # sin motivo.
@@ -74,6 +85,12 @@ def render_report(metrics: list[RunMetrics]) -> str:
                     react.knowledge_tokens_resent,
                     [m.knowledge_tokens_resent for _, m in others],
                 )
+            )
+        # El costo va primero de las filas de abajo porque es la que decide: los
+        # tokens totales tratan entrada y salida como equivalentes, y no lo son.
+        if react.cost or any(m.cost for _, m in others):
+            rows.append(
+                _row("Costo (USD)", round(react.cost, 6), [round(m.cost, 6) for _, m in others])
             )
         rows.extend(
             [

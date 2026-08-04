@@ -378,3 +378,93 @@ def test_the_report_flags_a_middling_rate_as_borderline():
     from bench.glyph.validity import ValidityResult, render_report
 
     assert "Al límite" in render_report([ValidityResult(scenario="s", samples=10, valid=6)])
+
+
+# ---- tokens cacheados --------------------------------------------------------
+
+
+async def test_counting_model_accumulates_cached_tokens():
+    async def provider_fn(messages, tools, role=None):
+        class R:
+            content = "ok"
+            tool_calls = None
+            usage = {"input_tokens": 100, "output_tokens": 20, "cache_read_input_tokens": 80}
+
+        return R()
+
+    model = CountingModel(provider_fn)
+    await model([{"role": "user", "content": "a"}], [])
+    await model([{"role": "user", "content": "b"}], [])
+    assert model.cached_tokens == 160
+    assert model.input_tokens == 200
+
+
+def test_the_report_shows_the_cached_share_when_there_is_any():
+    """Sin esta fila, un ahorro de prompt se mide contando a precio pleno
+    tokens que el proveedor cobró con descuento."""
+    report = render_report(
+        [_metrics("react", cached_tokens=4000), _metrics("glyph", cached_tokens=1000)]
+    )
+    assert "|   de los cuales cacheados | 4000 | 1000 (-75%) |" in report
+
+
+def test_the_report_omits_the_cached_row_when_nothing_was_cached():
+    report = render_report([_metrics("react"), _metrics("glyph")])
+    assert "cacheados" not in report
+
+
+def test_a_run_without_cache_reports_zero():
+    from bench.glyph.harness import RunMetrics
+
+    assert (
+        RunMetrics(
+            scenario="s",
+            pattern="react",
+            input_tokens=1,
+            output_tokens=1,
+            model_calls=1,
+            tool_calls=0,
+            wall_ms=1.0,
+            correct=True,
+            invalid_programs=0,
+        ).cached_tokens
+        == 0
+    )
+
+
+# ---- costo -------------------------------------------------------------------
+
+
+async def test_counting_model_accumulates_provider_cost():
+    async def provider_fn(messages, tools, role=None):
+        class R:
+            content = "ok"
+            tool_calls = None
+            usage = {"input_tokens": 100, "output_tokens": 20}
+            cost = 0.0025
+
+        return R()
+
+    model = CountingModel(provider_fn)
+    await model([{"role": "user", "content": "a"}], [])
+    await model([{"role": "user", "content": "b"}], [])
+    assert model.cost == pytest.approx(0.005)
+
+
+async def test_a_provider_without_a_cost_field_does_not_break_the_run():
+    model = CountingModel(_scripted(["ok"] * 5))
+    await model([{"role": "user", "content": "a"}], [])
+    assert model.cost == 0.0
+
+
+def test_the_report_shows_cost_when_the_model_has_pricing():
+    """Es la fila que decide: la salida cuesta ~4x la entrada, así que un patrón
+    que baja entrada y sube salida parece barato en tokens y sale caro acá."""
+    report = render_report([_metrics("react", cost=0.0045), _metrics("glyph", cost=0.0120)])
+    assert "| Costo (USD) | 0.0045 | 0.012 (+167%) |" in report
+
+
+def test_the_report_omits_cost_for_a_model_without_pricing():
+    """Mejor no emitir la fila que mentir con un cero."""
+    report = render_report([_metrics("react"), _metrics("glyph")])
+    assert "Costo (USD)" not in report

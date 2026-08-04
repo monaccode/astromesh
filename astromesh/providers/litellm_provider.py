@@ -13,7 +13,7 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from .base import CompletionChunk, CompletionResponse
+from .base import CompletionChunk, CompletionResponse, read_cached_tokens
 from .openai_compat import _normalize_tool_calls
 
 
@@ -65,7 +65,7 @@ class LiteLLMProvider:
         usage = data.get("usage") or {}
         input_tokens = usage.get("prompt_tokens", 0)
         output_tokens = usage.get("completion_tokens", 0)
-        cached = usage.get("cache_read_input_tokens", 0)
+        cached = read_cached_tokens(usage)
 
         try:
             cost = float(litellm.completion_cost(completion_response=resp))

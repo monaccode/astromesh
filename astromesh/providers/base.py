@@ -86,3 +86,25 @@ class ProviderProtocol(Protocol):
     def estimated_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
         """Estimate the dollar cost for the given token counts."""
         ...
+
+
+def read_cached_tokens(usage: dict) -> int:
+    """Tokens de entrada servidos desde el caché de prefijo del proveedor.
+
+    Cada proveedor los reporta en un lugar distinto y hay que mirar los tres:
+
+    - `prompt_tokens_details.cached_tokens` — la forma documentada de OpenAI, y
+      la que devuelve cualquiera que siga su spec al pie de la letra.
+    - `cached_tokens` en la raíz — Moonshot lo duplica ahí.
+    - `cache_read_input_tokens` — la clave de Anthropic, que es como LiteLLM la
+      normaliza.
+
+    Leer sólo la raíz daba 0 contra OpenAI y Azure, y como `estimated_cost()`
+    descuenta los cacheados, el costo se sobreestimaba en silencio. El test que
+    cubría esto se había escrito con la forma de Moonshot, el único proveedor
+    donde la lectura incompleta funcionaba por casualidad.
+    """
+    details = usage.get("prompt_tokens_details")
+    if isinstance(details, dict) and details.get("cached_tokens"):
+        return int(details["cached_tokens"])
+    return int(usage.get("cached_tokens") or usage.get("cache_read_input_tokens") or 0)

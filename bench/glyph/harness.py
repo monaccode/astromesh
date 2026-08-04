@@ -26,6 +26,17 @@ class RunMetrics:
     wall_ms: float
     correct: bool
     invalid_programs: int
+    # Tokens de entrada servidos desde el caché de prefijo del proveedor. Van
+    # DENTRO de input_tokens, no aparte: sin esta columna, una optimización de
+    # prompt se evalúa contando a precio pleno tokens que el proveedor cobró con
+    # descuento — que es como se sobreestimó el multiplicador de RAG.
+    cached_tokens: int = 0
+    # Lo que el proveedor cobra de verdad. Es LA métrica: los tokens de salida
+    # cuestan ~4x los de entrada, así que un patrón que baja la entrada y sube la
+    # salida —que es exactamente lo que hace Glyph— parece barato contando tokens
+    # totales y sale caro en la factura. Queda en 0.0 si el modelo no tiene
+    # entrada en PRICING; ahí la fila no se emite en vez de mentir con un cero.
+    cost: float = 0.0
     # Estimación por caracteres/4: no hay tokenizer en el repo y agregarlo por una
     # fila de reporte no se justifica. El dato duro es `input_tokens`, que sale del
     # `usage` del proveedor; esto existe para hacer visible el mecanismo.
@@ -39,6 +50,8 @@ class CountingModel:
         self._provider_fn = provider_fn
         self.input_tokens = 0
         self.output_tokens = 0
+        self.cached_tokens = 0
+        self.cost = 0.0
         self.calls = 0
 
     async def __call__(self, messages, tools, role=None) -> Any:
@@ -47,6 +60,8 @@ class CountingModel:
         usage = getattr(response, "usage", None) or {}
         self.input_tokens += usage.get("input_tokens", 0)
         self.output_tokens += usage.get("output_tokens", 0)
+        self.cached_tokens += usage.get("cache_read_input_tokens", 0)
+        self.cost += getattr(response, "cost", 0.0) or 0.0
         return response
 
 
@@ -96,5 +111,7 @@ async def run_scenario(scenario: Scenario, pattern: Any, model: CountingModel) -
         wall_ms=wall_ms,
         correct=scenario.expected(result.get("answer") or ""),
         invalid_programs=glyph_info.get("repairs", 0),
+        cached_tokens=model.cached_tokens,
+        cost=model.cost,
         knowledge_tokens_resent=len(scenario.knowledge) // 4 * model.calls,
     )
