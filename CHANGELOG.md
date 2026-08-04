@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dos veces devolviendo el estado parcial al modelo.
 - `pattern: glyph` disponible en `spec.orchestration` de cualquier agente. Si el extra
   `glyph` no está instalado, el agente cae a `react` con un warning en vez de fallar
-  el bootstrap.
+  el bootstrap — **salvo que declare `spec.program`**, porque degradar un programa fijo
+  a `react` cambia el costo de la corrida en dos órdenes de magnitud.
 - Benchmark `bench/glyph/`: mide `pattern: glyph` contra `pattern: react` sobre
   escenarios de `autolink-parts` y `support-agent` con tools mockeadas deterministas,
   reportando tokens, llamadas al modelo, latencia, correctitud y tasa de programas
@@ -31,12 +32,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   catálogo de tools **al cargar el agente**, así que un programa roto es un fallo de
   despliegue con línea y mensaje y no un error en la primera consulta. Declararlo con
   un `pattern` distinto de `glyph` también impide cargar.
+- Agente de ejemplo `acuse-programa` en `config/agents/`: sella la recepción de una
+  solicitud con la hora local y la UTC en paralelo, con tools `builtin` que corren sin
+  red, y se ejecuta de punta a punta sin tocar el modelo.
+- `AgentRuntime.agent_error(name)` y el campo `error` en `GET /v1/agents`: por qué un
+  agente quedó en `draft` al arrancar deja de vivir sólo en el log.
 
 ### Fixed
 
 - El `context` que recibe `agent.run()` ahora llega a los patrones de orquestación,
   bajo la clave reservada `_caller_context`. Antes sólo se usaba para renderizar el
   prompt, así que un patrón no tenía forma de leer los parámetros de la invocación.
+- **Fuga de credenciales por `_caller_context`.** Las claves con prefijo `_` del context
+  del llamador son reservadas del runtime y ahora se filtran antes de llegar al patrón.
+  `_provider_override` lleva la API key del header `X-Astromesh-Provider-Key`: un
+  programa Glyph que la pasara como argumento de una tool la escribía en la traza —lo
+  que el propio `tool_fn` declara prohibido— y un `ask(..., context=context)` la
+  serializaba al proveedor del modelo.
+- Un `spec.program` que no compila devuelve **400** con el mensaje del compilador en
+  `POST /v1/agents/{n}/deploy`, en vez del 500 crudo que salía porque `GlyphError` no
+  hereda de `ValueError`.
+- Un fallo de ejecución con programa fijo devuelve el **estado parcial**: `steps` trae
+  las llamadas que sí corrieron y `glyph.capability_calls` las cuenta. Antes reportaba
+  `0` y `steps` vacío aunque hubieran corrido tools de verdad.
+- La variable `query` de un programa Glyph es texto también en una consulta multimodal;
+  antes llegaba como la lista cruda de partes, contra lo que documenta la guía.
 
 ## [v0.38.1] - 2026-07-29
 

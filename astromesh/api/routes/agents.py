@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from astromesh.api.usage import usage_from_trace
-from astromesh.errors import ModelProviderError, model_provider_error_payload
+from astromesh.errors import AgentConfigError, ModelProviderError, model_provider_error_payload
 
 
 def _steps_to_dicts(steps: list | None) -> list[dict]:
@@ -171,9 +171,18 @@ async def deploy_agent(agent_name: str):
     """Deploy a draft/paused agent to the runtime."""
     if _runtime is None:
         raise HTTPException(status_code=503, detail="Runtime not initialized")
+    from astromesh.runtime.engine import program_error_types
+
     try:
         await _runtime.deploy_agent(agent_name)
         return {"agent": agent_name, "status": "deployed"}
+    # `GlyphError` no hereda de ValueError, así que sin esta rama un `spec.program`
+    # que no compila salía como 500 crudo. Es config inválida del cliente y el
+    # mensaje del compilador trae la línea: 400 con el mensaje adentro.
+    except program_error_types() as e:
+        raise HTTPException(status_code=400, detail=f"spec.program no compila — {e}") from e
+    except AgentConfigError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 

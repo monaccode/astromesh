@@ -333,10 +333,20 @@ async def test_a_fixed_program_still_runs_its_capabilities():
 
 
 async def test_the_program_can_read_the_caller_context():
-    result = await _run_fijo(
-        "v = search_parts(make=context.marca)\nreturn v\n", context={"marca": "Honda"}
+    vistas = []
+
+    async def tool_fn(name, args):
+        vistas.append(args)
+        return [{"sku": "A"}]
+
+    await _run_fijo(
+        "v = search_parts(make=context.marca)\nreturn v\n",
+        context={"marca": "Honda"},
+        tool_fn=tool_fn,
     )
-    assert result["glyph"]["capability_calls"] == 1
+    # El valor tiene que llegar, no sólo la llamada: contar llamadas pasaba igual
+    # con un `context` vacío que resolviera `context.marca` a nada.
+    assert vistas == [{"make": "Honda"}]
 
 
 async def test_the_program_can_read_the_query():
@@ -358,6 +368,89 @@ async def test_a_failing_capability_reports_failure_without_falling_back():
     assert result["glyph"]["failed"] is True
     assert result["glyph"]["model_calls"] == 0
     assert "503" in result["answer"]
+
+
+DOS_TOOLS = [
+    *TOOLS,
+    {
+        "type": "function",
+        "function": {
+            "name": "reservar",
+            "description": "Reserva un repuesto",
+            "parameters": {
+                "type": "object",
+                "properties": {"sku": {"type": "string"}},
+                "required": ["sku"],
+            },
+        },
+    },
+]
+
+
+async def test_a_failure_reports_the_calls_that_did_run():
+    """El spec promete devolver el error **con el estado parcial**.
+
+    Antes se reportaba `capability_calls: 0` y `steps` sin las llamadas, aunque
+    hubieran corrido tools de verdad y aplicado efectos: el dict mentía sobre lo
+    que había pasado y tiraba lo único que dice hasta dónde llegó la corrida.
+    """
+    ejecutadas = []
+
+    async def tool_fn(name, args):
+        ejecutadas.append(name)
+        if name == "reservar":
+            raise RuntimeError("503 del proveedor")
+        return [{"sku": "A"}]
+
+    async def _explota(messages, tools, role=None):
+        raise AssertionError("el programa fijo no debe llamar al modelo")
+
+    programa = 'v = search_parts(make="Toyota")\nr = reservar(sku="A")\nreturn {v, r}\n'
+    result = await GlyphPattern(program=programa, narrate=False).execute(
+        query="q",
+        context={"_caller_context": {}},
+        model_fn=_explota,
+        tool_fn=tool_fn,
+        tools=DOS_TOOLS,
+        max_iterations=6,
+    )
+
+    assert result["glyph"]["failed"] is True
+    assert ejecutadas == ["search_parts", "reservar"]
+    assert result["glyph"]["capability_calls"] == 2
+    assert [s.action for s in result["steps"] if s.action] == ["search_parts", "reservar"]
+    fallida = next(s for s in result["steps"] if s.action == "reservar")
+    assert "503" in fallida.observation
+
+
+async def test_a_compile_failure_reports_no_calls():
+    """Sin `GlyphExecutionError` no hay estado parcial: nada corrió."""
+    model = ScriptedModel("```glyph\nv = = 1\n```")
+    result = await _run(model, max_repairs=0)
+    assert result["glyph"]["failed"] is True
+    assert result["glyph"]["capability_calls"] == 0
+
+
+async def test_the_program_sees_a_multimodal_query_as_text():
+    """La guía documenta `query` como texto; `agent.run` pasa la consulta cruda."""
+    vistas = []
+
+    async def tool_fn(name, args):
+        vistas.append(args)
+        return [{"sku": "A"}]
+
+    async def _explota(messages, tools, role=None):
+        raise AssertionError("el programa fijo no debe llamar al modelo")
+
+    await GlyphPattern(program="v = search_parts(make=query)\nreturn v\n", narrate=False).execute(
+        query=[{"type": "text", "text": "pastillas"}, {"type": "image_url", "image_url": {}}],
+        context={"_caller_context": {}},
+        model_fn=_explota,
+        tool_fn=tool_fn,
+        tools=TOOLS,
+        max_iterations=6,
+    )
+    assert vistas == [{"make": "pastillas"}]
 
 
 async def test_the_result_carries_the_program_that_ran():

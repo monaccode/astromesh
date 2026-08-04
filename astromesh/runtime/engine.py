@@ -13,6 +13,7 @@ from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
 from astromesh.core.schema import InvalidToolParameters, normalize_tool_parameters
 from astromesh.core.tools import ToolRegistry
+from astromesh.errors import AgentConfigError
 from astromesh.integrations import default_catalog
 from astromesh.integrations.credentials import CredentialResolver
 from astromesh.orchestration.patterns import (
@@ -73,6 +74,27 @@ def _make_builtin_handler(tool_instance, agent_name, rag_pipeline=None):
         return result.to_dict()
 
     return _handler
+
+
+def _public_caller_context(context: dict | None) -> dict:
+    """El subconjunto del context del llamador que un patrón puede ver.
+
+    Las claves con prefijo `_` son **reservadas del runtime** por convención
+    (`_provider_override`, `_history_messages`): describen cómo ejecutar la
+    corrida, no son parámetros de la invocación, y ningún patrón tiene por qué
+    leerlas.
+
+    Filtrarlas no es cosmética, es la invariante que ya declara `tool_fn` más
+    abajo — «los args se persisten en la traza y una credencial ahí quedaría
+    escrita en disco». `_provider_override` trae la API key del header
+    `X-Astromesh-Provider-Key`: si viajara dentro de `_caller_context`, un
+    programa Glyph que hiciera `f(v=context)` la mandaría a `tool_args` y la
+    traza la escribiría en disco, y un `ask("...", context=context)` la
+    serializaría al proveedor del modelo.
+    """
+    if not isinstance(context, dict):
+        return {}
+    return {k: v for k, v in context.items() if not k.startswith("_")}
 
 
 def _truncate(text: str | None, limit: int) -> str:
@@ -267,6 +289,10 @@ class AgentRuntime:
         self._rag_specs = {}
         self._agents: dict[str, Agent] = {}
         self._agent_status: dict[str, str] = {}
+        # Por qué un agente quedó en `draft` al arrancar. El log lo dice, pero el
+        # log no lo ve quien consulta la API: sin esto, un `spec.program` que no
+        # compila se manifiesta como un 404 en el primer run y nada más.
+        self._agent_errors: dict[str, str] = {}
         self._agent_configs: dict[str, dict] = {}
         self._compiled_chains: dict[str, object] = {}
         self._prompt_engine = PromptEngine()
@@ -301,15 +327,19 @@ class AgentRuntime:
             name = config.get("metadata", {}).get("name", "<unknown>")
             try:
                 agent = self._build_agent(config)
-            except Exception:
+            except Exception as exc:
                 logger.exception("Skipping agent %s: failed to build from config", name)
                 if name and name != "<unknown>":
                     self._agent_configs[name] = config
                     self._agent_status[name] = "draft"
+                    # El motivo sobrevive al log: `GET /v1/agents` lo devuelve y
+                    # `deploy` lo vuelve a producir con el mensaje del compilador.
+                    self._agent_errors[name] = f"{type(exc).__name__}: {exc}"
                 continue
             self._agents[agent.name] = agent
             self._agent_configs[name] = config
             self._agent_status[name] = "deployed"
+            self._agent_errors.pop(name, None)
 
         self._compile_chains()
 
@@ -647,16 +677,29 @@ class AgentRuntime:
         program = spec.get("program")
 
         if program is not None and pattern_name != "glyph":
-            raise ValueError(
+            raise AgentConfigError(
                 f"el agente declara `program` pero su pattern es {pattern_name!r}: "
                 "un programa Glyph sólo lo ejecuta `pattern: glyph`"
             )
 
         if pattern_name == "glyph":
+            orchestration = spec.get("orchestration", {})
             try:
-                orchestration = spec.get("orchestration", {})
                 glyph_pattern = _import_glyph_pattern(pattern_name)
-            except ImportError:
+            except ImportError as exc:
+                if program is not None:
+                    # Sin programa, caer a react es una degradación tolerable. Con
+                    # programa NO lo es: el agente pasaría de cero llamadas al
+                    # modelo a un ReAct completo —400x el costo, medido— y encima
+                    # ignorando en silencio el programa que declara su YAML. Es
+                    # exactamente el fallo silencioso que la decisión 2 del spec
+                    # prohíbe, así que acá es un error de despliegue.
+                    raise AgentConfigError(
+                        "el agente declara `program` pero el extra `glyph` no está "
+                        "instalado (pip install 'astromesh[glyph]'): un programa fijo "
+                        "no puede degradarse a `react` sin cambiar el costo de la "
+                        "corrida en dos órdenes de magnitud"
+                    ) from exc
                 logger.warning(
                     "el agente pide pattern=glyph pero el extra no está instalado "
                     "(pip install 'astromesh[glyph]'); se usa react",
@@ -701,6 +744,10 @@ class AgentRuntime:
             connections=connections,
         )
 
+    def agent_error(self, name: str) -> str | None:
+        """Por qué `name` no pudo construirse, si es que falló al arrancar."""
+        return self._agent_errors.get(name)
+
     def list_agents(self):
         result = []
         seen = set()
@@ -719,14 +766,17 @@ class AgentRuntime:
         for name, config in self._agent_configs.items():
             if name not in seen:
                 metadata = config.get("metadata", {})
-                result.append(
-                    {
-                        "name": name,
-                        "version": metadata.get("version", "0.1.0"),
-                        "namespace": metadata.get("namespace", "default"),
-                        "status": self._agent_status.get(name, "draft"),
-                    }
-                )
+                entry = {
+                    "name": name,
+                    "version": metadata.get("version", "0.1.0"),
+                    "namespace": metadata.get("namespace", "default"),
+                    "status": self._agent_status.get(name, "draft"),
+                }
+                # Sólo cuando lo hay: un draft registrado por API todavía no se
+                # intentó construir y no tiene nada que contar.
+                if (error := self._agent_errors.get(name)) is not None:
+                    entry["error"] = error
+                result.append(entry)
         return result
 
     def _agent_yaml_path(self, name: str) -> Path:
@@ -774,6 +824,7 @@ class AgentRuntime:
         agent = self._build_agent(config)
         self._agents[agent.name] = agent
         self._agent_status[name] = "deployed"
+        self._agent_errors.pop(name, None)
         self._persist_agent_yaml(name, config)
         # Una cadena registrada en caliente tiene que quedar disponible sin reiniciar.
         self._compile_chains()
@@ -803,6 +854,7 @@ class AgentRuntime:
         self._agents.pop(name, None)
         self._agent_configs.pop(name, None)
         self._agent_status.pop(name, None)
+        self._agent_errors.pop(name, None)
         self._remove_agent_yaml(name)
 
     def register_rag_pipeline(self, raw: dict) -> str:
@@ -1029,8 +1081,11 @@ class Agent:
                 # `_history_messages`. Antes se perdía acá: sólo llegaba a
                 # renderizar el prompt, así que un patrón no podía leer los
                 # parámetros de la invocación.
+                #
+                # Va filtrado: las claves `_` son del runtime, no del llamador, y
+                # `_provider_override` lleva una API key. Ver `_public_caller_context`.
                 context=(
-                    {**memory_context, "_caller_context": context or {}}
+                    {**memory_context, "_caller_context": _public_caller_context(context)}
                     if isinstance(memory_context, dict)
                     else memory_context
                 ),
@@ -1140,6 +1195,25 @@ def _import_glyph_pattern(_name: str):
     from astromesh.orchestration.glyph_pattern import GlyphPattern
 
     return GlyphPattern
+
+
+def program_error_types() -> tuple[type[BaseException], ...]:
+    """Los tipos de excepción que produce compilar un `spec.program`.
+
+    Se resuelven en runtime, no con un import arriba: `astromesh_glyph` es un
+    extra opcional y el core —incluida la app de FastAPI que importa esto— tiene
+    que seguir importando sin él. Sin el extra no hay programa que compilar, así
+    que la tupla vacía, que no atrapa nada, es la respuesta correcta.
+
+    Las rutas la usan para mapear un programa roto a **400** con el mensaje del
+    compilador (que trae la línea) en vez del 500 crudo que salía antes, porque
+    `GlyphError` no hereda de `ValueError`.
+    """
+    try:
+        from astromesh_glyph import GlyphError
+    except ImportError:
+        return ()
+    return (GlyphError,)
 
 
 def _compile_glyph_program(program: str, tool_schemas: list[dict]) -> None:

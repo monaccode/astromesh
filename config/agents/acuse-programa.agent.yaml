@@ -1,0 +1,59 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: acuse-programa
+  version: "1.0.0"
+  namespace: support
+
+spec:
+  identity:
+    display_name: "Acuse de recibo (programa fijo)"
+    description: >
+      Sella la recepción de una solicitud con la hora local del solicitante y la
+      hora UTC, y devuelve el acuse listo para el eslabón siguiente. Ejecuta un
+      programa Glyph escrito de antemano: no consulta al modelo, cero llamadas
+      por corrida.
+
+  model:
+    # Declarado por el esquema, no usado: con `program` + `narrate: false` no hay
+    # ninguna llamada al modelo en toda la corrida.
+    primary:
+      provider: ollama
+      model: "llama3.1:8b"
+      endpoint: "http://localhost:11434"
+
+  prompts:
+    system: |
+      Agente de acuse de recibo. No se usa: el programa corre sin modelo.
+
+  orchestration:
+    pattern: glyph
+    # Sin narración: el resultado se devuelve como JSON para que lo consuma otro
+    # eslabón. Con `narrate: true` habría una llamada al modelo para redactar.
+    narrate: false
+
+  # El programa lo escribió el modelo una vez (ver el ciclo de autoría en
+  # docs/GLYPH_GUIDE.md) y se fijó acá después de revisarlo. `context` son los
+  # parámetros de la invocación: se corre con
+  # `POST /v1/agents/acuse-programa/run` y `{"context": {"zona": "..."}}`.
+  #
+  # `local` y `utc` no dependen entre sí, así que el DAG las ejecuta en paralelo;
+  # `acuse` espera a las dos. Las tools son builtin y corren sin red: el ejemplo
+  # tiene que poder ejecutarse en cualquier instalación, no sólo ilustrar.
+  program: |
+    local = datetime_now(timezone=context.zona)
+    utc = datetime_now(timezone="UTC")
+    acuse = json_transform(
+        data={local, utc},
+        template="{\"hora_local\": \"{{ data.local.data.datetime }}\", \"hora_utc\": \"{{ data.utc.data.datetime }}\", \"zona\": \"{{ data.local.data.timezone }}\"}"
+    )
+    return {local, utc, acuse}
+
+  # Builtin, no `client`: una tool `client` se anuncia pero no se ejecuta —
+  # devuelve `{"ok": True}` siempre— así que un programa fijo que lea sus campos
+  # falla en el 100% de las corridas.
+  tools:
+    - name: datetime_now
+      type: builtin
+    - name: json_transform
+      type: builtin

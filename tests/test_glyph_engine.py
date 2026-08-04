@@ -81,6 +81,25 @@ def test_glyph_falls_back_to_react_when_the_extra_is_missing(monkeypatch):
     assert isinstance(pattern, ReActPattern)
 
 
+def test_a_program_without_the_extra_is_an_error_not_a_fallback(monkeypatch):
+    """Sin el extra, un agente con programa pasaba de 0 llamadas al modelo a un
+    ReAct completo sin decir nada del programa ignorado. Contradice la decisión 2
+    del spec: el costo de los dos modos difiere 400x."""
+    from astromesh.errors import AgentConfigError
+
+    runtime = AgentRuntime.__new__(AgentRuntime)
+
+    def _boom(name):
+        raise ImportError("no module named astromesh_glyph")
+
+    monkeypatch.setattr("astromesh.runtime.engine._import_glyph_pattern", _boom)
+    with pytest.raises(AgentConfigError, match="glyph"):
+        runtime._build_pattern(
+            {"orchestration": {"pattern": "glyph"}, "program": 'x = buscar(q="a")\n'},
+            _TOOLS_YAML,
+        )
+
+
 async def test_the_caller_context_reaches_the_pattern():
     """Hoy no llega: agent.run pasa memory_context al patrón, no el del llamador.
 
@@ -125,6 +144,44 @@ async def test_a_run_without_caller_context_still_gets_the_key():
     await agent.run("hola", session_id="s2")
 
     assert visto["context"]["_caller_context"] == {}
+
+
+async def test_the_reserved_keys_of_the_context_never_reach_the_pattern():
+    """`_provider_override` lleva la API key del header `X-Astromesh-Provider-Key`.
+
+    Si viajara dentro de `_caller_context`, un programa Glyph que hiciera
+    `f(v=context)` la mandaría a `tool_args` y la traza la escribiría en disco —
+    lo que el comentario de `tool_fn` declara prohibido— y un
+    `ask("...", context=context)` la serializaría al proveedor del modelo.
+    """
+    from astromesh.orchestration.patterns import OrchestrationPattern
+
+    visto = {}
+
+    class Espia(OrchestrationPattern):
+        async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
+            visto["context"] = context
+            return {"answer": "ok", "steps": []}
+
+    runtime = AgentRuntime()
+    await runtime.bootstrap()
+    agent = next(iter(runtime._agents.values()))
+    agent._pattern = Espia()
+
+    await agent.run(
+        "hola",
+        session_id="s-secreta",
+        context={
+            "order_id": "A-77",
+            "_secreta": "sk-no-debe-viajar",
+            "_provider_override": {"name": "openai", "key": "sk-tampoco"},
+        },
+    )
+
+    caller = visto["context"]["_caller_context"]
+    assert caller == {"order_id": "A-77"}
+    assert "sk-no-debe-viajar" not in str(caller)
+    assert "sk-tampoco" not in str(caller)
 
 
 async def test_the_memory_context_survives_the_new_key():
@@ -247,30 +304,86 @@ def test_an_agent_without_a_program_still_builds():
     assert pattern._program is None
 
 
-def test_the_example_agent_loads_and_carries_its_program():
-    """El ejemplo tiene que compilar de verdad, no ser prosa en un YAML."""
+_EJEMPLO = pathlib.Path("config/agents/acuse-programa.agent.yaml")
+
+
+def test_the_example_agent_declares_only_executable_tools():
+    """Una tool `client` se anuncia pero no se ejecuta: devuelve `{"ok": True}`
+    siempre (core/tools.py). Un programa fijo que lea sus campos falla en el 100%
+    de las corridas, y este agente se despliega en toda instalación."""
     import yaml
 
-    from astromesh.orchestration.glyph_pattern import GlyphPattern
+    spec = yaml.safe_load(_EJEMPLO.read_text())["spec"]
+    assert {t.get("type") for t in spec["tools"]} == {"builtin"}
 
-    spec = yaml.safe_load(
-        pathlib.Path("config/agents/devoluciones-programa.agent.yaml").read_text()
-    )["spec"]
 
-    schemas = [
-        {
-            "type": "function",
-            "function": {
-                "name": t["name"],
-                "description": t.get("description", ""),
-                "parameters": {"type": "object", "properties": t.get("parameters", {})},
-            },
-        }
-        for t in spec["tools"]
-    ]
+async def test_the_example_agent_runs_end_to_end_without_the_model():
+    """Que compile no alcanza: el ejemplo tiene que **correr**.
 
+    Se ejecuta contra el `config/` real del repo —el mismo que se empaqueta en la
+    rueda y en la imagen— con las tools builtin de verdad, y sin proveedor de
+    modelo configurado: si el programa hiciera una sola llamada al modelo, esto
+    fallaría.
+    """
+    import json
+
+    runtime = AgentRuntime()
+    await runtime.bootstrap()
+
+    assert runtime._agent_status.get("acuse-programa") == "deployed", runtime.agent_error(
+        "acuse-programa"
+    )
+
+    result = await runtime.run(
+        "acuse-programa",
+        "recibí la solicitud",
+        session_id="s-ejemplo",
+        context={"zona": "America/Argentina/Buenos_Aires"},
+    )
+
+    datos = json.loads(result["answer"])
+    assert datos["acuse"]["data"]["zona"] == "America/Argentina/Buenos_Aires"
+    assert datos["acuse"]["data"]["hora_utc"].endswith("+00:00")
+    # Las tres llamadas del programa corrieron de verdad, ninguna quedó en `{"ok": True}`.
+    acciones = [s.action for s in result["steps"] if getattr(s, "action", None)]
+    assert acciones == ["datetime_now", "datetime_now", "json_transform"]
+
+
+async def test_a_broken_program_leaves_its_reason_in_the_agent_status(tmp_path, monkeypatch):
+    """En el bootstrap el error se logueaba y nada más: el primer run daba un
+    404 "Agent not found" que no menciona la compilación. El motivo tiene que
+    poder leerse desde el estado del agente."""
+    agents = tmp_path / "agents"
+    agents.mkdir()
+    (agents / "roto.agent.yaml").write_text(
+        "apiVersion: astromesh/v1\n"
+        "kind: Agent\n"
+        "metadata:\n"
+        "  name: roto\n"
+        "spec:\n"
+        "  orchestration:\n"
+        "    pattern: glyph\n"
+        "  program: |\n"
+        "    x = inventada()\n",
+        encoding="utf-8",
+    )
+
+    runtime = AgentRuntime(config_dir=str(tmp_path))
+    await runtime.bootstrap()
+
+    assert runtime._agent_status["roto"] == "draft"
+    motivo = runtime.agent_error("roto")
+    assert motivo is not None
+    assert "no existe" in motivo
+    entrada = next(a for a in runtime.list_agents() if a["name"] == "roto")
+    assert "no existe" in entrada["error"]
+
+
+def test_a_healthy_agent_carries_no_error_in_its_listing():
+    """El campo sólo aparece cuando hay algo que contar."""
     runtime = AgentRuntime.__new__(AgentRuntime)
-    pattern = runtime._build_pattern(spec, schemas)
-    assert isinstance(pattern, GlyphPattern)
-    assert pattern._program is not None
-    assert pattern._narrate is False
+    runtime._agents = {}
+    runtime._agent_status = {"sano": "draft"}
+    runtime._agent_errors = {}
+    runtime._agent_configs = {"sano": {"metadata": {"name": "sano"}}}
+    assert "error" not in runtime.list_agents()[0]

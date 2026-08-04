@@ -106,9 +106,22 @@ class PatternCapabilities:
 class GlyphPattern(OrchestrationPattern):
     """Un programa por corrida, en vez de una acción por vuelta.
 
-    Dos llamadas al modelo en el caso feliz: una para que escriba el programa y
-    otra para que redacte la respuesta con el resultado. Un ReAct equivalente
-    gasta una por tool más la final.
+    Tres modos, según `program` y `narrate`, y el costo entre ellos difiere en
+    dos órdenes de magnitud:
+
+    | modo | llamadas al modelo en el caso feliz |
+    |---|---:|
+    | `program` fijo, `narrate=False` | **0** — el modo que justifica la feature |
+    | `program` fijo, `narrate=True` | 1 (sólo la redacción) |
+    | sin `program` (el modelo lo escribe) | 2 (escribir + redactar) |
+
+    Un ReAct equivalente gasta una llamada por tool más la final. El modo que
+    genera pierde contra ReAct en costo y latencia —está medido en
+    `bench/glyph/`— porque escribir el programa es lo más caro que hace un LLM
+    por unidad de valor; existe para producir el programa que después se fija.
+
+    Los tres modos comparten el resto del camino: mismo compilador, mismo
+    executor, misma forma de resultado (`{"answer", "steps", "glyph"}`).
     """
 
     def __init__(
@@ -134,7 +147,10 @@ class GlyphPattern(OrchestrationPattern):
         caller_context = context.get("_caller_context", {}) if isinstance(context, dict) else {}
         # Las dos variables que ve un programa. Van siempre, aunque el programa no
         # las use: el compilador las acepta como predefinidas y no cuesta nada.
-        env = {"query": query, "context": caller_context}
+        # `query` se aplana: la guía promete "el texto crudo de la consulta" y una
+        # consulta multimodal llega como lista de partes. Los mensajes al modelo
+        # siguen llevando `query` sin tocar, para no perder las partes no textuales.
+        env = {"query": _query_text(query), "context": caller_context}
 
         steps: list[AgentStep] = []
         model_calls = 0
@@ -145,7 +161,10 @@ class GlyphPattern(OrchestrationPattern):
 
         if self._program is not None:
             try:
-                graph = compile_program(parse(source), catalog, predefined=env)
+                # `tuple(env)`: el parámetro pide los *nombres* predefinidos
+                # (Iterable[str]). Pasar el dict funcionaba por iteración de
+                # claves, pero decía otra cosa.
+                graph = compile_program(parse(source), catalog, predefined=tuple(env))
                 result = await execute(graph, capabilities, initial_env=env)
             except (GlyphSyntaxError, GlyphCompileError, GlyphExecutionError) as exc:
                 failure = exc
@@ -170,7 +189,7 @@ class GlyphPattern(OrchestrationPattern):
                 source = extract_program(response.content or "")
 
                 try:
-                    graph = compile_program(parse(source), catalog, predefined=env)
+                    graph = compile_program(parse(source), catalog, predefined=tuple(env))
                     result = await execute(graph, capabilities, initial_env=env)
                     break
                 except (GlyphSyntaxError, GlyphCompileError, GlyphExecutionError) as exc:
@@ -188,16 +207,25 @@ class GlyphPattern(OrchestrationPattern):
                     ]
 
         if result is None:
+            # El estado parcial no se tira. Un fallo a mitad de la ejecución ya
+            # aplicó efectos reales —tools que corrieron, tickets abiertos— y
+            # `GlyphExecutionError.partial` los trae. Reportar `capability_calls: 0`
+            # y `steps` vacío mentía sobre lo que pasó y le quitaba a quien depura
+            # lo único que dice hasta dónde llegó la corrida.
+            partial_calls = (
+                failure.partial.calls if isinstance(failure, GlyphExecutionError) else []
+            )
             answer = (
                 f"No pudo ejecutarse el plan tras {repairs} reparación(es). Último error: {failure}"
             )
+            steps.extend(_steps_from_calls(partial_calls))
             steps.append(AgentStep(result=answer))
             return {
                 "answer": answer,
                 "steps": steps,
                 "glyph": {
                     "model_calls": model_calls,
-                    "capability_calls": 0,
+                    "capability_calls": len(partial_calls),
                     "semantic_calls": capabilities.semantic_calls,
                     "repairs": repairs,
                     "failed": True,
@@ -205,14 +233,7 @@ class GlyphPattern(OrchestrationPattern):
                 },
             }
 
-        steps.extend(
-            AgentStep(
-                action=call.capability,
-                action_input=call.args,
-                observation=str(call.result) if call.ok else f"ERROR: {call.error}",
-            )
-            for call in result.calls
-        )
+        steps.extend(_steps_from_calls(result.calls))
 
         rendered = json.dumps(result.value, ensure_ascii=False, default=str)
 
@@ -266,6 +287,35 @@ class GlyphPattern(OrchestrationPattern):
                 "program": source,
             },
         }
+
+
+def _query_text(query: Any) -> str:
+    """Aplana una consulta multimodal al texto que ve el programa.
+
+    `agent.run` pasa la consulta cruda al patrón para que un patrón que hable con
+    el modelo no pierda las partes no textuales. La variable `query` de un
+    programa Glyph, en cambio, está documentada como texto, y un programa que la
+    use como argumento de una tool no tiene qué hacer con una lista de dicts.
+    """
+    if isinstance(query, str):
+        return query
+    if isinstance(query, list):
+        return " ".join(
+            p.get("text", "") for p in query if isinstance(p, dict) and p.get("type") == "text"
+        )
+    return str(query)
+
+
+def _steps_from_calls(calls) -> list[AgentStep]:
+    """Un `AgentStep` por llamada ejecutada, sirva para el resultado o para el fallo."""
+    return [
+        AgentStep(
+            action=call.capability,
+            action_input=call.args,
+            observation=str(call.result) if call.ok else f"ERROR: {call.error}",
+        )
+        for call in calls
+    ]
 
 
 def _repair_prompt(exc: Exception) -> str:

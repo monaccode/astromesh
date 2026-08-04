@@ -7,6 +7,17 @@ import socket
 from typing import Any
 
 
+class AgentConfigError(ValueError):
+    """El YAML de un agente es inválido y por eso el agente no se puede construir.
+
+    Hereda de `ValueError` porque el camino de construcción ya se apoya en eso,
+    pero las rutas la distinguen para responder **400** (la config que mandó el
+    cliente está mal) en vez de **404** (el agente no existe). Sin esa distinción
+    un `spec.program` mal declarado salía como "Agent not found", que manda al
+    operador a buscar el problema donde no está.
+    """
+
+
 class ModelProviderError(RuntimeError):
     """All model backends failed or none are configured."""
 
