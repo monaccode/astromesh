@@ -45,6 +45,14 @@ async def invoke(self, name: str, args: dict) -> Any: ...
 Glyph no depende de ningún framework de agentes. Astromesh lo consume por
 `pattern: glyph`, pero cualquier host puede implementar el protocolo.
 
+## ¿Le conviene a tu agente?
+
+No siempre. Glyph paga un costo fijo (el bloque de gramática en el prompt) y cobra
+un beneficio que crece con el largo de la cadena: por debajo de ~5 tools sale más
+caro que un loop ReAct, y con modelos de razonamiento explícito sale mucho más
+caro. La decisión y cómo medirla están en
+[`docs/GLYPH_GUIDE.md`](../docs/GLYPH_GUIDE.md) del repo de Astromesh.
+
 ## Alcance de v0.1.0
 
 Cinco construcciones: asignación, llamada con argumentos por nombre, pipe

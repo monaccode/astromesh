@@ -4,6 +4,8 @@ Glyph es el lenguaje de acción de Astromesh: el modelo emite **un programa** en
 de N llamadas a tools, y el runtime lo ejecuta encadenando capacidades localmente.
 El ahorro viene de eliminar round-trips, no de acortar sintaxis.
 
+- **Guía práctica:** [`docs/GLYPH_GUIDE.md`](GLYPH_GUIDE.md) — cuándo conviene, cómo
+  medirlo y con qué modelo. **Empezá por acá si vas a usarlo.**
 - **Diseño:** [`docs/superpowers/specs/2026-08-03-glyph-action-language-design.md`](superpowers/specs/2026-08-03-glyph-action-language-design.md)
 - **Plan de v0.1.0:** [`docs/superpowers/plans/2026-08-03-glyph-v0.1.0.md`](superpowers/plans/2026-08-03-glyph-v0.1.0.md)
 - **Paquete:** `astromesh-glyph/` (agnóstico — no importa `astromesh`)

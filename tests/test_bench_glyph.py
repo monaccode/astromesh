@@ -163,3 +163,64 @@ def test_the_report_states_that_there_is_no_automatic_threshold():
 def test_a_scenario_measured_for_only_one_pattern_is_reported_as_incomplete():
     report = render_report([_metrics("glyph")])
     assert "incompleto" in report
+
+
+# ---- tasa de validez ---------------------------------------------------------
+
+
+def test_validity_rate_is_valid_over_samples():
+    from bench.glyph.validity import ValidityResult
+
+    assert ValidityResult(scenario="s", samples=4, valid=3).rate == 0.75
+
+
+async def test_measure_counts_a_compiling_program_as_valid():
+    from bench.glyph.fixtures import AUTOLINK
+    from bench.glyph.validity import measure
+
+    program = "```glyph\n" + AUTOLINK.reference_program + "\n```"
+    model = CountingModel(_scripted([program] * 100))
+
+    results = await measure(model, samples=2)
+    autolink = next(r for r in results if r.scenario == AUTOLINK.name)
+    assert autolink.valid == 2
+    assert autolink.errors == []
+
+
+async def test_measure_records_the_error_of_an_invalid_program():
+    from bench.glyph.validity import measure
+
+    model = CountingModel(_scripted(["```glyph\nx = = 1\n```"] * 100))
+    results = await measure(model, samples=2)
+    assert all(r.valid == 0 for r in results)
+    assert all("GlyphSyntaxError" in e for r in results for e in r.errors)
+
+
+def test_the_report_groups_repeated_errors():
+    """Un mismo fallo N veces es una señal distinta de N fallos distintos."""
+    from bench.glyph.validity import ValidityResult, render_report
+
+    report = render_report(
+        [ValidityResult(scenario="s", samples=3, valid=0, errors=["E: igual"] * 3)]
+    )
+    assert "**3x** E: igual" in report
+
+
+def test_the_report_calls_a_high_rate_apt():
+    from bench.glyph.validity import ValidityResult, render_report
+
+    assert "Apto" in render_report([ValidityResult(scenario="s", samples=10, valid=9)])
+
+
+def test_the_report_calls_a_low_rate_unfit_and_says_why():
+    from bench.glyph.validity import ValidityResult, render_report
+
+    report = render_report([ValidityResult(scenario="s", samples=10, valid=3)])
+    assert "No apto" in report
+    assert "mejor en código" in report
+
+
+def test_the_report_flags_a_middling_rate_as_borderline():
+    from bench.glyph.validity import ValidityResult, render_report
+
+    assert "Al límite" in render_report([ValidityResult(scenario="s", samples=10, valid=6)])
