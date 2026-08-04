@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `context` (el del llamador) como variables predefinidas.
 - El resultado del patrón expone `glyph.program` con el texto del programa que
   corrió, para poder capturar el que el modelo generó y fijarlo en el YAML.
+- `spec.program` en el YAML de un agente: el programa Glyph se compila contra el
+  catálogo de tools **al cargar el agente**, así que un programa roto es un fallo de
+  despliegue con línea y mensaje y no un error en la primera consulta. Declararlo con
+  un `pattern` distinto de `glyph` también impide cargar.
 
 ### Fixed
 

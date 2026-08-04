@@ -600,7 +600,9 @@ class AgentRuntime:
                     tool_def.get("name"),
                     tool_type,
                 )
-        pattern = self._build_pattern(spec)
+        pattern = self._build_pattern(
+            spec, tools.get_tool_schemas(spec.get("permissions", {}).get("allowed_actions"))
+        )
         prompts = spec.get("prompts", {})
         for name, tmpl in prompts.get("templates", {}).items():
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
@@ -622,12 +624,16 @@ class AgentRuntime:
             output_schema=normalize_output_schema(spec.get("output_schema")),
         )
 
-    def _build_pattern(self, spec: dict):
+    def _build_pattern(self, spec: dict, tool_schemas: list[dict] | None = None):
         """Instancia el patrón de orquestación declarado en el YAML.
 
         `glyph` se importa acá adentro y no arriba: `astromesh_glyph` es un extra
         opcional, y `astromesh/api/main.py` tiene que seguir importando sin extras
         o la imagen de astromesh-os no bootea.
+
+        Cuando el spec trae `program`, se compila acá contra el catálogo de tools
+        del agente. Un programa roto se convierte así en un fallo de despliegue con
+        línea y mensaje, en vez de un error en la cara del primer cliente.
         """
         pattern_map = {
             "react": ReActPattern,
@@ -638,23 +644,38 @@ class AgentRuntime:
             "swarm": SwarmPattern,
         }
         pattern_name = spec.get("orchestration", {}).get("pattern", "react")
+        program = spec.get("program")
+
+        if program is not None and pattern_name != "glyph":
+            raise ValueError(
+                f"el agente declara `program` pero su pattern es {pattern_name!r}: "
+                "un programa Glyph sólo lo ejecuta `pattern: glyph`"
+            )
 
         if pattern_name == "glyph":
             try:
                 orchestration = spec.get("orchestration", {})
-                # `narrate: false` ahorra la segunda llamada al modelo devolviendo
-                # el resultado del programa como JSON. Un agente que alimenta a
-                # otro eslabón consume `output.data`, no prosa.
-                return _import_glyph_pattern(pattern_name)(
-                    max_repairs=int(orchestration.get("max_repairs", 2)),
-                    narrate=bool(orchestration.get("narrate", True)),
-                )
+                glyph_pattern = _import_glyph_pattern(pattern_name)
             except ImportError:
                 logger.warning(
                     "el agente pide pattern=glyph pero el extra no está instalado "
                     "(pip install 'astromesh[glyph]'); se usa react",
                 )
                 return ReActPattern()
+
+            if program is not None:
+                # Compila para que un programa roto no cargue. La excepción sube:
+                # es un error de configuración y tiene que ser ruidoso.
+                _compile_glyph_program(program, tool_schemas or [])
+
+            # `narrate: false` ahorra la segunda llamada al modelo devolviendo
+            # el resultado del programa como JSON. Un agente que alimenta a
+            # otro eslabón consume `output.data`, no prosa.
+            return glyph_pattern(
+                max_repairs=int(orchestration.get("max_repairs", 2)),
+                narrate=bool(orchestration.get("narrate", True)),
+                program=program,
+            )
 
         return pattern_map.get(pattern_name, ReActPattern)()
 
@@ -1119,3 +1140,20 @@ def _import_glyph_pattern(_name: str):
     from astromesh.orchestration.glyph_pattern import GlyphPattern
 
     return GlyphPattern
+
+
+def _compile_glyph_program(program: str, tool_schemas: list[dict]) -> None:
+    """Compila un programa del YAML contra el catálogo del agente.
+
+    Import diferido por la misma razón que `_import_glyph_pattern`: el extra es
+    opcional. Deja subir `GlyphSyntaxError` / `GlyphCompileError` — un programa
+    roto tiene que impedir que el agente cargue.
+    """
+    from astromesh_glyph import compile_program, parse
+
+    from astromesh.orchestration.glyph_pattern import PatternCapabilities
+
+    catalog = PatternCapabilities(
+        tools=tool_schemas, tool_fn=None, model_fn=None
+    ).list_capabilities()
+    compile_program(parse(program), catalog, predefined=("query", "context"))

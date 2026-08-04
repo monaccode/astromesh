@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 from astromesh.orchestration.glyph_pattern import GlyphPattern
 from astromesh.orchestration.patterns import ReActPattern
 from astromesh.runtime.engine import AgentRuntime
@@ -171,3 +173,74 @@ async def test_react_still_works_with_the_new_context_key():
         tools=[],
     )
     assert result["answer"] == "listo"
+
+
+_TOOLS_YAML = [
+    {
+        "type": "function",
+        "function": {
+            "name": "buscar",
+            "description": "Busca algo",
+            "parameters": {"type": "object", "properties": {"q": {"type": "string"}}},
+        },
+    }
+]
+
+
+def test_a_valid_program_reaches_the_pattern():
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    pattern = runtime._build_pattern(
+        {"orchestration": {"pattern": "glyph"}, "program": 'x = buscar(q="a")\nreturn x\n'},
+        _TOOLS_YAML,
+    )
+    assert pattern._program == 'x = buscar(q="a")\nreturn x\n'
+
+
+def test_a_program_that_does_not_compile_stops_the_agent_from_loading():
+    """Un programa roto es un error de despliegue, no de la primera consulta."""
+    from astromesh_glyph import GlyphCompileError
+
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    with pytest.raises(GlyphCompileError, match="no existe"):
+        runtime._build_pattern(
+            {"orchestration": {"pattern": "glyph"}, "program": "x = inventada()\n"},
+            _TOOLS_YAML,
+        )
+
+
+def test_a_program_with_a_syntax_error_stops_the_agent_from_loading():
+    from astromesh_glyph import GlyphSyntaxError
+
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    with pytest.raises(GlyphSyntaxError):
+        runtime._build_pattern(
+            {"orchestration": {"pattern": "glyph"}, "program": "x = = 1\n"}, _TOOLS_YAML
+        )
+
+
+def test_the_program_may_read_query_and_context():
+    """Son predefinidas: un programa que las use tiene que compilar."""
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    pattern = runtime._build_pattern(
+        {"orchestration": {"pattern": "glyph"}, "program": "x = buscar(q=context.id)\nreturn x\n"},
+        _TOOLS_YAML,
+    )
+    assert pattern._program is not None
+
+
+def test_a_program_declared_with_another_pattern_stops_the_agent_from_loading():
+    """Es un error de configuración: el programa no se ejecutaría nunca."""
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    with pytest.raises(ValueError, match="pattern: glyph"):
+        runtime._build_pattern(
+            {"orchestration": {"pattern": "react"}, "program": "x = buscar(q=1)\n"}, _TOOLS_YAML
+        )
+
+
+def test_an_agent_without_a_program_still_builds():
+    from astromesh.orchestration.glyph_pattern import GlyphPattern
+
+    runtime = AgentRuntime.__new__(AgentRuntime)
+    pattern = runtime._build_pattern({"orchestration": {"pattern": "glyph"}}, _TOOLS_YAML)
+    assert isinstance(pattern, GlyphPattern)
+    assert pattern._program is None
