@@ -1,3 +1,10 @@
+# OJO: este workflow todavía NO puede publicar. PyPI y TestPyPI configuran el
+# trusted publisher por proyecto, y `astromesh-glyph` nunca se registró — que el
+# core tenga el suyo no se hereda. Correrlo hoy falla en `publish-testpypi` con
+# `invalid-publisher`, después de construir bien el paquete.
+#
+# Los valores exactos a cargar en las dos cuentas y el resto del procedimiento
+# están en `docs/DEBT.md`, entrada «astromesh-glyph no se publica todavía».
 name: Release Glyph
 
 on:

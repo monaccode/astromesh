@@ -19,8 +19,14 @@ spec:
     return {active, warranty}
 ```
 
-Available since astromesh **v0.39.0**. Requires the optional extra:
-`pip install 'astromesh[glyph]'`.
+Available since astromesh **v0.39.0**.
+
+:::caution[Not on PyPI yet]
+`astromesh-glyph` has not been published to PyPI yet, so `pip install
+'astromesh[glyph]'` will fail — pip ignores `[tool.uv.sources]`. Inside the
+monorepo it installs with `uv sync --extra glyph`. Tracked in
+[`docs/DEBT.md`](https://github.com/monaccode/astromesh/blob/develop/docs/DEBT.md).
+:::
 
 ## Read this first: Glyph is not a cost optimization
 

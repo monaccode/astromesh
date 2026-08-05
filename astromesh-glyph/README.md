@@ -24,6 +24,18 @@ return {oem, alt, eta}
 
 `oem` y `alt` no dependen entre sí, así que se ejecutan concurrentes.
 
+## Instalación
+
+**Todavía no está publicado en PyPI.** Por ahora se usa desde el monorepo de
+Astromesh, donde el core lo declara como extra:
+
+```bash
+uv sync --extra glyph
+```
+
+El estado de la publicación y los pasos para cerrarla están en `docs/DEBT.md` del
+repositorio.
+
 ## Uso
 
 ```python

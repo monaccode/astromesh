@@ -199,7 +199,16 @@ medimos **1 llamada al modelo contra las 4 de ReAct** en un escenario.
 compila. Cada reparación cuesta una llamada entera al modelo, así que subirlo no
 sale gratis; si necesitás más de 2, el problema es el modelo o la gramática.
 
-Requiere el extra: `pip install 'astromesh[glyph]'`. Sin él, un agente que pida
+Requiere el extra. **`astromesh-glyph` todavía no está publicado en PyPI**, así que
+hoy sólo se instala desde el monorepo:
+
+```bash
+uv sync --extra glyph
+```
+
+`pip install 'astromesh[glyph]'` va a fallar hasta que el paquete se publique —
+pip ignora `[tool.uv.sources]`. El estado y los pasos para cerrarlo están en
+[`docs/DEBT.md`](DEBT.md). Sin el extra, un agente que pida
 `pattern: glyph` cae a `react` con un warning en vez de fallar el arranque —
 **salvo que declare `spec.program`**, en cuyo caso el agente no carga (ver §3b:
 degradar un programa fijo a `react` cambia el costo de la corrida en dos órdenes

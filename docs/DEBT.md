@@ -6,6 +6,59 @@ hacer para cerrarla.
 
 ---
 
+## `astromesh-glyph` no se publica todavía — ABIERTA desde el 2026-08-04
+
+**Qué pasa:** el paquete está listo y tageado (`glyph-v0.1.0`), pero el workflow
+`release-glyph.yml` falla al publicar:
+
+```
+invalid-publisher: valid token, but no corresponding publisher
+```
+
+PyPI y TestPyPI configuran el *trusted publisher* **por proyecto**, y
+`astromesh-glyph` es un paquete nuevo que nunca se registró. Que el core tenga el
+suyo no se hereda.
+
+**Por qué se postergó:** registrar el publisher es un paso manual en la web de las
+dos cuentas, y crear un paquete público bajo la organización es una decisión que no
+corresponde tomar de apuro.
+
+**Consecuencia mientras esté abierta:** el extra `glyph` del core **no resuelve
+fuera del monorepo**. `pip install astromesh[glyph]` falla, porque pip ignora
+`[tool.uv.sources]`. Dentro del monorepo funciona con `uv sync --extra glyph`.
+
+**Esto bloquea el release del core a PyPI.** Publicar `astromesh` con un extra que
+apunta a un paquete inexistente deja una promesa rota en el `pyproject` público. La
+versión 0.39.0 está bumpeada y en `develop`, sin tagear, esperando esto.
+
+**Qué hay que hacer para cerrarla:**
+
+1. En https://test.pypi.org/manage/account/publishing/ y en
+   https://pypi.org/manage/account/publishing/, agregar un *pending publisher*:
+
+   | Campo | Valor |
+   |---|---|
+   | PyPI Project Name | `astromesh-glyph` |
+   | Owner | `monaccode` |
+   | Repository name | `astromesh` |
+   | Workflow name | `release-glyph.yml` |
+   | Environment name | `testpypi` en TestPyPI, `pypi` en PyPI |
+
+   Son los mismos valores que ya tiene `astromesh-orbit`, cambiando el nombre del
+   proyecto y del workflow.
+
+2. `gh run rerun <id>` del workflow fallido — el tag ya está pusheado, no hace
+   falta retagear.
+
+3. Verificar que quede en PyPI, y recién ahí tagear `v0.39.0` para el core.
+
+4. Revertir las notas de "todavía no publicado" en `docs/GLYPH_GUIDE.md`,
+   `docs-site/src/content/docs/configuration/glyph.md`,
+   `astromesh-glyph/README.md` y los dos warnings de
+   `astromesh/runtime/engine.py`.
+
+---
+
 ## ~~Adoptar ruff 0.16~~ — CERRADA el 2026-07-25
 
 Se adoptó 0.16 y se quitó el techo `<0.16` de los dos `pyproject.toml`.

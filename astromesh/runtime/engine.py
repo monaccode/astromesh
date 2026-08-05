@@ -696,13 +696,15 @@ class AgentRuntime:
                     # prohíbe, así que acá es un error de despliegue.
                     raise AgentConfigError(
                         "el agente declara `program` pero el extra `glyph` no está "
-                        "instalado (pip install 'astromesh[glyph]'): un programa fijo "
+                        "instalado (dentro del monorepo: `uv sync --extra glyph`; el paquete "
+                        "todavía no está en PyPI): un programa fijo "
                         "no puede degradarse a `react` sin cambiar el costo de la "
                         "corrida en dos órdenes de magnitud"
                     ) from exc
                 logger.warning(
                     "el agente pide pattern=glyph pero el extra no está instalado "
-                    "(pip install 'astromesh[glyph]'); se usa react",
+                    "(dentro del monorepo: `uv sync --extra glyph`; el paquete todavía "
+                    "no está en PyPI); se usa react",
                 )
                 return ReActPattern()
 
