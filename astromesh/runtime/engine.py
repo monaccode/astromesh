@@ -6,11 +6,14 @@ from pathlib import Path
 
 import yaml
 
+from astromesh.chain.compiler import chain_workflow_name, compile_chain
+from astromesh.chain.output import build_data, normalize_output_schema, schema_prompt_block
 from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
 from astromesh.core.schema import InvalidToolParameters, normalize_tool_parameters
 from astromesh.core.tools import ToolRegistry
+from astromesh.errors import AgentConfigError
 from astromesh.integrations import default_catalog
 from astromesh.integrations.credentials import CredentialResolver
 from astromesh.orchestration.patterns import (
@@ -71,6 +74,27 @@ def _make_builtin_handler(tool_instance, agent_name, rag_pipeline=None):
         return result.to_dict()
 
     return _handler
+
+
+def _public_caller_context(context: dict | None) -> dict:
+    """El subconjunto del context del llamador que un patrón puede ver.
+
+    Las claves con prefijo `_` son **reservadas del runtime** por convención
+    (`_provider_override`, `_history_messages`): describen cómo ejecutar la
+    corrida, no son parámetros de la invocación, y ningún patrón tiene por qué
+    leerlas.
+
+    Filtrarlas no es cosmética, es la invariante que ya declara `tool_fn` más
+    abajo — «los args se persisten en la traza y una credencial ahí quedaría
+    escrita en disco». `_provider_override` trae la API key del header
+    `X-Astromesh-Provider-Key`: si viajara dentro de `_caller_context`, un
+    programa Glyph que hiciera `f(v=context)` la mandaría a `tool_args` y la
+    traza la escribiría en disco, y un `ask("...", context=context)` la
+    serializaría al proveedor del modelo.
+    """
+    if not isinstance(context, dict):
+        return {}
+    return {k: v for k, v in context.items() if not k.startswith("_")}
 
 
 def _truncate(text: str | None, limit: int) -> str:
@@ -265,7 +289,12 @@ class AgentRuntime:
         self._rag_specs = {}
         self._agents: dict[str, Agent] = {}
         self._agent_status: dict[str, str] = {}
+        # Por qué un agente quedó en `draft` al arrancar. El log lo dice, pero el
+        # log no lo ve quien consulta la API: sin esto, un `spec.program` que no
+        # compila se manifiesta como un 404 en el primer run y nada más.
+        self._agent_errors: dict[str, str] = {}
         self._agent_configs: dict[str, dict] = {}
+        self._compiled_chains: dict[str, object] = {}
         self._prompt_engine = PromptEngine()
         self.service_manager = service_manager
         self.peer_client = peer_client
@@ -298,15 +327,46 @@ class AgentRuntime:
             name = config.get("metadata", {}).get("name", "<unknown>")
             try:
                 agent = self._build_agent(config)
-            except Exception:
+            except Exception as exc:
                 logger.exception("Skipping agent %s: failed to build from config", name)
                 if name and name != "<unknown>":
                     self._agent_configs[name] = config
                     self._agent_status[name] = "draft"
+                    # El motivo sobrevive al log: `GET /v1/agents` lo devuelve y
+                    # `deploy` lo vuelve a producir con el mensaje del compilador.
+                    self._agent_errors[name] = f"{type(exc).__name__}: {exc}"
                 continue
             self._agents[agent.name] = agent
             self._agent_configs[name] = config
             self._agent_status[name] = "deployed"
+            self._agent_errors.pop(name, None)
+
+        self._compile_chains()
+
+    def _compile_chains(self) -> None:
+        """Compila la cadena de cada agente que declare `spec.chain`.
+
+        Deliberadamente NO se atrapa la excepción: un ciclo, un max_depth excedido
+        o un agente inexistente tienen que impedir el arranque, con la ruta en el
+        mensaje. Descubrirlo a mitad de una corrida en producción sería peor.
+        """
+        self._compiled_chains = {}
+        for name in self._agent_configs:
+            wf = compile_chain(name, self._agent_configs)
+            if wf is not None:
+                self._compiled_chains[chain_workflow_name(name)] = wf
+
+    def has_chain(self, agent_name: str) -> bool:
+        return chain_workflow_name(agent_name) in self._compiled_chains
+
+    @property
+    def agent_configs(self) -> dict:
+        """Configs crudos de los agentes; los usa la ruta para leer `spec.chain`."""
+        return self._agent_configs
+
+    def compiled_chains(self) -> dict:
+        """{nombre de workflow: WorkflowSpec} de las cadenas compiladas."""
+        return dict(self._compiled_chains)
 
     def _detect_circular_refs(self, configs: list[dict]):
         """Detect circular agent-as-tool references. Raises ValueError if cycle found."""
@@ -570,17 +630,9 @@ class AgentRuntime:
                     tool_def.get("name"),
                     tool_type,
                 )
-        pattern_map = {
-            "react": ReActPattern,
-            "plan_and_execute": PlanAndExecutePattern,
-            "parallel_fan_out": ParallelFanOutPattern,
-            "pipeline": PipelinePattern,
-            "supervisor": SupervisorPattern,
-            "swarm": SwarmPattern,
-        }
-        pattern_name = spec.get("orchestration", {}).get("pattern", "react")
-        pattern_cls = pattern_map.get(pattern_name, ReActPattern)
-        pattern = pattern_cls()
+        pattern = self._build_pattern(
+            spec, tools.get_tool_schemas(spec.get("permissions", {}).get("allowed_actions"))
+        )
         prompts = spec.get("prompts", {})
         for name, tmpl in prompts.get("templates", {}).items():
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
@@ -599,7 +651,78 @@ class AgentRuntime:
             permissions=spec.get("permissions", {}),
             orchestration_config=spec.get("orchestration", {}),
             rag=rag,
+            output_schema=normalize_output_schema(spec.get("output_schema")),
         )
+
+    def _build_pattern(self, spec: dict, tool_schemas: list[dict] | None = None):
+        """Instancia el patrón de orquestación declarado en el YAML.
+
+        `glyph` se importa acá adentro y no arriba: `astromesh_glyph` es un extra
+        opcional, y `astromesh/api/main.py` tiene que seguir importando sin extras
+        o la imagen de astromesh-os no bootea.
+
+        Cuando el spec trae `program`, se compila acá contra el catálogo de tools
+        del agente. Un programa roto se convierte así en un fallo de despliegue con
+        línea y mensaje, en vez de un error en la cara del primer cliente.
+        """
+        pattern_map = {
+            "react": ReActPattern,
+            "plan_and_execute": PlanAndExecutePattern,
+            "parallel_fan_out": ParallelFanOutPattern,
+            "pipeline": PipelinePattern,
+            "supervisor": SupervisorPattern,
+            "swarm": SwarmPattern,
+        }
+        pattern_name = spec.get("orchestration", {}).get("pattern", "react")
+        program = spec.get("program")
+
+        if program is not None and pattern_name != "glyph":
+            raise AgentConfigError(
+                f"el agente declara `program` pero su pattern es {pattern_name!r}: "
+                "un programa Glyph sólo lo ejecuta `pattern: glyph`"
+            )
+
+        if pattern_name == "glyph":
+            orchestration = spec.get("orchestration", {})
+            try:
+                glyph_pattern = _import_glyph_pattern(pattern_name)
+            except ImportError as exc:
+                if program is not None:
+                    # Sin programa, caer a react es una degradación tolerable. Con
+                    # programa NO lo es: el agente pasaría de cero llamadas al
+                    # modelo a un ReAct completo —400x el costo, medido— y encima
+                    # ignorando en silencio el programa que declara su YAML. Es
+                    # exactamente el fallo silencioso que la decisión 2 del spec
+                    # prohíbe, así que acá es un error de despliegue.
+                    raise AgentConfigError(
+                        "el agente declara `program` pero el extra `glyph` no está "
+                        "instalado (dentro del monorepo: `uv sync --extra glyph`; el paquete "
+                        "todavía no está en PyPI): un programa fijo "
+                        "no puede degradarse a `react` sin cambiar el costo de la "
+                        "corrida en dos órdenes de magnitud"
+                    ) from exc
+                logger.warning(
+                    "el agente pide pattern=glyph pero el extra no está instalado "
+                    "(dentro del monorepo: `uv sync --extra glyph`; el paquete todavía "
+                    "no está en PyPI); se usa react",
+                )
+                return ReActPattern()
+
+            if program is not None:
+                # Compila para que un programa roto no cargue. La excepción sube:
+                # es un error de configuración y tiene que ser ruidoso.
+                _compile_glyph_program(program, tool_schemas or [])
+
+            # `narrate: false` ahorra la segunda llamada al modelo devolviendo
+            # el resultado del programa como JSON. Un agente que alimenta a
+            # otro eslabón consume `output.data`, no prosa.
+            return glyph_pattern(
+                max_repairs=int(orchestration.get("max_repairs", 2)),
+                narrate=bool(orchestration.get("narrate", True)),
+                program=program,
+            )
+
+        return pattern_map.get(pattern_name, ReActPattern)()
 
     async def run(
         self,
@@ -623,6 +746,10 @@ class AgentRuntime:
             connections=connections,
         )
 
+    def agent_error(self, name: str) -> str | None:
+        """Por qué `name` no pudo construirse, si es que falló al arrancar."""
+        return self._agent_errors.get(name)
+
     def list_agents(self):
         result = []
         seen = set()
@@ -641,14 +768,17 @@ class AgentRuntime:
         for name, config in self._agent_configs.items():
             if name not in seen:
                 metadata = config.get("metadata", {})
-                result.append(
-                    {
-                        "name": name,
-                        "version": metadata.get("version", "0.1.0"),
-                        "namespace": metadata.get("namespace", "default"),
-                        "status": self._agent_status.get(name, "draft"),
-                    }
-                )
+                entry = {
+                    "name": name,
+                    "version": metadata.get("version", "0.1.0"),
+                    "namespace": metadata.get("namespace", "default"),
+                    "status": self._agent_status.get(name, "draft"),
+                }
+                # Sólo cuando lo hay: un draft registrado por API todavía no se
+                # intentó construir y no tiene nada que contar.
+                if (error := self._agent_errors.get(name)) is not None:
+                    entry["error"] = error
+                result.append(entry)
         return result
 
     def _agent_yaml_path(self, name: str) -> Path:
@@ -696,7 +826,10 @@ class AgentRuntime:
         agent = self._build_agent(config)
         self._agents[agent.name] = agent
         self._agent_status[name] = "deployed"
+        self._agent_errors.pop(name, None)
         self._persist_agent_yaml(name, config)
+        # Una cadena registrada en caliente tiene que quedar disponible sin reiniciar.
+        self._compile_chains()
 
     def pause_agent(self, name: str) -> None:
         """Pause a deployed agent, removing it from active execution."""
@@ -723,6 +856,7 @@ class AgentRuntime:
         self._agents.pop(name, None)
         self._agent_configs.pop(name, None)
         self._agent_status.pop(name, None)
+        self._agent_errors.pop(name, None)
         self._remove_agent_yaml(name)
 
     def register_rag_pipeline(self, raw: dict) -> str:
@@ -753,6 +887,7 @@ class Agent:
         permissions,
         orchestration_config,
         rag=None,
+        output_schema=None,
     ):
         self.name = name
         self.version = version
@@ -768,6 +903,7 @@ class Agent:
         self._prompt_engine = prompt_engine
         self._guardrails = guardrails
         self._permissions = permissions
+        self._output_schema = output_schema
         self._orchestration_config = orchestration_config
 
     async def run(
@@ -813,6 +949,10 @@ class Agent:
                 self._system_prompt,
                 {**(context or {}), "memory": memory_context, "knowledge": knowledge_context},
             )
+            if self._output_schema:
+                # Ningún provider del repo soporta response_format/json_schema, así
+                # que la forma se pide por prompt y se parsea de la respuesta.
+                rendered_prompt += schema_prompt_block(self._output_schema)
             tracing.finish_span(prompt_span)
 
             tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
@@ -938,7 +1078,19 @@ class Agent:
             )
             result = await self._pattern.execute(
                 query=query,
-                context=memory_context,
+                # El context del llamador viaja al patrón dentro del dict que ya
+                # va, bajo una clave reservada — misma convención que
+                # `_history_messages`. Antes se perdía acá: sólo llegaba a
+                # renderizar el prompt, así que un patrón no podía leer los
+                # parámetros de la invocación.
+                #
+                # Va filtrado: las claves `_` son del runtime, no del llamador, y
+                # `_provider_override` lleva una API key. Ver `_public_caller_context`.
+                context=(
+                    {**memory_context, "_caller_context": _public_caller_context(context)}
+                    if isinstance(memory_context, dict)
+                    else memory_context
+                ),
                 model_fn=model_fn,
                 tool_fn=tool_fn,
                 tools=tool_schemas,
@@ -996,6 +1148,14 @@ class Agent:
             tracing.finish_span(persist_span)
 
             tracing.finish_span(root_span)
+            if self._output_schema:
+                data, data_error = build_data(result.get("answer", ""), self._output_schema)
+                result["data"] = data
+                result["data_error"] = data_error
+                root_span.set_attribute("output_data_ok", data_error is None)
+                if data_error:
+                    root_span.set_attribute("output_data_error", data_error)
+
             result["trace"] = tracing.to_dict()
             logger.debug(
                 "agent.run %s finished answer_chars=%d steps=%d",
@@ -1030,3 +1190,46 @@ class Agent:
                     _m2.flush()
             except Exception:
                 logger.debug("agent-egress flush failed", exc_info=True)
+
+
+def _import_glyph_pattern(_name: str):
+    """Import indirecto para que los tests puedan simular la ausencia del extra."""
+    from astromesh.orchestration.glyph_pattern import GlyphPattern
+
+    return GlyphPattern
+
+
+def program_error_types() -> tuple[type[BaseException], ...]:
+    """Los tipos de excepción que produce compilar un `spec.program`.
+
+    Se resuelven en runtime, no con un import arriba: `astromesh_glyph` es un
+    extra opcional y el core —incluida la app de FastAPI que importa esto— tiene
+    que seguir importando sin él. Sin el extra no hay programa que compilar, así
+    que la tupla vacía, que no atrapa nada, es la respuesta correcta.
+
+    Las rutas la usan para mapear un programa roto a **400** con el mensaje del
+    compilador (que trae la línea) en vez del 500 crudo que salía antes, porque
+    `GlyphError` no hereda de `ValueError`.
+    """
+    try:
+        from astromesh_glyph import GlyphError
+    except ImportError:
+        return ()
+    return (GlyphError,)
+
+
+def _compile_glyph_program(program: str, tool_schemas: list[dict]) -> None:
+    """Compila un programa del YAML contra el catálogo del agente.
+
+    Import diferido por la misma razón que `_import_glyph_pattern`: el extra es
+    opcional. Deja subir `GlyphSyntaxError` / `GlyphCompileError` — un programa
+    roto tiene que impedir que el agente cargue.
+    """
+    from astromesh_glyph import compile_program, parse
+
+    from astromesh.orchestration.glyph_pattern import PatternCapabilities
+
+    catalog = PatternCapabilities(
+        tools=tool_schemas, tool_fn=None, model_fn=None
+    ).list_capabilities()
+    compile_program(parse(program), catalog, predefined=("query", "context"))

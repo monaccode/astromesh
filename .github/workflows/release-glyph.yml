@@ -1,0 +1,169 @@
+# OJO: este workflow todavía NO puede publicar. PyPI y TestPyPI configuran el
+# trusted publisher por proyecto, y `astromesh-glyph` nunca se registró — que el
+# core tenga el suyo no se hereda. Correrlo hoy falla en `publish-testpypi` con
+# `invalid-publisher`, después de construir bien el paquete.
+#
+# Los valores exactos a cargar en las dos cuentas y el resto del procedimiento
+# están en `docs/DEBT.md`, entrada «astromesh-glyph no se publica todavía».
+name: Release Glyph
+
+on:
+  push:
+    tags:
+      - "glyph-v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: read
+
+jobs:
+  build-glyph:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate Glyph tag and package versions
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#glyph-v}"
+          PYPROJECT_VERSION="$(python3 - <<'PY'
+          import pathlib
+          import tomllib
+
+          data = tomllib.loads(pathlib.Path("astromesh-glyph/pyproject.toml").read_text(encoding="utf-8"))
+          print(data["project"]["version"])
+          PY
+          )"
+          INIT_VERSION="$(python3 - <<'PY'
+          import pathlib
+          import re
+
+          text = pathlib.Path("astromesh-glyph/astromesh_glyph/__init__.py").read_text(encoding="utf-8")
+          match = re.search(r'__version__\s*=\s*"([^"]+)"', text)
+          if not match:
+              raise SystemExit("Missing __version__ in astromesh_glyph/__init__.py")
+          print(match.group(1))
+          PY
+          )"
+
+          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
+            echo "::error::Tag version glyph-v$TAG_VERSION does not match astromesh-glyph/pyproject.toml ($PYPROJECT_VERSION)"
+            exit 1
+          fi
+
+          if [ "$PYPROJECT_VERSION" != "$INIT_VERSION" ]; then
+            echo "::error::Version mismatch between pyproject ($PYPROJECT_VERSION) and __init__.py ($INIT_VERSION)"
+            exit 1
+          fi
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+          python -m build astromesh-glyph --sdist --wheel --outdir dist-glyph
+
+      - name: Upload Glyph distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: glyph-dist
+          path: dist-glyph/*
+
+  publish-testpypi:
+    needs: build-glyph
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: testpypi
+
+    steps:
+      - name: Download Glyph distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: glyph-dist
+          path: dist-glyph
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist-glyph
+
+  smoke-test-testpypi:
+    needs: publish-testpypi
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Glyph from TestPyPI (with retry for indexing delay)
+        run: |
+          GLYPH_VERSION="${GITHUB_REF_NAME#glyph-v}"
+          python -m pip install --upgrade pip
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i: installing astromesh-glyph==${GLYPH_VERSION}"
+            python -m pip install \
+              --prefer-binary \
+              --only-binary=:all: \
+              --index-url https://pypi.org/simple \
+              --extra-index-url https://test.pypi.org/simple \
+              "astromesh-glyph==${GLYPH_VERSION}" && break
+            echo "Not yet available, waiting 30s..."
+            sleep 30
+          done
+
+      # El humo prueba el camino completo del lenguaje, no sólo el import: si el
+      # wheel se publicara sin el parser o sin el runtime, un `import` pelado no
+      # lo notaría.
+      - name: Verify the language works end to end
+        run: |
+          python -c "from astromesh_glyph import __version__; print(__version__)"
+          python - <<'PY'
+          import asyncio
+
+          from astromesh_glyph import CapabilitySpec, compile_program, execute, parse
+
+          CAPS = [CapabilitySpec(name="echo", description="", parameters={})]
+
+          class Provider:
+              def list_capabilities(self):
+                  return CAPS
+
+              async def invoke(self, name, args):
+                  return args
+
+          graph = compile_program(parse('a = echo(v=marca)\nreturn a\n'), CAPS, predefined=["marca"])
+          result = asyncio.run(execute(graph, Provider(), initial_env={"marca": "Toyota"}))
+          assert result.value == {"v": "Toyota"}, result.value
+          print("parse + compile + execute OK")
+          PY
+
+  publish-pypi:
+    needs: smoke-test-testpypi
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: pypi
+
+    steps:
+      - name: Download Glyph distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: glyph-dist
+          path: dist-glyph
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist-glyph

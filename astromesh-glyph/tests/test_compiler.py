@@ -1,0 +1,193 @@
+import pytest
+
+from astromesh_glyph.capabilities import CapabilitySpec
+from astromesh_glyph.errors import GlyphCompileError
+from astromesh_glyph.plan.compiler import compile_program
+from astromesh_glyph.syntax.parser import parse
+
+CAPS = [
+    CapabilitySpec(
+        name="search",
+        description="busca repuestos",
+        parameters={
+            "type": "object",
+            "properties": {"make": {"type": "string"}, "year": {"type": "integer"}},
+            "required": ["make"],
+        },
+    ),
+    CapabilitySpec(
+        name="restock",
+        description="consulta reposición",
+        parameters={"type": "object", "properties": {"sku": {"type": "string"}}},
+    ),
+    CapabilitySpec(name="ask", description="pregunta al modelo", parameters={}, is_semantic=True),
+]
+
+
+def _compile(source):
+    return compile_program(parse(source), CAPS)
+
+
+def test_independent_statements_do_not_depend_on_each_other():
+    graph = _compile('a = search(make="T")\nb = search(make="H")\n')
+    assert [node.depends_on for node in graph.nodes] == [frozenset(), frozenset()]
+
+
+def test_a_statement_depends_on_the_variables_it_reads():
+    graph = _compile('v = search(make="T")\nx = v | top(1)\n')
+    assert graph.nodes[1].depends_on == frozenset({"v"})
+
+
+def test_produces_records_the_assigned_name():
+    graph = _compile('v = search(make="T")\n')
+    assert graph.nodes[0].produces == frozenset({"v"})
+
+
+def test_a_bare_call_produces_nothing():
+    graph = _compile('restock(sku="a")\n')
+    assert graph.nodes[0].produces == frozenset()
+
+
+def test_an_if_declares_everything_its_branches_may_write():
+    """Aunque la rama no corra: si no, los nodos que leen `r` esperan para siempre."""
+    graph = _compile(
+        'v = search(make="T")\n'
+        "if v.empty:\n"
+        '    r = restock(sku="a")\n'
+        "else:\n"
+        '    s = restock(sku="b")\n'
+    )
+    assert graph.nodes[1].produces == frozenset({"r", "s"})
+
+
+def test_the_same_name_may_be_bound_in_both_branches():
+    """No es reasignar: corre una rama sola. Es el patrón más natural que hay."""
+    graph = _compile(
+        'v = search(make="T")\n'
+        "if v.empty:\n"
+        '    r = restock(sku="a")\n'
+        "else:\n"
+        '    r = restock(sku="b")\n'
+        "return {r}\n"
+    )
+    assert graph.nodes[1].produces == frozenset({"r"})
+    assert graph.nodes[2].depends_on == frozenset({"r"})
+
+
+def test_reassignment_inside_a_single_branch_is_still_rejected():
+    with pytest.raises(GlyphCompileError, match="ya está ligada"):
+        _compile(
+            'v = search(make="T")\n'
+            "if v.empty:\n"
+            '    r = restock(sku="a")\n'
+            '    r = restock(sku="b")\n'
+        )
+
+
+def test_a_branch_cannot_rebind_a_name_from_an_outer_statement():
+    with pytest.raises(GlyphCompileError, match="ya está ligada"):
+        _compile('v = search(make="T")\nif v.empty:\n    v = search(make="H")\n')
+
+
+def test_if_depends_on_the_variables_of_its_test_and_its_body():
+    graph = _compile('v = search(make="T")\nif v.empty:\n    r = restock(sku="a")\n')
+    assert graph.nodes[1].depends_on == frozenset({"v"})
+
+
+def test_names_bound_inside_an_if_are_visible_afterwards():
+    graph = _compile('v = search(make="T")\nif v.empty:\n    r = restock(sku="a")\nreturn {r}\n')
+    assert graph.nodes[2].depends_on == frozenset({"r"})
+
+
+def test_unknown_capability_is_rejected_with_the_line():
+    with pytest.raises(GlyphCompileError, match="no existe") as exc:
+        _compile('a = search(make="T")\nb = inventar(x=1)\n')
+    assert exc.value.line == 2
+
+
+def test_unknown_keyword_argument_is_rejected():
+    with pytest.raises(GlyphCompileError, match="no acepta el argumento `color`"):
+        _compile('a = search(make="T", color="rojo")\n')
+
+
+def test_missing_required_argument_is_rejected():
+    with pytest.raises(GlyphCompileError, match="requiere `make`"):
+        _compile("a = search(year=2019)\n")
+
+
+def test_positional_arguments_to_a_capability_are_rejected():
+    with pytest.raises(GlyphCompileError, match="por nombre"):
+        _compile('a = search("Toyota")\n')
+
+
+def test_undefined_variable_is_rejected():
+    with pytest.raises(GlyphCompileError, match="no está definida"):
+        _compile("a = search(make=marca)\n")
+
+
+def test_reassignment_is_rejected():
+    with pytest.raises(GlyphCompileError, match="ya está ligada"):
+        _compile('a = search(make="T")\na = search(make="H")\n')
+
+
+def test_unknown_pipe_stage_is_rejected():
+    with pytest.raises(GlyphCompileError, match="etapa"):
+        _compile('a = search(make="T")\nb = a | ordenar(1)\n')
+
+
+def test_piping_a_capability_teaches_how_to_call_it():
+    """El modelo trata las capacidades como tablas; el error tiene que enseñar."""
+    with pytest.raises(GlyphCompileError) as exc:
+        _compile('a = search | where(make == "T")\n')
+    mensaje = str(exc.value)
+    assert "es una capacidad, no una colección" in mensaje
+    assert "search(make=..., year=...)" in mensaje
+
+
+def test_a_capability_call_inside_a_stage_is_validated():
+    """`map({g: inventada(...)})` tiene que fallar en compilación, no en runtime."""
+    with pytest.raises(GlyphCompileError, match="no existe"):
+        _compile('v = search(make="T")\nx = v | map({g: inventada(sku=sku)})\n')
+
+
+def test_a_valid_capability_call_inside_a_stage_compiles():
+    graph = _compile('v = search(make="T")\nx = v | map({g: restock(sku=sku)})\n')
+    # Los campos del elemento no son dependencias del nodo: `sku` sale del ítem.
+    assert graph.nodes[1].depends_on == frozenset({"v"})
+
+
+def test_a_bad_argument_inside_a_stage_call_is_rejected():
+    with pytest.raises(GlyphCompileError, match="no acepta el argumento `color`"):
+        _compile('v = search(make="T")\nx = v | map({g: restock(color="rojo")})\n')
+
+
+def test_builtin_stages_are_not_looked_up_as_capabilities():
+    graph = _compile('a = search(make="T")\nb = a | where(kind == "oem") | top(3, by=rating)\n')
+    assert graph.nodes[1].depends_on == frozenset({"a"})
+
+
+def test_dependents_lists_the_nodes_that_read_a_node_output():
+    graph = _compile('v = search(make="T")\nx = v | top(1)\n')
+    assert graph.dependents(graph.nodes[0].id) == (graph.nodes[1].id,)
+
+
+def test_a_predefined_name_is_not_undefined():
+    """El host puede ligar variables antes de que el programa corra."""
+    graph = compile_program(parse("a = search(make=marca)\n"), CAPS, predefined=["marca"])
+    assert graph.nodes[0].depends_on == frozenset({"marca"})
+
+
+def test_a_predefined_name_that_was_not_declared_is_still_rejected():
+    with pytest.raises(GlyphCompileError, match="no está definida"):
+        compile_program(parse("a = search(make=marca)\n"), CAPS, predefined=["otra"])
+
+
+def test_a_program_cannot_rebind_a_predefined_name():
+    """Ligar `query` de nuevo escondería el valor que el host inyectó."""
+    with pytest.raises(GlyphCompileError, match="ya está ligada"):
+        compile_program(parse('query = search(make="T")\n'), CAPS, predefined=["query"])
+
+
+def test_predefined_defaults_to_nothing():
+    with pytest.raises(GlyphCompileError, match="no está definida"):
+        compile_program(parse("a = search(make=marca)\n"), CAPS)

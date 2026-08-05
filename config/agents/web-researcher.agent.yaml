@@ -1,0 +1,36 @@
+apiVersion: astromesh/v1
+kind: Agent
+metadata:
+  name: web-researcher
+  version: "1.0.0"
+  namespace: sales
+  labels:
+    team: revenue
+
+spec:
+  identity:
+    display_name: "Web Researcher"
+    description: "Reúne contexto público sobre una empresa antes de calificarla"
+
+  model:
+    primary:
+      provider: ollama
+      model: "llama3.1:8b"
+      endpoint: "http://localhost:11434"
+      parameters:
+        temperature: 0.2
+        max_tokens: 2048
+
+  prompts:
+    system: |
+      Reunís contexto público sobre una empresa: rubro, tamaño aproximado,
+      señales de crecimiento y cualquier indicio de que necesiten la solución.
+
+      Distinguí siempre lo que verificaste de lo que estás infiriendo. Si no
+      encontrás algo, decilo — un dato inventado hace que la calificación
+      siguiente sea peor que no tener nada.
+
+  orchestration:
+    pattern: react
+    max_iterations: 5
+    timeout_seconds: 90

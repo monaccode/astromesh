@@ -49,7 +49,13 @@ app.command("ask")(ask.ask_command)
 @app.command()
 def version():
     """Show astromesh version."""
-    typer.echo(f"astromesh {__version__}")
+    from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+    typer.echo(f"astromesh-cli {__version__}")
+    try:
+        typer.echo(f"astromesh core {_pkg_version('astromesh')}")
+    except PackageNotFoundError:
+        typer.echo("astromesh core (not installed)")
 
 
 # Plugin discovery — after all static registrations

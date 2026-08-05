@@ -35,7 +35,7 @@ wheels = [
 
 [[package]]
 name = "astromesh"
-version = "0.37.0"
+version = "0.39.0"
 source = { editable = "../" }
 dependencies = [
     { name = "fastapi" },
@@ -50,7 +50,8 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite", marker = "extra == 'sqlite'", specifier = ">=0.20.0" },
-    { name = "astromesh", extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss", "embeddings", "onnx", "observability", "mcp", "mesh", "litellm", "centinela"], marker = "extra == 'all'" },
+    { name = "astromesh", extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss", "embeddings", "onnx", "observability", "mcp", "mesh", "litellm", "centinela", "glyph"], marker = "extra == 'all'" },
+    { name = "astromesh-glyph", marker = "extra == 'glyph'", editable = "../astromesh-glyph" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.30.0" },
     { name = "chromadb", marker = "extra == 'chromadb'", specifier = ">=0.5.0" },
     { name = "faiss-cpu", marker = "extra == 'faiss'", specifier = ">=1.8.0" },
@@ -75,7 +76,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'ml'", specifier = ">=2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
 ]
-provides-extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss", "embeddings", "onnx", "ml", "observability", "mcp", "mesh", "litellm", "centinela", "all"]
+provides-extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss", "embeddings", "onnx", "ml", "observability", "mcp", "mesh", "litellm", "centinela", "glyph", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -94,7 +95,7 @@ dev = [
 
 [[package]]
 name = "astromesh-cli"
-version = "0.1.1"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "astromesh" },

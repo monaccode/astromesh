@@ -90,6 +90,55 @@ async def test_deploy_nonexistent_returns_404(mock_runtime):
     assert resp.status_code == 404
 
 
+async def test_deploy_with_a_program_that_does_not_compile_returns_400(mock_runtime):
+    """`GlyphCompileError` no hereda de ValueError, así que la ruta —que sólo
+    atrapaba ValueError— devolvía un 500 crudo. Es config inválida del cliente,
+    y el mensaje del compilador trae la línea."""
+    from astromesh_glyph import GlyphCompileError
+
+    mock_runtime.deploy_agent.side_effect = GlyphCompileError("la capacidad `x` no existe", line=3)
+    async with (
+        LifespanManager(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        resp = await client.post("/v1/agents/test-agent/deploy")
+    assert resp.status_code == 400
+    detalle = resp.json()["detail"]
+    assert "no existe" in detalle
+    assert "línea 3" in detalle
+
+
+async def test_deploy_with_a_program_syntax_error_returns_400(mock_runtime):
+    from astromesh_glyph import GlyphSyntaxError
+
+    mock_runtime.deploy_agent.side_effect = GlyphSyntaxError("token inesperado", line=2, column=5)
+    async with (
+        LifespanManager(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        resp = await client.post("/v1/agents/test-agent/deploy")
+    assert resp.status_code == 400
+    assert "línea 2" in resp.json()["detail"]
+
+
+async def test_deploy_with_an_invalid_agent_config_returns_400_not_404(mock_runtime):
+    """Un `spec.program` declarado con otro pattern es config mal escrita, no un
+    agente inexistente: mandar al operador a buscar un 404 lo manda al lugar
+    equivocado."""
+    from astromesh.errors import AgentConfigError
+
+    mock_runtime.deploy_agent.side_effect = AgentConfigError(
+        "el agente declara `program` pero su pattern es 'react'"
+    )
+    async with (
+        LifespanManager(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        resp = await client.post("/v1/agents/test-agent/deploy")
+    assert resp.status_code == 400
+    assert "program" in resp.json()["detail"]
+
+
 async def test_put_agent_no_runtime():
     agents_route.set_runtime(None)
     async with (

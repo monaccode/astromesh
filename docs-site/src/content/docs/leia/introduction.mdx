@@ -6,7 +6,7 @@ description: A Claude Code plugin that turns plain English into deployed AI agen
 import { Aside } from '@astrojs/starlight/components';
 
 <Aside type="caution">
-**v0.1.0 · Claude Code plugin.** Leia is pre-1.0 and targets Nexus `0.3.x`. Commands and template schemas may change between minor releases.
+**v0.4.0 · Claude Code plugin.** Leia is pre-1.0 and targets Nexus `0.3.x` with astromesh core `0.29`–`0.36.x`. Commands and template schemas may change between minor releases.
 </Aside>
 
 **Astromesh Leia** is a [Claude Code](https://claude.com/claude-code) plugin that gives you a natural-language interface — `/leia ...` slash commands — for creating, deploying, and managing AI agents on [astromesh-nexus](/astromesh/nexus/introduction/) Kubernetes clusters. The goal is simple: go from a business idea to a deployed WhatsApp agent in minutes, with no Kubernetes expertise required.
@@ -24,7 +24,28 @@ Leia is named after a lemon beagle — approachable, loyal, and friendly. That p
 
 - It is **not a SaaS** — it runs locally inside your Claude Code CLI.
 - It is **not a no-code GUI** — it is a conversational command-line plugin.
-- It is **not an agent framework** — the agents it builds *run on* [Nexus](/astromesh/nexus/introduction/) and its per-tenant nodes, not inside Leia.
+- It is **not an agent framework** — the agents it builds *run on* [Nexus](/astromesh/nexus/introduction/) and the Astromesh runtime, not inside Leia.
+
+## What's new
+
+Leia's value is the *knowledge* it carries: the architect subagent can only emit manifests as correct as the schemas bundled with the plugin. Each release syncs that knowledge to a newer core.
+
+### v0.4.0 — synced to core v0.36.0
+
+The largest knowledge jump so far, covering six core releases (v0.29 → v0.36):
+
+- **Tool-type clarity.** Only `builtin`, `agent` and `client` load from agent YAML. The architect now offers `client` tools as its primary recommendation and never emits the non-loadable types (`internal`, `webhook`, `rag`, `mcp_*`) it used to suggest.
+- **Model-block consumption matrix.** Which keys each source actually reads — Ollama's nested `options` and `num_predict`, `timeout` honoured on `openai_compat`, `litellm` ignoring `endpoint`. Unconsumed keys now produce a warning instead of being silently dropped.
+- **Streaming contract and usage accounting.** The on-wire `tool_call`/`tool_result` protocol and `usage.by_model` for per-model cost tracking within a run.
+- **Nexus API coverage.** RAG pipeline CRUD and the workflow-registration endpoint.
+
+### v0.3.0 — per-role models
+
+Taught the plugin the `spec.model.default` + `roles` shape, the `litellm` cloud multi-provider source, the role vocabulary each orchestration pattern requests, and `orchestration.role_map`. The architect can now bind a strong cloud planner to one role and a cheap local worker to another.
+
+### v0.2.1 — Moonshot / Kimi
+
+The Moonshot provider recipe via `openai_compat`, including the thinking-model behaviour and cache-aware pricing.
 
 ## Architecture
 

@@ -5,6 +5,131 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.39.0] - 2026-08-04
+
+> **`pip install astromesh[all]` no resuelve en esta versión.** El extra `glyph`
+> referencia `astromesh-glyph`, que todavía no está publicado en PyPI —falta
+> registrar su trusted publisher—, y `all` incluye a `glyph`. Hasta que el paquete
+> se publique, instalá los extras que necesites por nombre en vez de `all`, o usá
+> `uv sync --extra all` dentro del monorepo, donde resuelve por path source.
+> Seguimiento en `docs/DEBT.md`.
+
+### Added (Backend)
+
+- Extra opcional `glyph` y adapter `PatternCapabilities`, que expone las tools de un
+  agente y una capacidad sintética `ask` al lenguaje de acción `astromesh-glyph`.
+- `GlyphPattern`: patrón de orquestación que pide un programa Glyph al modelo, lo
+  compila, lo ejecuta con las sentencias independientes en paralelo y repara hasta
+  dos veces devolviendo el estado parcial al modelo.
+- `pattern: glyph` disponible en `spec.orchestration` de cualquier agente. Si el extra
+  `glyph` no está instalado, el agente cae a `react` con un warning en vez de fallar
+  el bootstrap — **salvo que declare `spec.program`**, porque degradar un programa fijo
+  a `react` cambia el costo de la corrida en dos órdenes de magnitud.
+- Benchmark `bench/glyph/`: mide `pattern: glyph` contra `pattern: react` sobre
+  escenarios de `autolink-parts` y `support-agent` con tools mockeadas deterministas,
+  reportando tokens, llamadas al modelo, latencia, correctitud y tasa de programas
+  inválidos. Corre nightly.
+- `GlyphPattern(program=...)`: un agente puede traer su programa Glyph ya escrito y
+  ejecutarlo con **cero llamadas al modelo**. El 98% del costo del patrón era el
+  modelo reescribiendo el mismo programa en cada corrida. El programa lee `query` y
+  `context` (el del llamador) como variables predefinidas.
+- El resultado del patrón expone `glyph.program` con el texto del programa que
+  corrió, para poder capturar el que el modelo generó y fijarlo en el YAML.
+- `spec.program` en el YAML de un agente: el programa Glyph se compila contra el
+  catálogo de tools **al cargar el agente**, así que un programa roto es un fallo de
+  despliegue con línea y mensaje y no un error en la primera consulta. Declararlo con
+  un `pattern` distinto de `glyph` también impide cargar.
+- Agente de ejemplo `acuse-programa` en `config/agents/`: sella la recepción de una
+  solicitud con la hora local y la UTC en paralelo, con tools `builtin` que corren sin
+  red, y se ejecuta de punta a punta sin tocar el modelo.
+- `AgentRuntime.agent_error(name)` y el campo `error` en `GET /v1/agents`: por qué un
+  agente quedó en `draft` al arrancar deja de vivir sólo en el log.
+
+### Fixed
+
+- El `context` que recibe `agent.run()` ahora llega a los patrones de orquestación,
+  bajo la clave reservada `_caller_context`. Antes sólo se usaba para renderizar el
+  prompt, así que un patrón no tenía forma de leer los parámetros de la invocación.
+- **Fuga de credenciales por `_caller_context`.** Las claves con prefijo `_` del context
+  del llamador son reservadas del runtime y ahora se filtran antes de llegar al patrón.
+  `_provider_override` lleva la API key del header `X-Astromesh-Provider-Key`: un
+  programa Glyph que la pasara como argumento de una tool la escribía en la traza —lo
+  que el propio `tool_fn` declara prohibido— y un `ask(..., context=context)` la
+  serializaba al proveedor del modelo.
+- Un `spec.program` que no compila devuelve **400** con el mensaje del compilador en
+  `POST /v1/agents/{n}/deploy`, en vez del 500 crudo que salía porque `GlyphError` no
+  hereda de `ValueError`.
+- Un fallo de ejecución con programa fijo devuelve el **estado parcial**: `steps` trae
+  las llamadas que sí corrieron y `glyph.capability_calls` las cuenta. Antes reportaba
+  `0` y `steps` vacío aunque hubieran corrido tools de verdad.
+- La variable `query` de un programa Glyph es texto también en una consulta multimodal;
+  antes llegaba como la lista cruda de partes, contra lo que documenta la guía.
+
+## [v0.38.1] - 2026-07-29
+
+### Fixed
+
+- **Import circular que impedía publicar v0.38.0.** `chain.compiler` importaba
+  `workflow.models`, lo que ejecuta `workflow/__init__`, que importa `workflow.loader`, que
+  volvía a `chain.compiler` por el prefijo reservado — y lo encontraba a medio inicializar.
+  `from astromesh.runtime.engine import AgentRuntime` como primer import reventaba con
+  `ImportError`. El prefijo vive ahora en `astromesh/chain/naming.py`, un módulo sin un solo
+  import. La suite no lo veía porque para cuando corre el primer test el orden de imports ya
+  está resuelto: se agrega `tests/test_import_entrypoints.py`, que importa cada entrada
+  pública en un intérprete limpio, igual que el smoke test del release.
+
+## [v0.38.0] - 2026-07-29
+
+Encadenamiento declarativo de agentes: un agente declara en su propio YAML qué otros
+disparar al terminar y bajo qué condiciones, y eso se compila a un workflow que el motor
+existente ejecuta. Para que las condiciones sean confiables se suma `spec.output_schema`,
+la salida estructurada y validada del agente. Además, el `WorkflowEngine` —que existía,
+estaba testeado y no se instanciaba nunca fuera de los tests— por fin queda cableado.
+
+
+### Added (Backend)
+
+- **Agentes**: nuevo `spec.output_schema` — el agente declara la forma de su salida y el
+  runtime la parsea y valida en `result["data"]`, junto a la `answer` en prosa que queda
+  intacta. Acepta la misma taquigrafía YAML que los `parameters` de las tools. Un fallo de
+  validación no corta la corrida: deja `data` en `None` y describe el problema en
+  `data_error`.
+- **Workflows**: los pasos aceptan `when`, una condición Jinja que si da falso deja el paso
+  en `skipped` y sigue con el resto. A diferencia de `switch` + `goto` (que ejecuta una rama
+  y termina el workflow), permite que varios pasos condicionales convivan en una corrida.
+  Con `strict_conditions: true` una condición que referencia un campo inexistente falla el
+  paso en vez de evaluarse como falsa en silencio.
+- **Workflows**: `on_error: continue` registra el error del paso y sigue con el resto de la
+  corrida, para efectos secundarios opcionales. El default sin declarar sigue cortando.
+- **Workflows**: nuevo tipo de paso `parallel` — corre una lista de sub-pasos a la vez y
+  mergea sus salidas al contexto, cada una direccionable por su nombre. Los sub-pasos son
+  pasos completos, así que `when`, `retry`, `timeout_seconds` y `on_error` andan por rama.
+- **Agentes**: nuevo `spec.chain` — un agente declara qué otros agentes disparar al terminar
+  y bajo qué condiciones. Disparan todos los eslabones que matcheen; `mode: sequential |
+  parallel` decide cuándo corren y una regla `default` cubre el caso en que ningún `when`
+  matcheó. Se compila a un workflow al arrancar, así que un ciclo, un `max_depth` excedido o
+  un agente inexistente impiden el arranque con la ruta completa en el mensaje, en vez de
+  fallar a mitad de una corrida.
+- **API**: `POST /v1/agents/{name}/run` ejecuta la cadena del agente y devuelve el bloque
+  `chain` con el estado de cada eslabón (`success`, `error`, `skipped` con su motivo). La
+  `answer` sigue siendo la del agente invocado, así que los clientes existentes no cambian.
+- **API**: nuevo `GET /v1/agents/{name}/chain` — el grafo expandido de la cadena, sin
+  ejecutar nada. Es un artefacto de tiempo de compilación.
+
+### Fixed
+
+- **Workflows**: el `WorkflowEngine` ahora se instancia en el lifespan de la API. Antes nunca
+  se cableaba fuera de los tests, así que `/v1/workflows/` devolvía una lista vacía y ningún
+  workflow definido en `config/workflows/` llegaba a ejecutarse.
+- **Workflows**: los pasos de tipo `agent` heredan el `trace_id` y la sesión de la corrida.
+  Antes cada paso generaba una sesión nueva y no propagaba `parent_trace_id`, así que un
+  workflow aparecía en el timeline como corridas sueltas sin relación entre sí.
+- **Ejemplos**: el `when` de `config/workflows/example.workflow.yaml` referenciaba
+  `output.data.score` sin que ningún agente declarara `data`, así que nunca podía dar
+  verdadero y —por `_SilentUndefined`— caía al `default` sin señalar el problema.
+  `sales-qualifier` ahora declara ese campo en su `output_schema`. El mismo workflow
+  referenciaba `web-researcher` y `email-composer`, que tampoco existían: se agregaron.
+
 ## [v0.37.0] - 2026-07-25
 
 Marco de integraciones declarativas: un `integration.yaml` se convierte en tools de agente,

@@ -5,7 +5,7 @@ description: The desktop IDE and multi-runtime control plane for AI agents
 
 import { Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="Currently in v0.12.0">
+<Aside type="caution" title="Currently in v0.17.0">
   Astromesh Cortex is in active development. The Local Runtime and GCP (via Orbit) targets are fully supported; Nexus cloud mode is evolving alongside the Nexus control plane.
 </Aside>
 
@@ -55,6 +55,30 @@ flowchart TB
 - **Renderer (React)** — The UI layer: the Monaco-based agent editor, the visual builder canvas, the agent console and trace timeline, and the deploy controls. Pure presentation and interaction; it never touches the OS directly.
 - **Main Process (IPC Bridge)** — The Electron main process. It mediates every privileged operation — file system access, process spawning, network calls — between the renderer and the services over a typed IPC bridge.
 - **Services** — The control-plane logic. `LocalRuntime` installs and supervises a local Python runtime; `Orbit` provisions and manages GCP Cloud Run deployments; `Nexus` authenticates with and operates the Kubernetes cloud.
+
+## What's new
+
+### v0.17.0 — per-model usage breakdown
+
+Agent run results now show a per-model consumption table (provider / model / role / calls / tokens in-out / cost), collapsed beneath the run's total token count. It reads `usage.by_model` from astromesh core v0.36.0+; older runtimes simply omit the field without breaking the contract.
+
+### v0.16.0 — operator Admin panel
+
+A read-only view of the hub's current tariffs and plans, authenticated with an operator token stored per connection through `safeStorage`. Distinct from the tenant dual-auth, and hidden behind an empty state until a token is set.
+
+### v0.15.0 — the "Uso" observability panel
+
+A three-level view over the hub's observability endpoints: tenant overview (month totals with a month selector, all-time totals, and a per-agent ranking with soft-deleted agents flagged), per-agent drill-down (metrics plus recent invocations), and invocation detail (per-model breakdown plus sub-invocations). It replaces the earlier Metrics / Logs / Cost stubs.
+
+### v0.14.0 — live streaming, cancellation, persistent transcripts
+
+The Nexus run panel streams a run over the hub's WebSocket route, showing tool-call activity live, with a **Stop** button that cancels the run in flight (the hub records it `cancelled` and charges nothing). Transcripts persist per tenant and reload on tenant activation. It falls back to the synchronous run when the hub lacks the stream route.
+
+### v0.13.0 — Nexus run panel and version comparison
+
+The Nexus shell runs agents against the hub directly, keeping an in-memory transcript per agent and session and rendering each result's usage breakdown. The versions drawer gained a **Compare** mode: pick two versions and read a side-by-side Monaco diff of their specs, each side labelled with its number and checksum.
+
+Earlier in the same line: a versions drawer in the agent editor (history with per-version view and revert), agent-version client methods, and support for `type: client` tools from astromesh core v0.35.0.
 
 ## Tech Stack
 

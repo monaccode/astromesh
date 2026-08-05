@@ -4,7 +4,12 @@
   "title": "Astromesh Agent",
   "description": "Schema for Astromesh agent configuration files (*.agent.yaml)",
   "type": "object",
-  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
   "additionalProperties": false,
   "properties": {
     "apiVersion": {
@@ -20,7 +25,9 @@
     "metadata": {
       "type": "object",
       "description": "Agent metadata.",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -152,7 +159,8 @@
                 "pipeline",
                 "parallel_fan_out",
                 "supervisor",
-                "swarm"
+                "swarm",
+                "glyph"
               ]
             },
             "max_iterations": {
@@ -169,6 +177,15 @@
               "type": "integer",
               "description": "Alias for timeout_seconds (deprecated — prefer timeout_seconds).",
               "minimum": 1
+            },
+            "narrate": {
+              "type": "boolean",
+              "description": "Only for pattern: glyph. Default true: a second model call turns the program's result into prose. false returns the result as JSON — no second call."
+            },
+            "max_repairs": {
+              "type": "integer",
+              "description": "Only for pattern: glyph. Default 2: retries when the model-generated program fails to compile.",
+              "minimum": 0
             }
           }
         },
@@ -178,7 +195,10 @@
           "items": {
             "type": "object",
             "description": "Tool definition.",
-            "required": ["name", "type"],
+            "required": [
+              "name",
+              "type"
+            ],
             "additionalProperties": true,
             "properties": {
               "name": {
@@ -188,7 +208,11 @@
               "type": {
                 "type": "string",
                 "description": "Tool integration type. Only these three load from an agent YAML file.",
-                "enum": ["builtin", "agent", "client"]
+                "enum": [
+                  "builtin",
+                  "agent",
+                  "client"
+                ]
               },
               "description": {
                 "type": "string",
@@ -228,12 +252,21 @@
                 "backend": {
                   "type": "string",
                   "description": "Storage backend identifier.",
-                  "enum": ["sqlite", "redis", "postgres", "in_memory"]
+                  "enum": [
+                    "sqlite",
+                    "redis",
+                    "postgres",
+                    "in_memory"
+                  ]
                 },
                 "strategy": {
                   "type": "string",
                   "description": "Context-window management strategy.",
-                  "enum": ["sliding_window", "summary", "token_budget"]
+                  "enum": [
+                    "sliding_window",
+                    "summary",
+                    "token_budget"
+                  ]
                 },
                 "max_messages": {
                   "type": "integer",
@@ -260,7 +293,12 @@
                 "backend": {
                   "type": "string",
                   "description": "Vector store backend identifier.",
-                  "enum": ["chromadb", "pgvector", "qdrant", "in_memory"]
+                  "enum": [
+                    "chromadb",
+                    "pgvector",
+                    "qdrant",
+                    "in_memory"
+                  ]
                 },
                 "similarity_threshold": {
                   "type": "number",
@@ -337,7 +375,11 @@
             "collector": {
               "type": "string",
               "description": "Telemetry collector backend.",
-              "enum": ["stdout", "otlp", "internal"]
+              "enum": [
+                "stdout",
+                "otlp",
+                "internal"
+              ]
             },
             "sample_rate": {
               "type": "number",
@@ -366,11 +408,15 @@
               "properties": {
                 "read": {
                   "type": "array",
-                  "items": { "type": "string" }
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "write": {
                   "type": "array",
-                  "items": { "type": "string" }
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             },
@@ -381,7 +427,9 @@
               "properties": {
                 "allowed": {
                   "type": "array",
-                  "items": { "type": "string" }
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             },
@@ -397,6 +445,95 @@
               }
             }
           }
+        },
+        "output_schema": {
+          "type": "object",
+          "description": "Forma de la salida estructurada del agente. Acepta JSON Schema completo (type: object + properties) o la taquigrafía plana {campo: {type: ...}}, la misma que los `parameters` de las tools. El runtime la parsea de la respuesta y la deja validada en result.data."
+        },
+        "program": {
+          "type": "string",
+          "description": "Sólo con orchestration.pattern: glyph. Programa Glyph fijo, escrito de antemano: el runtime lo compila al arrancar contra `tools` y lo ejecuta en cada corrida sin llamar al modelo. Si no compila, el agente no carga."
+        },
+        "chain": {
+          "type": "object",
+          "description": "Agentes a disparar cuando este termina. Se compila a un workflow al arrancar.",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "sequential",
+                "parallel"
+              ],
+              "default": "sequential"
+            },
+            "max_depth": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5
+            },
+            "on_complete": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "agent": {
+                    "type": "string",
+                    "description": "Agente a disparar."
+                  },
+                  "when": {
+                    "type": "string",
+                    "description": "Condición Jinja. Sin `when` el eslabón dispara siempre."
+                  },
+                  "input": {
+                    "type": "string",
+                    "description": "Entrada del eslabón. Default: {{ output.answer }}."
+                  },
+                  "default": {
+                    "type": "boolean",
+                    "description": "Dispara sólo si ningún `when` de la cadena matcheó. Incompatible con `when`."
+                  },
+                  "retry": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "max_attempts": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "backoff": {
+                        "type": "string",
+                        "enum": [
+                          "fixed",
+                          "exponential"
+                        ]
+                      },
+                      "initial_delay_seconds": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    }
+                  },
+                  "timeout_seconds": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "on_error": {
+                    "type": "string",
+                    "description": "'continue' sigue la cadena, un nombre de agente salta ahí. Sin declarar, corta."
+                  }
+                },
+                "required": [
+                  "agent"
+                ]
+              }
+            }
+          },
+          "required": [
+            "on_complete"
+          ]
         }
       }
     }
@@ -545,8 +682,15 @@
             },
             "stop": {
               "oneOf": [
-                { "type": "string" },
-                { "type": "array", "items": { "type": "string" } }
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               ],
               "description": "Stop sequences."
             }
@@ -557,7 +701,9 @@
     "guardrailRule": {
       "type": "object",
       "description": "A single guardrail rule.",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "additionalProperties": true,
       "properties": {
         "type": {
@@ -574,7 +720,12 @@
         "action": {
           "type": "string",
           "description": "Action to take when the guardrail triggers.",
-          "enum": ["redact", "block", "warn", "log"]
+          "enum": [
+            "redact",
+            "block",
+            "warn",
+            "log"
+          ]
         },
         "max_chars": {
           "type": "integer",

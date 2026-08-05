@@ -15,7 +15,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 </p>
 
 <p>
-  <Badge text="v0.4.0" variant="tip" size="medium" /> &nbsp;
+  <Badge text="v0.10.1" variant="tip" size="medium" /> &nbsp;
   <Badge text="Phase 4 · post-4" variant="note" size="medium" /> &nbsp;
   <Badge text="Debian trixie" variant="default" size="medium" />
 </p>
@@ -23,14 +23,25 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Source:** [`github.com/monaccode/astromesh-os`](https://github.com/monaccode/astromesh-os) — a separate repository from the [core runtime](https://github.com/monaccode/astromesh).
 
 <Aside type="note">
-Astromesh OS is built **capability-by-capability** through a phased roadmap, and a hard rule holds throughout: you do not advance to phase N+1 until phase N boots and passes its checks. As of June 2026 the project is implemented through **Phase 4 + post-4** — immutability and A/B updates with automatic rollback (Phase 2), TPM-sealed secrets, AppArmor, tool sandbox, egress governance and Secure Boot (Phase 3), and agent-native fleet join with mesh mTLS, OpenTelemetry export and eBPF causal egress (Phase 4) — all merged to `main`. See the [roadmap](/astromesh/os/roadmap/) for the state of each phase.
+Astromesh OS is built **capability-by-capability** through a phased roadmap, and a hard rule holds throughout: you do not advance to phase N+1 until phase N boots and passes its checks. As of July 2026 the project is implemented through **Phase 4 + post-4** — immutability and A/B updates with automatic rollback (Phase 2), TPM-sealed secrets, AppArmor, tool sandbox, egress governance and Secure Boot (Phase 3), and agent-native fleet join with mesh mTLS, OpenTelemetry export and eBPF causal egress (Phase 4), plus post-4 work on cgroup memory governance, CRIU checkpoint/restore and `sched_ext` — all merged to `main`. See the [roadmap](/astromesh/os/roadmap/) for the state of each phase.
 </Aside>
 
 **Astromesh OS** (`astromesh-os`) is a **minimal, immutable, API-only Linux appliance** — a purpose-built distribution whose sole job is running Astromesh AI agents (`astromeshd`). It is not a general-purpose operating system, and it is not something you install on top of an existing OS. It ships as a self-contained disk image: an appliance you boot, not a package you manage.
 
-It is built with [mkosi](https://github.com/systemd/mkosi) on **Debian trixie** (kernel 6.12+ LTS). The Astromesh agent runtime (`astromesh`) is baked directly into the image at a pinned commit (currently `v0.35.0`), so a given image is reproducible from one exact ref. The core image lands at **~285 MB**, well under its 500 MB build ceiling.
+It is built with [mkosi](https://github.com/systemd/mkosi) on **Debian trixie** (kernel 6.12+ LTS). The Astromesh agent runtime (`astromesh`) is baked directly into the image at a pinned ref (currently **`v0.37.0`**, declared in `runtime.pin`), so a given image is reproducible from one exact tag. The core image lands at **~378 MB of real blocks**, well under its 500 MB build ceiling — the published `.raw` looks larger because it is sparse, carrying an empty second A/B slot.
 
-Like every other product in the ecosystem, Astromesh OS is **versioned with semver** (`v0.4.0`); the roadmap **phase** is surfaced alongside it as a maturity signal.
+Like every other product in the ecosystem, Astromesh OS is **versioned with semver** (`v0.10.1`); the roadmap **phase** is surfaced alongside it as a maturity signal.
+
+## The runtime pin
+
+`runtime.pin` is the single line that decides which core release the image carries, and it is bumped **deliberately** — never on a schedule. Two constraints make it a real gate rather than a formality, and neither is caught by the core's own CI:
+
+- **`build-deb.sh` uses pip**, which ignores `[tool.uv.sources]`. A core release that resolves a sibling repo through a uv path source cannot be built here at all. Releases v0.31.0 and v0.32.0 are deliberately skipped for exactly this reason.
+- **`astromesh.api.main` must import with no extras installed.** The image venv has no numpy, faiss or aiosqlite. Every release from v0.30.0 through v0.33.0 was unbootable because a module-level import pulled one of them in; this repository's boot gate is what caught it.
+
+So each bump records, in the pin file itself, what was verified before it: that the diff adds no new import on the boot-sensitive paths, that the slim-install test passes, and — for the riskier bumps — that a real `.deb` boots in a container and serves an agent.
+
+The pin currently sits at **v0.37.0** (declarative integrations framework). The `spec.chain` work landed in core v0.38.1 and has not been pinned yet.
 
 ## Astromesh OS vs Astromesh Node
 

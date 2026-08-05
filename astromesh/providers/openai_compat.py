@@ -12,7 +12,7 @@ import httpx
 
 from astromesh.errors import ModelProviderError
 
-from .base import CompletionChunk, CompletionResponse
+from .base import CompletionChunk, CompletionResponse, read_cached_tokens
 
 # Pricing per 1 000 tokens (input, output) in USD
 PRICING: dict[str, tuple[float, float]] = {
@@ -138,7 +138,7 @@ class OpenAICompatProvider:
         usage_data = data.get("usage", {})
         input_tokens = usage_data.get("prompt_tokens", 0)
         output_tokens = usage_data.get("completion_tokens", 0)
-        cached_tokens = usage_data.get("cached_tokens", 0)
+        cached_tokens = read_cached_tokens(usage_data)
         cost = self.estimated_cost(model, input_tokens, output_tokens, cached_tokens)
 
         return CompletionResponse(

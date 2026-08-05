@@ -7,8 +7,10 @@ from typing import Optional
 import typer
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.table import Table
 
 from astromesh_cli.client import api_post_with_timeout
+from astromesh_cli.commands.run import _format_run_output
 from astromesh_cli.output import console, print_error, print_json
 
 COPILOT_AGENT = "astromesh-copilot"
@@ -98,14 +100,25 @@ def ask_command(
         print_json(data)
         return
 
-    response_text = data.get("response", "")
-    trace_id = data.get("trace_id", "N/A")
+    text, subtitle, by_model_rows = _format_run_output(data)
 
     console.print(
         Panel(
-            Markdown(response_text),
+            Markdown(text),
             title="[cyan]Astromesh Copilot[/cyan]",
-            subtitle=f"trace: {trace_id}",
+            subtitle=subtitle,
             border_style="cyan",
         )
     )
+    if by_model_rows:
+        table = Table(title="Por modelo", show_header=True)
+        for col in ("Provider", "Model", "Role", "Calls", "In", "Out", "Cost"):
+            table.add_column(col, style="cyan" if col == "Provider" else None)
+        for r in by_model_rows:
+            cost = r.get("cost", 0.0) or 0.0
+            table.add_row(
+                r.get("provider", ""), r.get("model", ""), r.get("role", ""),
+                str(r.get("calls", 0)), str(r.get("tokens_in", 0)), str(r.get("tokens_out", 0)),
+                f"${cost:.4f}" if cost else "—",
+            )
+        console.print(table)

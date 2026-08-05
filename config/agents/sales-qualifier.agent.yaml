@@ -46,6 +46,17 @@ spec:
 
       Provide a qualification score (1-10) and recommended next action.
 
+  # La salida estructurada es lo que hace confiables las condiciones de `chain`
+  # y del switch de config/workflows/example.workflow.yaml: sin esto, un
+  # `{{ output.data.score > 7 }}` rinde vacío y cae al default sin decir nada.
+  output_schema:
+    score:
+      type: integer
+    urgent:
+      type: boolean
+    next_action:
+      type: string
+
   orchestration:
     pattern: react
     max_iterations: 5
@@ -85,3 +96,16 @@ spec:
     allowed_actions:
       - lookup_company
       - search_crm
+
+  chain:
+    mode: sequential
+    on_complete:
+      # Un lead caliente arranca el contacto de una; el resto no dispara nada.
+      - agent: email-composer
+        when: "{{ output.data.score > 7 }}"
+        input: "{{ output.answer }}"
+        retry:
+          max_attempts: 3
+          backoff: exponential
+        timeout_seconds: 30
+        on_error: continue

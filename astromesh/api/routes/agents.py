@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from astromesh.api.usage import usage_from_trace
-from astromesh.errors import ModelProviderError, model_provider_error_payload
+from astromesh.errors import AgentConfigError, ModelProviderError, model_provider_error_payload
 
 
 def _steps_to_dicts(steps: list | None) -> list[dict]:
@@ -77,6 +77,8 @@ class AgentRunResponse(BaseModel):
     steps: list[dict] = []
     usage: UsageInfo | None = None
     trace: dict | None = None
+    data: dict | None = None
+    chain: dict | None = None
 
 
 @router.get("/agents")
@@ -169,9 +171,18 @@ async def deploy_agent(agent_name: str):
     """Deploy a draft/paused agent to the runtime."""
     if _runtime is None:
         raise HTTPException(status_code=503, detail="Runtime not initialized")
+    from astromesh.runtime.engine import program_error_types
+
     try:
         await _runtime.deploy_agent(agent_name)
         return {"agent": agent_name, "status": "deployed"}
+    # `GlyphError` no hereda de ValueError, así que sin esta rama un `spec.program`
+    # que no compila salía como 500 crudo. Es config inválida del cliente y el
+    # mensaje del compilador trae la línea: 400 con el mensaje adentro.
+    except program_error_types() as e:
+        raise HTTPException(status_code=400, detail=f"spec.program no compila — {e}") from e
+    except AgentConfigError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -186,6 +197,57 @@ async def pause_agent(agent_name: str):
         return {"agent": agent_name, "status": "paused"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+def _link_desde_step(agent_name: str, step_result) -> dict:
+    """Traduce un StepResult de la cadena al link que ve el cliente."""
+    from astromesh.workflow.models import StepStatus
+
+    if step_result.status == StepStatus.SKIPPED:
+        return {"agent": agent_name, "status": "skipped", "reason": "condition_false"}
+    if step_result.status == StepStatus.ERROR:
+        return {"agent": agent_name, "status": "error", "error": step_result.error}
+
+    salida = step_result.output if isinstance(step_result.output, dict) else {}
+    link = {"agent": agent_name, "status": "success", "answer": salida.get("answer", "")}
+    if salida.get("data") is not None:
+        link["data"] = salida["data"]
+    if step_result.duration_ms is not None:
+        link["duration_ms"] = step_result.duration_ms
+    return link
+
+
+def _construir_chain(wf_result, agent_name: str, grafo: dict) -> dict:
+    """Arma el bloque `chain` a partir del resultado del workflow compilado."""
+    links = []
+    hubo_error = False
+    for entrada in grafo["links"]:
+        # El compilador nombra cada paso `<padre>__<hijo>`.
+        padre = entrada["via"] or agent_name
+        step = wf_result.steps.get(f"{padre}__{entrada['agent']}")
+        if step is None:
+            # El eslabón nunca llegó a evaluarse: alguien antes cortó la corrida.
+            link = {"agent": entrada["agent"], "status": "skipped", "reason": "upstream_stopped"}
+        else:
+            link = _link_desde_step(entrada["agent"], step)
+            hubo_error = hubo_error or link["status"] == "error"
+        link["depth"] = entrada["depth"]
+        link["via"] = entrada["via"]
+        links.append(link)
+
+    if wf_result.status == "failed":
+        status = "failed"
+    elif hubo_error:
+        status = "partial"
+    else:
+        status = "completed"
+
+    return {
+        "run_id": wf_result.run_id,
+        "status": status,
+        "mode": grafo["mode"],
+        "links": links,
+    }
 
 
 @router.post("/agents/{agent_name}/run")
@@ -206,19 +268,41 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             request.session_id,
             len(request.query),
         )
-        result = await _runtime.run(
-            agent_name,
-            request.query,
-            request.session_id,
-            context,
-            connections=request.connections,
-        )
+        engine = getattr(http_request.app.state, "workflow_engine", None)
+        tiene_cadena = getattr(_runtime, "has_chain", lambda _: False)(agent_name)
+
+        if tiene_cadena and engine is not None:
+            from astromesh.chain.compiler import chain_graph, chain_workflow_name
+
+            wf_result = await engine.run(
+                chain_workflow_name(agent_name),
+                trigger={
+                    "query": request.query,
+                    "session_id": request.session_id,
+                    "context": context,
+                },
+            )
+            paso_a = wf_result.steps.get(agent_name)
+            result = paso_a.output if paso_a and isinstance(paso_a.output, dict) else {}
+            grafo = chain_graph(agent_name, _runtime.agent_configs)
+            chain_block = _construir_chain(wf_result, agent_name, grafo)
+        else:
+            result = await _runtime.run(
+                agent_name,
+                request.query,
+                request.session_id,
+                context,
+                connections=request.connections,
+            )
+            chain_block = None
+
         logger.debug(
-            "run_agent done agent=%s session=%s answer_chars=%d steps=%d",
+            "run_agent done agent=%s session=%s answer_chars=%d steps=%d cadena=%s",
             agent_name,
             request.session_id,
             len(result.get("answer", "") or ""),
             len(result.get("steps") or []),
+            bool(chain_block),
         )
         trace = result.get("trace", {})
         usage_data = usage_from_trace(trace)
@@ -228,6 +312,8 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             steps=_steps_to_dicts(result.get("steps")),
             usage=usage,
             trace=trace or None,
+            data=result.get("data"),
+            chain=chain_block,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -235,3 +321,22 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
         raise HTTPException(status_code=502, detail=model_provider_error_payload(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/agents/{agent_name}/chain")
+async def get_agent_chain(agent_name: str):
+    """El grafo de la cadena, ya expandido. Es un artefacto de compilación:
+    se puede pedir sin ejecutar nada."""
+    if not _runtime:
+        raise HTTPException(status_code=503, detail="Runtime not initialized")
+    if agent_name not in _runtime.agent_configs:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
+
+    from astromesh.chain.compiler import chain_graph
+
+    grafo = chain_graph(agent_name, _runtime.agent_configs)
+    if grafo is None:
+        raise HTTPException(
+            status_code=404, detail=f"Agent '{agent_name}' does not declare spec.chain"
+        )
+    return grafo
