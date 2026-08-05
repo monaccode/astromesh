@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.39.0] - 2026-08-04
 
-> **Sin publicar en PyPI.** El extra `glyph` referencia `astromesh-glyph`, que
-> todavía no está publicado porque falta registrar su trusted publisher. Publicar
-> el core antes dejaría `pip install astromesh[glyph]` roto para todos. Dentro del
-> monorepo se instala con `uv sync --extra glyph`. Ver `docs/DEBT.md`.
+> **`pip install astromesh[all]` no resuelve en esta versión.** El extra `glyph`
+> referencia `astromesh-glyph`, que todavía no está publicado en PyPI —falta
+> registrar su trusted publisher—, y `all` incluye a `glyph`. Hasta que el paquete
+> se publique, instalá los extras que necesites por nombre en vez de `all`, o usá
+> `uv sync --extra all` dentro del monorepo, donde resuelve por path source.
+> Seguimiento en `docs/DEBT.md`.
 
 ### Added (Backend)
 

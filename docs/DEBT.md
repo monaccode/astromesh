@@ -27,9 +27,16 @@ corresponde tomar de apuro.
 fuera del monorepo**. `pip install astromesh[glyph]` falla, porque pip ignora
 `[tool.uv.sources]`. Dentro del monorepo funciona con `uv sync --extra glyph`.
 
-**Esto bloquea el release del core a PyPI.** Publicar `astromesh` con un extra que
-apunta a un paquete inexistente deja una promesa rota en el `pyproject` público. La
-versión 0.39.0 está bumpeada y en `develop`, sin tagear, esperando esto.
+**Consecuencia asumida en v0.39.0:** se decidió publicar el core igual, así que
+desde v0.39.0 **`pip install astromesh[all]` no resuelve** — `all` incluye `glyph`,
+y `glyph` apunta a un paquete que no existe en el índice. No es sólo que el extra
+nuevo no ande: rompe una instalación que antes funcionaba, para usuarios que no
+tienen nada que ver con Glyph. Mientras tanto hay que instalar los extras por
+nombre.
+
+Se evaluó sacar `glyph` de `all` para evitarlo y se descartó a propósito; queda
+anotado acá porque quien encuentre el fallo merece saber que fue una decisión y no
+un descuido.
 
 **Qué hay que hacer para cerrarla:**
 
