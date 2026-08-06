@@ -63,16 +63,34 @@ def _validate_agent_filesystem_name(name: str) -> None:
 
 
 def _make_builtin_handler(tool_instance, agent_name, rag_pipeline=None):
-    """Create an async handler closure for a builtin tool instance."""
+    """Create an async handler closure for a builtin tool instance.
 
-    async def _handler(**arguments):
+    Sólo la mitad *del agente* del ToolContext se puede cerrar acá: esta clausura
+    se arma una vez al cargar el agente y la comparten todas las corridas y todas
+    las sesiones. Lo que varía por corrida (la sesión, y los secretos que la
+    corrida trae) llega en `_run_context` al momento de la llamada — ver
+    `ToolRegistry.execute`. Antes se pasaba `session_id=""` fijo, que era eso
+    mismo pero resuelto mal: ninguna builtin tool podía saber en qué sesión
+    estaba.
+    """
+
+    async def _handler(_run_context=None, **arguments):
         from astromesh.tools.base import ToolContext
 
-        ctx = ToolContext(agent_name=agent_name, session_id="", trace_span=None)
+        run = _run_context or {}
+        ctx = ToolContext(
+            agent_name=agent_name,
+            session_id=run.get("session", ""),
+            trace_span=None,
+            secrets=run.get("secrets") or {},
+        )
         ctx.rag_pipeline = rag_pipeline
         result = await tool_instance.execute(arguments, ctx)
         return result.to_dict()
 
+    # Marca de opt-in: `register_internal` la usan también handlers ajenos con
+    # firmas arbitrarias, y pasarles un kwarg que no declaran los rompería.
+    _handler.wants_run_context = True
     return _handler
 
 
@@ -976,6 +994,16 @@ class Agent:
                 override_provider = create_provider(override_name, api_key=override_key)
                 route_kwargs["provider_override"] = (override_name, override_provider)
 
+            # La credencial que Nexus acuña por invocación, si el llamador es
+            # Nexus. Clave reservada (prefijo `_`), así que nunca llegó a un
+            # patrón ni a la traza — ver `_public_caller_context` — y de acá baja
+            # a las tools por el dict de `tool_fn`, no por `args`, por lo mismo.
+            # Muere con la corrida: no hay nada que rotar ni que revocar.
+            run_secrets = {}
+            run_token = (context or {}).get("_nexus_run_token")
+            if run_token:
+                run_secrets["NEXUS_RUN_TOKEN"] = run_token
+
             async def model_fn(messages, tools, role=None):
                 llm_span = tracing.start_span("llm.complete", parent_span_id=root_span.span_id)
                 full_messages = [{"role": "system", "content": rendered_prompt}, *messages]
@@ -1058,6 +1086,10 @@ class Agent:
                             # se persisten en la traza (set_attribute más abajo) y una
                             # credencial ahí quedaría escrita en disco.
                             "connections": connections or {},
+                            # Mismo criterio, misma razón. Un sub-agente invocado
+                            # como tool NO hereda esto: su corrida es otra, y
+                            # reenviar la credencial es un cambio aparte.
+                            "secrets": run_secrets,
                         },
                     )
                     tool_span.set_attribute("tool_args", args)

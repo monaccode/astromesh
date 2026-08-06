@@ -4,8 +4,8 @@ from astromesh.tools.builtin import ALL_TOOLS
 
 
 class TestAllToolsRegistry:
-    def test_all_tools_has_17_entries(self):
-        assert len(ALL_TOOLS) == 17
+    def test_all_tools_has_18_entries(self):
+        assert len(ALL_TOOLS) == 18
 
     def test_all_tools_are_builtin_subclasses(self):
         for tool_cls in ALL_TOOLS:
@@ -21,7 +21,7 @@ class TestAllToolsRegistry:
         loader = ToolLoader()
         loader.auto_discover()
         available = loader.list_available()
-        assert len(available) == 17
+        assert len(available) == 18
         for tool_cls in ALL_TOOLS:
             assert tool_cls.name in available
 
@@ -31,8 +31,8 @@ class TestBuiltinToolsEndpoint:
         resp = await client.get("/v1/tools/builtin")
         assert resp.status_code == 200
         body = resp.json()
-        assert body["count"] == 17
-        assert len(body["tools"]) == 17
+        assert body["count"] == 18
+        assert len(body["tools"]) == 18
 
     async def test_builtin_tools_have_metadata(self, client):
         resp = await client.get("/v1/tools/builtin")

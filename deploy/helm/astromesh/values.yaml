@@ -82,6 +82,13 @@ affinity: {}
 # ==============================================================================
 # Astromesh Configuration (mounted as ConfigMaps)
 # ==============================================================================
+# -- Dónde vive Nexus, para la builtin tool `send_message`. Vacío deja la tool
+# instalada pero sin destino: contesta que no hay Nexus configurado en vez de
+# fallar en runtime. Este pool no puede deducirlo — el context de la corrida trae
+# la credencial, no la dirección de quien la emitió.
+# Ej: "http://nexus.nexus-dev.svc.cluster.local:8080"
+nexusURL: ""
+
 config:
   # -- runtime.yaml content
   runtime: |

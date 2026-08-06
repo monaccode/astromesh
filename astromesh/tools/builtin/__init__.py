@@ -3,6 +3,7 @@
 from astromesh.tools.builtin.ai import TextSummarizeTool
 from astromesh.tools.builtin.communication import (
     SendEmailTool,
+    SendMessageTool,
     SendSlackTool,
     SendWebhookTool,
 )
@@ -32,6 +33,7 @@ ALL_TOOLS: list = [
     SendWebhookTool,
     SendSlackTool,
     SendEmailTool,
+    SendMessageTool,
     TextSummarizeTool,
     RagQueryTool,
     RagIngestTool,
