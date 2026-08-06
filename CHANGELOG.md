@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.40.0] - 2026-08-06
+
+### Added (Backend)
+
+- Builtin tool `send_message`: un agente puede alcanzar a una persona por WhatsApp
+  (o cualquier canal que sirva Herald) en medio de una corrida, no sólo contestar a
+  quien le escribió. Sale por Nexus (`POST /api/v1/runs/messages/send`), que encola
+  en el outbox de Herald y contesta un id — la entrega es asincrónica, así que un
+  éxito quiere decir «encolado», no «entregado».
+- La credencial no la configura el agente ni vive en este pool: Nexus acuña un token
+  por invocación y lo baja en el context de la corrida bajo `_nexus_run_token`. El
+  pool de runtimes es compartido entre tenants, así que darle secretos por tenant
+  sería juntar la llave de todos en un proceso; este token vale para un tenant, una
+  capacidad y una corrida, y muere con ella. No hay nada que rotar.
+- `ASTROMESH_NEXUS_URL` (y `nexusURL` en el chart): dónde vive Nexus. Es
+  configuración del pool porque Nexus no puede afirmar su propia dirección desde
+  dentro del context. Sin ella la tool contesta que no está configurada.
+
+### Changed (Backend)
+
+- El context de la corrida baja a las builtin tools. Antes la clausura que envuelve
+  a una builtin tool se armaba al cargar el agente y pasaba `session_id=""` fijo:
+  ninguna builtin tool podía saber en qué sesión estaba, ni recibir nada propio de
+  la corrida. Ahora `ToolRegistry.execute` le pasa la sesión y los secretos de la
+  corrida a los handlers que lo piden (`wants_run_context`), al lado de los
+  argumentos y nunca dentro: los args se persisten en la traza, y una credencial ahí
+  quedaría escrita en disco.
+
 ## [v0.39.0] - 2026-08-04
 
 > **`pip install astromesh[all]` no resuelve en esta versión.** El extra `glyph`

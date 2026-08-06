@@ -185,6 +185,15 @@ class ToolRegistry:
         if tool.rate_limit and not self._check_rate_limit(tool_name, tool.rate_limit):
             return {"error": f"Rate limit exceeded for '{tool_name}'"}
         if tool.tool_type == ToolType.INTERNAL and tool.handler:
+            if getattr(tool.handler, "wants_run_context", False):
+                # El context de la corrida viaja *al lado* de los argumentos,
+                # nunca dentro: los args se persisten en la traza (ver `tool_fn`
+                # en runtime/engine.py) y una credencial ahí queda escrita en
+                # disco. Se descarta un argumento del modelo con este nombre —
+                # si colisionara, Python levantaría TypeError y se caería la
+                # llamada entera, y de paso el modelo no puede inyectar context.
+                arguments = {k: v for k, v in arguments.items() if k != "_run_context"}
+                return await tool.handler(_run_context=context or {}, **arguments)
             return await tool.handler(**arguments)
         if tool.tool_type == ToolType.CLIENT:
             # Announced, not executed. {"ok": True} is the only honest answer:

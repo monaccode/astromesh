@@ -62,6 +62,12 @@ spec:
           env:
             - name: ASTROMESH_CONFIG_DIR
               value: /app/config
+            {{- if .Values.nexusURL }}
+            # -- Destino de la builtin tool send_message. No lleva credencial: el
+            # token viaja en el context de cada corrida y muere con ella.
+            - name: ASTROMESH_NEXUS_URL
+              value: {{ .Values.nexusURL | quote }}
+            {{- end }}
             # -- PostgreSQL connection
             - name: DATABASE_HOST
               value: {{ include "astromesh.postgresql.host" . | quote }}
