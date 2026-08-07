@@ -19,7 +19,9 @@ hero:
       variant: minimal
 ---
 
+import EcosystemMap from '../../components/EcosystemMap.astro';
 import PipelineDiagram from '../../components/PipelineDiagram.astro';
+import GlyphShowcase from '../../components/GlyphShowcase.astro';
 import FeatureCards from '../../components/FeatureCards.astro';
 import DevToolkit from '../../components/DevToolkit.astro';
 import ADKShowcase from '../../components/ADKShowcase.astro';
@@ -30,16 +32,20 @@ import OrbitShowcase from '../../components/OrbitShowcase.astro';
 import NodeShowcase from '../../components/NodeShowcase.astro';
 import CortexShowcase from '../../components/CortexShowcase.astro';
 import NexusShowcase from '../../components/NexusShowcase.astro';
+import HeraldShowcase from '../../components/HeraldShowcase.astro';
 import OsShowcase from '../../components/OsShowcase.astro';
 import LeiaShowcase from '../../components/LeiaShowcase.astro';
+import ReleaseRadar from '../../components/ReleaseRadar.astro';
 
-<StatusBadges />
+<EcosystemMap />
 
 ## Agent Execution Pipeline
 
 Define agents in YAML. Astromesh handles the rest — from input safety checks to model routing to tool execution.
 
 <PipelineDiagram />
+
+<GlyphShowcase />
 
 <ADKShowcase />
 
@@ -63,11 +69,13 @@ From a single command to a production Kubernetes cluster.
 
 ## The Broader Ecosystem
 
-Astromesh is more than a runtime. Build agents visually, run them on a hardened appliance, orchestrate them across tenants in the cloud, or spin one up in plain English.
+Astromesh is more than a runtime. Build agents visually, run them on a hardened appliance, orchestrate them across tenants in the cloud, put them in front of customers on WhatsApp, or spin one up in plain English.
 
 <CortexShowcase />
 
 <NexusShowcase />
+
+<HeraldShowcase />
 
 <OsShowcase />
 
@@ -78,3 +86,7 @@ Astromesh is more than a runtime. Build agents visually, run them on a hardened 
 Create a YAML file, start the daemon, call the API.
 
 <AgentExample />
+
+<ReleaseRadar />
+
+<StatusBadges />

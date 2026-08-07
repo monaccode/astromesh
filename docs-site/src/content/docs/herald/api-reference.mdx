@@ -1,0 +1,162 @@
+---
+title: Herald API Reference
+description: The send API, the operator plane, the Go client, and every flag Herald accepts.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Three credentials guard three separate surfaces, and each one's absence unregisters its routes
+rather than leaving them half-open.
+
+| Credential | Header | Guards |
+|---|---|---|
+| `--send-keys` (`tenant:key,…`) | `X-Herald-Key` | `/api/v1/messages/*` for that one tenant |
+| `--trusted-sender-key` | `X-Herald-Sender-Key` | `/api/v1/messages/send-on-behalf` for any tenant |
+| `--admin-token` | `X-Admin-Token` | `/admin/*` and the operator console |
+
+## Send API
+
+### `POST /api/v1/messages/send`
+
+Queues a message for the tenant the key maps to. The tenant is never read from the body.
+
+```sh
+curl -X POST localhost:8081/api/v1/messages/send \
+  -H "X-Herald-Key: <tenant key>" -H "Content-Type: application/json" \
+  -d '{"channel":"whatsapp","recipient":"+549110000001",
+       "text":"Su reclamo fue actualizado."}'
+# → 202 {"message_id":"...","status":"pending"}
+```
+
+| Field | Notes |
+|---|---|
+| `channel` | `whatsapp`, `echo`, … — must have a registered account for this tenant |
+| `recipient` | Channel-native address |
+| `text` | The message body |
+| `conversation_ref` | Optional. Pins channel and recipient to an existing conversation and rides its open window |
+
+`202` means **queued**. Delivery is asynchronous through the outbox.
+
+### `GET /api/v1/messages/:id`
+
+The real status of a queued message, including how much of its 10-attempt retry budget is spent.
+
+### `POST /api/v1/messages/send-on-behalf`
+
+For a multi-tenant caller like Nexus. The credential does not identify a tenant, so the request
+must:
+
+```sh
+curl -X POST localhost:8081/api/v1/messages/send-on-behalf \
+  -H "X-Herald-Sender-Key: $HERALD_TRUSTED_SENDER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_id":"tenant-1","channel":"whatsapp",
+       "recipient":"+549110000001","text":"Su reclamo fue actualizado."}'
+```
+
+<Aside type="caution">
+This is its own route group with its own header, and a tenant's `X-Herald-Key` is rejected here
+with `401` rather than accepted. One credential reaching a route that trusts the body's
+`tenant_id` is exactly the escalation the separation exists to prevent.
+
+It is also not the admin token: this key grants sending and nothing else, while the admin token
+also carries bindings, accounts and every conversation's contents.
+</Aside>
+
+Herald does not validate `tenant_id` against a registry, deliberately — it has none. A tenant
+is whatever a configured key maps to, and inventing a registry here would create a second source
+of truth for tenant identity. An unknown tenant fails where it already does: no channel account
+matches.
+
+## Operator plane
+
+All behind `X-Admin-Token`. Listings default to `limit=50`, max 200, clamped.
+
+| Endpoint | Description |
+|---|---|
+| `GET /admin/stats?tenant=&days=` | Messages per day and per channel, active conversations, outbox by status. `days` defaults to 7, max 90 |
+| `GET /admin/conversations?tenant=&channel=&limit=&offset=` | Conversations, `last_message_at` DESC, with `total` |
+| `GET /admin/conversations/:id/messages?limit=&offset=` | One conversation's thread, chronological |
+| `GET /admin/outbox?status=&channel=&tenant=&limit=&offset=` | Outbox monitor, `created_at` DESC, with `total` |
+| `POST /admin/send` | Operator test send — the send API's body plus an explicit `tenant_id` |
+| `POST/GET/PUT/DELETE /admin/bindings…` | Routing-rule CRUD, validated against Nexus |
+| `POST/GET/DELETE /admin/accounts…` | Channel-account CRUD; credentials masked (`•••` + last 4) in every response |
+
+## Webhooks
+
+`GET/POST /webhooks/:channel` is served generically. Signature verification and payload parsing
+belong to the adapter, not the HTTP layer. Channels with a subscription handshake (Meta's)
+additionally implement `ports.ChallengeVerifier`, an optional interface the handler picks up by
+type assertion — so adding one does not change any existing adapter.
+
+## The Go client
+
+Any Go service that already knows which tenant it is acting for can import the public client.
+It depends only on the standard library.
+
+```go
+import "github.com/monaccode/astromesh-herald/pkg/heraldclient"
+
+hc := heraldclient.New(heraldURL, tenantHeraldKey, &http.Client{Timeout: 10 * time.Second})
+
+resp, err := hc.Send(ctx, heraldclient.SendRequest{
+    Channel:   "whatsapp",
+    Recipient: "+549110000001",
+    Text:      "Su reclamo fue actualizado.",
+    // ConversationRef: "<conversation id>", // continue an existing conversation
+})
+
+status, err := hc.GetMessageStatus(ctx, resp.MessageID)
+```
+
+Without `conversation_ref` the send is a cold contact — on WhatsApp those only deliver inside
+the [24-hour window](/astromesh/herald/whatsapp/#the-24-hour-window) as free text, and need a
+template outside it.
+
+## Configuration
+
+Every flag defaults from an environment variable.
+
+| Flag | Env | Default | Notes |
+|---|---|---|---|
+| `--database-url` | `DATABASE_URL` | — | Required |
+| `--nexus-url` | `NEXUS_URL` | — | Required |
+| `--enc-key` | `HERALD_ENC_KEY` | — | Required. AES-GCM key sealing account secrets |
+| `--admin-token` | `HERALD_ADMIN_TOKEN` | empty | Empty leaves `/admin` unregistered; ≥32 bytes if set |
+| `--send-keys` | `HERALD_SEND_KEYS` | empty | `tenant:key,tenant:key`. Empty leaves the send API unregistered |
+| `--trusted-sender-key` | `HERALD_TRUSTED_SENDER_KEY` | empty | Empty leaves `send-on-behalf` unregistered; ≥32 bytes if set |
+| `--addr` | — | `:8081` | |
+| `--outbox-poll-interval` | — | `2s` | |
+| `--whatsapp-app-secret` | `WHATSAPP_APP_SECRET` | empty | Set with the verify token, or neither |
+| `--whatsapp-verify-token` | `WHATSAPP_VERIFY_TOKEN` | empty | |
+| `--whatsapp-graph-base-url` | `WHATSAPP_GRAPH_BASE_URL` | `https://graph.facebook.com/v21.0` | For Meta version bumps and tests |
+| `--enable-echo` | `HERALD_ENABLE_ECHO` | `false` | Unauthenticated development channel |
+| `--ui` | `HERALD_UI` | `true` | Embedded operator console at `/ui/` |
+
+## Adding a channel
+
+1. Implement `ports.ChannelAdapter` — `Name`, `VerifyRequest`, `ParseIncoming`, `SendText`,
+   `SendMedia` — in `internal/adapters/channel/<name>/`.
+2. Add a `domain.Channel<Name>` constant.
+3. Register the adapter in the map in `cmd/herald/main.go`, behind its configuration. No
+   config means no registration means the webhook is a `404`.
+
+## Deployment
+
+Kustomize base with `dev` and `mvp` overlays, ArgoCD Applications and Image Updater configs,
+GHCR publishing.
+
+```sh
+deploy/bootstrap.sh <dev|mvp>
+```
+
+Prepares a channel namespace in one command: the four out-of-git Secrets, then the Application
+and the Image Updater. It refuses to touch `herald-secrets` once it exists — `enc-key` seals
+every stored channel credential and there is no re-encryption path.
+
+## Not in v0.1.0
+
+Telegram, web chat and SMTP adapters (contract stubs are in place; each package documents its
+activation steps), FCM push, Twilio voice and SMS, streaming WebSocket runs toward Nexus,
+port-level template support for cold contacts, metrics and OTel, and multi-replica worker
+coordination beyond `FOR UPDATE SKIP LOCKED`.

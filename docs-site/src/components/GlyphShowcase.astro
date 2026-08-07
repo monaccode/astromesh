@@ -1,0 +1,609 @@
+---
+/**
+ * Glyph on the homepage.
+ *
+ * The signature is the program next to the waves the compiler derives from
+ * it — that dependency graph is the whole idea, so it is the picture. The
+ * verdict card below is deliberate: Glyph's measured result contradicts the
+ * reason it was built, and a reader who finds that out later stops trusting
+ * the rest of the page.
+ */
+import { COMPONENTS } from '../data/ecosystem';
+
+const glyph = COMPONENTS.find((c) => c.id === 'glyph')!;
+
+const program = [
+  { n: 1, wave: 1, html: `<span class="g-var">v</span> = <span class="g-cap">search_parts</span>(<span class="g-arg">make</span>=<span class="g-str">"Toyota"</span>, <span class="g-arg">year</span>=<span class="g-num">2019</span>)` },
+  { n: 2, wave: 0, html: `` },
+  { n: 3, wave: 2, html: `<span class="g-var">oem</span> = v | <span class="g-pipe">where</span>(kind == <span class="g-str">"oem"</span>) | <span class="g-pipe">top</span>(<span class="g-num">3</span>, <span class="g-arg">by</span>=rating)` },
+  { n: 4, wave: 2, html: `<span class="g-var">alt</span> = v | <span class="g-pipe">where</span>(stock &gt; <span class="g-num">0</span>) | <span class="g-pipe">top</span>(<span class="g-num">3</span>, <span class="g-arg">by</span>=price)` },
+  { n: 5, wave: 0, html: `` },
+  { n: 6, wave: 3, html: `<span class="g-kw">if</span> oem.empty:` },
+  { n: 7, wave: 3, html: `    <span class="g-var">eta</span> = <span class="g-cap">check_restock</span>(<span class="g-arg">sku</span>=v.first.sku)` },
+  { n: 8, wave: 0, html: `` },
+  { n: 9, wave: 4, html: `<span class="g-kw">return</span> {oem, alt, eta}` },
+];
+
+const waves = [
+  { id: 1, note: 'one call', stmts: [{ label: 'search_parts', kind: 'call' }] },
+  {
+    id: 2,
+    note: 'independent — run together',
+    stmts: [
+      { label: 'oem', kind: 'local' },
+      { label: 'alt', kind: 'local' },
+    ],
+  },
+  { id: 3, note: 'only if oem came back empty', stmts: [{ label: 'check_restock', kind: 'cond' }] },
+  { id: 4, note: 'result', stmts: [{ label: 'return', kind: 'ret' }] },
+];
+
+const constructs = [
+  { sig: 'x = cap(arg=v)', note: 'Call. Arguments are always by name.' },
+  { sig: 'x = c | where(a == 1)', note: 'Filter a collection; conditions AND together.' },
+  { sig: 'x = c | top(3, by=f)', note: 'Sort descending and truncate.' },
+  { sig: 'x = c | map({g: cap(id=id)})', note: 'One call per item, in parallel, capped at 16.' },
+  { sig: 'if / else', note: 'The only branch. The same name may be bound in both arms.' },
+  { sig: 'return {x, y}', note: '{x} is shorthand for {"x": x}.' },
+];
+---
+
+<section class="gl">
+  <div class="gl-aura" aria-hidden="true"></div>
+
+  <header class="gl-head">
+    <div class="gl-badges">
+      <span class="gl-badge">Action language</span>
+      <span class="gl-ver">glyph-v{glyph.version}</span>
+    </div>
+    <h2 class="gl-title">
+      <span class="gl-title-thin">The plan is</span>
+      <span class="gl-title-bold">a program</span>
+    </h2>
+    <p class="gl-desc">
+      A ReAct loop asks the model what to do next, one tool at a time, and resends the whole prompt
+      every turn. With <code>pattern: glyph</code> the model writes the plan once, as a program, and
+      the runtime executes it — chaining locally and running independent statements at the same time.
+    </p>
+  </header>
+
+  <div class="gl-split">
+    <figure class="gl-code">
+      <figcaption class="gl-code-bar">
+        <span class="gl-code-name">parts-agent.glyph</span>
+        <span class="gl-code-hint">5 constructs, no loops</span>
+      </figcaption>
+      <div class="gl-pre">
+        {
+          program.map((l) => (
+            <span class="gl-line" data-empty={l.wave === 0}>
+              <span class="gl-ln">{l.wave === 0 ? '' : l.n}</span>
+              <span class="gl-src" set:html={l.html} />
+            </span>
+          ))
+        }
+      </div>
+    </figure>
+
+    <div class="gl-graph">
+      <p class="gl-graph-label">What the compiler derives</p>
+      {
+        waves.map((w) => (
+          <div class="gl-wave">
+            <span class="gl-wave-id">wave {w.id}</span>
+            <div class="gl-wave-body">
+              <div class="gl-wave-chips">
+                {w.stmts.map((s) => (
+                  <span class="gl-chip" data-kind={s.kind}>
+                    {s.label}
+                  </span>
+                ))}
+              </div>
+              <span class="gl-wave-note">{w.note}</span>
+            </div>
+          </div>
+        ))
+      }
+      <p class="gl-graph-foot">
+        Each name is bound exactly once, so reads and writes give an exact dependency graph.
+        <strong>oem</strong> and <strong>alt</strong> never read each other, so nothing forces them
+        into sequence.
+      </p>
+    </div>
+  </div>
+
+  <div class="gl-verdict">
+    <p class="gl-verdict-label">Measured, against three models</p>
+    <div class="gl-verdict-grid">
+      <div class="gl-verdict-card" data-tone="no">
+        <p class="gl-verdict-mode">Model writes the program on every run</p>
+        <p class="gl-verdict-num">+164% to +2839%</p>
+        <p class="gl-verdict-body">
+          more expensive than ReAct, and slower in 16 of 17 runs. Output tokens cost roughly 4× input
+          tokens, and this trades cheap input for expensive output — 81–99% of the bill is the model
+          writing code.
+        </p>
+      </div>
+      <div class="gl-verdict-card" data-tone="yes">
+        <p class="gl-verdict-mode">Program reviewed once, pinned in <code>spec.program</code></p>
+        <p class="gl-verdict-num">zero model calls</p>
+        <p class="gl-verdict-body">
+          The model authors it, you review and parameterise it, the runtime executes it from then on.
+          This is the mode Glyph is for, and the reason a fixed program that fails to compile stops
+          the agent from loading instead of quietly falling back.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="gl-grammar">
+    {
+      constructs.map((c) => (
+        <div class="gl-construct">
+          <code>{c.sig}</code>
+          <span>{c.note}</span>
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="gl-cta-row">
+    <a class="gl-cta" href="/astromesh/glyph/introduction/">
+      Read the Glyph docs
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+      </svg>
+    </a>
+    <a class="gl-cta-alt" href="/astromesh/configuration/glyph/">Use it in an agent</a>
+  </div>
+</section>
+
+<style>
+  .gl {
+    position: relative;
+    padding: 3rem 0 2rem;
+    overflow: hidden;
+  }
+
+  .gl-aura {
+    position: absolute;
+    top: -140px;
+    left: 50%;
+    width: 620px;
+    height: 420px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, rgba(244, 114, 182, 0.12), transparent 65%);
+    filter: blur(60px);
+    pointer-events: none;
+  }
+
+  .gl-head {
+    position: relative;
+    max-width: 44rem;
+  }
+
+  .gl-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .gl-badge {
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #0a0a0a;
+    background: linear-gradient(135deg, #f472b6, #db2777);
+    padding: 0.22em 0.6em;
+    border-radius: 4px;
+  }
+
+  .gl-ver {
+    font-family: var(--sl-font-mono);
+    font-size: 0.65rem;
+    color: #f472b6;
+    opacity: 0.75;
+  }
+
+  .gl-title {
+    font-size: clamp(1.8rem, 4vw, 2.7rem);
+    line-height: 1.08;
+    letter-spacing: -0.04em;
+    margin: 0 0 0.85rem;
+  }
+
+  .gl-title-thin {
+    font-weight: 300;
+    color: var(--sl-color-gray-2);
+  }
+
+  .gl-title-bold {
+    font-weight: 800;
+    background: linear-gradient(120deg, #f472b6 0%, #db2777 55%, #00d4ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .gl-desc {
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: var(--sl-color-gray-2);
+    margin: 0;
+  }
+
+  .gl-desc code {
+    font-size: 0.85em;
+    color: #f9a8d4;
+  }
+
+  /* ── Program + derived graph ───────────────────────── */
+  .gl-split {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
+    margin: 2rem 0 1.5rem;
+  }
+
+  .gl-code {
+    margin: 0;
+    border-radius: var(--am-radius);
+    border: 1px solid var(--am-border);
+    background: rgba(10, 12, 18, 0.85);
+    overflow: hidden;
+  }
+
+  .gl-code-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 0.95rem;
+    border-bottom: 1px solid var(--am-border);
+    background: rgba(244, 114, 182, 0.05);
+    font-family: var(--sl-font-mono);
+    font-size: 0.68rem;
+  }
+
+  .gl-code-name {
+    color: #f9a8d4;
+  }
+
+  .gl-code-hint {
+    color: var(--sl-color-gray-4);
+  }
+
+  .gl-pre {
+    margin: 0;
+    padding: 0.9rem 0;
+    background: transparent;
+    font-family: var(--sl-font-mono);
+    font-size: 0.75rem;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+
+  .gl-line {
+    display: flex;
+    padding-inline: 0.95rem;
+    white-space: pre;
+  }
+
+  .gl-line[data-empty='true'] {
+    height: 0.6rem;
+  }
+
+  .gl-ln {
+    width: 1.5ch;
+    flex-shrink: 0;
+    margin-right: 1.4em;
+    text-align: right;
+    color: rgba(255, 255, 255, 0.16);
+    user-select: none;
+  }
+
+  .gl-src {
+    color: #cbd5e1;
+  }
+
+  .gl-src :global(.g-var) {
+    color: #f9a8d4;
+  }
+  .gl-src :global(.g-cap) {
+    color: #67e8f9;
+  }
+  .gl-src :global(.g-pipe) {
+    color: #c4b5fd;
+  }
+  .gl-src :global(.g-arg) {
+    color: #94a3b8;
+  }
+  .gl-src :global(.g-str) {
+    color: #86efac;
+  }
+  .gl-src :global(.g-num) {
+    color: #fbbf24;
+  }
+  .gl-src :global(.g-kw) {
+    color: #f472b6;
+    font-weight: 600;
+  }
+
+  .gl-graph {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.95rem;
+    border-radius: var(--am-radius);
+    border: 1px solid var(--am-border);
+    background: var(--am-surface);
+  }
+
+  .gl-graph-label,
+  .gl-graph-foot {
+    margin: 0;
+    font-size: 0.7rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  .gl-graph-label {
+    font-family: var(--sl-font-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+  }
+
+  .gl-graph-foot {
+    margin-top: auto;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--am-border);
+    font-size: 0.72rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+  }
+
+  .gl-graph-foot strong {
+    color: #f9a8d4;
+    font-weight: 600;
+  }
+
+  .gl-wave {
+    display: grid;
+    grid-template-columns: 3.6rem 1fr;
+    gap: 0.6rem;
+    align-items: start;
+    padding: 0.45rem 0;
+    border-left: 1px solid rgba(244, 114, 182, 0.22);
+    padding-left: 0.7rem;
+  }
+
+  .gl-wave-id {
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    color: var(--sl-color-gray-4);
+    padding-top: 0.3rem;
+  }
+
+  .gl-wave-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .gl-wave-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .gl-chip {
+    font-family: var(--sl-font-mono);
+    font-size: 0.68rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--sl-color-gray-2);
+  }
+
+  .gl-chip[data-kind='call'] {
+    border-color: rgba(103, 232, 249, 0.4);
+    color: #67e8f9;
+  }
+
+  .gl-chip[data-kind='local'] {
+    border-color: rgba(244, 114, 182, 0.45);
+    color: #f9a8d4;
+  }
+
+  .gl-chip[data-kind='cond'] {
+    border-style: dashed;
+    border-color: rgba(148, 163, 184, 0.45);
+  }
+
+  .gl-chip[data-kind='ret'] {
+    border-color: rgba(134, 239, 172, 0.4);
+    color: #86efac;
+  }
+
+  .gl-wave-note {
+    font-size: 0.67rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  /* ── Verdict ───────────────────────────────────────── */
+  .gl-verdict {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+
+  .gl-verdict-label {
+    margin: 0 0 0.7rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-4);
+  }
+
+  .gl-verdict-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem;
+  }
+
+  .gl-verdict-card {
+    padding: 1.05rem 1.15rem;
+    border-radius: var(--am-radius);
+    border: 1px solid var(--am-border);
+    border-top-width: 2px;
+    background: var(--am-surface);
+  }
+
+  .gl-verdict-card[data-tone='no'] {
+    border-top-color: #ef4444;
+  }
+
+  .gl-verdict-card[data-tone='yes'] {
+    border-top-color: #34d399;
+  }
+
+  .gl-verdict-mode {
+    margin: 0 0 0.5rem;
+    font-size: 0.73rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--sl-color-gray-3);
+  }
+
+  .gl-verdict-mode code {
+    font-size: 0.9em;
+    color: #f9a8d4;
+  }
+
+  .gl-verdict-num {
+    margin: 0 0 0.55rem;
+    font-family: var(--sl-font-mono);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--sl-color-white);
+  }
+
+  .gl-verdict-card[data-tone='no'] .gl-verdict-num {
+    color: #fca5a5;
+  }
+
+  .gl-verdict-card[data-tone='yes'] .gl-verdict-num {
+    color: #6ee7b7;
+  }
+
+  .gl-verdict-body {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.62;
+    color: var(--sl-color-gray-3);
+  }
+
+  /* ── Grammar strip ─────────────────────────────────── */
+  .gl-grammar {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .gl-construct {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--am-border);
+    background: rgba(0, 0, 0, 0.22);
+    transition: border-color 0.2s ease;
+  }
+
+  .gl-construct:hover {
+    border-color: rgba(244, 114, 182, 0.35);
+  }
+
+  .gl-construct code {
+    font-family: var(--sl-font-mono);
+    font-size: 0.72rem;
+    color: #f9a8d4;
+    background: none;
+    padding: 0;
+  }
+
+  .gl-construct span {
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--sl-color-gray-4);
+  }
+
+  /* ── CTAs ──────────────────────────────────────────── */
+  .gl-cta-row {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .gl-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #f472b6, #be185d);
+    text-decoration: none;
+    box-shadow: 0 0 20px rgba(244, 114, 182, 0.2);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, gap 0.25s ease;
+  }
+
+  .gl-cta:hover {
+    transform: translateY(-2px);
+    gap: 0.7rem;
+    box-shadow: 0 0 30px rgba(244, 114, 182, 0.35);
+    text-decoration: none !important;
+  }
+
+  .gl-cta-alt {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.65rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--sl-color-gray-2);
+    border: 1px solid var(--am-border);
+    background: var(--am-surface);
+    text-decoration: none;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .gl-cta-alt:hover {
+    border-color: rgba(244, 114, 182, 0.35);
+    color: var(--sl-color-white);
+    text-decoration: none !important;
+  }
+
+  @media (max-width: 860px) {
+    .gl-split,
+    .gl-verdict-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

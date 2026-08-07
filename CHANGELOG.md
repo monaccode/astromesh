@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added (Docs site)
+
+- **Mapa del ecosistema en la portada**, arriba de todo: una carta estelar donde
+  cada sector del borde es una parte del stack (Author · Execute · Reach · Ship ·
+  Operate · Models) y las pestañas son esa misma taxonomía. Elegir una pestaña
+  enciende su sector y apaga el resto, así la vista «All» sigue siendo un mapa y
+  cada pestaña sigue siendo una lista corta. Cada satélite abre un panel con su
+  versión, su fecha y qué entró en ella.
+- **Sección de Glyph** (`glyph/introduction`, `glyph/embedding`) más el bloque en
+  la portada: el programa al lado de las olas que el compilador deriva de él, y
+  el veredicto medido — como patrón de runtime cuesta +164% a +2839% más que
+  ReAct; donde paga es con `spec.program`, sin llamadas al modelo. La página de
+  configuración existente queda como «cómo prenderlo en un agente» y ahora
+  aparece también dentro del grupo de Glyph, sin duplicar contenido.
+- **Sección de Herald** (`herald/introduction`, `quickstart`, `whatsapp`,
+  `api-reference`) más el bloque en la portada con el camino de un mensaje en
+  las dos direcciones. Documenta lo que la propia README de Herald todavía da
+  por bloqueado: `send_message` funciona desde astromesh v0.40.0 + Nexus v0.11.0,
+  con el token por corrida.
+- **Registro de releases** al pie de la portada: una fila por paquete, ordenada
+  por fecha, con qué entró en su última versión. El punto es que nada acá se
+  mueve en el mismo reloj.
+- `src/data/ecosystem.ts`: un único registro de componentes (versión, fecha,
+  grupo, acento, qué entró) del que leen el mapa, el registro de releases y los
+  showcases de Cortex, Leia, Nexus, Node y OS.
+
+### Fixed (Docs site)
+
+- El ítem «Astromesh Node (service)» del sidebar de Deployment usaba `link:` con
+  la base ya incluida, y Starlight le antepone la base otra vez: el enlace salía
+  a `/astromesh/astromesh/node/introduction/` en **las 102 páginas** del sitio.
+  Pasa a `slug:`.
+- Versiones y descripciones vencidas en la portada: Nexus decía v0.3.0 y se
+  describía como un operador de Kubernetes con CRDs `NexusTenant` —diseño del que
+  el propio doc dice que se apartó—, Cortex v0.12.0, Leia v0.1.0, OS v0.4.0 y
+  Node v0.18.0. Todas salen ahora del registro de componentes.
+- El acento de Nexus (esmeralda) chocaba con el de Herald; Nexus pasa a ámbar,
+  el color que el mapa le da a «Operate».
+
 ## [v0.40.0] - 2026-08-06
 
 ### Added (Backend)

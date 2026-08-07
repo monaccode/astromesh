@@ -1,0 +1,173 @@
+---
+/**
+ * What shipped lately, across every package.
+ *
+ * A ledger, not cards: the useful question here is "is the thing I depend on
+ * moving, and what moved", and that reads fastest as aligned rows.
+ */
+import { ALL, GROUPS } from '../data/ecosystem';
+
+const accentOf = (id: string, group: string) =>
+  id === 'core' ? 'var(--sl-color-accent)' : GROUPS.find((g) => g.id === group)!.accent;
+
+const rows = [...ALL].sort((a, b) => b.released.localeCompare(a.released));
+const newest = rows[0].released;
+---
+
+<section class="rr">
+  <header class="rr-head">
+    <div>
+      <p class="rr-eyebrow">Release ledger</p>
+      <h2 class="rr-title">Nothing here ships on the same clock</h2>
+    </div>
+    <p class="rr-note">
+      Each package carries its own version and its own changelog. A core release does not bump
+      anything else, and a component that has not changed keeps its number.
+      <span class="rr-mono">Latest movement {newest}</span>
+    </p>
+  </header>
+
+  <ol class="rr-list">
+    {
+      rows.map((c) => (
+        <li class="rr-row" style={`--a: ${accentOf(c.id, c.group)}`}>
+          <span class="rr-date">{c.released}</span>
+          <a class="rr-name" href={c.href}>
+            {c.name}
+          </a>
+          <span class="rr-ver">v{c.version}</span>
+          <p class="rr-what">{c.latest}</p>
+        </li>
+      ))
+    }
+  </ol>
+</section>
+
+<style>
+  .rr {
+    margin: 3rem 0 2rem;
+  }
+
+  .rr-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: end;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--am-border);
+  }
+
+  .rr-eyebrow {
+    margin: 0 0 0.5rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--sl-color-accent);
+  }
+
+  .rr-title {
+    margin: 0;
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 300;
+    letter-spacing: -0.035em;
+    line-height: 1.12;
+    color: var(--sl-color-white);
+  }
+
+  .rr-note {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.65;
+    color: var(--sl-color-gray-3);
+  }
+
+  .rr-mono {
+    display: block;
+    margin-top: 0.4rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.68rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  .rr-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .rr-row {
+    display: grid;
+    grid-template-columns: 6.2rem minmax(9rem, 12rem) 4.6rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0.9rem;
+    padding: 0.85rem 0.6rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.18s ease;
+  }
+
+  .rr-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .rr-date,
+  .rr-ver {
+    font-family: var(--sl-font-mono);
+    font-size: 0.71rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  .rr-name {
+    position: relative;
+    font-size: 0.86rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--sl-color-white);
+    text-decoration: none;
+    padding-left: 0.75rem;
+  }
+
+  .rr-name::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.15em;
+    bottom: 0.15em;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--a);
+  }
+
+  .rr-name:hover {
+    color: var(--a);
+    text-decoration: none;
+  }
+
+  .rr-ver {
+    color: var(--a);
+  }
+
+  .rr-what {
+    margin: 0;
+    font-size: 0.79rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+  }
+
+  @media (max-width: 900px) {
+    .rr-head {
+      grid-template-columns: 1fr;
+      align-items: start;
+    }
+
+    .rr-row {
+      grid-template-columns: 6.2rem minmax(0, 1fr) 4.6rem;
+      gap: 0.5rem 0.9rem;
+    }
+
+    .rr-what {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

@@ -1,0 +1,136 @@
+---
+title: Herald Quick Start
+description: Run the whole inbound and outbound pipeline locally with the echo channel — no Meta account required.
+---
+
+import { Aside, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+The **echo** channel exercises every part of Herald — webhook, routing, Nexus run, outbox,
+dispatch — without a provider account. It performs no authentication at all, which is why it
+only registers behind `--enable-echo` and must never reach an internet-facing deployment.
+
+## Start Herald
+
+<Tabs>
+<TabItem label="Docker Compose">
+
+Brings up PostgreSQL 17 and Herald with development credentials. The admin token, encryption
+key and `tenant-1` send key are committed defaults — override them through the environment
+anywhere real.
+
+```sh
+git clone https://github.com/monaccode/astromesh-herald.git
+cd astromesh-herald
+docker compose -f deploy/docker-compose.yaml up --build
+
+curl localhost:8081/healthz
+```
+
+The compose stack has no Nexus. Point `NEXUS_URL` at a reachable control plane —
+`http://host.docker.internal:8080` is the default for a Nexus running on the host.
+
+</TabItem>
+<TabItem label="From source">
+
+Requires Go 1.25+ and PostgreSQL 17.
+
+```sh
+createdb herald
+go build -o bin/herald ./cmd/herald
+
+DATABASE_URL="postgres://localhost/herald?sslmode=disable" \
+NEXUS_URL="http://localhost:8080" \
+HERALD_ENC_KEY="$(openssl rand -hex 32)" \
+HERALD_ADMIN_TOKEN="$(openssl rand -hex 32)" \
+HERALD_SEND_KEYS="tenant-1:$(openssl rand -hex 16)" \
+./bin/herald --enable-echo
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+`HERALD_ENC_KEY` seals every stored channel credential and there is no re-encryption path.
+Losing it means re-registering every channel account. Generate it once, store it where you
+store your other secrets, and never regenerate it on an existing database.
+</Aside>
+
+## Wire a channel and an agent
+
+<Steps>
+
+1. **Create an echo channel account.**
+
+   ```sh
+   curl -X POST localhost:8081/admin/accounts \
+     -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"tenant_id":"tenant-1","channel":"echo",
+          "external_id":"echo-1","credentials":{}}'
+   ```
+
+2. **Bind it to an entry agent.** The admin plane validates the entry agent against Nexus and
+   rejects an unknown one with `422` — a typo fails here, not in front of a customer.
+
+   ```sh
+   curl -X POST localhost:8081/admin/bindings \
+     -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"tenant_id":"tenant-1","channel":"echo","account_id":"<account id>",
+          "entry_agent":"router","fallback_message":"Out of service",
+          "config":{"nexus_api_key":"<tenant nexus key>"}}'
+   ```
+
+3. **Send an inbound message.** This is what a provider's webhook would deliver.
+
+   ```sh
+   curl -X POST localhost:8081/webhooks/echo \
+     -H "Content-Type: application/json" \
+     -d '{"message_id":"m-1","account_id":"echo-1",
+          "sender":"+549110000001","text":"hola"}'
+   ```
+
+   The entry agent `router` runs, its `data.route` decides whether a conversation is persisted,
+   and the reply is queued in the outbox. See
+   [inbound routing](/astromesh/herald/introduction/#inbound-routing-two-ways).
+
+4. **Send a proactive message**, unprompted by anything the person did.
+
+   ```sh
+   curl -X POST localhost:8081/api/v1/messages/send \
+     -H "X-Herald-Key: <tenant-1 key>" \
+     -H "Content-Type: application/json" \
+     -d '{"channel":"echo","recipient":"+549110000001",
+          "text":"recordatorio de pago"}'
+   # → 202 {"message_id":"...","status":"pending"}
+   ```
+
+5. **Check whether it actually went out.** `202` meant queued.
+
+   ```sh
+   curl localhost:8081/api/v1/messages/<message_id> \
+     -H "X-Herald-Key: <tenant-1 key>"
+   ```
+
+</Steps>
+
+## Open the operator console
+
+```
+http://localhost:8081/ui/
+```
+
+Sign in by pasting the admin token. The outbox screen shows each entry's retry budget, which is
+where a delivery that is quietly failing becomes visible.
+
+<Aside type="tip">
+Building from source? The binary serves a placeholder page until `make ui-build` compiles the
+real console into `internal/webui/dist`. The Docker image builds it in a `node:22-alpine` stage,
+so the compose path always has the real thing.
+</Aside>
+
+## Next steps
+
+- [WhatsApp Setup](/astromesh/herald/whatsapp/) — replace echo with a real channel
+- [API Reference](/astromesh/herald/api-reference/) — every endpoint, every flag
+- [Nexus Quick Start](/astromesh/nexus/quickstart/) — the control plane Herald invokes agents through

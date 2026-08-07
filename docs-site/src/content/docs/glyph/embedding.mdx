@@ -1,0 +1,143 @@
+---
+title: Embedding Glyph
+description: Use Glyph from any host — the two-method CapabilityProvider protocol, the compile/execute cycle, and the repair loop.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Glyph depends on no agent framework. Astromesh consumes it through
+[`pattern: glyph`](/astromesh/configuration/glyph/), but the package is a plain library: give it
+a catalog of capabilities and a way to invoke them, and it will compile and run programs.
+
+```bash
+uv add astromesh-glyph   # from the monorepo path source — see the install note
+```
+
+## The whole boundary
+
+Two methods. Glyph does not know what a tool, an agent or a model is — it knows there are named
+capabilities with a schema and a way to call them.
+
+```python
+from typing import Any, Protocol, runtime_checkable
+
+@runtime_checkable
+class CapabilityProvider(Protocol):
+    def list_capabilities(self) -> list[CapabilitySpec]: ...
+    async def invoke(self, name: str, args: dict[str, Any]) -> Any: ...
+```
+
+### `CapabilitySpec`
+
+```python
+@dataclass(frozen=True)
+class CapabilitySpec:
+    name: str
+    description: str
+    parameters: dict[str, Any] = {}   # JSON Schema, object type
+    is_semantic: bool = False
+    returns: str = ""
+```
+
+| Field | Why it exists |
+|---|---|
+| `parameters` | A JSON Schema object — the same shape OpenAI function calling uses, so an existing tool definition drops in |
+| `is_semantic` | Marks capabilities that call a model. The host counts these separately, because each one is a round-trip the program chose to pay |
+| `returns` | The **shape of what comes back**, in one readable line: `"list of {sku, kind, price}"` |
+
+<Aside type="tip">
+`returns` is prose, not a JSON Schema, on purpose. It is paid on every turn and one line costs
+a fraction of a schema. And it is not optional in practice: without it the model has to invent
+field names, and in a language where the pipe filters by field, a wrong guess does not raise —
+it silently yields empty collections.
+</Aside>
+
+## The cycle
+
+```python
+from astromesh_glyph import (
+    build_system_block, compile_program, execute, extract_program, parse,
+)
+
+caps = provider.list_capabilities()
+
+# 1. Prompt side — the grammar and the catalog go into the system prompt.
+block = build_system_block(caps)
+
+# 2. The model answers. Pull the program out of whatever it wrapped it in.
+source = extract_program(model_response)
+
+# 3. Parse → compile. Nothing has executed yet.
+program = parse(source)
+graph = compile_program(program, caps, predefined=["query", "context"])
+
+# 4. Execute.
+result = await execute(graph, provider, initial_env={"query": q, "context": ctx})
+```
+
+Each step is separately usable. A host that ships fixed programs never calls
+`build_system_block` or `extract_program` — it parses and compiles at load time and only
+executes at run time. That is exactly what Astromesh does with `spec.program`.
+
+### `compile_program(program, capabilities, predefined=())`
+
+Validates every invoked capability and its arguments against the catalog, and returns a
+`PlanGraph` — the dependency graph between statements.
+
+`predefined` names the variables the host binds before the program runs. Without it, a fixed
+program that reads its invocation context would not compile, because the compiler would see
+undefined variables. Predefined names are still subject to the no-reassignment rule.
+
+### `execute(graph, provider, *, node_timeout=None, max_fanout=16, initial_env=None)`
+
+Runs the graph in topological waves; statements in the same wave run concurrently.
+
+| Parameter | Notes |
+|---|---|
+| `node_timeout` | Per-node ceiling, in seconds. `None` means no timeout |
+| `max_fanout` | Cap on concurrent invocations, so a `map` over a thousand items does not fire a thousand requests |
+| `initial_env` | Values for the `predefined` names. Host values are wrapped like capability results, so `context.field` works the same either way |
+
+Returns an `ExecutionResult` carrying the value, the executed nodes and a `CallRecord` per
+invocation.
+
+## Repairing a failed run
+
+```python
+from astromesh_glyph import GlyphCompileError, GlyphExecutionError, GlyphSyntaxError
+
+try:
+    result = await execute(graph, provider)
+except GlyphExecutionError as exc:
+    # Tells the model which effects already happened, so it does not repeat them.
+    repair_prompt = exc.partial_state.to_prompt()
+```
+
+| Exception | Raised when |
+|---|---|
+| `GlyphSyntaxError` | The text is not a Glyph program — lexer or parser, with the line |
+| `GlyphCompileError` | It parses but references an unknown capability or a bad argument, with the line |
+| `GlyphExecutionError` | A capability failed mid-run. Carries the partial state |
+
+All three inherit `GlyphError`.
+
+The distinction matters for where you spend a retry. A syntax or compile error means the model
+wrote something wrong and a repair costs one model call with a precise error message. An
+execution error means the world pushed back, and re-running from the top may re-apply effects
+that already landed — which is why the partial state is serialised rather than discarded.
+
+## What a host owes its users
+
+- **Cap the repairs.** Every repair is a full model call. Astromesh defaults to two.
+- **Fail loudly on a fixed program.** A pinned program that does not compile should stop the
+  agent from loading, not silently fall back to a tool-calling loop — the fallback costs two
+  orders of magnitude more, exactly when nobody is watching.
+- **Measure validity before rolling out.** The rate of programs that compile on the first try
+  is the metric that decides. Below 50% a model pays repairs constantly and no saving survives
+  it; models that write code well without deliberating at length score 80%+.
+
+## See also
+
+- [Glyph](/astromesh/glyph/introduction/) — the language, and the measured verdict
+- [Glyph in an agent](/astromesh/configuration/glyph/) — `pattern: glyph` and `spec.program`
+- [Tool Registry](/astromesh/reference/core/tool-registry/) — where Astromesh's capability catalog comes from

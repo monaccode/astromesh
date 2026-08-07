@@ -1,0 +1,766 @@
+---
+/**
+ * The ecosystem star chart.
+ *
+ * The rim of the chart and the tab bar are the same taxonomy: each group of
+ * the stack owns a sector, and every component sits on the ring inside its
+ * sector. Picking a tab lights that sector and dims the rest, so the dense
+ * "All" view stays a map while each tab stays a short list.
+ */
+import {
+  ALL,
+  COMPONENTS,
+  CORE,
+  CORE_R,
+  GROUPS,
+  LABEL_RING,
+  RIM,
+  RING,
+  angleOf,
+  arcPath,
+  isFlipped,
+  point,
+} from '../data/ecosystem';
+
+const GAP = 2.5; // degrees trimmed off each end of a sector arc, so sectors read as separate
+
+const sectors = GROUPS.map((g) => ({
+  ...g,
+  arc: arcPath(RIM, g.start + GAP, g.start + g.sweep - GAP, isFlipped(g)),
+  // The label path gets the whole sector, gaps included: a one-member sector is
+  // only 30° of arc and `textPath` clips whatever does not fit. A reversed arc
+  // draws its text on the inner side, so it needs a wider radius to land at the
+  // same visual distance from the ring as an upright one.
+  labelArc: arcPath(
+    LABEL_RING + (isFlipped(g) ? 34 : 0),
+    g.start,
+    g.start + g.sweep,
+    isFlipped(g),
+  ),
+  count: COMPONENTS.filter((c) => c.group === g.id).length,
+}));
+
+const nodes = COMPONENTS.map((c, i) => {
+  const deg = angleOf(c);
+  const [x, y] = point(RING, deg);
+  const [sx, sy] = point(CORE_R + 18, deg);
+  const [ex, ey] = point(RING - 42, deg);
+  return {
+    ...c,
+    accent: GROUPS.find((g) => g.id === c.group)!.accent,
+    left: (x / 10).toFixed(2),
+    top: (y / 10).toFixed(2),
+    spoke: { sx, sy, ex, ey },
+    order: i,
+  };
+});
+
+const shipped = ALL.length;
+---
+
+<section class="eco" data-eco data-group="all" data-focus="core">
+  <header class="eco-head">
+    <p class="eco-eyebrow">The Astromesh ecosystem</p>
+    <h2 class="eco-title">
+      One runtime,<br /><span class="eco-count">{shipped} shipped pieces</span> around it.
+    </h2>
+    <p class="eco-lede">
+      Every component is versioned and released on its own cadence. They all meet at the core
+      runtime — the engine that loads an agent and runs it. Pick a part of the stack to see what
+      lives there.
+    </p>
+  </header>
+
+  <div class="eco-tabs" role="tablist" aria-label="Parts of the stack">
+    <button role="tab" class="eco-tab" data-g="all" aria-selected="true">
+      <span class="eco-tab-dot" style="--a: var(--sl-color-accent)"></span>All
+    </button>
+    {
+      GROUPS.map((g) => (
+        <button role="tab" class="eco-tab" data-g={g.id} aria-selected="false" style={`--a: ${g.accent}`}>
+          <span class="eco-tab-dot" />
+          {g.label}
+        </button>
+      ))
+    }
+  </div>
+
+  <div class="eco-blurbs">
+    <p class="eco-blurb" data-g="all">
+      Clockwise from the top: author an agent, choose how it executes, put it in front of people,
+      ship it somewhere, operate it — and, upstream of all of it, make the models.
+    </p>
+    {GROUPS.map((g) => <p class="eco-blurb" data-g={g.id}>{g.blurb}</p>)}
+  </div>
+
+  <div class="eco-body">
+    <div class="eco-chart">
+      <svg class="eco-svg" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false">
+        <circle class="eco-guide" cx="500" cy="500" r="220" />
+        <circle class="eco-ring" cx="500" cy="500" r={RING} />
+
+        {
+          nodes.map((n) => (
+            <line
+              class="eco-spoke"
+              data-g={n.group}
+              x1={n.spoke.sx.toFixed(1)}
+              y1={n.spoke.sy.toFixed(1)}
+              x2={n.spoke.ex.toFixed(1)}
+              y2={n.spoke.ey.toFixed(1)}
+              style={`--a: ${GROUPS.find((g) => g.id === n.group)!.accent}`}
+            />
+          ))
+        }
+
+        {
+          sectors.map((s) => (
+            <>
+              <path class="eco-sector" data-g={s.id} d={s.arc} style={`--a: ${s.accent}`} />
+              <path id={`eco-lbl-${s.id}`} d={s.labelArc} fill="none" />
+              <text class="eco-rimlabel" data-g={s.id} style={`--a: ${s.accent}`}>
+                <textPath href={`#eco-lbl-${s.id}`} startOffset="50%" text-anchor="middle">
+                  {s.label.toUpperCase()} · {s.count}
+                </textPath>
+              </text>
+            </>
+          ))
+        }
+      </svg>
+
+      <button class="eco-core" data-node="core" aria-label={`${CORE.name}, v${CORE.version}`}>
+        <span class="eco-core-pulse" aria-hidden="true"></span>
+        <span class="eco-core-kicker">core</span>
+        <span class="eco-core-name">Runtime</span>
+        <span class="eco-core-ver">v{CORE.version}</span>
+      </button>
+
+      {
+        nodes.map((n) => (
+          <button
+            class="eco-node"
+            data-node={n.id}
+            data-g={n.group}
+            style={`--a: ${n.accent}; --i: ${n.order}; left: ${n.left}%; top: ${n.top}%`}
+          >
+            <span class="eco-node-name">{n.short}</span>
+            <span class="eco-node-ver">{n.version}</span>
+          </button>
+        ))
+      }
+    </div>
+
+    <aside class="eco-rail" aria-live="polite">
+      {
+        ALL.map((c) => (
+          <article class="eco-panel" data-panel={c.id} hidden={c.id !== 'core'}>
+            <p
+              class="eco-panel-group"
+              style={`--a: ${c.id === 'core' ? 'var(--sl-color-accent)' : GROUPS.find((g) => g.id === c.group)!.accent}`}
+            >
+              {c.id === 'core' ? 'The engine' : GROUPS.find((g) => g.id === c.group)!.label}
+            </p>
+            <h3 class="eco-panel-name">{c.name}</h3>
+            <p class="eco-panel-tag">{c.tagline}</p>
+
+            <dl class="eco-panel-meta">
+              <div>
+                <dt>Current</dt>
+                <dd class="eco-mono">v{c.version}</dd>
+              </div>
+              <div>
+                <dt>Released</dt>
+                <dd class="eco-mono">{c.released}</dd>
+              </div>
+            </dl>
+
+            <p class="eco-panel-latest-label">What landed in v{c.version}</p>
+            <p class="eco-panel-latest">{c.latest}</p>
+
+            <code class="eco-panel-install">{c.install}</code>
+
+            <div class="eco-panel-links">
+              <a class="eco-panel-cta" href={c.href}>
+                Documentation
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+                </svg>
+              </a>
+              {c.repo && (
+                <a class="eco-panel-repo" href={c.repo} target="_blank" rel="noopener">
+                  Own repository
+                </a>
+              )}
+            </div>
+          </article>
+        ))
+      }
+    </aside>
+  </div>
+</section>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-eco]');
+  if (root) {
+    const panels = root.querySelectorAll<HTMLElement>('[data-panel]');
+
+    const nodes = root.querySelectorAll<HTMLElement>('[data-node]');
+
+    const focus = (id: string) => {
+      root.dataset.focus = id;
+      panels.forEach((p) => {
+        p.hidden = p.dataset.panel !== id;
+      });
+      nodes.forEach((n) => n.classList.toggle('is-lit', n.dataset.node === id));
+    };
+
+    root.querySelectorAll<HTMLButtonElement>('.eco-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        root.querySelectorAll('.eco-tab').forEach((t) => t.setAttribute('aria-selected', 'false'));
+        tab.setAttribute('aria-selected', 'true');
+        root.dataset.group = tab.dataset.g || 'all';
+      });
+    });
+
+    nodes.forEach((node) => {
+      const show = () => focus(node.dataset.node || 'core');
+      node.addEventListener('click', show);
+      node.addEventListener('mouseenter', show);
+      node.addEventListener('focus', show);
+    });
+  }
+</script>
+
+<style>
+  .eco {
+    position: relative;
+    margin: 0 0 4rem;
+    padding-top: 0.5rem;
+  }
+
+  /* ── Header ─────────────────────────────────────────── */
+  .eco-head {
+    max-width: 46rem;
+  }
+
+  .eco-eyebrow {
+    font-family: var(--sl-font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--sl-color-accent);
+    margin: 0 0 0.7rem;
+  }
+
+  .eco-title {
+    font-size: clamp(1.9rem, 4.4vw, 3rem);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    font-weight: 300;
+    margin: 0 0 0.9rem;
+    color: var(--sl-color-white);
+  }
+
+  .eco-count {
+    font-weight: 700;
+    background: linear-gradient(100deg, #00d4ff 0%, #8b5cf6 55%, #f472b6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .eco-lede {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--sl-color-gray-2);
+    margin: 0;
+  }
+
+  /* ── Tabs ───────────────────────────────────────────── */
+  .eco-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 1.75rem 0 0.9rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--am-border);
+  }
+
+  .eco-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.42rem 0.85rem;
+    border-radius: 100px;
+    border: 1px solid var(--am-border);
+    background: transparent;
+    color: var(--sl-color-gray-3);
+    font-family: var(--sl-font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+
+  .eco-tab-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--a);
+    opacity: 0.5;
+    transition: opacity 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .eco-tab:hover {
+    color: var(--sl-color-white);
+    border-color: var(--am-border-hover);
+  }
+
+  .eco-tab[aria-selected='true'] {
+    color: var(--sl-color-white);
+    border-color: color-mix(in srgb, var(--a) 55%, transparent);
+    background: color-mix(in srgb, var(--a) 12%, transparent);
+  }
+
+  .eco-tab[aria-selected='true'] .eco-tab-dot {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--a);
+  }
+
+  /* ── Group blurb (swapped by CSS, no JS) ────────────── */
+  .eco-blurbs {
+    min-height: 2.9rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .eco-blurb {
+    display: none;
+    margin: 0;
+    max-width: 44rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+  }
+
+  .eco[data-group='all'] .eco-blurb[data-g='all'],
+  .eco[data-group='author'] .eco-blurb[data-g='author'],
+  .eco[data-group='runtime'] .eco-blurb[data-g='runtime'],
+  .eco[data-group='reach'] .eco-blurb[data-g='reach'],
+  .eco[data-group='ship'] .eco-blurb[data-g='ship'],
+  .eco[data-group='operate'] .eco-blurb[data-g='operate'],
+  .eco[data-group='models'] .eco-blurb[data-g='models'] {
+    display: block;
+  }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  .eco-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20.5rem;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .eco-chart {
+    position: relative;
+    aspect-ratio: 1;
+    max-width: 40rem;
+    margin-inline: auto;
+    width: 100%;
+  }
+
+  .eco-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* ── Chart furniture ────────────────────────────────── */
+  .eco-guide {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.05);
+    stroke-width: 1;
+    stroke-dasharray: 2 10;
+  }
+
+  .eco-ring {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.09);
+    stroke-width: 1;
+  }
+
+  .eco-spoke {
+    stroke: var(--a);
+    stroke-width: 1;
+    opacity: 0.16;
+    transition: opacity 0.35s ease, stroke-width 0.35s ease;
+  }
+
+  .eco-sector {
+    fill: none;
+    stroke: var(--a);
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: 0.28;
+    transition: opacity 0.35s ease, stroke-width 0.35s ease;
+  }
+
+  .eco-rimlabel {
+    fill: var(--a);
+    font-family: var(--sl-font-mono);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    opacity: 0.45;
+    transition: opacity 0.35s ease;
+  }
+
+  /* Focus a sector: everything outside it recedes. */
+  .eco:not([data-group='all']) .eco-sector,
+  .eco:not([data-group='all']) .eco-rimlabel,
+  .eco:not([data-group='all']) .eco-spoke {
+    opacity: 0.07;
+  }
+
+  .eco[data-group='author'] [data-g='author'],
+  .eco[data-group='runtime'] [data-g='runtime'],
+  .eco[data-group='reach'] [data-g='reach'],
+  .eco[data-group='ship'] [data-g='ship'],
+  .eco[data-group='operate'] [data-g='operate'],
+  .eco[data-group='models'] [data-g='models'] {
+    opacity: 1;
+  }
+
+  .eco:not([data-group='all']) .eco-sector[data-g] {
+    stroke-width: 5;
+  }
+
+  /* ── Core reactor ───────────────────────────────────── */
+  .eco-core {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 19.2%;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 212, 255, 0.45);
+    background:
+      radial-gradient(circle at 50% 35%, rgba(0, 212, 255, 0.22), transparent 70%),
+      #070d14;
+    color: var(--sl-color-white);
+    cursor: pointer;
+    z-index: 2;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .eco-core:hover,
+  .eco-core:focus-visible {
+    border-color: rgba(0, 212, 255, 0.9);
+    box-shadow: 0 0 26px rgba(0, 212, 255, 0.28);
+  }
+
+  .eco-core-pulse {
+    position: absolute;
+    inset: -6%;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    animation: eco-breathe 4.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes eco-breathe {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    50% {
+      transform: scale(1.16);
+      opacity: 0;
+    }
+  }
+
+  .eco-core-kicker {
+    font-family: var(--sl-font-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--sl-color-accent);
+  }
+
+  .eco-core-name {
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .eco-core-ver {
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  /* ── Satellites ─────────────────────────────────────── */
+  .eco-node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.05rem;
+    min-width: 4.9rem;
+    padding: 0.42rem 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--a) 30%, transparent);
+    background: #080e16;
+    color: var(--sl-color-white);
+    cursor: pointer;
+    z-index: 1;
+    /* `backwards`, not `forwards`: the entrance must not outrank the dimming
+       rules below, which an animation fill would win against. */
+    animation: eco-node-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: calc(0.25s + var(--i) * 0.045s);
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, opacity 0.3s ease;
+  }
+
+  /* Animates `scale`, not `transform` — the transform is holding the chip
+     centred on its point and must survive the entrance. */
+  @keyframes eco-node-in {
+    from {
+      opacity: 0;
+      scale: 0.82;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  .eco-node:hover,
+  .eco-node:focus-visible,
+  .eco-node.is-lit {
+    border-color: var(--a);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--a) 30%, transparent);
+    z-index: 3;
+  }
+
+  .eco-node-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .eco-node-ver {
+    font-family: var(--sl-font-mono);
+    font-size: 0.58rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  /* Dim satellites outside the selected sector. */
+  .eco:not([data-group='all']) .eco-node {
+    opacity: 0.16;
+    filter: saturate(0.2);
+  }
+
+  .eco[data-group='author'] .eco-node[data-g='author'],
+  .eco[data-group='runtime'] .eco-node[data-g='runtime'],
+  .eco[data-group='reach'] .eco-node[data-g='reach'],
+  .eco[data-group='ship'] .eco-node[data-g='ship'],
+  .eco[data-group='operate'] .eco-node[data-g='operate'],
+  .eco[data-group='models'] .eco-node[data-g='models'] {
+    opacity: 1;
+    filter: none;
+    border-color: color-mix(in srgb, var(--a) 55%, transparent);
+  }
+
+  /* ── Detail rail ────────────────────────────────────── */
+  .eco-rail {
+    position: sticky;
+    top: 5rem;
+    border: 1px solid var(--am-border);
+    border-radius: var(--am-radius);
+    background:
+      radial-gradient(120% 100% at 0% 0%, rgba(255, 255, 255, 0.035), transparent 60%),
+      rgba(8, 14, 22, 0.7);
+    padding: 1.35rem;
+  }
+
+  .eco-panel-group {
+    display: inline-block;
+    margin: 0 0 0.65rem;
+    padding: 0.16rem 0.5rem;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--a) 14%, transparent);
+    color: var(--a);
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .eco-panel-name {
+    margin: 0 0 0.45rem;
+    font-size: 1.22rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--sl-color-white);
+  }
+
+  .eco-panel-tag {
+    margin: 0 0 1.1rem;
+    font-size: 0.83rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-2);
+  }
+
+  .eco-panel-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin: 0 0 1.1rem;
+    padding: 0.7rem 0;
+    border-block: 1px solid var(--am-border);
+  }
+
+  .eco-panel-meta dt {
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-4);
+    margin-bottom: 0.2rem;
+  }
+
+  .eco-panel-meta dd {
+    margin: 0;
+  }
+
+  .eco-mono {
+    font-family: var(--sl-font-mono);
+    font-size: 0.78rem;
+    color: var(--sl-color-white);
+  }
+
+  .eco-panel-latest-label {
+    margin: 0 0 0.35rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-4);
+  }
+
+  .eco-panel-latest {
+    margin: 0 0 1.1rem;
+    font-size: 0.8rem;
+    line-height: 1.62;
+    color: var(--sl-color-gray-2);
+  }
+
+  .eco-panel-install {
+    display: block;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--am-border);
+    background: rgba(0, 0, 0, 0.35);
+    font-family: var(--sl-font-mono);
+    font-size: 0.71rem;
+    color: var(--sl-color-gray-2);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .eco-panel-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .eco-panel-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--sl-color-accent-high);
+    text-decoration: none;
+  }
+
+  .eco-panel-cta:hover {
+    gap: 0.6rem;
+  }
+
+  .eco-panel-repo {
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  /* ── Responsive ─────────────────────────────────────── */
+  @media (max-width: 1100px) {
+    .eco-body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .eco-rail {
+      position: static;
+    }
+  }
+
+  /* Below this the ring cannot hold twelve readable labels, so the chart
+     becomes the grouped list it always was underneath. */
+  @media (max-width: 640px) {
+    .eco-svg,
+    .eco-core-pulse {
+      display: none;
+    }
+
+    .eco-chart {
+      aspect-ratio: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .eco-core,
+    .eco-node {
+      position: static;
+      transform: none;
+      flex: 1 1 5.5rem;
+      width: auto;
+      aspect-ratio: auto;
+      border-radius: 0.5rem;
+      padding: 0.6rem;
+    }
+
+    .eco-core {
+      flex-basis: 100%;
+      flex-direction: row;
+      gap: 0.5rem;
+      justify-content: flex-start;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .eco-core-pulse {
+      animation: none;
+      opacity: 0.3;
+    }
+
+    .eco-node {
+      animation-duration: 0.01ms;
+      animation-delay: 0ms;
+    }
+  }
+</style>

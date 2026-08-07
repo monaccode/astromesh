@@ -69,7 +69,10 @@ export default defineConfig({
           items: [
             { label: 'Standalone (from source)', slug: 'deployment/standalone' },
             { label: 'Astromesh OS (appliance)', slug: 'deployment/astromesh-os' },
-            { label: 'Astromesh Node (service)', link: '/astromesh/node/introduction/' },
+            // `slug`, not `link`: Starlight prepends the site base to `link`, so
+            // a base-qualified path came out as /astromesh/astromesh/node/… on
+            // every page of the site.
+            { label: 'Astromesh Node (service)', slug: 'node/introduction' },
             { label: 'Docker Single Node', slug: 'deployment/docker-single' },
             { label: 'Docker Maia', slug: 'deployment/docker-maia' },
             { label: 'Docker Maia + GPU', slug: 'deployment/docker-maia-gpu' },
@@ -102,6 +105,14 @@ export default defineConfig({
             { label: 'Environment Variables', slug: 'reference/env-vars' },
             { label: 'API Endpoints', slug: 'reference/api-endpoints' },
             { label: 'CLI Commands', slug: 'reference/cli-commands' },
+          ],
+        },
+        {
+          label: 'Glyph (Action Language)',
+          items: [
+            { label: 'Introduction', slug: 'glyph/introduction' },
+            { label: 'In an agent (pattern: glyph)', slug: 'configuration/glyph' },
+            { label: 'Embedding Glyph', slug: 'glyph/embedding' },
           ],
         },
         {
@@ -175,6 +186,15 @@ export default defineConfig({
             { label: 'Architecture & CRDs', slug: 'nexus/architecture' },
             { label: 'Quick Start', slug: 'nexus/quickstart' },
             { label: 'API Reference', slug: 'nexus/api-reference' },
+          ],
+        },
+        {
+          label: 'Astromesh Herald',
+          items: [
+            { label: 'Introduction', slug: 'herald/introduction' },
+            { label: 'Quick Start', slug: 'herald/quickstart' },
+            { label: 'WhatsApp Setup', slug: 'herald/whatsapp' },
+            { label: 'API Reference', slug: 'herald/api-reference' },
           ],
         },
         {
