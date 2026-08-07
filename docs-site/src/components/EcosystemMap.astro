@@ -71,13 +71,13 @@ const shipped = ALL.length;
     </p>
   </header>
 
-  <div class="eco-tabs" role="tablist" aria-label="Parts of the stack">
-    <button role="tab" class="eco-tab" data-g="all" aria-selected="true">
+  <div class="eco-tabs" role="group" aria-label="Filter the chart by part of the stack">
+    <button type="button" class="eco-tab" data-g="all" aria-pressed="true">
       <span class="eco-tab-dot" style="--a: var(--sl-color-accent)"></span>All
     </button>
     {
       GROUPS.map((g) => (
-        <button role="tab" class="eco-tab" data-g={g.id} aria-selected="false" style={`--a: ${g.accent}`}>
+        <button type="button" class="eco-tab" data-g={g.id} aria-pressed="false" style={`--a: ${g.accent}`}>
           <span class="eco-tab-dot" />
           {g.label}
         </button>
@@ -216,8 +216,8 @@ const shipped = ALL.length;
 
     root.querySelectorAll<HTMLButtonElement>('.eco-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
-        root.querySelectorAll('.eco-tab').forEach((t) => t.setAttribute('aria-selected', 'false'));
-        tab.setAttribute('aria-selected', 'true');
+        root.querySelectorAll('.eco-tab').forEach((t) => t.setAttribute('aria-pressed', 'false'));
+        tab.setAttribute('aria-pressed', 'true');
         root.dataset.group = tab.dataset.g || 'all';
       });
     });
@@ -318,13 +318,13 @@ const shipped = ALL.length;
     border-color: var(--am-border-hover);
   }
 
-  .eco-tab[aria-selected='true'] {
+  .eco-tab[aria-pressed='true'] {
     color: var(--sl-color-white);
     border-color: color-mix(in srgb, var(--a) 55%, transparent);
     background: color-mix(in srgb, var(--a) 12%, transparent);
   }
 
-  .eco-tab[aria-selected='true'] .eco-tab-dot {
+  .eco-tab[aria-pressed='true'] .eco-tab-dot {
     opacity: 1;
     box-shadow: 0 0 8px var(--a);
   }
