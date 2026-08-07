@@ -1,100 +1,416 @@
 ---
-const badges = [
+/**
+ * The ecosystem's status board.
+ *
+ * Same taxonomy and the same accents as the star chart at the top of the page:
+ * a row's colour tells you which slice of the stack it belongs to before you
+ * read the name. Rows are driven by `ecosystem.ts` so a new component appears
+ * here the moment it appears on the map.
+ *
+ * Live gate badges only for public repositories — a workflow badge from a
+ * private repo renders as a broken image for everyone who is not a member, and
+ * a hardcoded green "passing" would be a claim we cannot back. Private rows
+ * carry the version and say they are private.
+ */
+import { GROUPS, COMPONENTS } from '../data/ecosystem';
+
+const accent = (id: string) => GROUPS.find((g) => g.id === id)!.accent;
+const layer = (id: string) => GROUPS.find((g) => g.id === id)!.label;
+
+/** shields.io wants the hex without the `#`. */
+const hex = (c: string) => c.replace('#', '');
+
+const wf = (repo: string, file: string, label: string, branch?: string) => ({
+  label,
+  img: `https://github.com/monaccode/${repo}/actions/workflows/${file}/badge.svg${branch ? `?branch=${branch}` : ''}`,
+  href: `https://github.com/monaccode/${repo}/actions/workflows/${file}`,
+});
+
+const shield = (path: string, label: string, href: string) => ({
+  label,
+  img: `https://img.shields.io/${path}`,
+  href,
+});
+
+interface Row {
+  /** Component id in `ecosystem.ts`, or a synthetic id for the aggregate rows. */
+  id: string;
+  name: string;
+  group: string;
+  /** Where the row's name links to. */
+  href: string;
+  /** Overrides the layer caption on rows that are an aggregate, not a repository. */
+  layerLabel?: string;
+  note?: string;
+  items: { label: string; img: string; href: string }[];
+}
+
+const version = (id: string) => COMPONENTS.find((c) => c.id === id)!.version;
+
+const rows: Row[] = [
   {
-    group: 'CI / CD',
+    id: 'core',
+    name: 'astromesh',
+    group: 'runtime',
+    href: 'https://github.com/monaccode/astromesh',
+    note: 'The monorepo: core runtime, Glyph, ADK, Forge, Node, CLI, Orbit.',
     items: [
-      { label: 'CI', img: 'https://github.com/monaccode/astromesh/actions/workflows/ci.yml/badge.svg?branch=main', href: 'https://github.com/monaccode/astromesh/actions/workflows/ci.yml' },
-      { label: 'Release', img: 'https://github.com/monaccode/astromesh/actions/workflows/release.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release.yml' },
-      { label: 'Deploy Docs', img: 'https://github.com/monaccode/astromesh/actions/workflows/docs.yml/badge.svg?branch=develop', href: 'https://github.com/monaccode/astromesh/actions/workflows/docs.yml' },
-      { label: 'Release PyPI', img: 'https://github.com/monaccode/astromesh/actions/workflows/release-pypi.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release-pypi.yml' },
-      { label: 'Release ADK', img: 'https://github.com/monaccode/astromesh/actions/workflows/release-adk.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release-adk.yml' },
-      { label: 'Release Orbit', img: 'https://github.com/monaccode/astromesh/actions/workflows/release-orbit.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release-orbit.yml' },
-      { label: 'Release Node', img: 'https://github.com/monaccode/astromesh/actions/workflows/release-node.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release-node.yml' },
-      { label: 'Release CLI', img: 'https://github.com/monaccode/astromesh/actions/workflows/release-cli.yml/badge.svg', href: 'https://github.com/monaccode/astromesh/actions/workflows/release-cli.yml' },
-      { label: 'OS CI', img: 'https://github.com/monaccode/astromesh-os/actions/workflows/phase0-ci.yml/badge.svg?branch=main', href: 'https://github.com/monaccode/astromesh-os/actions/workflows/phase0-ci.yml' },
-      { label: 'OS Publish (OCI)', img: 'https://github.com/monaccode/astromesh-os/actions/workflows/phase1-publish.yml/badge.svg', href: 'https://github.com/monaccode/astromesh-os/actions/workflows/phase1-publish.yml' },
+      wf('astromesh', 'ci.yml', 'CI', 'main'),
+      wf('astromesh', 'release.yml', 'Release'),
+      wf('astromesh', 'docs.yml', 'Deploy Docs', 'develop'),
+      shield(
+        `github/v/release/monaccode/astromesh?include_prereleases&label=core&color=${hex(accent('runtime'))}`,
+        'Core version',
+        'https://github.com/monaccode/astromesh/releases/latest',
+      ),
+      shield(
+        'github/license/monaccode/astromesh',
+        'License',
+        'https://github.com/monaccode/astromesh/blob/develop/LICENSE',
+      ),
+      shield('badge/python-3.12%2B-blue', 'Python 3.12+', 'https://www.python.org/'),
     ],
   },
   {
-    group: 'Packages',
+    id: 'pypi',
+    name: 'Published packages',
+    group: 'author',
+    href: 'https://pypi.org/project/astromesh/',
+    layerLabel: 'Artifacts',
+    note: 'Everything in the monorepo that ships as an installable artifact.',
     items: [
-      { label: 'Astromesh PyPI', img: 'https://img.shields.io/pypi/v/astromesh?label=Astromesh%20PyPI&color=00d4ff', href: 'https://pypi.org/project/astromesh/' },
-      { label: 'Astromesh TestPyPI', img: 'https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh%2Fjson&query=%24.info.version&label=Astromesh%20TestPyPI', href: 'https://test.pypi.org/project/astromesh/' },
-      { label: 'ADK PyPI', img: 'https://img.shields.io/pypi/v/astromesh-adk?label=ADK%20PyPI&color=8b5cf6', href: 'https://pypi.org/project/astromesh-adk/' },
-      { label: 'ADK TestPyPI', img: 'https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-adk%2Fjson&query=%24.info.version&label=ADK%20TestPyPI', href: 'https://test.pypi.org/project/astromesh-adk/' },
-      { label: 'Orbit PyPI', img: 'https://img.shields.io/pypi/v/astromesh-orbit?label=Orbit%20PyPI&color=8b5cf6', href: 'https://pypi.org/project/astromesh-orbit/' },
-      { label: 'Orbit TestPyPI', img: 'https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-orbit%2Fjson&query=%24.info.version&label=Orbit%20TestPyPI', href: 'https://test.pypi.org/project/astromesh-orbit/' },
-      { label: 'Node Release', img: 'https://img.shields.io/github/v/release/monaccode/astromesh?filter=node-v*&label=Node', href: 'https://github.com/monaccode/astromesh/releases?q=node' },
-      { label: 'CLI Release', img: 'https://img.shields.io/github/v/release/monaccode/astromesh?filter=cli-v*&label=CLI', href: 'https://github.com/monaccode/astromesh/releases?q=cli' },
-      { label: 'OS Tag', img: 'https://img.shields.io/github/v/tag/monaccode/astromesh-os?sort=semver&label=OS&color=fb923c', href: 'https://github.com/monaccode/astromesh-os/tags' },
+      shield(
+        `pypi/v/astromesh?label=astromesh&color=${hex(accent('runtime'))}`,
+        'astromesh on PyPI',
+        'https://pypi.org/project/astromesh/',
+      ),
+      shield(
+        `pypi/v/astromesh-adk?label=adk&color=${hex(accent('author'))}`,
+        'ADK on PyPI',
+        'https://pypi.org/project/astromesh-adk/',
+      ),
+      shield(
+        `pypi/v/astromesh-orbit?label=orbit&color=${hex(accent('ship'))}`,
+        'Orbit on PyPI',
+        'https://pypi.org/project/astromesh-orbit/',
+      ),
+      shield(
+        `pypi/v/astromesh-cli?label=astromeshctl&color=${hex(accent('operate'))}`,
+        'CLI on PyPI',
+        'https://pypi.org/project/astromesh-cli/',
+      ),
+      shield(
+        `github/v/release/monaccode/astromesh?filter=node-v*&label=node&color=${hex(accent('ship'))}`,
+        'Node release',
+        'https://github.com/monaccode/astromesh/releases?q=node',
+      ),
+      shield(
+        `badge/glyph-v${COMPONENTS.find((c) => c.id === 'glyph')!.version}-${hex(accent('runtime'))}`,
+        'Glyph version',
+        '/astromesh/glyph/introduction/',
+      ),
+      shield(
+        `badge/forge-v${COMPONENTS.find((c) => c.id === 'forge')!.version}-${hex(accent('author'))}`,
+        'Forge version',
+        '/astromesh/forge/introduction/',
+      ),
     ],
   },
   {
-    group: 'Info',
+    id: 'os',
+    name: 'astromesh-os',
+    group: 'ship',
+    href: 'https://github.com/monaccode/astromesh-os',
     items: [
-      { label: 'Version', img: 'https://img.shields.io/github/v/release/monaccode/astromesh?include_prereleases&label=version&color=3fb950', href: 'https://github.com/monaccode/astromesh/releases/latest' },
-      { label: 'Python', img: 'https://img.shields.io/badge/python-3.12%2B-blue', href: 'https://www.python.org/' },
-      { label: 'License', img: 'https://img.shields.io/github/license/monaccode/astromesh', href: 'https://github.com/monaccode/astromesh/blob/develop/LICENSE' },
+      shield(
+        `github/v/tag/monaccode/astromesh-os?sort=semver&label=version&color=${hex(accent('ship'))}`,
+        'OS version',
+        'https://github.com/monaccode/astromesh-os/tags',
+      ),
+      wf('astromesh-os', 'phase0-ci.yml', 'OS CI', 'main'),
+      wf('astromesh-os', 'phase1-publish.yml', 'OS Publish (OCI)'),
+      shield(
+        'badge/built%20on-Debian%20trixie-A81D33?logo=debian&logoColor=white',
+        'Debian trixie',
+        'https://www.debian.org/',
+      ),
+      shield(
+        'github/license/monaccode/astromesh-os',
+        'License',
+        'https://github.com/monaccode/astromesh-os/blob/main/LICENSE',
+      ),
+    ],
+  },
+  {
+    id: 'leia',
+    name: 'astromesh-leia',
+    group: 'author',
+    href: 'https://github.com/monaccode/astromesh-leia',
+    items: [
+      shield(
+        `badge/version-v${version('leia')}-${hex(accent('author'))}`,
+        'Leia version',
+        'https://github.com/monaccode/astromesh-leia/releases',
+      ),
+      wf('astromesh-leia', 'validate.yml', 'Validate Plugin'),
+      wf('astromesh-leia', 'install-test.yml', 'Install Test'),
+      shield(
+        'badge/Claude_Code-plugin-8b5cf6',
+        'Claude Code plugin',
+        'https://claude.com/claude-code',
+      ),
+      shield(
+        'github/license/monaccode/astromesh-leia',
+        'License',
+        'https://github.com/monaccode/astromesh-leia/blob/develop/LICENSE',
+      ),
+    ],
+  },
+  {
+    id: 'herald',
+    name: 'astromesh-herald',
+    group: 'reach',
+    href: '/astromesh/herald/introduction/',
+    note: 'Private repository — gate badges are only visible to members.',
+    items: [
+      shield(
+        `badge/version-v${version('herald')}-${hex(accent('reach'))}`,
+        'Herald version',
+        '/astromesh/herald/introduction/',
+      ),
+      shield('badge/Go-1.25-00ADD8?logo=go&logoColor=white', 'Go 1.25', 'https://go.dev/'),
+      shield(
+        'badge/Postgres-outbox-4169E1?logo=postgresql&logoColor=white',
+        'Postgres outbox',
+        '/astromesh/herald/introduction/',
+      ),
+      shield('badge/repo-private-6e7681', 'Private repository', '/astromesh/herald/introduction/'),
+    ],
+  },
+  {
+    id: 'nexus',
+    name: 'astromesh-nexus',
+    group: 'operate',
+    href: '/astromesh/nexus/introduction/',
+    note: 'Private repository — gate badges are only visible to members.',
+    items: [
+      shield(
+        `badge/version-v${version('nexus')}-${hex(accent('operate'))}`,
+        'Nexus version',
+        '/astromesh/nexus/introduction/',
+      ),
+      shield('badge/Go-1.25-00ADD8?logo=go&logoColor=white', 'Go 1.25', 'https://go.dev/'),
+      shield(
+        'badge/deploy-Kustomize-326CE5?logo=kubernetes&logoColor=white',
+        'Kustomize',
+        '/astromesh/nexus/quickstart/',
+      ),
+      shield('badge/repo-private-6e7681', 'Private repository', '/astromesh/nexus/introduction/'),
+    ],
+  },
+  {
+    id: 'cortex',
+    name: 'astromesh-cortex',
+    group: 'author',
+    href: '/astromesh/cortex/introduction/',
+    note: 'Private repository — gate badges are only visible to members.',
+    items: [
+      shield(
+        `badge/version-v${version('cortex')}-${hex(accent('author'))}`,
+        'Cortex version',
+        '/astromesh/cortex/introduction/',
+      ),
+      shield(
+        'badge/Electron-41-47848F?logo=electron&logoColor=white',
+        'Electron 41',
+        'https://www.electronjs.org/',
+      ),
+      shield('badge/React-19-61DAFB?logo=react&logoColor=white', 'React 19', 'https://react.dev/'),
+      shield('badge/repo-private-6e7681', 'Private repository', '/astromesh/cortex/introduction/'),
+    ],
+  },
+  {
+    id: 'nebula',
+    name: 'astromesh-nebula',
+    group: 'models',
+    href: '/astromesh/nebula/introduction/',
+    note: 'Private repository — the models it publishes are not.',
+    items: [
+      shield(
+        `badge/version-v${version('nebula')}-${hex(accent('models'))}`,
+        'Nebula version',
+        '/astromesh/nebula/introduction/',
+      ),
+      shield(
+        `badge/first%20family-Centinela-${hex(accent('models'))}`,
+        'The Centinela family',
+        '/astromesh/nebula/centinela/',
+      ),
+      shield(
+        'badge/pipeline-HF%20Jobs-FFD21E?logo=huggingface&logoColor=black',
+        'Trained on Hugging Face Jobs',
+        '/astromesh/nebula/pipeline/',
+      ),
+      shield('badge/license-Apache%202.0-blue', 'Apache 2.0', 'https://www.apache.org/licenses/LICENSE-2.0'),
+      shield('badge/repo-private-6e7681', 'Private repository', '/astromesh/nebula/introduction/'),
     ],
   },
 ];
+
+const board = rows.map((r) => ({
+  ...r,
+  // An aggregate row borrows no layer colour — it spans several.
+  accent: r.layerLabel ? 'var(--sl-color-gray-4)' : accent(r.group),
+  layer: r.layerLabel ?? layer(r.group),
+}));
 ---
 
-<div class="badges-root">
-  {badges.map((group) => (
-    <div class="badges-group">
-      <span class="badges-label">{group.group}</span>
-      <div class="badges-row">
-        {group.items.map((b) => (
-          <a href={b.href} target="_blank" rel="noopener" title={b.label} class="badge-link">
-            <img src={b.img} alt={b.label} loading="lazy" />
-          </a>
-        ))}
-      </div>
-    </div>
-  ))}
-</div>
+<section class="board" aria-labelledby="board-title">
+  <header class="board-head">
+    <p class="board-eyebrow">Status board</p>
+    <h2 id="board-title">What is green, and what version it is</h2>
+    <p class="board-lede">
+      One row per repository, coloured by the slice of the stack it belongs to — the same
+      taxonomy as the chart above.
+    </p>
+  </header>
+
+  <ul class="board-list">
+    {
+      board.map((row) => (
+        <li class="board-row" style={`--accent: ${row.accent}`}>
+          <div class="board-id">
+            <a class="board-name" href={row.href}>
+              {row.name}
+            </a>
+            <span class="board-layer">{row.layer}</span>
+          </div>
+          <div class="board-badges">
+            {row.items.map((b) => (
+              <a
+                href={b.href}
+                target={b.href.startsWith('http') ? '_blank' : undefined}
+                rel={b.href.startsWith('http') ? 'noopener' : undefined}
+                title={b.label}
+                class="badge-link"
+              >
+                <img src={b.img} alt={b.label} loading="lazy" />
+              </a>
+            ))}
+            {row.note && <p class="board-note">{row.note}</p>}
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+</section>
 
 <style>
-  .badges-root {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1.25rem;
+  .board {
+    margin: 3rem 0 2rem;
+    border: 1px solid var(--am-border, rgba(255, 255, 255, 0.08));
     border-radius: var(--am-radius, 0.625rem);
-    background: var(--am-surface, rgba(255,255,255,0.03));
-    border: 1px solid var(--am-border, rgba(255,255,255,0.08));
-    margin-bottom: 2rem;
+    background: var(--am-surface, rgba(255, 255, 255, 0.03));
+    overflow: hidden;
   }
 
-  .badges-group {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+  .board-head {
+    padding: 1.5rem 1.5rem 1.25rem;
+    border-bottom: 1px solid var(--am-border, rgba(255, 255, 255, 0.08));
   }
 
-  .badges-label {
+  .board-eyebrow {
+    margin: 0 0 0.35rem;
     font-family: var(--sl-font-mono);
     font-size: 0.62rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--sl-color-gray-3);
-    min-width: 5.5rem;
-    flex-shrink: 0;
   }
 
-  .badges-row {
+  .board-head h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    line-height: 1.25;
+    border: 0;
+  }
+
+  .board-lede {
+    margin: 0.5rem 0 0;
+    max-width: 52ch;
+    font-size: 0.9rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .board-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .board-row {
+    display: grid;
+    grid-template-columns: 13rem 1fr;
+    gap: 1rem;
+    align-items: start;
+    padding: 0.85rem 1.5rem;
+    border-top: 1px solid var(--am-border, rgba(255, 255, 255, 0.06));
+    /* The accent reads as a rule, not a fill — the badges already carry colour. */
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .board-row:first-child {
+    border-top: 0;
+  }
+
+  .board-id {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+
+  .board-name {
+    font-family: var(--sl-font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+    text-decoration: none !important;
+    overflow-wrap: anywhere;
+  }
+
+  .board-name:hover {
+    color: var(--accent);
+  }
+
+  .board-layer {
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .board-badges {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .board-note {
+    flex-basis: 100%;
+    margin: 0.15rem 0 0;
+    font-size: 0.72rem;
+    color: var(--sl-color-gray-4, var(--sl-color-gray-3));
   }
 
   .badge-link {
     display: inline-flex;
-    transition: transform 0.15s ease, opacity 0.15s ease;
     text-decoration: none !important;
+    transition: transform 0.15s ease, opacity 0.15s ease;
   }
 
   .badge-link:hover {
@@ -107,11 +423,24 @@ const badges = [
     border-radius: 3px;
   }
 
-  @media (max-width: 640px) {
-    .badges-group {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.35rem;
+  @media (prefers-reduced-motion: reduce) {
+    .badge-link {
+      transition: none;
+    }
+    .badge-link:hover {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .board-row {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+    .board-id {
+      flex-direction: row;
+      align-items: baseline;
+      gap: 0.6rem;
     }
   }
 </style>

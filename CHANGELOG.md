@@ -32,6 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `src/data/ecosystem.ts`: un único registro de componentes (versión, fecha,
   grupo, acento, qué entró) del que leen el mapa, el registro de releases y los
   showcases de Cortex, Leia, Nexus, Node y OS.
+- **Tablero de estado** al pie de la portada, en lugar de las tres filas sueltas
+  de badges que sólo cubrían el core y el OS: una fila por repositorio, con la
+  regla de color del sector al que pertenece — la misma taxonomía que el mapa.
+  Las filas salen de `ecosystem.ts`, así un componente nuevo aparece acá el
+  mismo día que aparece en el mapa. Los repos privados llevan versión y stack
+  pero **no** badges de workflow: desde afuera se ven rotos, y un «passing»
+  hardcodeado sería una afirmación que no podemos sostener.
+- El mapa del ecosistema ahora tiene `id="ecosystem"`. Es un ancla pública: el
+  primer badge de cada README de la suite vuelve acá.
+
+### Changed (Docs site)
+
+- El README del core: badge de capa, Glyph en la tabla de patrones (eran seis,
+  son siete), Herald en «Messaging Channels», y la tabla de ecosistema
+  reescrita por capa y **sin columna de versiones** — se desactualizaba al día
+  siguiente de cada release. Las versiones viven en el mapa y su registro.
 
 ### Fixed (Docs site)
 
