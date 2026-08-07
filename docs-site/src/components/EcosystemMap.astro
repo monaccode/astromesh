@@ -55,7 +55,10 @@ const nodes = COMPONENTS.map((c, i) => {
   };
 });
 
-const shipped = ALL.length;
+/* The headline counts what you can actually get. The chart draws more than
+   this: a component still in development is on the map so the shape of the
+   stack is honest, but it has not shipped and must not be counted as if. */
+const shipped = ALL.filter((c) => !c.inDevelopment).length;
 ---
 
 <!-- `id` is a public anchor: every repo's first badge links back to this map. -->
@@ -142,10 +145,11 @@ const shipped = ALL.length;
             class="eco-node"
             data-node={n.id}
             data-g={n.group}
+            data-wip={n.inDevelopment ? '' : undefined}
             style={`--a: ${n.accent}; --i: ${n.order}; left: ${n.left}%; top: ${n.top}%`}
           >
             <span class="eco-node-name">{n.short}</span>
-            <span class="eco-node-ver">{n.version}</span>
+            <span class="eco-node-ver">{n.inDevelopment ? 'in dev' : n.version}</span>
           </button>
         ))
       }
@@ -170,12 +174,21 @@ const shipped = ALL.length;
                 <dd class="eco-mono">v{c.version}</dd>
               </div>
               <div>
-                <dt>Released</dt>
+                <dt>{c.inDevelopment ? 'Last worked on' : 'Released'}</dt>
                 <dd class="eco-mono">{c.released}</dd>
               </div>
             </dl>
 
-            <p class="eco-panel-latest-label">What landed in v{c.version}</p>
+            {c.inDevelopment && (
+              <p class="eco-panel-wip">
+                In development — nothing to install yet. It is on this map so the shape of the
+                stack is honest, not because it has shipped.
+              </p>
+            )}
+
+            <p class="eco-panel-latest-label">
+              {c.inDevelopment ? 'Where it stands' : `What landed in v${c.version}`}
+            </p>
             <p class="eco-panel-latest">{c.latest}</p>
 
             <code class="eco-panel-install">{c.install}</code>
@@ -533,6 +546,16 @@ const shipped = ALL.length;
     transition: border-color 0.22s ease, box-shadow 0.22s ease, opacity 0.3s ease;
   }
 
+  /* A dashed outline is the whole tell: same position, same accent, but the
+     chip reads as provisional next to twelve solid ones. */
+  .eco-node[data-wip] {
+    border-style: dashed;
+  }
+
+  .eco-node[data-wip] .eco-node-ver {
+    font-style: italic;
+  }
+
   /* Animates `scale`, not `transform` — the transform is holding the chip
      centred on its point and must survive the entrance. */
   @keyframes eco-node-in {
@@ -650,6 +673,17 @@ const shipped = ALL.length;
     font-family: var(--sl-font-mono);
     font-size: 0.78rem;
     color: var(--sl-color-white);
+  }
+
+  /* Not an alarm — a caveat. Dashed, so it reads as provisional. */
+  .eco-panel-wip {
+    margin: 0 0 1.1rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px dashed color-mix(in srgb, var(--sl-color-gray-4) 60%, transparent);
+    border-radius: 6px;
+    font-size: 0.73rem;
+    line-height: 1.55;
+    color: var(--sl-color-gray-3);
   }
 
   .eco-panel-latest-label {

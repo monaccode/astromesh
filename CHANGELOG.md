@@ -41,6 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hardcodeado sería una afirmación que no podemos sostener.
 - El mapa del ecosistema ahora tiene `id="ecosystem"`. Es un ancla pública: el
   primer badge de cada README de la suite vuelve acá.
+- **Prisma en el mapa y en el sitio** (`prisma/introduction`), con la marca
+  `inDevelopment` que le falta a todo lo demás: se dibuja con borde punteado y
+  «in dev» en vez de una versión, el panel avisa que no hay nada para instalar,
+  y queda **fuera** del registro de releases — un registro de releases lista
+  releases. El título sigue contando 13 piezas shippeadas aunque el gráfico
+  dibuje 14. La página compara Prisma contra Orbit y dice qué no es verdad
+  todavía, incluida la fila de tools de su matriz de cobertura.
 
 ### Changed (Docs site)
 
@@ -51,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed (Docs site)
 
+- Starlight referenciaba su favicon por defecto, `/favicon.svg`, que este sitio
+  no tiene: era un 404 en **las 104 páginas**. Ahora apunta al logo que ya
+  estaba en `public/`.
 - El ítem «Astromesh Node (service)» del sidebar de Deployment usaba `link:` con
   la base ya incluida, y Starlight le antepone la base otra vez: el enlace salía
   a `/astromesh/astromesh/node/introduction/` en **las 102 páginas** del sitio.

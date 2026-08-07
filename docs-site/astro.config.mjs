@@ -17,6 +17,9 @@ export default defineConfig({
         replacesTitle: true,
       },
       description: 'AI Agent Runtime Platform',
+      // Sin esto Starlight referencia su default, /favicon.svg, que este sitio
+      // no tiene: era un 404 en las 104 páginas.
+      favicon: '/astromesh-logo.png',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/monaccode/astromesh' },
       ],
@@ -178,6 +181,11 @@ export default defineConfig({
             { label: 'GCP Provider', slug: 'orbit/gcp-provider' },
             { label: 'CLI Reference', slug: 'orbit/cli-reference' },
           ],
+        },
+        {
+          label: 'Astromesh Prisma',
+          badge: { text: 'in dev', variant: 'caution' },
+          items: [{ label: 'Introduction', slug: 'prisma/introduction' }],
         },
         {
           label: 'Astromesh Nexus',

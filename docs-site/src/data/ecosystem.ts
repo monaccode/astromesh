@@ -19,7 +19,11 @@ export interface Group {
   accent: string;
   /** Sector start angle, degrees clockwise from the top of the chart. */
   start: number;
-  /** Sector sweep in degrees. Always 30° per member. */
+  /**
+   * Sector sweep in degrees. The six sweeps total 360°, so a group that grows
+   * packs its members tighter rather than pushing the next sector around the
+   * rim — `angleOf` divides the sweep by however many members there are.
+   */
   sweep: number;
 }
 
@@ -41,6 +45,12 @@ export interface Component {
   href: string;
   /** Set when the component lives in its own repository. */
   repo?: string;
+  /**
+   * Set when the component is on the map but has not shipped. It is drawn and
+   * listed like the rest; every surface that shows it says so rather than
+   * letting a version number imply something you can install.
+   */
+  inDevelopment?: boolean;
 }
 
 /** Clockwise from the top: you author, it runs, it reaches people, you ship it, you operate it, and the models come from somewhere. */
@@ -216,6 +226,22 @@ export const COMPONENTS: Component[] = [
     install: 'Flash the published .raw image',
     href: '/astromesh/os/introduction/',
     repo: 'https://github.com/monaccode/astromesh-os',
+  },
+  {
+    id: 'prisma',
+    name: 'Astromesh Prisma',
+    short: 'Prisma',
+    group: 'ship',
+    version: '0.1.0',
+    released: '2026-07-17',
+    tagline:
+      'Reconciles the same agent spec into each cloud’s own managed AI primitives — and writes down what a cloud cannot host.',
+    latest:
+      'Agent, memory, RAG, tools and guardrails mapped onto the researched GCP surface. Everything still runs against an in-memory gateway.',
+    install: 'uv sync --extra dev',
+    href: '/astromesh/prisma/introduction/',
+    repo: 'https://github.com/monaccode/astromesh-prisma',
+    inDevelopment: true,
   },
   {
     id: 'orbit',

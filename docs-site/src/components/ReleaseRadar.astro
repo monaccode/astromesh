@@ -10,7 +10,11 @@ import { ALL, GROUPS } from '../data/ecosystem';
 const accentOf = (id: string, group: string) =>
   id === 'core' ? 'var(--sl-color-accent)' : GROUPS.find((g) => g.id === group)!.accent;
 
-const rows = [...ALL].sort((a, b) => b.released.localeCompare(a.released));
+/* A release ledger lists releases. A component still in development appears on
+   the map, but it has no release to put a date on and does not belong here. */
+const rows = ALL.filter((c) => !c.inDevelopment).sort((a, b) =>
+  b.released.localeCompare(a.released),
+);
 const newest = rows[0].released;
 ---
 
