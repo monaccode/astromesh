@@ -47,6 +47,7 @@ export default defineConfig({
           label: 'Architecture',
           items: [
             { label: 'Overview', slug: 'architecture/overview' },
+            { label: 'Ecosystem Components & Dependencies', slug: 'architecture/ecosystem-dependencies' },
             { label: 'Four-Layer Design', slug: 'architecture/four-layer-design' },
             { label: 'Agent Execution Pipeline', slug: 'architecture/agent-pipeline' },
             { label: 'Kubernetes-Style Architecture', slug: 'architecture/k8s-architecture' },
