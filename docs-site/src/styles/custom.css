@@ -204,3 +204,176 @@ pre.mermaid:fullscreen .am-mmd-viewport svg {
   max-width: 100%;
   max-height: 100%;
 }
+
+/* ── Scroll-reveal utilities ───────────────────────────────
+   See Head.astro for the IntersectionObserver that toggles
+   these classes on elements with `data-animate="reveal"`. */
+.am-hidden {
+  opacity: 0;
+  transform: translateY(1.5rem);
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.am-reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.am-hidden[data-animate-dir='left'] {
+  transform: translateX(-1.5rem);
+}
+
+.am-hidden[data-animate-dir='right'] {
+  transform: translateX(1.5rem);
+}
+
+.am-hidden[data-animate-dir='scale'] {
+  transform: scale(0.92);
+}
+
+.am-reveal[data-animate-dir='left'],
+.am-reveal[data-animate-dir='right'],
+.am-reveal[data-animate-dir='scale'] {
+  transform: translate(0) scale(1);
+}
+
+/* ── Component-specific entrance animations ──────────────── */
+
+/* EcosystemMap: satellite pulse when revealed */
+@keyframes eco-satellite-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--a) 30%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--a) 0%, transparent);
+  }
+}
+
+.eco-node.am-reveal {
+  animation: eco-node-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards,
+    eco-satellite-pulse 2.2s ease-in-out 0.6s 2;
+}
+
+/* EcosystemMap: sector stroke draw-on */
+.eco-sector {
+  stroke-dasharray: 3000;
+  stroke-dashoffset: 3000;
+  transition: stroke-dashoffset 1.1s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease,
+    stroke-width 0.35s ease;
+}
+
+.eco-sector.am-reveal {
+  stroke-dashoffset: 0;
+}
+
+/* Status board row entrance */
+.board-row.am-hidden {
+  transform: translateX(-1.25rem);
+}
+
+.board-row.am-reveal {
+  transform: translateX(0);
+}
+
+/* Release radar row entrance */
+.rr-row.am-hidden {
+  transform: translateY(1rem);
+}
+
+.rr-row.am-reveal {
+  transform: translateY(0);
+}
+
+/* ── Microinteractions ───────────────────────────────────── */
+
+/* Feature cards: stronger lift and glow on hover */
+.ft-card {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.ft-card:hover {
+  transform: translateY(-4px);
+}
+
+/* CTA buttons: subtle scale on hover */
+.adk-cta-primary,
+.adk-cta-secondary,
+.eco-panel-cta {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease,
+    gap 0.25s ease;
+}
+
+.adk-cta-primary:hover,
+.adk-cta-secondary:hover,
+.eco-panel-cta:hover {
+  transform: scale(1.02);
+}
+
+/* Badge links: glow on hover */
+.badge-link {
+  transition: transform 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
+}
+
+.badge-link:hover {
+  filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.35));
+}
+
+/* Eco tabs: lift on hover */
+.eco-tab {
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.eco-tab:hover {
+  transform: translateY(-1px);
+}
+
+/* Eco nodes: enhanced hover */
+.eco-node {
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, opacity 0.3s ease,
+    transform 0.22s ease;
+}
+
+.eco-node:hover,
+.eco-node:focus-visible,
+.eco-node.is-lit {
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
+/* Reduced motion: disable all reveal transitions and animations */
+@media (prefers-reduced-motion: reduce) {
+  .am-hidden,
+  .am-reveal,
+  .board-row.am-hidden,
+  .board-row.am-reveal,
+  .rr-row.am-hidden,
+  .rr-row.am-reveal {
+    transition: none;
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .eco-sector {
+    stroke-dashoffset: 0;
+    transition: none;
+  }
+
+  .eco-node.am-reveal {
+    animation: none;
+  }
+
+  .ft-card:hover,
+  .adk-cta-primary:hover,
+  .adk-cta-secondary:hover,
+  .eco-panel-cta:hover,
+  .eco-tab:hover,
+  .eco-node:hover,
+  .eco-node:focus-visible,
+  .eco-node.is-lit {
+    transform: none;
+  }
+}

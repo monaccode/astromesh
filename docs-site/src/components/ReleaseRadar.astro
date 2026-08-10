@@ -18,8 +18,8 @@ const rows = ALL.filter((c) => !c.inDevelopment).sort((a, b) =>
 const newest = rows[0].released;
 ---
 
-<section class="rr">
-  <header class="rr-head">
+<section class="rr" data-animate="reveal">
+  <header class="rr-head" data-animate="reveal">
     <div>
       <p class="rr-eyebrow">Release ledger</p>
       <h2 class="rr-title">Nothing here ships on the same clock</h2>
@@ -33,8 +33,13 @@ const newest = rows[0].released;
 
   <ol class="rr-list">
     {
-      rows.map((c) => (
-        <li class="rr-row" style={`--a: ${accentOf(c.id, c.group)}`}>
+      rows.map((c, idx) => (
+        <li
+          class="rr-row"
+          data-animate="reveal"
+          data-animate-delay={String(idx * 50)}
+          style={`--a: ${accentOf(c.id, c.group)}`}
+        >
           <span class="rr-date">{c.released}</span>
           <a class="rr-name" href={c.href}>
             {c.name}

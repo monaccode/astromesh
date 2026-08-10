@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Docs site)
 
+- **Animaciones de scroll y transiciones** en la portada: los componentes del
+  ecosistema (`EcosystemMap`, `StatusBadges`, `ReleaseRadar`) revelan sus
+  elementos al entrar en el viewport vía `IntersectionObserver`. Sectores del
+  mapa se dibujan con `stroke-dashoffset`, el panel lateral entra desde la
+  derecha y las filas del tablero de estado se deslizan desde la izquierda con
+  delays escalonados. Se activó Astro `ClientRouter` para transiciones suaves
+  entre páginas. Todo respeta `prefers-reduced-motion`.
 - **Mapa del ecosistema en la portada**, arriba de todo: una carta estelar donde
   cada sector del borde es una parte del stack (Author · Execute · Reach · Ship ·
   Operate · Models) y las pestañas son esa misma taxonomía. Elegir una pestaña
