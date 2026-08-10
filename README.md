@@ -21,7 +21,12 @@
   <a href="https://pypi.org/project/astromesh-orbit/"><img src="https://img.shields.io/pypi/v/astromesh-orbit?label=Orbit%20PyPI" alt="Orbit PyPI"></a>
   <a href="https://test.pypi.org/project/astromesh-orbit/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-orbit%2Fjson&query=%24.info.version&label=Orbit%20TestPyPI" alt="Orbit TestPyPI"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release-node.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-node.yml/badge.svg" alt="Node Release"></a>
+  <a href="https://github.com/monaccode/astromesh/releases?q=node&expanded=true"><img src="https://img.shields.io/github/v/release/monaccode/astromesh?include_prereleases&label=Node%20Release" alt="Node GitHub Release"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release-cli.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-cli.yml/badge.svg" alt="CLI Release"></a>
+  <a href="https://pypi.org/project/astromesh-cli/"><img src="https://img.shields.io/pypi/v/astromesh-cli?label=CLI%20PyPI" alt="CLI PyPI"></a>
+  <a href="https://test.pypi.org/project/astromesh-cli/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-cli%2Fjson&query=%24.info.version&label=CLI%20TestPyPI" alt="CLI TestPyPI"></a>
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-glyph.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-glyph.yml/badge.svg" alt="Glyph Release"></a>
+  <a href="https://github.com/monaccode/astromesh/blob/develop/docs/DEBT.md"><img src="https://img.shields.io/badge/Glyph-not%20on%20PyPI%20yet-orange?labelColor=161b22" alt="Glyph not on PyPI yet"></a>
   <a href="https://github.com/monaccode/astromesh/blob/develop/LICENSE"><img src="https://img.shields.io/github/license/monaccode/astromesh" alt="License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+"></a>
 </p>
@@ -438,7 +443,7 @@ Cross-platform system installer and daemon — deploy Astromesh as a **native sy
 
 ```bash
 # Debian/Ubuntu
-sudo dpkg -i astromesh-node-0.1.0-amd64.deb
+sudo dpkg -i astromesh-node-0.1.2-amd64.deb
 sudo astromeshctl init --profile full
 sudo systemctl start astromeshd
 ```

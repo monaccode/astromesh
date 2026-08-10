@@ -79,6 +79,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - El acento de Nexus (esmeralda) chocaba con el de Herald; Nexus pasa a ámbar,
   el color que el mapa le da a «Operate».
 
+### Changed (Release coordination)
+
+- **astromesh-adk 0.3.0**: sube la dependencia mínima de `astromesh` a
+  `>=0.40.0` para sincronizar con el core/runtime actual.
+- **astromesh-cli 0.3.0**: sube la dependencia mínima de `astromesh` a
+  `>=0.40.0`.
+- **astromesh-node 0.1.2**: sube `astromesh>=0.40.0` y `astromesh-cli>=0.3.0`;
+  actualiza los ejemplos de instalación del README.
+- **astromesh-orbit 0.4.1**: liberación alineada con la ronda de paquetes; no
+  cambian dependencias del core.
+- **astromesh-glyph 0.1.2**: salta a `0.1.2` porque el tag `glyph-v0.1.1` ya
+  existía apuntando a una revisión revertida; se mantiene sin dependencias de
+  runtime.
+- README raíz: agrega badges de PyPI/TestPyPI para `astromesh-cli`, badge de
+  GitHub release para `astromesh-node`, y deja documentado que `astromesh-glyph`
+  todavía no se publica en PyPI.
+
 ## [v0.40.0] - 2026-08-06
 
 ### Added (Backend)
