@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Docs site)
 
+- **Animaciones de scroll y transiciones** en la portada: los componentes del
+  ecosistema (`EcosystemMap`, `StatusBadges`, `ReleaseRadar`) revelan sus
+  elementos al entrar en el viewport vía `IntersectionObserver`. Sectores del
+  mapa se dibujan con `stroke-dashoffset`, el panel lateral entra desde la
+  derecha y las filas del tablero de estado se deslizan desde la izquierda con
+  delays escalonados. Se activó Astro `ClientRouter` para transiciones suaves
+  entre páginas. Todo respeta `prefers-reduced-motion`.
 - **Mapa del ecosistema en la portada**, arriba de todo: una carta estelar donde
   cada sector del borde es una parte del stack (Author · Execute · Reach · Ship ·
   Operate · Models) y las pestañas son esa misma taxonomía. Elegir una pestaña
@@ -72,12 +79,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - El acento de Nexus (esmeralda) chocaba con el de Herald; Nexus pasa a ámbar,
   el color que el mapa le da a «Operate».
 
-### Subpackage releases
+### Changed (Release coordination)
 
-- **astromesh-adk v0.2.1** — bumped `astromesh` floor to `>=0.40.0`.
-- **astromesh-cli v0.2.1** — bumped `astromesh` floor to `>=0.40.0`.
-- **astromesh-node v0.1.2** — bumped `astromesh` floor to `>=0.40.0` and `astromesh-cli` floor to `>=0.2.1`.
-- **astromesh-glyph v0.1.1** — `map` can invoke capabilities per item, `predefined`/`initial_env` bindings, max concurrency (`max_fanout`), and several compiler/execution fixes. See `astromesh-glyph/CHANGELOG.md`.
+- **astromesh-adk 0.3.0**: sube la dependencia mínima de `astromesh` a
+  `>=0.40.0` para sincronizar con el core/runtime actual.
+- **astromesh-cli 0.3.0**: sube la dependencia mínima de `astromesh` a
+  `>=0.40.0`.
+- **astromesh-node 0.1.2**: sube `astromesh>=0.40.0` y `astromesh-cli>=0.3.0`;
+  actualiza los ejemplos de instalación del README.
+- **astromesh-orbit 0.4.1**: liberación alineada con la ronda de paquetes; no
+  cambian dependencias del core.
+- **astromesh-glyph 0.1.2**: salta a `0.1.2` porque el tag `glyph-v0.1.1` ya
+  existía apuntando a una revisión revertida; se mantiene sin dependencias de
+  runtime.
+- README raíz: agrega badges de PyPI/TestPyPI para `astromesh-cli`, badge de
+  GitHub release para `astromesh-node`, y deja documentado que `astromesh-glyph`
+  todavía no se publica en PyPI.
 
 ## [v0.40.0] - 2026-08-06
 

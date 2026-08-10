@@ -1,5 +1,11 @@
 # Glyph
 
+<p align="center">
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-glyph.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-glyph.yml/badge.svg" alt="Glyph Release"></a>
+  <a href="https://github.com/monaccode/astromesh/blob/develop/docs/DEBT.md"><img src="https://img.shields.io/badge/PyPI-not%20published%20yet-orange?labelColor=161b22" alt="Not on PyPI yet"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+"></a>
+</p>
+
 Un lenguaje de acción para agentes LLM: el modelo emite **un programa** en vez de
 N llamadas a tools, y el runtime lo ejecuta encadenando capacidades localmente.
 

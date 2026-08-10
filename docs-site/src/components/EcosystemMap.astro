@@ -63,7 +63,7 @@ const shipped = ALL.filter((c) => !c.inDevelopment).length;
 
 <!-- `id` is a public anchor: every repo's first badge links back to this map. -->
 <section class="eco" id="ecosystem" data-eco data-group="all" data-focus="core">
-  <header class="eco-head">
+  <header class="eco-head" data-animate="reveal">
     <p class="eco-eyebrow">The Astromesh ecosystem</p>
     <h2 class="eco-title">
       One runtime,<br /><span class="eco-count">{shipped} shipped pieces</span> around it.
@@ -75,7 +75,7 @@ const shipped = ALL.filter((c) => !c.inDevelopment).length;
     </p>
   </header>
 
-  <div class="eco-tabs" role="group" aria-label="Filter the chart by part of the stack">
+  <div class="eco-tabs" role="group" aria-label="Filter the chart by part of the stack" data-animate="reveal" data-animate-delay="80">
     <button type="button" class="eco-tab" data-g="all" aria-pressed="true">
       <span class="eco-tab-dot" style="--a: var(--sl-color-accent)"></span>All
     </button>
@@ -89,7 +89,7 @@ const shipped = ALL.filter((c) => !c.inDevelopment).length;
     }
   </div>
 
-  <div class="eco-blurbs">
+  <div class="eco-blurbs" data-animate="reveal" data-animate-delay="120">
     <p class="eco-blurb" data-g="all">
       Clockwise from the top: author an agent, choose how it executes, put it in front of people,
       ship it somewhere, operate it — and, upstream of all of it, make the models.
@@ -98,7 +98,7 @@ const shipped = ALL.filter((c) => !c.inDevelopment).length;
   </div>
 
   <div class="eco-body">
-    <div class="eco-chart">
+    <div class="eco-chart" data-animate="reveal" data-animate-delay="180" data-animate-dir="scale">
       <svg class="eco-svg" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false">
         <circle class="eco-guide" cx="500" cy="500" r="220" />
         <circle class="eco-ring" cx="500" cy="500" r={RING} />
@@ -118,9 +118,16 @@ const shipped = ALL.filter((c) => !c.inDevelopment).length;
         }
 
         {
-          sectors.map((s) => (
+          sectors.map((s, idx) => (
             <>
-              <path class="eco-sector" data-g={s.id} d={s.arc} style={`--a: ${s.accent}`} />
+              <path
+                class="eco-sector"
+                data-g={s.id}
+                data-animate="reveal"
+                data-animate-delay={String(240 + idx * 80)}
+                d={s.arc}
+                style={`--a: ${s.accent}`}
+              />
               <path id={`eco-lbl-${s.id}`} d={s.labelArc} fill="none" />
               <text class="eco-rimlabel" data-g={s.id} style={`--a: ${s.accent}`}>
                 <textPath href={`#eco-lbl-${s.id}`} startOffset="50%" text-anchor="middle">
@@ -155,7 +162,7 @@ const shipped = ALL.filter((c) => !c.inDevelopment).length;
       }
     </div>
 
-    <aside class="eco-rail" aria-live="polite">
+    <aside class="eco-rail" aria-live="polite" data-animate="reveal" data-animate-delay="350" data-animate-dir="right">
       {
         ALL.map((c) => (
           <article class="eco-panel" data-panel={c.id} hidden={c.id !== 'core'}>

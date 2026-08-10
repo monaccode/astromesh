@@ -5,9 +5,11 @@
 // nodes, cyan borders with a subtle glow, JetBrains Mono labels. Re-runs on
 // Astro view transitions (astro:page-load).
 import Default from '@astrojs/starlight/components/Head.astro';
+import { ClientRouter } from 'astro:transitions';
 ---
 
 <Default><slot /></Default>
+<ClientRouter />
 
 <script>
 	import mermaid from 'mermaid';
@@ -222,4 +224,57 @@ import Default from '@astrojs/starlight/components/Head.astro';
 		render();
 	}
 	document.addEventListener('astro:page-load', render);
+</script>
+
+<script>
+	/**
+	 * Scroll-reveal for components below the fold.
+	 * Elements with `data-animate="reveal"` start hidden and fade/slide in
+	 * when at least 15% of them enters the viewport. `data-animate-delay`
+	 * supports staggered reveals. Respects `prefers-reduced-motion`.
+	 *
+	 * A module-level WeakSet tracks elements already observed so client-side
+	 * navigations (Astro view transitions) do not reset revealed content.
+	 */
+	const observed = new WeakSet<Element>();
+
+	function initReveal() {
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			document.querySelectorAll('[data-animate="reveal"]').forEach((el) => {
+				el.classList.add('am-reveal');
+			});
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (!entry.isIntersecting) return;
+					const el = entry.target;
+					const delay = Number(el.dataset.animateDelay || 0);
+					if (delay > 0) {
+						setTimeout(() => el.classList.add('am-reveal'), delay);
+					} else {
+						el.classList.add('am-reveal');
+					}
+					observer.unobserve(el);
+				});
+			},
+			{ threshold: 0.15, rootMargin: '0px 0px -40px 0px' },
+		);
+
+		document.querySelectorAll('[data-animate="reveal"]').forEach((el) => {
+			if (observed.has(el) || el.classList.contains('am-reveal')) return;
+			observed.add(el);
+			el.classList.add('am-hidden');
+			observer.observe(el);
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initReveal);
+	} else {
+		initReveal();
+	}
+	document.addEventListener('astro:page-load', initReveal);
 </script>

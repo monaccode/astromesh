@@ -296,8 +296,8 @@ const board = rows.map((r) => ({
 }));
 ---
 
-<section class="board" aria-labelledby="board-title">
-  <header class="board-head">
+<section class="board" aria-labelledby="board-title" data-animate="reveal">
+  <header class="board-head" data-animate="reveal">
     <p class="board-eyebrow">Status board</p>
     <h2 id="board-title">What is green, and what version it is</h2>
     <p class="board-lede">
@@ -308,8 +308,14 @@ const board = rows.map((r) => ({
 
   <ul class="board-list">
     {
-      board.map((row) => (
-        <li class="board-row" style={`--accent: ${row.accent}`}>
+      board.map((row, idx) => (
+        <li
+          class="board-row"
+          data-animate="reveal"
+          data-animate-dir="left"
+          data-animate-delay={String(idx * 60)}
+          style={`--accent: ${row.accent}`}
+        >
           <div class="board-id">
             <a class="board-name" href={row.href}>
               {row.name}
