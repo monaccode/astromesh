@@ -34,7 +34,10 @@
       "Bash(cd /d/monaccode/astromech-platform/vscode-extension && ./node_modules/.bin/mocha --ui tdd dist/test/suite/cli.test.js 2>&1)",
       "Bash(cd \"D:/monaccode/astromech-platform/vscode-extension\" && npx tsc --outDir dist --rootDir . --module commonjs --target ES2022 --esModuleInterop true --skipLibCheck true test/suite/traces.test.ts 2>&1 && npx mocha --ui tdd dist/test/suite/traces.test.js 2>&1)",
       "Bash(cd \"D:/monaccode/astromech-platform/vscode-extension\" && node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('schemas/agent.schema.json','utf8'\\)\\); console.log\\('agent: Valid'\\)\" && node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('schemas/workflow.schema.json','utf8'\\)\\); console.log\\('workflow: Valid'\\)\")",
-      "Bash(cd \"D:/monaccode/astromech-platform/vscode-extension\" && npx mocha --ui tdd dist/test/suite/cli.test.js dist/test/suite/traces.test.js 2>&1)"
+      "Bash(cd \"D:/monaccode/astromech-platform/vscode-extension\" && npx mocha --ui tdd dist/test/suite/cli.test.js dist/test/suite/traces.test.js 2>&1)",
+      "Bash(ls -1 /Users/fulfaro/monaccode/ | head -60)",
+      "Bash(grep -rl \"ecosystem.ts\\\\|EcosystemMap\\\\|layer\" /Users/fulfaro/monaccode/astromesh/docs* 2>/dev/null | head; find /Users/fulfaro/monaccode -maxdepth 4 -name \"ecosystem.ts\" 2>/dev/null | head)",
+      "Bash(python3 models/loop_economics.py)"
     ]
   }
 }
