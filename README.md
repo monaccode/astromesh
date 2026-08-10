@@ -10,18 +10,23 @@
   <a href="https://github.com/monaccode/astromesh/actions/workflows/ci.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release.yml/badge.svg" alt="Release"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release-pypi.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-pypi.yml/badge.svg" alt="PyPI Publish"></a>
-  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-adk.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-adk.yml/badge.svg" alt="ADK Publish"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/docs.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/docs.yml/badge.svg?branch=develop" alt="Docs"></a>
-  <a href="https://github.com/monaccode/astromesh/releases/latest"><img src="https://img.shields.io/github/v/release/monaccode/astromesh?include_prereleases&label=version" alt="Version"></a>
-  <a href="https://pypi.org/project/astromesh/"><img src="https://img.shields.io/pypi/v/astromesh?label=Astromesh%20PyPI" alt="Astromesh PyPI"></a>
-  <a href="https://test.pypi.org/project/astromesh/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh%2Fjson&query=%24.info.version&label=Astromesh%20TestPyPI" alt="Astromesh TestPyPI"></a>
-  <a href="https://pypi.org/project/astromesh-adk/"><img src="https://img.shields.io/pypi/v/astromesh-adk?label=ADK%20PyPI" alt="ADK PyPI"></a>
-  <a href="https://test.pypi.org/project/astromesh-adk/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-adk%2Fjson&query=%24.info.version&label=ADK%20TestPyPI" alt="ADK TestPyPI"></a>
-  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-orbit.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-orbit.yml/badge.svg" alt="Orbit Publish"></a>
-  <a href="https://pypi.org/project/astromesh-orbit/"><img src="https://img.shields.io/pypi/v/astromesh-orbit?label=Orbit%20PyPI" alt="Orbit PyPI"></a>
-  <a href="https://test.pypi.org/project/astromesh-orbit/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-orbit%2Fjson&query=%24.info.version&label=Orbit%20TestPyPI" alt="Orbit TestPyPI"></a>
-  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-node.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-node.yml/badge.svg" alt="Node Release"></a>
+  <a href="https://github.com/monaccode/astromesh/releases/latest"><img src="https://img.shields.io/github/v/release/monaccode/astromesh?include_prereleases&label=core" alt="Core version"></a>
+  <a href="https://pypi.org/project/astromesh/"><img src="https://img.shields.io/pypi/v/astromesh?label=astromesh%20PyPI" alt="Astromesh PyPI"></a>
+  <a href="https://test.pypi.org/project/astromesh/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh%2Fjson&query=%24.info.version&label=astromesh%20TestPyPI" alt="Astromesh TestPyPI"></a>
+  <br />
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-adk.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-adk.yml/badge.svg" alt="ADK Publish"></a>
+  <a href="https://pypi.org/project/astromesh-adk/"><img src="https://img.shields.io/pypi/v/astromesh-adk?label=adk%20PyPI" alt="ADK PyPI"></a>
+  <a href="https://test.pypi.org/project/astromesh-adk/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-adk%2Fjson&query=%24.info.version&label=adk%20TestPyPI" alt="ADK TestPyPI"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release-cli.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-cli.yml/badge.svg" alt="CLI Release"></a>
+  <a href="https://pypi.org/project/astromesh-cli/"><img src="https://img.shields.io/pypi/v/astromesh-cli?label=cli%20PyPI" alt="CLI PyPI"></a>
+  <a href="https://test.pypi.org/project/astromesh-cli/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-cli%2Fjson&query=%24.info.version&label=cli%20TestPyPI" alt="CLI TestPyPI"></a>
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-node.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-node.yml/badge.svg" alt="Node Release"></a>
+  <br />
+  <a href="https://github.com/monaccode/astromesh/actions/workflows/release-orbit.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-orbit.yml/badge.svg" alt="Orbit Publish"></a>
+  <a href="https://pypi.org/project/astromesh-orbit/"><img src="https://img.shields.io/pypi/v/astromesh-orbit?label=orbit%20PyPI" alt="Orbit PyPI"></a>
+  <a href="https://test.pypi.org/project/astromesh-orbit/"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftest.pypi.org%2Fpypi%2Fastromesh-orbit%2Fjson&query=%24.info.version&label=orbit%20TestPyPI" alt="Orbit TestPyPI"></a>
+  <a href="https://monaccode.github.io/astromesh/glyph/introduction/"><img src="https://img.shields.io/badge/glyph-v0.1.1-f472b6?labelColor=161b22" alt="Glyph version"></a>
   <a href="https://github.com/monaccode/astromesh/blob/develop/LICENSE"><img src="https://img.shields.io/github/license/monaccode/astromesh" alt="License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+"></a>
 </p>
