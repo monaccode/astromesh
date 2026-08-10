@@ -72,6 +72,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - El acento de Nexus (esmeralda) chocaba con el de Herald; Nexus pasa a ámbar,
   el color que el mapa le da a «Operate».
 
+### Subpackage releases
+
+- **astromesh-adk v0.2.1** — bumped `astromesh` floor to `>=0.40.0`.
+- **astromesh-cli v0.2.1** — bumped `astromesh` floor to `>=0.40.0`.
+- **astromesh-node v0.1.2** — bumped `astromesh` floor to `>=0.40.0` and `astromesh-cli` floor to `>=0.2.1`.
+- **astromesh-glyph v0.1.1** — `map` can invoke capabilities per item, `predefined`/`initial_env` bindings, max concurrency (`max_fanout`), and several compiler/execution fixes. See `astromesh-glyph/CHANGELOG.md`.
+
 ## [v0.40.0] - 2026-08-06
 
 ### Added (Backend)
