@@ -1,4 +1,8 @@
 ---
+import { COMPONENTS } from '../data/ecosystem';
+
+const nodeVersion = COMPONENTS.find((c) => c.id === 'node')!.version;
+
 const platforms = [
   {
     name: 'Debian / Ubuntu',
@@ -46,7 +50,7 @@ const features = [
   <div class="node-header">
     <div class="node-badge-row">
       <span class="node-badge-new">NEW</span>
-      <span class="node-badge-ver">node-v0.18.0</span>
+      <span class="node-badge-ver">node-v{nodeVersion}</span>
     </div>
     <h2 class="node-title">
       <span class="node-title-thin">Astromesh</span>
@@ -108,7 +112,7 @@ const features = [
       <span class="node-term-cmd">astromeshctl status</span>
     </div>
     <div class="node-term-row node-term-output">
-      <span class="node-term-output-text">● Running  v0.18.0  1 agent loaded  1 provider healthy</span>
+      <span class="node-term-output-text">● Running  v{nodeVersion}  1 agent loaded  1 provider healthy</span>
     </div>
   </div>
 

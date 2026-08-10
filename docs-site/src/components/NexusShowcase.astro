@@ -1,43 +1,44 @@
 ---
 import ProductShowcase from './ProductShowcase.astro';
+import { COMPONENTS } from '../data/ecosystem';
 
-// Version hardcoded — astromesh-nexus is a separate repo (not checked out by the
-// docs CI). Bump on release. Source: astromesh-nexus CHANGELOG / git tag.
-const version = '0.3.0';
+// Version and accent come from the component registry, so the homepage map and
+// this section can never disagree about what Nexus is or which release it is on.
+const nexus = COMPONENTS.find((c) => c.id === 'nexus')!;
 
 const lines = [
-  { t: 'apiVersion: nexus.astromesh.io/v1alpha1', k: 'key' },
-  { t: 'kind: NexusTenant', k: 'key' },
-  { t: 'metadata:', k: 'key' },
-  { t: '  name: tenant-prod', k: 'plain' },
-  { t: 'spec:', k: 'key' },
-  { t: '  displayName: "Production"', k: 'str' },
-  { t: '  nodeProfile: full', k: 'plain' },
-  { t: '  resourceQuota: { maxAgents: 20 }', k: 'plain' },
+  { t: 'POST /api/v1/agents/soporte/run', k: 'cmd' },
+  { t: 'X-API-Key: <tenant key>', k: 'comment' },
+  { t: '{', k: 'plain' },
+  { t: '  "query": "¿Cuándo llega mi pedido?",', k: 'str' },
+  { t: '  "session_id": "wa:+5491100000001"', k: 'str' },
+  { t: '}', k: 'plain' },
+  { t: '→ 200 { "answer": …, "usage": {', k: 'plain' },
+  { t: '    "credits": 412, "model": "kimi-k2" } }', k: 'plain' },
 ];
 
 const features = [
-  { icon: `<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>`, label: 'Multi-Tenant', desc: 'Namespace isolation' },
-  { icon: `<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 22V12"/>`, label: 'K8s Operator', desc: 'CRDs + reconcilers' },
-  { icon: `<path d="M4 17l6-6-6-6"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: 'REST API', desc: 'Gin :8080 · JWT + keys' },
-  { icon: `<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/>`, label: 'Per-Tenant Node', desc: 'astromesh-node :8000' },
-  { icon: `<polyline points="20 6 9 17 4 12"/>`, label: 'Agent Lifecycle', desc: 'register → deploy → run' },
-  { icon: `<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`, label: 'Observability', desc: 'status · logs · metrics' },
+  { icon: `<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>`, label: 'Multi-Tenant', desc: 'The tenant comes from the credential' },
+  { icon: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>`, label: 'Versioned Registry', desc: 'Specs in Postgres, author + checksum' },
+  { icon: `<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`, label: 'Metering & Billing', desc: 'Per run, per model, per tenant' },
+  { icon: `<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/>`, label: 'Shared Runtime Pool', desc: 'Dispatch, not a node per tenant' },
+  { icon: `<path d="M4 17l6-6-6-6"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: 'Streaming Runs', desc: 'WebSocket, cancellable mid-flight' },
+  { icon: `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`, label: 'Per-Run Credentials', desc: 'One tenant, one capability, one run' },
 ];
 ---
 
 <ProductShowcase
   name="Nexus"
-  version={version}
+  version={nexus.version}
   badge="NEW"
-  tagline="Multi-Tenant Cloud Control Plane"
-  description="A Kubernetes operator that provisions isolated tenants, runs an astromesh-node per tenant, and syncs agents through a REST API — the cloud backbone behind Cortex, Forge, and Leia."
-  accent="#34d399"
-  accentDeep="#10b981"
-  panelTitle="nexustenant.yaml"
+  tagline="Managed Multi-Tenant Control Plane"
+  description="Publishes agents with versioning, dispatches runs to a shared runtime pool, and meters and bills what each one consumes. External clients call one REST API; Nexus resolves the tenant, applies its limits, and records the invocation."
+  accent="#fbbf24"
+  accentDeep="#f59e0b"
+  panelTitle="run an agent"
   lines={lines}
   features={features}
-  terminal={["./hack/bootstrap.sh", "kubectl get nexustenants -n nexus-system"]}
+  terminal={["kubectl apply -k deploy/overlays/mvp", "curl -H \"X-API-Key: $KEY\" $NEXUS/api/v1/agents"]}
   ctaPrimary={{ text: 'Deploy Nexus', href: '/astromesh/nexus/quickstart/' }}
   ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/nexus/introduction/' }}
 />

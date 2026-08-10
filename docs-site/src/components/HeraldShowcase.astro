@@ -1,0 +1,640 @@
+---
+/**
+ * Herald on the homepage.
+ *
+ * The signature is the message path, because the thing that is easy to get
+ * wrong about Herald is the direction: it is not a WhatsApp plugin, it is a
+ * gateway that carries traffic both ways and never talks to the runtime.
+ */
+import { COMPONENTS } from '../data/ecosystem';
+
+const herald = COMPONENTS.find((c) => c.id === 'herald')!;
+
+const inbound = [
+  { label: 'Person', sub: 'WhatsApp' },
+  { label: 'Webhook', sub: 'HMAC-SHA256 checked' },
+  { label: 'Route', sub: 'conversation or entry agent' },
+  { label: 'Nexus', sub: 'POST /agents/:name/run' },
+];
+
+const outbound = [
+  { label: 'Person', sub: 'delivered' },
+  { label: 'Channel API', sub: 'Graph API send' },
+  { label: 'Outbox', sub: '10 attempts, 30s × 2ⁿ' },
+];
+
+const channels = [
+  { name: 'WhatsApp', state: 'live', note: 'Meta Cloud API — text, media, templates' },
+  { name: 'Echo', state: 'dev', note: 'the whole pipeline with no provider account' },
+  { name: 'Telegram', state: 'reserved', note: 'port implemented, returns ErrNotImplemented' },
+  { name: 'Web chat', state: 'reserved', note: 'needs a WebSocket endpoint to activate' },
+  { name: 'SMTP', state: 'reserved', note: 'outbound only, by design' },
+];
+---
+
+<section class="hd">
+  <div class="hd-aura" aria-hidden="true"></div>
+
+  <header class="hd-head">
+    <div class="hd-badges">
+      <span class="hd-badge">New</span>
+      <span class="hd-ver">herald-v{herald.version}</span>
+    </div>
+    <h2 class="hd-title">
+      <span class="hd-title-thin">Astromesh</span>
+      <span class="hd-title-bold">Herald</span>
+    </h2>
+    <p class="hd-sub">The communications gateway</p>
+    <p class="hd-desc">
+      An inbound WhatsApp message reaches an agent, and an agent reaches a person back — through the
+      same Postgres outbox, with the same retry budget. Herald never talks to the runtime: whether an
+      agent exists and who may run it is Nexus's call, checked when a binding is created and again on
+      every run.
+    </p>
+  </header>
+
+  <figure class="hd-path">
+    <figcaption class="hd-path-title">One message, end to end</figcaption>
+
+    <div class="hd-lane" data-dir="in">
+      <span class="hd-lane-tag">Inbound</span>
+      <ol class="hd-rail">
+        {
+          inbound.map((s, i) => (
+            <li class="hd-stop" style={`--i: ${i}`}>
+              <span class="hd-stop-label">{s.label}</span>
+              <span class="hd-stop-sub">{s.sub}</span>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+
+    <div class="hd-turn" aria-hidden="true">
+      <span class="hd-turn-line"></span>
+      <span class="hd-turn-note">the agent answers</span>
+    </div>
+
+    <div class="hd-lane" data-dir="out">
+      <span class="hd-lane-tag">Outbound</span>
+      <ol class="hd-rail hd-rail-rev">
+        {
+          outbound.map((s, i) => (
+            <li class="hd-stop" style={`--i: ${i}`}>
+              <span class="hd-stop-label">{s.label}</span>
+              <span class="hd-stop-sub">{s.sub}</span>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+
+    <p class="hd-feeder">
+      <span class="hd-feeder-arrow" aria-hidden="true"></span>
+      An agent calling <code>send_message</code> mid-run enters at the outbox too — same queue, same
+      retries. A success means <em>queued</em>, never <em>delivered</em>.
+    </p>
+  </figure>
+
+  <div class="hd-split">
+    <div class="hd-card">
+      <p class="hd-card-label">The entry agent decides</p>
+      <p class="hd-card-body">
+        When no conversation exists yet for a sender, the binding's entry agent gets the message and
+        answers with a routing decision. That is how a courtesy refusal costs nothing: nothing is
+        persisted, and the answer is still delivered.
+      </p>
+      <pre class="hd-json"><code>{`{
+  "answer": "Te ayudo con tu reclamo.",
+  "data": {
+    "route": {
+      "start_session": true,
+      "handoff_agent": "reclamos"
+    }
+  }
+}`}</code></pre>
+    </div>
+
+    <div class="hd-card">
+      <p class="hd-card-label">Channels</p>
+      <ul class="hd-channels">
+        {
+          channels.map((c) => (
+            <li class="hd-channel" data-state={c.state}>
+              <span class="hd-channel-dot" />
+              <span class="hd-channel-name">{c.name}</span>
+              <span class="hd-channel-state">{c.state}</span>
+              <span class="hd-channel-note">{c.note}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="hd-card-foot">
+        Stubs are real port implementations that refuse work — the contract exists, the provider
+        does not. Listing them as shipped would be a lie you would find out on a Friday.
+      </p>
+    </div>
+  </div>
+
+  <div class="hd-cta-row">
+    <a class="hd-cta" href="/astromesh/herald/introduction/">
+      Read the Herald docs
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+      </svg>
+    </a>
+    <a class="hd-cta-alt" href="/astromesh/herald/quickstart/">Run it in five minutes</a>
+  </div>
+</section>
+
+<style>
+  .hd {
+    position: relative;
+    padding: 3rem 0 2rem;
+    overflow: hidden;
+  }
+
+  .hd-aura {
+    position: absolute;
+    top: -120px;
+    right: -80px;
+    width: 460px;
+    height: 460px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.13), transparent 68%);
+    filter: blur(70px);
+    pointer-events: none;
+  }
+
+  .hd-head {
+    position: relative;
+    max-width: 44rem;
+  }
+
+  .hd-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .hd-badge {
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #04120c;
+    background: linear-gradient(135deg, #34d399, #059669);
+    padding: 0.22em 0.6em;
+    border-radius: 4px;
+  }
+
+  .hd-ver {
+    font-family: var(--sl-font-mono);
+    font-size: 0.65rem;
+    color: #34d399;
+    opacity: 0.75;
+  }
+
+  .hd-title {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+    margin: 0 0 0.25rem;
+  }
+
+  .hd-title-thin {
+    font-weight: 300;
+    color: var(--sl-color-gray-2);
+  }
+
+  .hd-title-bold {
+    font-weight: 800;
+    background: linear-gradient(120deg, #34d399 0%, #059669 50%, #00d4ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hd-sub {
+    margin: 0 0 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #6ee7b7;
+  }
+
+  .hd-desc {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: var(--sl-color-gray-2);
+  }
+
+  /* ── The path ──────────────────────────────────────── */
+  .hd-path {
+    position: relative;
+    margin: 2rem 0 1.5rem;
+    padding: 1.25rem;
+    border-radius: var(--am-radius);
+    border: 1px solid var(--am-border);
+    background:
+      radial-gradient(130% 100% at 0% 0%, rgba(16, 185, 129, 0.05), transparent 60%),
+      var(--am-surface);
+  }
+
+  .hd-path-title {
+    font-family: var(--sl-font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-4);
+    margin-bottom: 1rem;
+  }
+
+  .hd-lane {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .hd-lane-tag {
+    flex-shrink: 0;
+    width: 4.6rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6ee7b7;
+  }
+
+  .hd-lane[data-dir='out'] .hd-lane-tag {
+    color: var(--sl-color-gray-4);
+  }
+
+  .hd-rail {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .hd-rail-rev {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+  }
+
+  .hd-stop {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--am-border);
+    background: rgba(6, 12, 10, 0.65);
+    transition: border-color 0.2s ease;
+  }
+
+  .hd-stop:first-child {
+    border-radius: 0.45rem 0 0 0.45rem;
+  }
+
+  .hd-stop:last-child {
+    border-radius: 0 0.45rem 0.45rem 0;
+  }
+
+  .hd-rail-rev .hd-stop:first-child {
+    border-radius: 0 0.45rem 0.45rem 0;
+  }
+
+  .hd-rail-rev .hd-stop:last-child {
+    border-radius: 0.45rem 0 0 0.45rem;
+  }
+
+  .hd-stop + .hd-stop {
+    border-left-color: transparent;
+  }
+
+  .hd-stop:hover {
+    border-color: rgba(52, 211, 153, 0.4);
+  }
+
+  .hd-stop-label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hd-stop-sub {
+    font-family: var(--sl-font-mono);
+    font-size: 0.6rem;
+    line-height: 1.35;
+    color: var(--sl-color-gray-4);
+  }
+
+  /* The one moving thing: a pulse that walks the inbound rail and comes
+     back along the outbound one, so the direction reads without labels. */
+  .hd-lane[data-dir='in'] .hd-stop::after,
+  .hd-lane[data-dir='out'] .hd-stop::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid #34d399;
+    opacity: 0;
+    animation: hd-pulse 5.6s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 0.35s);
+    pointer-events: none;
+  }
+
+  .hd-lane[data-dir='out'] .hd-stop::after {
+    animation-delay: calc(1.8s + (2 - var(--i)) * 0.35s);
+  }
+
+  @keyframes hd-pulse {
+    0%,
+    12%,
+    100% {
+      opacity: 0;
+    }
+    4% {
+      opacity: 0.85;
+    }
+  }
+
+  .hd-turn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0 0.5rem 5.5rem;
+  }
+
+  .hd-turn-line {
+    width: 1.4rem;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(52, 211, 153, 0.6), transparent);
+  }
+
+  .hd-turn-note {
+    font-family: var(--sl-font-mono);
+    font-size: 0.62rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  .hd-feeder {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin: 1rem 0 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--am-border);
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+  }
+
+  .hd-feeder-arrow {
+    flex-shrink: 0;
+    margin-top: 0.5rem;
+    width: 0.9rem;
+    height: 1px;
+    background: rgba(52, 211, 153, 0.6);
+  }
+
+  .hd-feeder code {
+    font-size: 0.85em;
+    color: #6ee7b7;
+  }
+
+  .hd-feeder em {
+    color: var(--sl-color-white);
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  /* ── Two cards ─────────────────────────────────────── */
+  .hd-split {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .hd-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.1rem;
+    border-radius: var(--am-radius);
+    border: 1px solid var(--am-border);
+    background: var(--am-surface);
+  }
+
+  .hd-card-label {
+    margin: 0 0 0.55rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #6ee7b7;
+  }
+
+  .hd-card-body {
+    margin: 0 0 0.9rem;
+    font-size: 0.79rem;
+    line-height: 1.62;
+    color: var(--sl-color-gray-3);
+  }
+
+  .hd-card-foot {
+    margin: 0.9rem 0 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--am-border);
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: var(--sl-color-gray-4);
+  }
+
+  .hd-json {
+    margin: auto 0 0;
+    padding: 0.75rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid var(--am-border);
+    background: rgba(0, 0, 0, 0.35);
+    overflow-x: auto;
+  }
+
+  .hd-json code {
+    font-family: var(--sl-font-mono);
+    font-size: 0.7rem;
+    line-height: 1.6;
+    color: #a7f3d0;
+    background: none;
+    padding: 0;
+    white-space: pre;
+  }
+
+  .hd-channels {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+  }
+
+  .hd-channel {
+    display: grid;
+    grid-template-columns: 0.6rem 6rem auto;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  }
+
+  .hd-channel:last-child {
+    border-bottom: none;
+  }
+
+  .hd-channel-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sl-color-gray-5);
+  }
+
+  .hd-channel[data-state='live'] .hd-channel-dot {
+    background: #34d399;
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+  }
+
+  .hd-channel[data-state='dev'] .hd-channel-dot {
+    background: #fbbf24;
+  }
+
+  .hd-channel-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  .hd-channel[data-state='reserved'] .hd-channel-name {
+    color: var(--sl-color-gray-3);
+    font-weight: 500;
+  }
+
+  .hd-channel-state {
+    font-family: var(--sl-font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-4);
+  }
+
+  .hd-channel-note {
+    grid-column: 2 / -1;
+    font-size: 0.68rem;
+    line-height: 1.45;
+    color: var(--sl-color-gray-4);
+  }
+
+  /* ── CTAs ──────────────────────────────────────────── */
+  .hd-cta-row {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .hd-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #04120c;
+    background: linear-gradient(135deg, #34d399, #059669);
+    text-decoration: none;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, gap 0.25s ease;
+  }
+
+  .hd-cta:hover {
+    transform: translateY(-2px);
+    gap: 0.7rem;
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.35);
+    text-decoration: none !important;
+  }
+
+  .hd-cta-alt {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.65rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--sl-color-gray-2);
+    border: 1px solid var(--am-border);
+    background: var(--am-surface);
+    text-decoration: none;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .hd-cta-alt:hover {
+    border-color: rgba(52, 211, 153, 0.35);
+    color: var(--sl-color-white);
+    text-decoration: none !important;
+  }
+
+  @media (max-width: 860px) {
+    .hd-split {
+      grid-template-columns: 1fr;
+    }
+
+    .hd-lane {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.4rem;
+    }
+
+    .hd-lane-tag {
+      width: auto;
+    }
+
+    .hd-rail,
+    .hd-rail-rev {
+      flex-direction: column;
+    }
+
+    .hd-stop,
+    .hd-rail-rev .hd-stop {
+      border-radius: 0.45rem;
+    }
+
+    .hd-stop + .hd-stop {
+      border-left-color: var(--am-border);
+    }
+
+    .hd-turn {
+      padding-left: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hd-stop::after {
+      animation: none;
+    }
+  }
+</style>

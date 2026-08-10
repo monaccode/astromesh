@@ -1,0 +1,124 @@
+---
+title: Glyph
+description: An action language for LLM agents — the model emits one program instead of N tool calls, and the runtime chains the capabilities locally.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+**Glyph** is an action language for LLM agents. The model emits **one program** instead of one
+tool call per turn, and the runtime executes it — chaining capabilities locally, running
+independent statements at the same time.
+
+```glyph
+v = search_parts(make="Toyota", model="Corolla", year=2019, part="pastillas")
+
+oem = v | where(kind == "oem") | top(3, by=rating)
+alt = v | where(kind == "aftermarket", stock > 0) | top(3, by=price)
+
+if oem.empty:
+    eta = check_restock(sku=v.first.sku)
+
+return {oem, alt, eta}
+```
+
+`oem` and `alt` do not depend on each other, so they run concurrently.
+
+<Aside type="note">
+**v0.1.0.** Apache-2.0. Glyph depends on no agent framework: Astromesh consumes it through
+`pattern: glyph`, but any host can implement the protocol. See
+[Embedding Glyph](/astromesh/glyph/embedding/).
+</Aside>
+
+## Read this first
+
+Glyph was built to save tokens by replacing several model round-trips with one program.
+**That premise was measured against three models and did not hold.**
+
+As a runtime pattern — the model writing the program on every run — Glyph costs **+164% to
++2839% more than ReAct**, and is slower in 16 of 17 measured runs. The reason is structural:
+output tokens cost roughly 4× input tokens, and Glyph trades cheap input for expensive output.
+Between 81% and 99% of its cost is the model writing the program.
+
+Where it pays off is the opposite arrangement. **The model writes the program once, a human
+reviews it, and the runtime executes it forever after with zero model calls.** That is what
+`spec.program` is for, and it is the mode to reach for.
+
+The saving that survives is real, it is just not the one the design was aiming at: a fixed
+program removes the model from the loop entirely, and what remains is a small typed workflow
+engine with an LLM as its author rather than its interpreter.
+
+Full numbers, the benchmark, and how to measure your own case are in
+[`docs/GLYPH_GUIDE.md`](https://github.com/monaccode/astromesh/blob/develop/docs/GLYPH_GUIDE.md).
+
+## The language
+
+Five constructs, and nothing else.
+
+| Construct | Notes |
+|---|---|
+| `name = capability(arg=value)` | Arguments are always by name, never positional |
+| `x = collection \| where(a == 1, b > 0)` | Several conditions combine with AND |
+| `x = collection \| top(3, by=field)` | Sorts descending and truncates; `asc=true` inverts |
+| `x = collection \| map({a, b: other})` | Projects fields |
+| `x = collection \| map({g: cap(id=id)})` | Calls a capability per item, **in parallel** |
+| `if` / `else` | Four-space indented blocks. The same name may be bound in both arms |
+| `return {x, y}` | `{x}` is shorthand for `{"x": x}` |
+
+On a collection you can read `.empty`, `.first` and `.count`. On a record, its fields with a
+dot: `v.first.sku`.
+
+Two rules that are easy to trip on:
+
+- **Each name is bound once.** No reassignment — that is what makes the dependency graph exact.
+- **No loops, no user functions, no imports, no arithmetic.** `map` over the pipe covers the
+  collection cases.
+
+### Why statements run in parallel
+
+The compiler builds a dependency graph from which variables each statement reads and writes,
+then executes it in topological waves. Nothing declares concurrency; the absence of a
+dependency is what permits it.
+
+A `map` that calls a capability fires one call per item, also concurrent, capped at 16 in
+flight (`max_fanout`) — a `map` over a thousand rows must not become a thousand simultaneous
+requests.
+
+## Scope of v0.1.0
+
+Deliberately out: loops, user functions, imports, recursion, arithmetic. The absence of loops
+gets revisited when the benchmark shows they are needed, not before — every construct added is
+grammar the model has to be taught in every prompt.
+
+## Errors and repair
+
+A program that does not compile never runs. The compiler validates capabilities and their
+arguments against the catalog and returns the error with its line number, including for
+capabilities invoked inside a `map` stage — a misspelled name fails at compile time, not
+halfway through execution.
+
+If a capability fails mid-run, the runtime stops and serialises the partial state — bound
+variables, executed nodes, the error — through `PartialState.to_prompt()`. That tells the model
+explicitly which effects already happened, so a repair does not repeat them. A retry that
+re-charges a card is worse than no retry.
+
+## Installing
+
+<Aside type="caution">
+**Not on PyPI yet.** The `glyph` extra references `astromesh-glyph`, which has no trusted
+publisher registered, so `pip install 'astromesh[glyph]'` fails — pip ignores
+`[tool.uv.sources]`. Inside the monorepo it resolves by path source:
+
+```bash
+uv sync --extra glyph
+```
+
+Tracked in [`docs/DEBT.md`](https://github.com/monaccode/astromesh/blob/develop/docs/DEBT.md).
+</Aside>
+
+## Where to go next
+
+| I want to… | Go to |
+|---|---|
+| Turn it on in an agent | [Glyph — Action Language](/astromesh/configuration/glyph/) — `pattern: glyph`, `spec.program`, the authoring cycle, what fails when |
+| Use Glyph from my own host | [Embedding Glyph](/astromesh/glyph/embedding/) — the two-method `CapabilityProvider` protocol |
+| See the measured numbers | [`docs/GLYPH_GUIDE.md`](https://github.com/monaccode/astromesh/blob/develop/docs/GLYPH_GUIDE.md) |

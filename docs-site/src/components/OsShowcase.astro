@@ -2,10 +2,9 @@
 import ProductShowcase from './ProductShowcase.astro';
 
 // Astromesh OS is a distro/appliance, not a package — but it is versioned like the
-// rest of the ecosystem (semver) with the roadmap phase surfaced as a maturity badge.
-// Separate repo, not checked out by the docs CI, so the version is hardcoded here.
-// Source: github.com/monaccode/astromesh-os.
-const version = '0.4.0';
+// rest of the ecosystem (semver), with the roadmap phase surfaced as a maturity badge.
+import { COMPONENTS } from '../data/ecosystem';
+const version = COMPONENTS.find((c) => c.id === 'os')!.version;
 
 const lines = [
   { t: '[Distribution]', k: 'comment' },
@@ -39,7 +38,7 @@ const features = [
   panelTitle="mkosi.conf"
   lines={lines}
   features={features}
-  terminal={["oras pull ghcr.io/monaccode/astromesh-os:v0.4.0", "PHASE0_MODE=stub mkosi build"]}
+  terminal={[`oras pull ghcr.io/monaccode/astromesh-os:v${version}`, "PHASE0_MODE=stub mkosi build"]}
   ctaPrimary={{ text: 'Operations & Commands', href: '/astromesh/os/operations/' }}
   ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/os/introduction/' }}
 />

@@ -1,9 +1,10 @@
 ---
 import ProductShowcase from './ProductShowcase.astro';
 
-// Version is hardcoded: astromesh-cortex is a separate repo the docs CI does not
-// check out. Bump on release. Source: astromesh-cortex/package.json.
-const version = '0.12.0';
+// Version comes from the component registry — one place for every number the
+// homepage shows, so the map and this section cannot drift apart.
+import { COMPONENTS } from '../data/ecosystem';
+const version = COMPONENTS.find((c) => c.id === 'cortex')!.version;
 
 const lines = [
   { t: '{', k: 'plain' },

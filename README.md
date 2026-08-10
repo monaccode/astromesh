@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="https://monaccode.github.io/astromesh/#ecosystem"><img src="https://img.shields.io/badge/astromesh-execute-f472b6?labelColor=161b22" alt="Astromesh · Execute"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/ci.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release.yml/badge.svg" alt="Release"></a>
   <a href="https://github.com/monaccode/astromesh/actions/workflows/release-pypi.yml"><img src="https://github.com/monaccode/astromesh/actions/workflows/release-pypi.yml/badge.svg" alt="PyPI Publish"></a>
@@ -122,6 +123,7 @@ Astromesh includes several orchestration strategies:
 | Parallel Fan-Out | multi-model collaboration |
 | Supervisor | hierarchical agents |
 | Swarm | distributed agent collaboration |
+| Glyph | the model writes one program; its dependency graph is executed in waves |
 
 ---
 
@@ -186,15 +188,11 @@ Tools are configured declaratively in agent YAML with zero-code setup for built-
 
 Astromesh supports external messaging integrations.
 
-**Current integration:**
-- WhatsApp (Meta Cloud API)
+**In the runtime:**
+- WhatsApp (Meta Cloud API), through the built-in channel adapter
+- `send_message`, a built-in tool that lets an agent reach a person mid-run instead of only answering whoever wrote first
 
-**Future integrations:**
-- Slack
-- Telegram
-- Discord
-- Web chat
-- Voice assistants
+**Through [Herald](https://github.com/monaccode/astromesh-herald),** the communications gateway of the suite: two-way routing decided by an entry agent, a Postgres outbox with a retry budget, and an operator console. WhatsApp is live there; Telegram, Web Chat and SMTP have contract stubs in place.
 
 ---
 
@@ -379,18 +377,28 @@ Includes:
 
 ## Ecosystem
 
-Astromesh is an ecosystem of six components covering the full agent lifecycle:
+Astromesh is an ecosystem covering the full agent lifecycle. Every component moves on its own
+clock, so the current versions live in one place — the
+**[ecosystem map](https://monaccode.github.io/astromesh/#ecosystem)** and its release ledger —
+rather than in a table that goes stale the day after a release.
 
-| Component | Description | Package | Status |
-|-----------|-------------|---------|--------|
-| **Core Runtime** | Multi-model agent engine with 6 orchestration patterns | `astromesh` | v0.35.0 |
-| **ADK** | Python-first agent SDK with decorators and CLI | `astromesh-adk` | v0.2.0 |
-| **CLI** | CLI tool for managing nodes and clusters | `astromesh-cli` | v0.1.1 |
-| **Node** | Cross-platform system installer and daemon | `astromesh-node` | v0.1.1 |
-| **Forge** | Visual agent builder with wizard, canvas, and templates | `astromesh-forge` | v0.24.0 |
-| **Orbit** | Cloud-native IaC deployment with Terraform | `astromesh-orbit` | v0.4.0 |
-| **Cortex** | Desktop IDE for agent engineering (Electron + React) | `astromesh-cortex` | v0.3.0 |
-| **Nexus** | Kubernetes control plane for multi-tenant cloud agents | `astromesh-nexus` | v0.3.0 |
+| | Component | What it does | Where it lives |
+|---|-----------|--------------|----------------|
+| **Author** | **ADK** | Python-first agent SDK with decorators, hot reload and a project CLI | `astromesh-adk` |
+| | **Forge** | Visual agent builder, served by the node itself at `/forge` | `astromesh-forge` |
+| | **[Cortex](https://github.com/monaccode/astromesh-cortex)** | Desktop IDE that reaches every runtime you own (Electron + React) | own repo |
+| | **[Leia](https://github.com/monaccode/astromesh-leia)** | Agent operations in plain English, from inside Claude Code | own repo |
+| **Execute** | **Core Runtime** | Multi-model agent engine with 7 orchestration patterns | `astromesh` |
+| | **Glyph** | Action language: the model writes one program instead of one tool call per turn | `astromesh-glyph` |
+| **Reach** | **[Herald](https://github.com/monaccode/astromesh-herald)** | Communications gateway — a person reaches an agent, and an agent reaches back | own repo |
+| **Ship** | **Node** | Cross-platform system installer and daemon | `astromesh-node` |
+| | **[OS](https://github.com/monaccode/astromesh-os)** | Immutable, API-only Linux appliance with A/B slots | own repo |
+| | **Orbit** | Cloud-native IaC deployment with Terraform (GCP first) | `astromesh-orbit` |
+| **Operate** | **[Nexus](https://github.com/monaccode/astromesh-nexus)** | Multi-tenant control plane: publishes, dispatches, meters, bills | own repo |
+| | **CLI** | `astromeshctl` — the terminal interface to a node | `astromesh-cli` |
+| **Models** | **[Nebula](https://github.com/monaccode/astromesh-nebula)** | The open-model foundry that trains and publishes what the runtime routes to | own repo |
+
+Anything listed with a package name is a directory of this monorepo, released on its own tag.
 
 ---
 

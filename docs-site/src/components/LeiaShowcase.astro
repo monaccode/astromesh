@@ -1,9 +1,8 @@
 ---
 import ProductShowcase from './ProductShowcase.astro';
 
-// Version hardcoded — astromesh-leia is a separate repo (Claude Code plugin),
-// not checked out by the docs CI. Bump on release. Source: astromesh-leia.
-const version = '0.1.0';
+import { COMPONENTS } from '../data/ecosystem';
+const version = COMPONENTS.find((c) => c.id === 'leia')!.version;
 
 const lines = [
   { t: '/leia bootstrap local', k: 'cmd' },

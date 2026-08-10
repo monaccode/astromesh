@@ -5,6 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added (Docs site)
+
+- **Mapa del ecosistema en la portada**, arriba de todo: una carta estelar donde
+  cada sector del borde es una parte del stack (Author · Execute · Reach · Ship ·
+  Operate · Models) y las pestañas son esa misma taxonomía. Elegir una pestaña
+  enciende su sector y apaga el resto, así la vista «All» sigue siendo un mapa y
+  cada pestaña sigue siendo una lista corta. Cada satélite abre un panel con su
+  versión, su fecha y qué entró en ella.
+- **Sección de Glyph** (`glyph/introduction`, `glyph/embedding`) más el bloque en
+  la portada: el programa al lado de las olas que el compilador deriva de él, y
+  el veredicto medido — como patrón de runtime cuesta +164% a +2839% más que
+  ReAct; donde paga es con `spec.program`, sin llamadas al modelo. La página de
+  configuración existente queda como «cómo prenderlo en un agente» y ahora
+  aparece también dentro del grupo de Glyph, sin duplicar contenido.
+- **Sección de Herald** (`herald/introduction`, `quickstart`, `whatsapp`,
+  `api-reference`) más el bloque en la portada con el camino de un mensaje en
+  las dos direcciones. Documenta lo que la propia README de Herald todavía da
+  por bloqueado: `send_message` funciona desde astromesh v0.40.0 + Nexus v0.11.0,
+  con el token por corrida.
+- **Registro de releases** al pie de la portada: una fila por paquete, ordenada
+  por fecha, con qué entró en su última versión. El punto es que nada acá se
+  mueve en el mismo reloj.
+- `src/data/ecosystem.ts`: un único registro de componentes (versión, fecha,
+  grupo, acento, qué entró) del que leen el mapa, el registro de releases y los
+  showcases de Cortex, Leia, Nexus, Node y OS.
+- **Tablero de estado** al pie de la portada, en lugar de las tres filas sueltas
+  de badges que sólo cubrían el core y el OS: una fila por repositorio, con la
+  regla de color del sector al que pertenece — la misma taxonomía que el mapa.
+  Las filas salen de `ecosystem.ts`, así un componente nuevo aparece acá el
+  mismo día que aparece en el mapa. Los repos privados llevan versión y stack
+  pero **no** badges de workflow: desde afuera se ven rotos, y un «passing»
+  hardcodeado sería una afirmación que no podemos sostener.
+- El mapa del ecosistema ahora tiene `id="ecosystem"`. Es un ancla pública: el
+  primer badge de cada README de la suite vuelve acá.
+- **Prisma en el mapa y en el sitio** (`prisma/introduction`), con la marca
+  `inDevelopment` que le falta a todo lo demás: se dibuja con borde punteado y
+  «in dev» en vez de una versión, el panel avisa que no hay nada para instalar,
+  y queda **fuera** del registro de releases — un registro de releases lista
+  releases. El título sigue contando 13 piezas shippeadas aunque el gráfico
+  dibuje 14. La página compara Prisma contra Orbit y dice qué no es verdad
+  todavía, incluida la fila de tools de su matriz de cobertura.
+
+### Changed (Docs site)
+
+- El README del core: badge de capa, Glyph en la tabla de patrones (eran seis,
+  son siete), Herald en «Messaging Channels», y la tabla de ecosistema
+  reescrita por capa y **sin columna de versiones** — se desactualizaba al día
+  siguiente de cada release. Las versiones viven en el mapa y su registro.
+
+### Fixed (Docs site)
+
+- Starlight referenciaba su favicon por defecto, `/favicon.svg`, que este sitio
+  no tiene: era un 404 en **las 104 páginas**. Ahora apunta al logo que ya
+  estaba en `public/`.
+- El ítem «Astromesh Node (service)» del sidebar de Deployment usaba `link:` con
+  la base ya incluida, y Starlight le antepone la base otra vez: el enlace salía
+  a `/astromesh/astromesh/node/introduction/` en **las 102 páginas** del sitio.
+  Pasa a `slug:`.
+- Versiones y descripciones vencidas en la portada: Nexus decía v0.3.0 y se
+  describía como un operador de Kubernetes con CRDs `NexusTenant` —diseño del que
+  el propio doc dice que se apartó—, Cortex v0.12.0, Leia v0.1.0, OS v0.4.0 y
+  Node v0.18.0. Todas salen ahora del registro de componentes.
+- El acento de Nexus (esmeralda) chocaba con el de Herald; Nexus pasa a ámbar,
+  el color que el mapa le da a «Operate».
+
 ## [v0.40.0] - 2026-08-06
 
 ### Added (Backend)

@@ -1,0 +1,96 @@
+---
+title: Astromesh Prisma
+description: The multi-cloud reconciling control plane — the same agent spec, translated into each cloud's own managed AI primitives, with the gaps written down.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="In development — nothing to install yet">
+Prisma is on the [ecosystem map](/astromesh/#ecosystem) because it is part of the shape of the
+stack, not because it has shipped. Everything below runs against an **in-memory gateway**: Prisma
+does not yet provision anything real in GCP. This page describes what exists and says plainly what
+does not — it is not a preview of a product you can pull.
+</Aside>
+
+**Astromesh Prisma** <Badge text="in development" variant="caution" /> takes the Astromesh agent
+spec — `kind: Agent` and `kind: RAGPipeline`, the same YAML the runtime loads — and reconciles it
+into a cloud's **native, managed AI primitives**. Kubernetes-operator style: the YAML is the source
+of truth, and a loop drives the cloud toward it. GCP and Vertex AI first.
+
+Its distinguishing idea is a negative one. **Coverage gaps are explicit and never silently
+dropped.** A field one cloud cannot host is reported as unsupported rather than quietly ignored,
+and the coverage matrix is *generated from the mapping registry* instead of written by hand — so
+the document cannot drift away from the code that implements it.
+
+## Prisma or Orbit?
+
+Both put an Astromesh workload on a cloud. They disagree about who runs it.
+
+| | [Orbit](/astromesh/orbit/introduction/) | Prisma |
+|---|---|---|
+| **What runs your agent** | The Astromesh runtime, on infrastructure you own | The cloud's own managed AI service |
+| **What it produces** | Terraform you can eject to and keep | Native cloud resources, reconciled continuously |
+| **You get** | The whole runtime: every pattern, every tool type | Whatever that cloud's primitives can express |
+| **You give up** | Nothing about the runtime; you operate it | Runtime features the target cloud has no home for |
+| **Status** | Released | In development |
+
+Orbit is the answer when you want the runtime and want it on GCP. Prisma is the answer when you
+want the cloud's managed service to hold the workload, and you accept that its surface is smaller
+than the runtime's — which is exactly why the coverage matrix exists.
+
+## How it is put together
+
+```
+astromesh_prisma/
+  spec/         the Astromesh manifest as pydantic models (Agent, RAGPipeline)
+  mapping/      HomologMappingRegistry: spec field → native resource, plus the
+                ManifestRouter that dispatches by kind, and the coverage generator
+  providers/    CloudProvider protocol; gcp/ (GcpGateway) and fake/ (in-memory)
+  reconcile/    the loop: desired vs observed, per (kind, name)
+  state/        what has been observed, keyed by (kind, name)
+  api/          the FastAPI surface over all of the above
+```
+
+Identity is `(kind, name)`, not `name`. A single-key store silently lost data when an Agent and a
+RAGPipeline shared a name — which is why every route carries the kind.
+
+### Native resources mapped today
+
+`vertex.agent_engine` · `vertex.memory_bank` · `vertex.vector_index` ·
+`vertex.vector_index_endpoint` · `vertex.rag_corpus` · `modelarmor.template`
+
+These are the ones that exist. An earlier iteration also mapped `vertex.endpoint` and
+`vertex.reasoning`, which do not exist — they were removed rather than kept as aspirational rows.
+A control plane whose thesis is truthful coverage cannot ship a matrix with invented destinations
+in it.
+
+## The API
+
+| Method | Route | What it does |
+|---|---|---|
+| `POST` | `/v1/specs` | Submit a manifest (`kind: Agent` or `kind: RAGPipeline`) |
+| `GET` | `/v1/specs` | List submitted manifests |
+| `GET` | `/v1/specs/{kind}/{name}` | Fetch one, with its observed state |
+| `POST` | `/v1/specs/{kind}/{name}/reconcile` | Drive the cloud toward the spec |
+
+## What is not true yet
+
+Being specific about this is the point of the project, so it belongs on its own page rather than in
+a footnote:
+
+- **Nothing is provisioned for real.** Every test and every run goes through the in-memory gateway.
+  The real GCP gateway is designed and currently blocked on cloud authentication.
+- **The tools row of the coverage matrix is wrong.** The mapping layer models a tool-type list
+  Astromesh never had, so a tool with no `type` reports as supported when the runtime cannot load
+  it. The runtime's real list is `builtin`, `agent`, `client`. The fix is specced, needs no cloud
+  credentials, and is the intended next task.
+- **Marketplace distribution is not built.** One-click through a cloud marketplace is the
+  distribution plan, not a current capability.
+
+## Where to go next
+
+| | |
+|---|---|
+| See how the pieces fit together | [The Ecosystem](/astromesh/getting-started/ecosystem/) |
+| Deploy a runtime you own, on GCP, today | [Astromesh Orbit](/astromesh/orbit/introduction/) |
+| The spec Prisma translates | [Agent YAML Schema](/astromesh/configuration/agent-yaml/) |

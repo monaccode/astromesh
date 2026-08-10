@@ -1,0 +1,110 @@
+---
+title: WhatsApp Setup
+description: Point Meta's Cloud API at Herald — app secret, verify token, per-tenant phone numbers, the 24-hour window and templates.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+One Herald deployment serves **one Meta app**. The app secret and verify token are
+process-level flags; each tenant's phone number is a channel account with its own access token.
+
+<Steps>
+
+1. **Configure the Meta app.** At [developers.facebook.com](https://developers.facebook.com),
+   add the WhatsApp product to your app. Note the **App secret** (App settings → Basic), and
+   invent a **verify token** — any random string. You paste it into both Meta and Herald.
+
+2. **Boot Herald with the channel enabled.**
+
+   ```sh
+   WHATSAPP_APP_SECRET="<app secret>" \
+   WHATSAPP_VERIFY_TOKEN="<your invented token>" \
+   ./bin/herald   # plus the mandatory flags from the Quick Start
+   ```
+
+   Set both or neither: one without the other is a boot error. Leaving both empty keeps the
+   channel unregistered and `/webhooks/whatsapp` a `404`.
+
+3. **Point Meta at the webhook.** WhatsApp → Configuration → Callback URL:
+
+   ```
+   https://<your-herald-host>/webhooks/whatsapp
+   ```
+
+   Use the same verify token. Meta GETs the endpoint with `hub.mode`, `hub.verify_token` and
+   `hub.challenge`; Herald echoes the challenge only when the token matches. Subscribe to the
+   `messages` field.
+
+   Every delivery afterwards is verified against `X-Hub-Signature-256` — HMAC-SHA256 of the raw
+   body with the app secret. A request that fails verification never reaches an agent.
+
+4. **Register the tenant's phone number** as a channel account.
+
+   ```sh
+   curl -X POST localhost:8081/admin/accounts \
+     -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"tenant_id":"tenant-1","channel":"whatsapp",
+          "external_id":"<phone_number_id from Meta>",
+          "credentials":{"access_token":"<permanent access token>"}}'
+   ```
+
+   The access token is AES-GCM sealed at rest and comes back masked (`•••` + last 4) on every
+   read, including in the operator console.
+
+5. **Bind the account to an entry agent.**
+
+   ```sh
+   curl -X POST localhost:8081/admin/bindings \
+     -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"tenant_id":"tenant-1","channel":"whatsapp","account_id":"<account id>",
+          "entry_agent":"router","fallback_message":"Estamos fuera de horario",
+          "config":{"nexus_api_key":"<tenant nexus key>"}}'
+   ```
+
+</Steps>
+
+## What arrives
+
+Inbound **text, image, audio, video and document** messages reach the agent. Media arrives as
+`provider_id` + mime type + caption rather than bytes; fetch the bytes through the adapter's
+exported `DownloadMedia`. That is a two-step call because Meta's media URLs expire after about
+five minutes, so there is nothing useful to hand an agent up front.
+
+Status callbacks — `sent`, `delivered`, `read` — are acknowledged without entering the pipeline.
+
+## The 24-hour window
+
+Meta only lets a business write to a user who messaged within the last 24 hours. Outside that
+window, free-form text is rejected.
+
+| Send | Path | Works when |
+|---|---|---|
+| Agent reply | `SendText` | Always — a reply is by definition inside the window |
+| Proactive with `conversation_ref` | `SendText` | The referenced conversation's window is still open |
+| Cold contact, no prior conversation | Needs a **template** | Any time, if the template is pre-approved |
+
+A cold contact goes out through the adapter's exported
+`SendTemplate(ctx, account, recipient, templateName, languageCode)`.
+
+<Aside type="note">
+`SendTemplate` is deliberately **not** part of `ports.ChannelAdapter`. The port's payload model
+is text and media; one provider's policy should not reshape the contract every other channel
+implements. If a second channel grows the same rule, a port-level template field is the
+documented extension point.
+</Aside>
+
+## Configuration reference
+
+| Flag | Env | Default | Notes |
+|---|---|---|---|
+| `--whatsapp-app-secret` | `WHATSAPP_APP_SECRET` | empty | With the verify token, registers the channel |
+| `--whatsapp-verify-token` | `WHATSAPP_VERIFY_TOKEN` | empty | The string you invent and paste into Meta |
+| `--whatsapp-graph-base-url` | `WHATSAPP_GRAPH_BASE_URL` | `https://graph.facebook.com/v21.0` | Override for Meta version bumps and tests |
+
+## Next steps
+
+- [API Reference](/astromesh/herald/api-reference/) — the send API and the operator plane
+- [Herald Introduction](/astromesh/herald/introduction/) — routing, the outbox, and what Herald refuses to decide
+- [WhatsApp on a standalone node](/astromesh/advanced/whatsapp/) — the runtime's own channel adapter, for deployments without Nexus
