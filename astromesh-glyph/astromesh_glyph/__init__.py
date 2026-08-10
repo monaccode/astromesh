@@ -14,7 +14,7 @@ from astromesh_glyph.runtime.executor import execute
 from astromesh_glyph.runtime.state import CallRecord, ExecutionResult, PartialState
 from astromesh_glyph.syntax.parser import parse
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "CallRecord",
