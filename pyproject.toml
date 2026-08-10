@@ -40,7 +40,7 @@ centinela = ["huggingface_hub>=0.24"]
 # Glyph — lenguaje de acción para `pattern: glyph`. Extra opcional a propósito:
 # `astromesh/api/main.py` tiene que seguir importando sin extras o la imagen de
 # astromesh-os no bootea. El import vive dentro de `_build_pattern`.
-glyph = ["astromesh-glyph>=0.1.0"]
+glyph = ["astromesh-glyph>=0.1.1"]
 all = [
     "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh,litellm,centinela,glyph]",
 ]
