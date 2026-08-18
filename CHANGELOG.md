@@ -5,7 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.41.0] - 2026-08-18
+
+### Added
+
+- **PRAXIS en el catálogo de integraciones** (`integrations/catalog/praxis/`):
+  tres acciones declarativas sobre el ERP AI-native de un cliente —
+  `buscar_records`, `crear_record` y `actualizar_record`, genéricas sobre
+  cualquier entidad. Cero código de runtime: el manifest declara los requests y
+  `HttpActionExecutor` los ejecuta.
+- El manifest **no trae `base_url`** a propósito: lo aporta la conexión del
+  tenant, que es lo que permite servir a todos los clientes con un solo archivo.
+  Un default acá le pegaría al ERP equivocado en silencio; sin él, la falta de
+  URL falla con un mensaje claro.
+
+### Notes
+
+- Las dos acciones que mutan llevan `writes: true` y piden confirmación en su
+  descripción, pero **ese pedido es blando**: `writes` alimenta
+  `ToolDefinition.requires_approval` y hoy nadie lo lee. La contención dura es
+  el alcance de la credencial que la conexión del tenant aporte.
 
 ### Added (Docs site)
 
