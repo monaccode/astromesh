@@ -139,12 +139,38 @@ def _aviso_confirmacion(tool_name: str, argumentos: dict) -> str:
 
     Los argumentos se listan `clave: valor` en vez de volcar el dict crudo:
     un `{'monto': 999999}` con comillas y llaves es ruido en un chat de
-    WhatsApp. `_truncate` corta si el detalle es largo — un argumento de
-    texto libre no tiene tope de antemano.
+    WhatsApp.
+
+    El orden de inserción del dict lo controla el MODELO — es él quien arma
+    `arguments` para la tool call. Truncar el string ya renderizado (como
+    hacía la versión anterior) dejaba que un argumento de texto libre puesto
+    primero se comiera el resto: `_aviso_confirmacion('praxis_crear_record',
+    {'nota': 'x'*480, 'monto': 999999})` cortaba antes de llegar a `monto`.
+    Eso convierte el aviso en algo que el modelo puede curar en vez de un
+    disclosure real. Por eso se ordenan las claves (alfabético, no depende
+    del modelo) y se trunca CADA VALOR por separado con un tope chico: así
+    toda clave aparece siempre, con una porción acotada de su valor. 80 chars
+    alcanza para leer un monto, un ID o el arranque de un texto libre sin que
+    un solo argumento gigante tape a los demás; el corte de 500 en el total
+    ya no hace falta con el tope por valor.
+
+    Dos límites que este aviso NO cierra, a propósito:
+    - Si la corrida lanza DESPUÉS de que `tool_fn` registró el pendiente, el
+      bloque que arma este aviso nunca se ejecuta (vive después del loop del
+      agente) y el `finally` que envuelve la corrida no toca pendientes en
+      `ok=False`. El pendiente sobrevive sin que nadie lo haya mostrado, y un
+      "si" en el próximo turno lo ejecutaría. Acotado en la práctica — ese
+      turno fallido no se persiste, así que el modelo tendría que rearmar los
+      mismos argumentos de memoria — pero real.
+    - La garantía de esta función es "se redactó", no "le llegó a la
+      persona": si el envío por el canal (WhatsApp, etc.) falla después de
+      que `result["answer"]` ya lleva el aviso, quien recibe el error no vio
+      el detalle, y el pendiente sigue vivo para el próximo turno.
     """
-    partes = ", ".join(f"{k}: {v}" for k, v in (argumentos or {}).items())
+    claves = sorted((argumentos or {}).keys())
+    partes = ", ".join(f"{k}: {_truncate(str(argumentos[k]), 80)}" for k in claves)
     detalle = f"{tool_name} con {partes}" if partes else tool_name
-    return f"Para confirmar respondé SI. Voy a ejecutar: {_truncate(detalle, 500)}"
+    return f"Para confirmar respondé SI. Voy a ejecutar: {detalle}"
 
 
 def _parse_args(args):
@@ -1323,6 +1349,11 @@ class Agent:
             # confirma, o lo deja en `ok=True` si confirma) — así que un
             # pendiente con `ok=False` en este punto no puede venir de otro
             # lado: lo creó `tool_fn` en esta corrida.
+            # Capturado ANTES del aviso: `build_data` más abajo tiene que parsear
+            # lo que el patrón devolvió, no el aviso pegado encima — si no, un
+            # output_schema con JSON pelado se rompe (data=None) justo en el
+            # turno en que hay una confirmación pendiente.
+            respuesta_sin_aviso = result.get("answer", "")
             if desde_humano:
                 pendiente = _PENDIENTES.pendiente(session_id)
                 if pendiente is not None and not pendiente["ok"]:
@@ -1372,7 +1403,7 @@ class Agent:
 
             tracing.finish_span(root_span)
             if self._output_schema:
-                data, data_error = build_data(result.get("answer", ""), self._output_schema)
+                data, data_error = build_data(respuesta_sin_aviso, self._output_schema)
                 result["data"] = data
                 result["data_error"] = data_error
                 root_span.set_attribute("output_data_ok", data_error is None)

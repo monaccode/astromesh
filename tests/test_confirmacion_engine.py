@@ -3,7 +3,7 @@ import pytest
 import respx
 import yaml
 
-from astromesh.runtime.engine import AgentRuntime
+from astromesh.runtime.engine import AgentRuntime, _aviso_confirmacion
 
 
 @pytest.fixture(autouse=True)
@@ -274,6 +274,82 @@ async def test_repetir_si_no_reejecuta_una_confirmacion_ya_usada(tmp_path, monke
     await _correr(runtime, [("demo_write_thing", {"x": 1})], "si")
 
     assert ruta.call_count == 1
+
+
+# --- Fix round 4: un argumento de texto libre no puede tapar a los demás ---
+
+
+def test_el_aviso_no_deja_que_un_argumento_largo_tape_a_los_demas():
+    """El caso medido en la revisión: `partes` se armaba en orden de
+    inserción del dict — que controla el MODELO — y `_truncate` cortaba el
+    string YA RENDERIZADO. Un argumento de texto libre puesto primero (a
+    propósito o no) se comía el resto: `nota` de 480 chars dejaba a `monto`
+    afuera del corte de 500. Eso es lo opuesto de disclosure: el modelo
+    elige qué se ve. Con claves ordenadas y truncado por valor, `monto`
+    tiene que aparecer siempre, sin importar qué tan largo sea `nota` ni en
+    qué orden el modelo las haya puesto."""
+    aviso = _aviso_confirmacion(
+        "praxis_crear_record", {"nota": "x" * 480, "monto": 999999}
+    )
+
+    assert "monto: 999999" in aviso, "el argumento numérico quedó afuera del aviso"
+    assert "praxis_crear_record" in aviso
+
+AGENT_CON_SCHEMA = {
+    "apiVersion": "astromesh/v1",
+    "kind": "Agent",
+    "metadata": {"name": "demo-agent", "version": "0.1.0"},
+    "spec": {
+        "identity": {"description": "demo"},
+        "model": {"primary": {"source": "ollama", "model": "llama3"}},
+        "prompts": {"system": "sos un agente"},
+        "output_schema": {"ok": {"type": "boolean"}},
+        "tools": [
+            {
+                "type": "integration",
+                "name": "demo",
+                "connection": "demo_conn",
+                "actions": ["ping", "write_thing", "notify"],
+                "confirm": ["write_thing"],
+            }
+        ],
+    },
+}
+
+
+class _ProponeYDevuelveJSONPelado:
+    """Un patrón `pattern: glyph` con `narrate: false` (o cualquier otro que
+    arme `answer` como `json.dumps(...)`, sin fence) es exactamente esto:
+    propone una escritura gateada y devuelve JSON crudo como respuesta."""
+
+    async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
+        await tool_fn("demo_write_thing", {"x": 1})
+        return {"answer": '{"ok": true}', "steps": []}
+
+
+@respx.mock
+async def test_el_aviso_de_confirmacion_no_rompe_el_output_schema(tmp_path, monkeypatch):
+    """Regresión del fix anterior (el que redacta el aviso): `engine.py`
+    mutaba `result["answer"]` pegándole el aviso ANTES de pasarlo a
+    `build_data` — un `answer` que era JSON pelado deja de parsear en cuanto
+    se le pega texto atrás, así que cualquier agente con `output_schema`
+    perdía `data` (quedaba None con `data_error`) en cualquier turno donde
+    hubiera una confirmación pendiente. `build_data` tiene que seguir viendo
+    la respuesta del patrón, no el aviso que el runtime le agrega encima."""
+    respx.post("https://api.demo.test/thing").mock(
+        return_value=httpx.Response(200, json={"ok": True})
+    )
+    runtime = await _runtime(tmp_path, monkeypatch, AGENT_CON_SCHEMA)
+    agente = runtime._agents["demo-agent"]
+    agente._pattern = _ProponeYDevuelveJSONPelado()
+
+    result = await agente.run(
+        "cargá esto", session_id="s1", connections={"demo_conn": {"access_token": "t"}}
+    )
+
+    assert result["data"] == {"ok": True}, "el aviso de confirmación tapó el JSON pelado"
+    assert result["data_error"] is None
+    assert "demo_write_thing" in result["answer"], "el aviso se sigue agregando a answer"
 
 
 async def test_confirm_fuera_de_actions_no_carga_el_agente(tmp_path, monkeypatch):
