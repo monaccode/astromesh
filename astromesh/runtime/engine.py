@@ -24,12 +24,17 @@ from astromesh.orchestration.patterns import (
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
+from astromesh.runtime.confirmacion import Pendientes, huella
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
 
 logger = logging.getLogger(__name__)
 
 # Colores del DFS que detecta ciclos entre agentes: sin visitar / en la pila / cerrado.
 _WHITE, _GRAY, _BLACK = 0, 1, 2
+
+# Compartida por proceso: el gate tiene que ver lo que propuso la corrida
+# anterior de la misma sesión, y cada corrida arma su propio engine.
+_PENDIENTES = Pendientes()
 
 
 def _emit(on_event, event: dict) -> None:
@@ -610,6 +615,19 @@ class AgentRuntime:
                         slug,
                     )
                     continue
+                # `confirm` es un SUBCONJUNTO de `actions`. Nombrar algo que el
+                # agente no puede llamar es un error de configuración, y acá se
+                # rechaza en vez de ignorarse: el resto de esta rama tolera lo
+                # malformado con un warning porque una integración rota no debe
+                # tumbar al agente, pero un permiso mal escrito es lo contrario
+                # — silenciarlo dejaría al agente escribiendo sin confirmar.
+                confirmables = set(tool_def.get("confirm") or [])
+                fuera = confirmables - set(action_names)
+                if fuera:
+                    raise ValueError(
+                        f"agent {metadata['name']!r} declara confirm={sorted(fuera)} "
+                        f"en la integración {slug!r}, que no está en actions"
+                    )
                 resolver = self._credential_resolver()
                 for action_name in action_names:
                     action = integration.action(action_name)
@@ -633,6 +651,7 @@ class AgentRuntime:
                             or action.rate_limit
                             or integration.defaults.rate_limit
                         ),
+                        needs_confirmation=action.name in confirmables,
                     )
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
@@ -943,12 +962,34 @@ class Agent:
             tracing.trace_id = parent_trace_id  # share trace tree
         root_span = tracing.start_span("agent.run", {"agent": self.name, "session": session_id})
 
+        # Si este mensaje confirma un pendiente de una corrida anterior de la
+        # MISMA sesión. Se decide acá, antes que nada pueda fallar, para que el
+        # `finally` sepa si le toca cerrar sin tener que volver a leer el texto
+        # del humano ni asomarse al estado interno de `Pendientes`.
+        confirmo_algo_pendiente = False
+
         try:
             query_text = (
                 query
                 if isinstance(query, str)
                 else " ".join(p.get("text", "") for p in query if p.get("type") == "text")
             )
+
+            # El texto del humano llega UNA vez por corrida; la tool puede llamarse
+            # varias. Por eso la habilitación se lee acá y no dentro de `tool_fn`.
+            # Lo que se compara es el texto crudo del humano — al modelo no se le
+            # pregunta si hubo consentimiento. Va `query_text`, no `query`: un
+            # `query` multimodal (lista de partes) no es un `str` y `habilitar`
+            # rompería contra él antes de llegar a extraer nada.
+            #
+            # `habilitar` devuelve True sólo cuando YA había un pendiente de una
+            # corrida previa y este mensaje lo confirmó. Si esta misma corrida es
+            # la que recién propone algo (más abajo, dentro de `tool_fn`), acá
+            # todavía no hay nada que confirmar — y el pendiente recién
+            # registrado tiene que sobrevivir hasta el próximo mensaje. Cerrar
+            # incondicionalmente en el `finally` de ESTA corrida se lo comería
+            # antes de que la persona llegue a verlo.
+            confirmo_algo_pendiente = _PENDIENTES.habilitar(session_id, query_text)
 
             root_span.set_attribute("query", query_text[:5000])
 
@@ -1066,6 +1107,25 @@ class Agent:
                     raise
 
             async def tool_fn(name, args):
+                tool_def = self._tools.get(name)
+                if tool_def is not None and tool_def.needs_confirmation:
+                    fp = huella(name, args)
+                    if not _PENDIENTES.permitido(session_id, name, fp):
+                        # No se ejecuta. Se registra la propuesta y se le
+                        # devuelve al modelo una observación que le dice qué
+                        # pedir. El modelo redacta la pregunta; el gate no
+                        # depende de cómo la redacte — si la redacta mal, la
+                        # persona no sabe qué escribir y la escritura NO ocurre.
+                        _PENDIENTES.registrar(session_id, name, fp)
+                        return {
+                            "error": "confirmacion_requerida",
+                            "mensaje": (
+                                "Esta acción necesita que la persona la confirme. "
+                                "Contale exactamente qué vas a hacer y pedile que "
+                                "responda SI para confirmar."
+                            ),
+                        }
+
                 # One id per call so a consumer can pair the result with its call.
                 call_id = str(uuid.uuid4())
                 _emit(
@@ -1203,6 +1263,13 @@ class Agent:
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
             raise
         finally:
+            # Una confirmación vale para UNA corrida: se cierra después de la
+            # corrida que la consumió, no después de la que sólo propuso. Sin el
+            # `if`, esta misma corrida se comería el pendiente que su propio
+            # `tool_fn` acaba de registrar más arriba, y el "si" del próximo
+            # mensaje no encontraría nada que confirmar.
+            if confirmo_algo_pendiente:
+                _PENDIENTES.cerrar(session_id)
             # Fase 4.3: emit the completed trace to the active collector (InternalCollector for
             # /v1/traces, or OTLPCollector when OTLP export is enabled). In `finally` so a failed run
             # (e.g. no provider) still exports the pre-LLM spans. Best-effort; never breaks the run.
