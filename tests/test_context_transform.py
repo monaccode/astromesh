@@ -40,6 +40,7 @@ class TestContextTransform:
             context=None,
             parent_trace_id=None,
             connections={},
+            desde_humano=False,
         )
 
     @pytest.mark.asyncio
@@ -120,4 +121,5 @@ class TestContextTransform:
             context=None,
             parent_trace_id=None,
             connections={},
+            desde_humano=False,
         )

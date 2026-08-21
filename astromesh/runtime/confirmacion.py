@@ -100,3 +100,15 @@ class Pendientes:
     def cerrar(self, session_id: str) -> None:
         """Termina la corrida: una confirmación vale para UNA."""
         self._por_sesion.pop(session_id, None)
+
+    def cerrar_si_confirmado(self, session_id: str) -> None:
+        """Como `cerrar`, pero sólo si lo que hay ahora mismo ya fue confirmado.
+
+        Distinto de `cerrar` a secas: si esta corrida consumió una
+        confirmación y DESPUÉS propuso algo nuevo (`registrar` sobrescribe con
+        `ok=False`), esa propuesta nueva tiene que sobrevivir hasta el próximo
+        mensaje — cerrarla acá se la comería antes de que la persona la vea.
+        """
+        pendiente = self._por_sesion.get(session_id)
+        if pendiente is not None and pendiente["ok"]:
+            self._por_sesion.pop(session_id, None)

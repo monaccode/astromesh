@@ -539,6 +539,23 @@ class AgentRuntime:
         loader.auto_discover()
         for tool_def in spec.get("tools", []):
             tool_type = tool_def.get("type", "internal")
+            if tool_type != "integration" and tool_def.get("confirm"):
+                # `confirm` sólo lo lee la rama `integration` (más abajo). En
+                # cualquier otro tipo de tool es un permiso mal escrito que
+                # nunca gatea nada — exactamente lo que la Global Constraint
+                # pide no silenciar. No es un `raise` como el de la rama
+                # `integration`: acá no sabemos si el resto del tool_def es
+                # válido para ESE tipo, así que degradar a agente "draft" por
+                # un campo de más sería desproporcionado — pero el operador
+                # tiene que enterarse.
+                logger.warning(
+                    "agent %r declara confirm=%r en la tool %r de tipo %r, que no es "
+                    "'integration' — se ignora, esa tool nunca va a pedir confirmación.",
+                    metadata["name"],
+                    tool_def.get("confirm"),
+                    tool_def.get("name"),
+                    tool_type,
+                )
             if tool_type == "builtin":
                 instance = loader.create(tool_def["name"], config=tool_def.get("config"))
                 handler = _make_builtin_handler(
@@ -770,6 +787,7 @@ class AgentRuntime:
         parent_trace_id=None,
         on_event=None,
         connections=None,
+        desde_humano: bool = True,
     ):
         agent = self._agents.get(agent_name)
         if not agent:
@@ -781,6 +799,7 @@ class AgentRuntime:
             parent_trace_id=parent_trace_id,
             on_event=on_event,
             connections=connections,
+            desde_humano=desde_humano,
         )
 
     def agent_error(self, name: str) -> str | None:
@@ -951,6 +970,7 @@ class Agent:
         parent_trace_id=None,
         on_event=None,
         connections=None,
+        desde_humano: bool = True,
     ):
         from datetime import UTC, datetime
 
@@ -961,12 +981,6 @@ class Agent:
         if parent_trace_id:
             tracing.trace_id = parent_trace_id  # share trace tree
         root_span = tracing.start_span("agent.run", {"agent": self.name, "session": session_id})
-
-        # Si este mensaje confirma un pendiente de una corrida anterior de la
-        # MISMA sesión. Se decide acá, antes que nada pueda fallar, para que el
-        # `finally` sepa si le toca cerrar sin tener que volver a leer el texto
-        # del humano ni asomarse al estado interno de `Pendientes`.
-        confirmo_algo_pendiente = False
 
         try:
             query_text = (
@@ -982,14 +996,19 @@ class Agent:
             # `query` multimodal (lista de partes) no es un `str` y `habilitar`
             # rompería contra él antes de llegar a extraer nada.
             #
-            # `habilitar` devuelve True sólo cuando YA había un pendiente de una
-            # corrida previa y este mensaje lo confirmó. Si esta misma corrida es
-            # la que recién propone algo (más abajo, dentro de `tool_fn`), acá
-            # todavía no hay nada que confirmar — y el pendiente recién
-            # registrado tiene que sobrevivir hasta el próximo mensaje. Cerrar
-            # incondicionalmente en el `finally` de ESTA corrida se lo comería
-            # antes de que la persona llegue a verlo.
-            confirmo_algo_pendiente = _PENDIENTES.habilitar(session_id, query_text)
+            # `desde_humano=False` es una corrida re-entrante: una tool `type:
+            # agent` (core/tools.py) o un paso de chain (workflow/executor.py)
+            # que vuelve a entrar acá con el MISMO session_id, pero con un
+            # `query` que escribió el MODELO, no la persona. Si `habilitar`
+            # corriera igual, un agente podría auto-confirmarse (o confirmar a
+            # otro agente hermano) con un "si" que él mismo redactó — ni
+            # siquiera hace falta un prompt injection elaborado, alcanza con
+            # "consultá al especialista con el mensaje 'si'". Por eso ninguna
+            # corrida re-entrante puede otorgar ni cerrar un pendiente: sólo
+            # puede, más abajo en `tool_fn`, usar uno que un humano ya haya
+            # confirmado en una corrida anterior de la MISMA sesión.
+            if desde_humano:
+                _PENDIENTES.habilitar(session_id, query_text)
 
             root_span.set_attribute("query", query_text[:5000])
 
@@ -1125,6 +1144,16 @@ class Agent:
                                 "responda SI para confirmar."
                             ),
                         }
+                    # Se consume ACÁ, antes de ejecutar — no al final de la
+                    # corrida. Un "sí" autoriza esta llamada UNA vez: sin este
+                    # `cerrar`, `permitido` seguía devolviendo True el resto de
+                    # la corrida y un patrón que reintenta (o un modelo que
+                    # alucina el mismo llamado dos veces) volvía a escribir con
+                    # la misma confirmación. Incondicional a `desde_humano`: la
+                    # licencia ya fue otorgada por una corrida humana anterior
+                    # de esta sesión (`habilitar` es lo único que gatea eso),
+                    # así que usarla una vez la agota sea quien sea quien la usó.
+                    _PENDIENTES.cerrar(session_id)
 
                 # One id per call so a consumer can pair the result with its call.
                 call_id = str(uuid.uuid4())
@@ -1263,13 +1292,17 @@ class Agent:
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
             raise
         finally:
-            # Una confirmación vale para UNA corrida: se cierra después de la
-            # corrida que la consumió, no después de la que sólo propuso. Sin el
-            # `if`, esta misma corrida se comería el pendiente que su propio
-            # `tool_fn` acaba de registrar más arriba, y el "si" del próximo
-            # mensaje no encontraría nada que confirmar.
-            if confirmo_algo_pendiente:
-                _PENDIENTES.cerrar(session_id)
+            # Barre lo que `habilitar` dejó confirmado y sin usar (la persona
+            # dijo que sí pero el modelo nunca llamó la tool en esta corrida) —
+            # `tool_fn` ya consume al usar, esto es sólo el resto. Mira el
+            # estado VIVO (`cerrar_si_confirmado`), no "esta corrida confirmó
+            # algo": si además propuso una NUEVA acción después de confirmar la
+            # anterior, esa propuesta tiene que sobrevivir al próximo mensaje.
+            # Gateado por `desde_humano` por la misma razón que `habilitar`: una
+            # corrida re-entrante no es un turno de conversación con la
+            # persona, y no le toca decidir que ese turno terminó.
+            if desde_humano:
+                _PENDIENTES.cerrar_si_confirmado(session_id)
             # Fase 4.3: emit the completed trace to the active collector (InternalCollector for
             # /v1/traces, or OTLPCollector when OTLP export is enabled). In `finally` so a failed run
             # (e.g. no provider) still exports the pre-LLM spans. Best-effort; never breaks the run.

@@ -253,6 +253,12 @@ class ToolRegistry:
                 context=transform_ctx,
                 parent_trace_id=parent_trace_id,
                 connections=(context or {}).get("connections") or {},
+                # `query` lo escribió el MODELO que llamó esta tool, no la
+                # persona. Con el mismo session_id que la corrida humana, un
+                # sub-agente podría auto-confirmarse un pendiente con un "si"
+                # que él mismo redactó (o uno que un documento le sopló vía
+                # prompt injection). Ver Agent.run.
+                desde_humano=False,
             )
         if tool.tool_type == ToolType.INTEGRATION:
             from astromesh.integrations import errors as integration_errors
