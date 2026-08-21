@@ -64,11 +64,19 @@ class Pendientes:
     """
 
     def __init__(self) -> None:
-        # session_id -> {"fp": huella, "tool": nombre, "ok": bool}
+        # session_id -> {"fp": huella, "tool": nombre, "ok": bool, "argumentos": dict}
         self._por_sesion: dict[str, dict] = {}
 
-    def registrar(self, session_id: str, tool_name: str, fp: str) -> None:
+    def registrar(
+        self, session_id: str, tool_name: str, fp: str, argumentos: dict | None = None
+    ) -> None:
         """El agente propuso esta llamada. Proponer no es autorizar.
+
+        `argumentos` se guarda TAL COMO se propuso — es lo que el runtime usa
+        después para redactar, con sus propias palabras, tanto el aviso que le
+        cuenta a la persona qué va a pasar (`Agent.run`) como el rechazo que le
+        dice al modelo qué está esperando exactamente cuando sus argumentos
+        cambian de una llamada a la siguiente.
 
         Si YA hay algo en el slot de esta sesión, esta llamada NO lo pisa: gana
         la primera propuesta sin usar. El slot es uno solo por sesión — sin
@@ -83,7 +91,12 @@ class Pendientes:
         """
         if session_id in self._por_sesion:
             return
-        self._por_sesion[session_id] = {"fp": fp, "tool": tool_name, "ok": False}
+        self._por_sesion[session_id] = {
+            "fp": fp,
+            "tool": tool_name,
+            "ok": False,
+            "argumentos": argumentos or {},
+        }
 
     def habilitar(self, session_id: str, texto: str | None) -> bool:
         """Lee el mensaje de la persona y decide si habilita lo pendiente.
@@ -100,6 +113,18 @@ class Pendientes:
             return False
         pendiente["ok"] = True
         return True
+
+    def pendiente(self, session_id: str) -> dict | None:
+        """Copia de sólo lectura de lo que hay pendiente en esta sesión, si hay algo.
+
+        No consume ni modifica nada — a diferencia de `permitido`/`habilitar`,
+        que son parte del gate. Esto lo usa el runtime para redactar texto
+        (el aviso de confirmación, el rechazo con el pendiente real cuando los
+        argumentos derivan de una llamada a otra), nunca para decidir si algo
+        se ejecuta.
+        """
+        pendiente = self._por_sesion.get(session_id)
+        return dict(pendiente) if pendiente is not None else None
 
     def permitido(self, session_id: str, tool_name: str, fp: str) -> bool:
         """Si esta llamada exacta está autorizada ahora mismo."""
@@ -119,9 +144,13 @@ class Pendientes:
         """Como `cerrar`, pero sólo si lo que hay ahora mismo ya fue confirmado.
 
         Distinto de `cerrar` a secas: si esta corrida consumió una
-        confirmación y DESPUÉS propuso algo nuevo (`registrar` sobrescribe con
-        `ok=False`), esa propuesta nueva tiene que sobrevivir hasta el próximo
-        mensaje — cerrarla acá se la comería antes de que la persona la vea.
+        confirmación y DESPUÉS propuso algo nuevo, esa propuesta nueva tiene
+        que sobrevivir hasta el próximo mensaje. El slot queda libre para
+        ella no porque `registrar` pise nada —no pisa, ver su docstring—
+        sino porque `tool_fn` ya lo vació con `cerrar()` al consumir la
+        confirmación anterior antes de ejecutar. Cerrar acá de nuevo, sin
+        mirar `ok`, se comería esa propuesta nueva antes de que la persona
+        la vea.
         """
         pendiente = self._por_sesion.get(session_id)
         if pendiente is not None and pendiente["ok"]:

@@ -58,7 +58,17 @@ class MCPServer:
 
                 try:
                     if self._runtime:
-                        response = await self._runtime.run(agent_name, query, session_id)
+                        # `desde_humano=False`: `query` la redacta el modelo MCP
+                        # que llama a esta tool, no una persona en el chat — igual
+                        # que un sub-agente (`core/tools.py`) o un paso de chain
+                        # (`workflow/executor.py`). Este router no está montado hoy
+                        # (ver docstring del módulo / no instanciado en producción),
+                        # así que esto no es un agujero vivo, pero dejarlo en el
+                        # default (`True`) era la misma forma exacta del primer
+                        # bypass que este archivo ya cerró en otros lados.
+                        response = await self._runtime.run(
+                            agent_name, query, session_id, desde_humano=False
+                        )
                         result = {"content": [{"type": "text", "text": response.get("answer", "")}]}
                     else:
                         result = {"content": [{"type": "text", "text": "No runtime configured"}]}

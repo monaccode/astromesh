@@ -48,6 +48,29 @@ class TestAgentStep:
         result = await executor.execute_step(step, ctx)
         assert result.status == StepStatus.SUCCESS
 
+    async def test_agent_step_corre_con_desde_humano_false(self, executor, mock_runtime):
+        """IMPORTANT 4 (revisión final del gate de confirmación): ningún
+        test en el repo referenciaba `desde_humano` en este seam
+        (`workflow/executor.py:_run_agent`) — un reviewer mutó el guard a
+        `True` y la suite entera siguió en verde mientras se abría un
+        agujero vivo: el primer paso de una cadena recibe literalmente
+        `{{ trigger.query }}` (el texto de la persona) y, con
+        `desde_humano=True`, un "si" en el disparador auto-confirmaría
+        cualquier pendiente de la sesión. Espeja
+        `tests/test_agent_as_tool.py:134`, que cubre el mismo contrato para
+        la tool `type: agent`.
+        """
+        step = StepSpec(
+            name="research", agent="web-researcher", input_template="{{ trigger.query }}"
+        )
+        ctx = {"trigger": {"query": "si"}, "steps": {}}
+
+        await executor.execute_step(step, ctx)
+
+        mock_runtime.run.assert_called_once()
+        _, kwargs = mock_runtime.run.call_args
+        assert kwargs["desde_humano"] is False
+
     async def test_agent_step_error(self, executor, mock_runtime):
         mock_runtime.run.side_effect = Exception("agent crashed")
         step = StepSpec(name="broken", agent="bad-agent", input_template="go")
