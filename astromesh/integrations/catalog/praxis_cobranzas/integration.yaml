@@ -1,0 +1,110 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: praxis_cobranzas
+  version: 0.1.0
+  description: >
+    Las FUNCIONES del vertical de cobranzas de PRAXIS: calcular los planes de
+    pago legales según la política del banco, y registrar el acuerdo validado
+    contra esa política. Aparte del manifest `praxis` a propósito — aquel es
+    genérico y sirve a cualquier cliente; éste nombra un dominio. Comparte su
+    conexión y su credencial: sin base_url, con la API key de máquina.
+spec:
+  auth:
+    scheme: bearer
+    credential: api_key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: simular_planes
+      description: >
+        Los planes de pago LEGALES para una deuda, según la política vigente
+        del banco que la cedió. Devuelve una lista donde cada plan trae
+        descuento_pct, total, pago_inicial, cantidad_cuotas y monto_cuota.
+        Usala SIEMPRE antes de ofrecerle algo a la persona: no armes vos un
+        plan ni redondees los números que devuelve.
+        Una lista VACÍA significa que esta persona no entra en las condiciones
+        que el banco autorizó. No bajes la cuota por tu cuenta: decile que lo
+        vas a escalar para que alguien lo revise, y anotá la gestión.
+      # POST y `writes: false` no se contradicen: invocar una función de PRAXIS
+      # es un POST aunque la función sólo lea, y ésta no escribe nada.
+      # Declararla `true` haría que el agente pida confirmación ANTES de
+      # simular — o sea, que le pida permiso a la persona para averiguar qué
+      # puede ofrecerle.
+      writes: false
+      parameters:
+        obligacion:
+          type: string
+          description: >
+            El id de la deuda a negociar, tal como viene en rows[].id de
+            buscar_records sobre la entidad 'cob_obligacion'.
+          required: true
+        capacidad_pago:
+          type: number
+          description: >
+            Cuánto dijo la persona que puede pagar por mes. Mandalo SÓLO si lo
+            dijo: sin este dato se ofrecen todos los planes legales, y con un
+            cero no se ofrece ninguno.
+      request:
+        method: POST
+        path: "/api/functions/cob_simular_planes"
+        body:
+          args:
+            obligacion: "{obligacion}"
+            capacidad_pago: "{capacidad_pago}"
+
+    - name: registrar_acuerdo
+      description: >
+        Registra el acuerdo de pago que cerraste con la persona. Lo valida
+        contra la política del banco y, si entra, escribe el acuerdo, sus
+        cuotas y el vínculo con la deuda, y la deja "con acuerdo". Devuelve el
+        id del acuerdo.
+        Si el plan queda FUERA de lo autorizado, la llamada es RECHAZADA con el
+        detalle de cada límite que rompe. Eso no es un error del sistema: leelo,
+        corregí el plan con la persona y volvé a intentar.
+        Confirmá el plan exacto —monto, pago inicial, cantidad de cuotas y
+        fecha de la primera— antes de llamarla.
+      writes: true
+      parameters:
+        obligaciones:
+          type: array
+          description: >
+            LISTA de ids de deuda, aunque sea una sola: ["abc-123"]. Todas
+            tienen que ser de la misma persona y del mismo banco.
+          required: true
+        pago_inicial:
+          type: number
+          description: "Lo que paga de entrada, antes de la primera cuota."
+          required: true
+        cantidad_cuotas:
+          type: integer
+          description: "Cuántas cuotas van DESPUÉS del pago inicial."
+          required: true
+        descuento_pct:
+          type: number
+          description: "La quita sobre el saldo, en porcentaje. 0 si no hay."
+          required: true
+        primera_cuota:
+          type: string
+          description: >
+            Vencimiento de la primera cuota, en formato AAAA-MM-DD. Las
+            siguientes se calculan solas, mes a mes.
+          required: true
+        canal_origen:
+          type: string
+          description: "Por dónde se cerró. Si venís de WhatsApp: 'whatsapp'."
+        notas:
+          type: string
+          description: "Lo que convenga dejar asentado de la negociación."
+      request:
+        method: POST
+        path: "/api/functions/cob_registrar_acuerdo"
+        body:
+          args:
+            obligaciones: "{obligaciones}"
+            pago_inicial: "{pago_inicial}"
+            cantidad_cuotas: "{cantidad_cuotas}"
+            descuento_pct: "{descuento_pct}"
+            primera_cuota: "{primera_cuota}"
+            canal_origen: "{canal_origen}"
+            notas: "{notas}"
