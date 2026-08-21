@@ -416,3 +416,42 @@ async def test_una_confirmacion_autoriza_una_sola_ejecucion(tmp_path, monkeypatc
     )
 
     assert ruta.call_count == 1
+
+
+# --- Fix round 2: el "sí" ligado a una propuesta que la persona nunca vio ---
+
+@respx.mock
+async def test_un_subagente_no_puede_reemplazar_la_propuesta_del_padre(tmp_path, monkeypatch):
+    """`Pendientes` guarda UN slot por sesión y `registrar` lo pisaba: el padre
+    propone x=2 y se lo cuenta a la persona; en la MISMA corrida, un
+    sub-agente propone x=200 — la persona nunca ve esa segunda propuesta. Sin
+    el guard de `registrar`, el "sí" de la persona (que respondía a x=2) queda
+    atado al x=200 que pisó el slot, y una llamada posterior con x=200
+    ejecuta. El gate tiene que atar el "sí" a la PRIMERA propuesta sin usar,
+    no a la que esté pisando el slot cuando el mensaje llega."""
+    ruta = respx.post("https://api.demo.test/thing").mock(
+        return_value=httpx.Response(200, json={"ok": True})
+    )
+    runtime = await _runtime_con_subagente(tmp_path, monkeypatch)
+
+    padre = runtime._agents["demo-agent"]
+    sub = runtime._agents["sub-agente"]
+    sub._pattern = _PideLaTool([("demo_write_thing", {"x": 200})])
+    padre._pattern = _PideLaTool(
+        [("demo_write_thing", {"x": 2}), ("ask_sub", {"query": "proponé una variante"})]
+    )
+
+    await padre.run(
+        "carga esto",
+        session_id="s1",
+        connections={"demo_conn": {"access_token": "t"}},
+    )
+
+    padre._pattern = _PideLaTool([("demo_write_thing", {"x": 200})])
+    await padre.run(
+        "si",
+        session_id="s1",
+        connections={"demo_conn": {"access_token": "t"}},
+    )
+
+    assert ruta.called is False, "el sub-agente pisó la propuesta del padre y el sí la autorizó"

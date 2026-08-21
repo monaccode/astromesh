@@ -68,7 +68,21 @@ class Pendientes:
         self._por_sesion: dict[str, dict] = {}
 
     def registrar(self, session_id: str, tool_name: str, fp: str) -> None:
-        """El agente propuso esta llamada. Proponer no es autorizar."""
+        """El agente propuso esta llamada. Proponer no es autorizar.
+
+        Si YA hay algo en el slot de esta sesión, esta llamada NO lo pisa: gana
+        la primera propuesta sin usar. El slot es uno solo por sesión — sin
+        este guard, una segunda propuesta en la MISMA corrida (un sub-agente,
+        un paso de chain, o el mismo agente insistiendo) reemplaza en silencio
+        a la primera, y el "sí" que la persona escribe mirando esa primera
+        propuesta termina autorizando la segunda, que nunca vio. Se ignora
+        tanto si lo que hay está confirmado como si no: un pendiente confirmado
+        y sin usar es transitorio (`tool_fn` lo consume antes de ejecutar, o
+        `cerrar_si_confirmado` lo barre al final de la corrida) — si sigue ahí
+        es porque todavía está en juego, y perder ESE de pisada sería peor.
+        """
+        if session_id in self._por_sesion:
+            return
         self._por_sesion[session_id] = {"fp": fp, "tool": tool_name, "ok": False}
 
     def habilitar(self, session_id: str, texto: str | None) -> bool:
