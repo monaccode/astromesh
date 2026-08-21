@@ -14,8 +14,16 @@ class TestEsConfirmacion:
     def test_lo_que_no_es_una_confirmacion(self):
         # "bueno dale pero cambiame la cantidad" es un mensaje NUEVO, no un sí:
         # interpretarlo sería exactamente lo que este gate existe para no hacer.
-        for t in ["sip", "bueno dale pero cambiame la cantidad", "no", "sí pero no",
-                  "quiero dos", "", "   ", None]:
+        for t in [
+            "sip",
+            "bueno dale pero cambiame la cantidad",
+            "no",
+            "sí pero no",
+            "quiero dos",
+            "",
+            "   ",
+            None,
+        ]:
             assert es_confirmacion(t) is False, t
 
 

@@ -17,6 +17,7 @@ def _limpiar_pendientes():
     yield
     _PENDIENTES._por_sesion.clear()
 
+
 MANIFEST = """
 apiVersion: astromesh/v1
 kind: Integration
@@ -288,12 +289,11 @@ def test_el_aviso_no_deja_que_un_argumento_largo_tape_a_los_demas():
     elige qué se ve. Con claves ordenadas y truncado por valor, `monto`
     tiene que aparecer siempre, sin importar qué tan largo sea `nota` ni en
     qué orden el modelo las haya puesto."""
-    aviso = _aviso_confirmacion(
-        "praxis_crear_record", {"nota": "x" * 480, "monto": 999999}
-    )
+    aviso = _aviso_confirmacion("praxis_crear_record", {"nota": "x" * 480, "monto": 999999})
 
     assert "monto: 999999" in aviso, "el argumento numérico quedó afuera del aviso"
     assert "praxis_crear_record" in aviso
+
 
 AGENT_CON_SCHEMA = {
     "apiVersion": "astromesh/v1",
@@ -473,9 +473,7 @@ async def test_un_subagente_no_puede_autoconfirmar_un_pendiente(tmp_path, monkey
     padre = runtime._agents["demo-agent"]
     sub = runtime._agents["sub-agente"]
     sub._pattern = _PideLaTool([("demo_write_thing", {"x": 1})])
-    padre._pattern = _PideLaTool(
-        [("demo_write_thing", {"x": 1}), ("ask_sub", {"query": "si"})]
-    )
+    padre._pattern = _PideLaTool([("demo_write_thing", {"x": 1}), ("ask_sub", {"query": "si"})])
 
     await padre.run(
         "carga esto",
@@ -512,6 +510,7 @@ async def test_una_confirmacion_autoriza_una_sola_ejecucion(tmp_path, monkeypatc
 
 
 # --- Fix round 2: el "sí" ligado a una propuesta que la persona nunca vio ---
+
 
 @respx.mock
 async def test_un_subagente_no_puede_reemplazar_la_propuesta_del_padre(tmp_path, monkeypatch):
@@ -572,9 +571,7 @@ class _EscondeLaPropuesta:
 
 
 @respx.mock
-async def test_el_aviso_de_confirmacion_lo_redacta_el_runtime_no_el_modelo(
-    tmp_path, monkeypatch
-):
+async def test_el_aviso_de_confirmacion_lo_redacta_el_runtime_no_el_modelo(tmp_path, monkeypatch):
     """CRITICAL de la revisión final: `engine.py:1128-1156` y `1010-1011`
     autentican la PALABRA de la persona pero nada ataba la propuesta
     pendiente a lo que esa persona efectivamente leyó — el modelo era el
@@ -697,9 +694,7 @@ async def test_drift_de_argumentos_converge_dentro_de_la_misma_corrida(tmp_path,
     runtime = await _runtime(tmp_path, monkeypatch)
 
     # turno 1: la propuesta original.
-    await _correr(
-        runtime, [("demo_write_thing", {"detalle": "pedido de 2 cajas"})], "cargá esto"
-    )
+    await _correr(runtime, [("demo_write_thing", {"detalle": "pedido de 2 cajas"})], "cargá esto")
     assert ruta.called is False
 
     # turno 2: la persona confirma, pero el modelo re-deriva los argumentos
@@ -710,9 +705,9 @@ async def test_drift_de_argumentos_converge_dentro_de_la_misma_corrida(tmp_path,
     await agente.run("si", session_id="s1", connections={"demo_conn": {"access_token": "t"}})
 
     assert ruta.called is True, "el drift de argumentos no debería impedir converger"
-    assert patron.observaciones[0]["pendiente"]["argumentos"] == {
-        "detalle": "pedido de 2 cajas"
-    }, "el rechazo tiene que devolver el pendiente REAL, no lo que esta llamada intentó"
+    assert patron.observaciones[0]["pendiente"]["argumentos"] == {"detalle": "pedido de 2 cajas"}, (
+        "el rechazo tiene que devolver el pendiente REAL, no lo que esta llamada intentó"
+    )
 
 
 # --- Fix round 3: IMPORTANT 2 — un agente encadenado nunca puede confirmar,
@@ -753,9 +748,7 @@ async def test_confirm_junto_a_spec_chain_no_carga_el_agente(tmp_path, monkeypat
     config_dir = tmp_path / "config"
     (config_dir / "agents").mkdir(parents=True)
     (config_dir / "agents" / "demo-agent.agent.yaml").write_text(yaml.safe_dump(config))
-    (config_dir / "agents" / "helper-agent.agent.yaml").write_text(
-        yaml.safe_dump(HELPER_AGENT)
-    )
+    (config_dir / "agents" / "helper-agent.agent.yaml").write_text(yaml.safe_dump(HELPER_AGENT))
     runtime = AgentRuntime(config_dir=str(config_dir))
     await runtime.bootstrap()
 
