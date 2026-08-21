@@ -122,6 +122,10 @@ class StepExecutor:
             rendered_input,
             session_id=session_id,
             parent_trace_id=self._parent_trace_id,
+            # `rendered_input` es la plantilla del paso, resuelta contra la
+            # salida de un paso anterior — no algo que la persona escribió en
+            # esta corrida. Ver Agent.run / desde_humano.
+            desde_humano=False,
         )
         elapsed = (time.time() - start) * 1000
         return StepResult(

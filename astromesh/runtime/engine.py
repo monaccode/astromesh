@@ -24,12 +24,17 @@ from astromesh.orchestration.patterns import (
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
+from astromesh.runtime.confirmacion import Pendientes, huella
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
 
 logger = logging.getLogger(__name__)
 
 # Colores del DFS que detecta ciclos entre agentes: sin visitar / en la pila / cerrado.
 _WHITE, _GRAY, _BLACK = 0, 1, 2
+
+# Compartida por proceso: el gate tiene que ver lo que propuso la corrida
+# anterior de la misma sesión, y cada corrida arma su propio engine.
+_PENDIENTES = Pendientes()
 
 
 def _emit(on_event, event: dict) -> None:
@@ -122,6 +127,50 @@ def _truncate(text: str | None, limit: int) -> str:
     if len(text) <= limit:
         return text
     return text[:limit] + f"\n... [truncated at {len(text)} chars]"
+
+
+def _aviso_confirmacion(tool_name: str, argumentos: dict) -> str:
+    """La frase que le dice a la persona qué va a pasar si confirma.
+
+    La escribe el runtime, nunca el modelo — es la pieza que cierra el bypass
+    de "el modelo le pregunta una cosa a la persona y usa el sí para otra":
+    lo que la persona lee acá es, por construcción, lo mismo que `tool_fn` va
+    a ejecutar si responde que sí.
+
+    Los argumentos se listan `clave: valor` en vez de volcar el dict crudo:
+    un `{'monto': 999999}` con comillas y llaves es ruido en un chat de
+    WhatsApp.
+
+    El orden de inserción del dict lo controla el MODELO — es él quien arma
+    `arguments` para la tool call. Truncar el string ya renderizado (como
+    hacía la versión anterior) dejaba que un argumento de texto libre puesto
+    primero se comiera el resto: `_aviso_confirmacion('praxis_crear_record',
+    {'nota': 'x'*480, 'monto': 999999})` cortaba antes de llegar a `monto`.
+    Eso convierte el aviso en algo que el modelo puede curar en vez de un
+    disclosure real. Por eso se ordenan las claves (alfabético, no depende
+    del modelo) y se trunca CADA VALOR por separado con un tope chico: así
+    toda clave aparece siempre, con una porción acotada de su valor. 80 chars
+    alcanza para leer un monto, un ID o el arranque de un texto libre sin que
+    un solo argumento gigante tape a los demás; el corte de 500 en el total
+    ya no hace falta con el tope por valor.
+
+    Dos límites que este aviso NO cierra, a propósito:
+    - Si la corrida lanza DESPUÉS de que `tool_fn` registró el pendiente, el
+      bloque que arma este aviso nunca se ejecuta (vive después del loop del
+      agente) y el `finally` que envuelve la corrida no toca pendientes en
+      `ok=False`. El pendiente sobrevive sin que nadie lo haya mostrado, y un
+      "si" en el próximo turno lo ejecutaría. Acotado en la práctica — ese
+      turno fallido no se persiste, así que el modelo tendría que rearmar los
+      mismos argumentos de memoria — pero real.
+    - La garantía de esta función es "se redactó", no "le llegó a la
+      persona": si el envío por el canal (WhatsApp, etc.) falla después de
+      que `result["answer"]` ya lleva el aviso, quien recibe el error no vio
+      el detalle, y el pendiente sigue vivo para el próximo turno.
+    """
+    claves = sorted((argumentos or {}).keys())
+    partes = ", ".join(f"{k}: {_truncate(str(argumentos[k]), 80)}" for k in claves)
+    detalle = f"{tool_name} con {partes}" if partes else tool_name
+    return f"Para confirmar respondé SI. Voy a ejecutar: {detalle}"
 
 
 def _parse_args(args):
@@ -523,6 +572,29 @@ class AgentRuntime:
     def _build_agent(self, config):
         spec = config["spec"]
         metadata = config["metadata"]
+        # `confirm` y `spec.chain` no pueden convivir: un paso de chain corre
+        # con `desde_humano=False` (`workflow/executor.py:_run_agent`) y ESO
+        # es justamente lo que hace que un sub-agente nunca pueda
+        # autoconfirmarse. Pero la misma propiedad que cierra ese bypass abre
+        # otro: `desde_humano=False` nunca llama a `habilitar` NI a
+        # `cerrar_si_confirmado`, así que un `tool_fn` que pide confirmación
+        # ahí adentro registra un pendiente que NADA va a confirmar (falla
+        # cerrado, sólo molesto) y NADA va a barrer jamás — el primer paso de
+        # la cadena, además, recibe literalmente `{{ trigger.query }}`: el
+        # texto de la persona, ni siquiera un "sí" que un modelo redactó. En
+        # un pod con `replicas: 1` corriendo semanas, cada mensaje que pasa
+        # por esa cadena deja una entrada en `_PENDIENTES` que no se libera
+        # nunca. Rechazar accá, fuerte, es más barato que threadear el
+        # session_id del trigger a través de la cadena (deuda aparte) o que
+        # ponerle TTL/cap a `_PENDIENTES` (deuda aparte también) — y más
+        # seguro que dejarlo andar en silencio.
+        if spec.get("chain") and any(td.get("confirm") for td in spec.get("tools", [])):
+            raise ValueError(
+                f"agent {metadata['name']!r} declara spec.chain y confirm a la vez: "
+                "un paso de chain corre con desde_humano=False y jamás puede "
+                "confirmar, así que la propuesta queda pendiente para siempre — "
+                "sacá confirm de sus tools o sacá spec.chain"
+            )
         model_spec = spec.get("model", {})
         routers = self._build_role_routers(model_spec)
         memory = MemoryManager(agent_id=metadata["name"], config=spec.get("memory", {}))
@@ -534,6 +606,23 @@ class AgentRuntime:
         loader.auto_discover()
         for tool_def in spec.get("tools", []):
             tool_type = tool_def.get("type", "internal")
+            if tool_type != "integration" and tool_def.get("confirm"):
+                # `confirm` sólo lo lee la rama `integration` (más abajo). En
+                # cualquier otro tipo de tool es un permiso mal escrito que
+                # nunca gatea nada — exactamente lo que la Global Constraint
+                # pide no silenciar. No es un `raise` como el de la rama
+                # `integration`: acá no sabemos si el resto del tool_def es
+                # válido para ESE tipo, así que degradar a agente "draft" por
+                # un campo de más sería desproporcionado — pero el operador
+                # tiene que enterarse.
+                logger.warning(
+                    "agent %r declara confirm=%r en la tool %r de tipo %r, que no es "
+                    "'integration' — se ignora, esa tool nunca va a pedir confirmación.",
+                    metadata["name"],
+                    tool_def.get("confirm"),
+                    tool_def.get("name"),
+                    tool_type,
+                )
             if tool_type == "builtin":
                 instance = loader.create(tool_def["name"], config=tool_def.get("config"))
                 handler = _make_builtin_handler(
@@ -600,7 +689,25 @@ class AgentRuntime:
                     )
                     continue
                 action_names = tool_def.get("actions")
+                # `confirm` es un SUBCONJUNTO de `actions`. Nombrar algo que el
+                # agente no puede llamar es un error de configuración, y acá se
+                # rechaza en vez de ignorarse: el resto de esta rama tolera lo
+                # malformado con un warning porque una integración rota no debe
+                # tumbar al agente, pero un permiso mal escrito es lo contrario
+                # — silenciarlo dejaría al agente escribiendo sin confirmar.
+                #
+                # Va ANTES del `continue` de "sin actions": ese `continue`
+                # corría primero y un `confirm` sin `actions` se caía con sólo
+                # el warning genérico de abajo — el mismo permiso mal escrito
+                # que esto existe para no silenciar.
+                confirmables = set(tool_def.get("confirm") or [])
                 if not action_names:
+                    if confirmables:
+                        raise ValueError(
+                            f"agent {metadata['name']!r} declara confirm="
+                            f"{sorted(confirmables)} en la integración {slug!r} sin "
+                            "'actions' — ese permiso nunca puede cumplirse"
+                        )
                     # La allowlist es obligatoria: exponer todas las acciones de varias
                     # integraciones infla el prompt y empeora la elección del modelo.
                     logger.warning(
@@ -610,6 +717,12 @@ class AgentRuntime:
                         slug,
                     )
                     continue
+                fuera = confirmables - set(action_names)
+                if fuera:
+                    raise ValueError(
+                        f"agent {metadata['name']!r} declara confirm={sorted(fuera)} "
+                        f"en la integración {slug!r}, que no está en actions"
+                    )
                 resolver = self._credential_resolver()
                 for action_name in action_names:
                     action = integration.action(action_name)
@@ -633,6 +746,7 @@ class AgentRuntime:
                             or action.rate_limit
                             or integration.defaults.rate_limit
                         ),
+                        needs_confirmation=action.name in confirmables,
                     )
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
@@ -751,6 +865,7 @@ class AgentRuntime:
         parent_trace_id=None,
         on_event=None,
         connections=None,
+        desde_humano: bool = True,
     ):
         agent = self._agents.get(agent_name)
         if not agent:
@@ -762,6 +877,7 @@ class AgentRuntime:
             parent_trace_id=parent_trace_id,
             on_event=on_event,
             connections=connections,
+            desde_humano=desde_humano,
         )
 
     def agent_error(self, name: str) -> str | None:
@@ -932,6 +1048,7 @@ class Agent:
         parent_trace_id=None,
         on_event=None,
         connections=None,
+        desde_humano: bool = True,
     ):
         from datetime import UTC, datetime
 
@@ -949,6 +1066,27 @@ class Agent:
                 if isinstance(query, str)
                 else " ".join(p.get("text", "") for p in query if p.get("type") == "text")
             )
+
+            # El texto del humano llega UNA vez por corrida; la tool puede llamarse
+            # varias. Por eso la habilitación se lee acá y no dentro de `tool_fn`.
+            # Lo que se compara es el texto crudo del humano — al modelo no se le
+            # pregunta si hubo consentimiento. Va `query_text`, no `query`: un
+            # `query` multimodal (lista de partes) no es un `str` y `habilitar`
+            # rompería contra él antes de llegar a extraer nada.
+            #
+            # `desde_humano=False` es una corrida re-entrante: una tool `type:
+            # agent` (core/tools.py) o un paso de chain (workflow/executor.py)
+            # que vuelve a entrar acá con el MISMO session_id, pero con un
+            # `query` que escribió el MODELO, no la persona. Si `habilitar`
+            # corriera igual, un agente podría auto-confirmarse (o confirmar a
+            # otro agente hermano) con un "si" que él mismo redactó — ni
+            # siquiera hace falta un prompt injection elaborado, alcanza con
+            # "consultá al especialista con el mensaje 'si'". Por eso ninguna
+            # corrida re-entrante puede otorgar ni cerrar un pendiente: sólo
+            # puede, más abajo en `tool_fn`, usar uno que un humano ya haya
+            # confirmado en una corrida anterior de la MISMA sesión.
+            if desde_humano:
+                _PENDIENTES.habilitar(session_id, query_text)
 
             root_span.set_attribute("query", query_text[:5000])
 
@@ -1066,6 +1204,50 @@ class Agent:
                     raise
 
             async def tool_fn(name, args):
+                tool_def = self._tools.get(name)
+                if tool_def is not None and tool_def.needs_confirmation:
+                    fp = huella(name, args)
+                    if not _PENDIENTES.permitido(session_id, name, fp):
+                        # No se ejecuta. Se registra la propuesta (si el slot
+                        # está libre — si no, `registrar` no pisa lo que ya
+                        # había, ver su docstring) y se le devuelve al modelo
+                        # una observación con el pendiente REAL: `tool` +
+                        # `argumentos` tal como quedaron guardados, no los que
+                        # esta llamada acaba de intentar. Sin esto, un modelo
+                        # que re-deriva los argumentos de memoria en vez de
+                        # repetirlos (p.ej. "pedido de 2 cajas" → "pedido de
+                        # dos cajas") ve un rechazo genérico, no sabe qué
+                        # cambió, y puede quemar un "sí" ya dicho sin ejecutar
+                        # nada — el `mensaje` le dice explícitamente que
+                        # repita ESTO, no que proponga de nuevo a ciegas.
+                        _PENDIENTES.registrar(session_id, name, fp, args)
+                        pendiente = _PENDIENTES.pendiente(session_id)
+                        return {
+                            "error": "confirmacion_requerida",
+                            "pendiente": {
+                                "tool": pendiente["tool"],
+                                "argumentos": pendiente["argumentos"],
+                            },
+                            "mensaje": (
+                                "Ya hay una propuesta esperando confirmación. "
+                                "Contale a la persona exactamente qué vas a hacer "
+                                "con estos argumentos y pedile que responda SI. Si "
+                                "ya te habían dicho que sí, repetí EXACTAMENTE "
+                                "estos argumentos — no los vuelvas a redactar de "
+                                "memoria."
+                            ),
+                        }
+                    # Se consume ACÁ, antes de ejecutar — no al final de la
+                    # corrida. Un "sí" autoriza esta llamada UNA vez: sin este
+                    # `cerrar`, `permitido` seguía devolviendo True el resto de
+                    # la corrida y un patrón que reintenta (o un modelo que
+                    # alucina el mismo llamado dos veces) volvía a escribir con
+                    # la misma confirmación. Incondicional a `desde_humano`: la
+                    # licencia ya fue otorgada por una corrida humana anterior
+                    # de esta sesión (`habilitar` es lo único que gatea eso),
+                    # así que usarla una vez la agota sea quien sea quien la usó.
+                    _PENDIENTES.cerrar(session_id)
+
                 # One id per call so a consumer can pair the result with its call.
                 call_id = str(uuid.uuid4())
                 _emit(
@@ -1145,6 +1327,46 @@ class Agent:
                 orch_span.add_event("orch_step", step_data)
             tracing.finish_span(orch_span)
 
+            # El sello del CRITICAL de la revisión final: el runtime que
+            # verifica la palabra tiene que ser el mismo que hace la
+            # pregunta. Antes de esto, sólo el modelo decidía si (y cómo) le
+            # contaba a la persona qué quedó pendiente — un modelo comprometido
+            # (o un documento inyectado) podía proponer la escritura, preguntar
+            # cualquier cosa de sí/no, y el "dale" que respondía a OTRA cosa
+            # terminaba autorizándola. Acá se agrega, incondicional al texto
+            # del modelo, la frase que dice qué se va a ejecutar si confirman.
+            #
+            # `desde_humano`: sólo la corrida que atiende a una persona le
+            # habla a esa persona. Una corrida re-entrante (sub-agente, paso
+            # de chain) devuelve su `answer` como una OBSERVACIÓN interna, no
+            # como un mensaje de chat — mismo criterio que `habilitar` /
+            # `cerrar_si_confirmado` más abajo.
+            #
+            # `ok is False`: es justo lo que distingue "esto se registró en
+            # ESTA corrida y sigue sin confirmar" de cualquier otro estado.
+            # `habilitar`, al principio de esta misma función, ya limpió lo
+            # que hubiera de una corrida anterior (lo borra si el mensaje no
+            # confirma, o lo deja en `ok=True` si confirma) — así que un
+            # pendiente con `ok=False` en este punto no puede venir de otro
+            # lado: lo creó `tool_fn` en esta corrida.
+            # Capturado ANTES del aviso: `build_data` más abajo tiene que parsear
+            # lo que el patrón devolvió, no el aviso pegado encima — si no, un
+            # output_schema con JSON pelado se rompe (data=None) justo en el
+            # turno en que hay una confirmación pendiente.
+            respuesta_sin_aviso = result.get("answer", "")
+            if desde_humano:
+                pendiente = _PENDIENTES.pendiente(session_id)
+                if pendiente is not None and not pendiente["ok"]:
+                    aviso = _aviso_confirmacion(pendiente["tool"], pendiente["argumentos"])
+                    respuesta = result.get("answer")
+                    # Todos los patrones del repo arman "answer" como str
+                    # (patterns.py y glyph_pattern.py lo pasan por str()/
+                    # json.dumps antes de devolverlo) — esto es sólo para no
+                    # romper si el día de mañana alguno no lo hace.
+                    if not isinstance(respuesta, str):
+                        respuesta = "" if respuesta is None else str(respuesta)
+                    result["answer"] = f"{respuesta}\n\n{aviso}" if respuesta else aviso
+
             # Extract text for storage; keep full multimodal content in metadata.
             if isinstance(query, list):
                 text_parts = [p.get("text", "") for p in query if p.get("type") == "text"]
@@ -1181,7 +1403,7 @@ class Agent:
 
             tracing.finish_span(root_span)
             if self._output_schema:
-                data, data_error = build_data(result.get("answer", ""), self._output_schema)
+                data, data_error = build_data(respuesta_sin_aviso, self._output_schema)
                 result["data"] = data
                 result["data_error"] = data_error
                 root_span.set_attribute("output_data_ok", data_error is None)
@@ -1203,6 +1425,17 @@ class Agent:
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
             raise
         finally:
+            # Barre lo que `habilitar` dejó confirmado y sin usar (la persona
+            # dijo que sí pero el modelo nunca llamó la tool en esta corrida) —
+            # `tool_fn` ya consume al usar, esto es sólo el resto. Mira el
+            # estado VIVO (`cerrar_si_confirmado`), no "esta corrida confirmó
+            # algo": si además propuso una NUEVA acción después de confirmar la
+            # anterior, esa propuesta tiene que sobrevivir al próximo mensaje.
+            # Gateado por `desde_humano` por la misma razón que `habilitar`: una
+            # corrida re-entrante no es un turno de conversación con la
+            # persona, y no le toca decidir que ese turno terminó.
+            if desde_humano:
+                _PENDIENTES.cerrar_si_confirmado(session_id)
             # Fase 4.3: emit the completed trace to the active collector (InternalCollector for
             # /v1/traces, or OTLPCollector when OTLP export is enabled). In `finally` so a failed run
             # (e.g. no provider) still exports the pre-LLM spans. Best-effort; never breaks the run.

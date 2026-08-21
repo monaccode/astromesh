@@ -37,6 +37,19 @@ class ToolDefinition:
     handler: Callable | None = None
     mcp_config: dict = field(default_factory=dict)
     requires_approval: bool = False
+    """Si la acción muta del lado del proveedor. Metadato: NO gatea nada.
+
+    Sale de `action.mutates`, así que es True para las 15 acciones mutantes del
+    catálogo — `whatsapp_send_text` incluida. Leerlo como si fuera un permiso
+    obligaría a un agente a pedir confirmación antes de contestar un WhatsApp.
+    """
+    needs_confirmation: bool = False
+    """Si una persona tiene que decir que sí antes de cada llamada.
+
+    Lo declara el YAML del agente (`confirm: [...]`), no el catálogo: que un
+    cliente deba confirmar es una decisión de producto del agente, no una
+    propiedad de la API del proveedor.
+    """
     timeout_seconds: int = 30
     rate_limit: dict | None = None
     permissions: list[str] = field(default_factory=list)
@@ -179,7 +192,7 @@ class ToolRegistry:
         )
 
     async def execute(self, tool_name, arguments, context=None) -> dict:
-        tool = self._tools.get(tool_name)
+        tool = self.get(tool_name)
         if not tool:
             return {"error": f"Tool '{tool_name}' not found"}
         if tool.rate_limit and not self._check_rate_limit(tool_name, tool.rate_limit):
@@ -240,6 +253,12 @@ class ToolRegistry:
                 context=transform_ctx,
                 parent_trace_id=parent_trace_id,
                 connections=(context or {}).get("connections") or {},
+                # `query` lo escribió el MODELO que llamó esta tool, no la
+                # persona. Con el mismo session_id que la corrida humana, un
+                # sub-agente podría auto-confirmarse un pendiente con un "si"
+                # que él mismo redactó (o uno que un documento le sopló vía
+                # prompt injection). Ver Agent.run.
+                desde_humano=False,
             )
         if tool.tool_type == ToolType.INTEGRATION:
             from astromesh.integrations import errors as integration_errors
@@ -270,6 +289,15 @@ class ToolRegistry:
             )
             return result.to_dict()
         return {"error": f"Unsupported tool type: {tool.tool_type}"}
+
+    def get(self, name: str) -> ToolDefinition | None:
+        """La tool registrada con ese nombre, o None.
+
+        Existe porque el gate de confirmación necesita leer `needs_confirmation`
+        antes de ejecutar, y meter la mano en `_tools` desde el engine ata dos
+        clases por su representación interna.
+        """
+        return self._tools.get(name)
 
     def get_tool_schemas(self, agent_permissions=None) -> list[dict]:
         schemas = []

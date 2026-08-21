@@ -131,6 +131,7 @@ class TestExecuteAgentTool:
             # El bundle de credenciales baja al sub-agente: sin esto, una
             # integración declarada por el hijo se queda sin conexión.
             connections={},
+            desde_humano=False,
         )
         assert result["answer"] == "Lead is qualified"
 
@@ -167,6 +168,7 @@ class TestExecuteAgentTool:
             context=None,
             parent_trace_id=None,
             connections={},
+            desde_humano=False,
         )
 
 

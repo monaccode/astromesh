@@ -68,6 +68,43 @@ def test_writes_action_sets_requires_approval(tmp_path):
     assert registry._tools["demo_write_thing"].requires_approval is True
 
 
+def test_needs_confirmation_es_independiente_de_requires_approval(tmp_path):
+    # `requires_approval` sale de `writes` y significa "muta del lado del
+    # proveedor". `needs_confirmation` significa "esta persona tiene que decir
+    # que sí". Son cosas distintas y no pueden colapsarse: si se colapsaran,
+    # un agente tendría que pedir permiso antes de CONTESTAR un WhatsApp.
+    path = tmp_path / "integration.yaml"
+    path.write_text(MANIFEST)
+    manifest = load_manifest(path)
+    registry = ToolRegistry()
+    registry.register_integration_tool(
+        name="demo_write_thing",
+        manifest=manifest,
+        action=manifest.action("write_thing"),
+        connection="c",
+        resolver=CredentialResolver(None),
+    )
+    tool = registry._tools["demo_write_thing"]
+    assert tool.requires_approval is True
+    assert tool.needs_confirmation is False
+
+
+def test_needs_confirmation_se_puede_pedir_explicitamente(tmp_path):
+    path = tmp_path / "integration.yaml"
+    path.write_text(MANIFEST)
+    manifest = load_manifest(path)
+    registry = ToolRegistry()
+    registry.register_integration_tool(
+        name="demo_write_thing",
+        manifest=manifest,
+        action=manifest.action("write_thing"),
+        connection="c",
+        resolver=CredentialResolver(None),
+        needs_confirmation=True,
+    )
+    assert registry._tools["demo_write_thing"].needs_confirmation is True
+
+
 @respx.mock
 async def test_execute_uses_connections_from_context(tmp_path):
     route = respx.get("https://api.demo.test/ping").mock(

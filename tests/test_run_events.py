@@ -91,6 +91,12 @@ def _make_agent(pattern, tool_impl=None, model_content="thinking"):
     tools = MagicMock()
     tools.execute = AsyncMock(side_effect=tool_impl or (lambda n, a, c: "observation"))
     tools.get_tool_schemas = MagicMock(return_value=[])
+    # None: no tool here is a registered ToolDefinition, so the confirmation
+    # gate (`self._tools.get(name)` in `tool_fn`) must see nothing to gate on
+    # — an unconfigured MagicMock().get(...) would return a truthy stub
+    # instead and every "tool" step in these tests would get stuck asking for
+    # confirmation it was never declared to need.
+    tools.get = MagicMock(return_value=None)
     agent._tools = tools
 
     memory = MagicMock()
