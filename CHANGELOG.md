@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] - 2026-08-21
+
+### Added
+
+- **El gate de confirmación** (`astromesh/runtime/confirmacion.py`): una acción
+  declarada en `confirm:` dentro del tool de un agente **no se ejecuta** hasta
+  que la persona conteste una palabra exacta. La 0.41.0 dejó dicho que el pedido
+  de confirmación de PRAXIS era **blando** —`writes: true` alimentaba
+  `requires_approval` y nadie lo leía—; esto es la contención dura.
+- `ToolDefinition.needs_confirmation`, un campo **nuevo** al lado de
+  `requires_approval`, que queda intacto. Gatear sobre `requires_approval` no
+  servía: está en `true` para 15 acciones de 9 integraciones, incluida
+  `whatsapp_send_text`, así que un agente pediría permiso antes de *responder un
+  mensaje*.
+- `ToolRegistry.get(name)`, accesor público para lo que los tests alcanzaban
+  metiendo mano en `._tools`.
+- **`praxis_cobranzas` en el catálogo de integraciones**
+  (`integrations/catalog/praxis_cobranzas/integration.yaml`): las funciones del
+  vertical de cobranzas quedan invocables por un agente. Un opcional ausente se
+  **omite** del body anidado en vez de viajar como `null` — si viajara, un
+  `capacidad_pago` nulo se leería del otro lado como capacidad cero y el agente
+  diría "no tengo nada para ofrecerte" cuando la persona simplemente no dijo
+  cuánto puede pagar.
+
+### Changed
+
+- **El chequeo compara el texto crudo del humano.** La decisión ocurre al entrar
+  a `run()` sobre el `query` que la persona escribió, normalizado (minúsculas,
+  sin acentos) contra un conjunto explícito: `si`, `confirmo`, `dale`, `ok`,
+  `listo`. Al modelo nunca se le pregunta si hubo consentimiento.
+- El pendiente guarda `(session_id, tool, hash de argumentos)`: confirmar un
+  pedido de dos unidades no ejecuta uno de doscientas.
+- **El aviso lo redacta el runtime**, no el modelo. La respuesta de una corrida
+  con una propuesta pendiente nombra la tool y sus argumentos —claves ordenadas,
+  tope por valor— y el modelo no puede suprimir esa línea.
+- `Agent.run` y `AgentRuntime.run` aceptan `desde_humano` (default `True`),
+  forzado a `False` en las dos entradas que no vienen de una persona.
+
+### Fixed
+
+- **Cuatro bypasses, cada uno reproducido antes de arreglarlo**: un sub-agente
+  que se auto-confirmaba re-entrando a `run()` con un `query` escrito por el
+  modelo; un solo "sí" que autorizaba N escrituras en la misma corrida (medido:
+  3 POSTs); una propuesta que pisaba a otra sin confirmar, atando el
+  consentimiento a algo que la persona nunca vio; y el modelo redactando la
+  pregunta que el "dale" contestaba.
+
+**Límites declarados:** el aviso garantiza "se redactó", no "le llegó". Una
+corrida que lanza una excepción *después* de registrar el pendiente no alcanza a
+avisar, y el pendiente sobrevive — acotado porque ese turno no se persiste. El
+pendiente vive en memoria del proceso, indexado por sesión.
+
 ## [0.41.0] - 2026-08-18
 
 ### Added
