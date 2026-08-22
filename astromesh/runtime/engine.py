@@ -129,6 +129,38 @@ def _truncate(text: str | None, limit: int) -> str:
     return text[:limit] + f"\n... [truncated at {len(text)} chars]"
 
 
+# Las claves que CADA tipo de tool lee de verdad en `_build_agent`. Lo que no
+# está acá se ignora en silencio, y ese silencio ya costó un release: la
+# plantilla de CLARUS declaró `confirm` contra un runtime 0.32.0 que no lo
+# conocía, el pod arrancó feliz, y la escritura al ERP siguió sin gatear hasta
+# que alguien entró al pod a mirar.
+#
+# `confirm` va en las comunes A PROPÓSITO aunque sólo lo lea `integration`: mal
+# puesto ya tiene su propio warning más abajo, que además explica por qué no
+# gatea. Reportarlo dos veces taparía el bueno.
+_CLAVES_COMUNES = frozenset({"type", "name", "confirm"})
+_CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
+    "builtin": frozenset({"config", "rate_limit"}),
+    "agent": frozenset({"agent", "description", "parameters", "context_transform"}),
+    "client": frozenset({"description", "parameters", "rate_limit"}),
+    # `description` NO está: `register_integration_tool` usa la del manifiesto
+    # de la integración (`core/tools.py:178`), no la del YAML.
+    "integration": frozenset({"connection", "actions", "rate_limit"}),
+}
+
+
+def claves_ignoradas(tool_def: dict) -> list[str]:
+    """Las claves de un tool_def que este runtime NO va a leer, ordenadas.
+
+    Devuelve vacío para un tipo no soportado: esa tool ya se descarta entera con
+    su propio warning al final del loop, que además nombra los tipos válidos.
+    """
+    conocidas = _CLAVES_POR_TIPO.get(tool_def.get("type", "internal"))
+    if conocidas is None:
+        return []
+    return sorted(set(tool_def) - _CLAVES_COMUNES - conocidas)
+
+
 def _aviso_confirmacion(tool_name: str, argumentos: dict) -> str:
     """La frase que le dice a la persona qué va a pasar si confirma.
 
@@ -606,6 +638,21 @@ class AgentRuntime:
         loader.auto_discover()
         for tool_def in spec.get("tools", []):
             tool_type = tool_def.get("type", "internal")
+            if sobrantes := claves_ignoradas(tool_def):
+                # Warning y no raise, por la misma razón que la rama del tipo no
+                # soportado: una clave de más no vuelve inválido al resto del
+                # agente, y degradarlo a 'draft' por eso sería desproporcionado.
+                # Pero el operador tiene que poder verlo en el log del pod sin
+                # entrar a la base.
+                logger.warning(
+                    "agent %r declara la tool %r con %s que este runtime no lee: %s. "
+                    "Se ignoran. Si esperabas que hicieran algo, el runtime es viejo "
+                    "para ese manifiesto.",
+                    metadata["name"],
+                    tool_def.get("name"),
+                    "una clave" if len(sobrantes) == 1 else "claves",
+                    ", ".join(sobrantes),
+                )
             if tool_type != "integration" and tool_def.get("confirm"):
                 # `confirm` sólo lo lee la rama `integration` (más abajo). En
                 # cualquier otro tipo de tool es un permiso mal escrito que
