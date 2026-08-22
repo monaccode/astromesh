@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.43.0] - 2026-08-21
+
+### Added
+
+- **Una clave que el runtime no lee deja de ignorarse en silencio**
+  (`astromesh/runtime/engine.py`). `_build_agent` lee el tool_def con `.get()`,
+  así que una clave desconocida no falla, no avisa y no hace nada. Ahora sale un
+  warning que nombra el agente, la tool y las claves ignoradas.
+- Ese silencio costó un release en CLARUS: la plantilla declaró `confirm` contra
+  un runtime **0.32.0** que no lo conocía, el pod arrancó sano, y la escritura al
+  ERP siguió sin gatear hasta que alguien entró al pod a mirar. **No arregla
+  retroactivamente a un runtime ya desplegado** —eso es imposible— pero hace que
+  el próximo campo no repita el episodio.
+- Warning y no `raise`, por la misma razón que la rama del tipo no soportado que
+  cerró este mismo modo de fallar en 0.35.0: una clave de más no invalida al
+  resto del agente.
+- `confirm` queda fuera del chequeo a propósito: mal puesto ya tiene un warning
+  propio que explica por qué no gatea, y duplicarlo taparía el bueno.
+
+Cazó un caso vivo al escribirse: la plantilla `atencion` de CLARUS le pone
+`description` al tool de PRAXIS, y `register_integration_tool` usa la del
+manifiesto de la integración, así que la del YAML nunca llegaba a ningún lado.
+
 ## [0.42.0] - 2026-08-21
 
 ### Added
