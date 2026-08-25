@@ -7,22 +7,36 @@
         "astromesh/__init__.py:__version__",
     ]
 
-O sea que la herramienta de release ya sabe que son dos. Lo que faltaba era algo
-que se pusiera rojo cuando no se la usa: la 0.44.0 se publicó bumpeando
-`pyproject.toml` a mano, sin commit `chore(release)`, y `__init__.py` se quedó en
-`0.43.0`. La imagen desplegada quedó diciendo dos versiones distintas de sí misma
-según a quién se le pregunte:
+O sea que la herramienta de release ya sabe que son dos.
+
+**Y el gate ya existía, en el lugar equivocado.** `release-pypi.yml:51-54` compara
+las dos versiones y aborta con *"Version mismatch between pyproject and
+__init__.py"*. Cuando se empujó el tag `v0.44.0`, ese gate **hizo su trabajo**: el
+tag apunta a un commit con `pyproject.toml` en `0.44.0` y `__init__.py` en
+`0.43.0`, así que el release abortó. **astromesh 0.44.0 no está publicada en
+PyPI** — la última que sí está es la 0.43.0.
+
+Lo que falló no fue la verificación: fue que **nadie miró que había fallado**, y
+que el camino de la imagen es otro workflow, sin ese chequeo. Así quedó una
+imagen `fulfarodev/astromesh:0.44.0` corriendo en producción cuyo paquete
+equivalente no existe, y diciendo dos versiones distintas de sí misma según a
+quién se le pregunte::
 
     $ kubectl -n nexus-dev exec <pod> -- python -c "..."
     metadata:    0.44.0
     __version__: 0.43.0
 
-No es cosmético. `GET /v1/system/status` reporta `__version__`
-(`astromesh/api/routes/system.py:50`), así que cualquiera que verifique la
+Este test no agrega una garantía que no existía: **mueve la que existía a un lugar
+donde no se puede ignorar.** Un gate que sólo corre al empujar un tag falla en un
+log que nadie abre; uno que corre con la suite falla en la cara del que rompió la
+coherencia, antes de que haya tag, imagen ni deploy.
+
+Por qué importa además de la higiene: `GET /v1/system/status` reporta
+`__version__` (`astromesh/api/routes/system.py:50`), así que quien verifique la
 versión del runtime por HTTP —en vez de por `importlib.metadata`— obtiene la
-vieja y concluye que el pod está por debajo del piso que necesita. Es
-exactamente el modo de falla que el propio runtime persigue: una fuente que
-responde con seguridad algo que no es cierto.
+vieja y concluye que el pod está por debajo del piso que necesita. Es exactamente
+el modo de falla que el propio runtime persigue: una fuente que responde con
+seguridad algo que no es cierto.
 """
 
 import importlib.metadata
