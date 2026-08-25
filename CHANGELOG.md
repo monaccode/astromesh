@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.0] - 2026-08-24
+
+### Fixed
+
+- **La memoria conversacional era código muerto.** `AgentRuntime._build_agent`
+  construía el `MemoryManager` sin pasarle `conversation=`, y
+  `build_conversation_backend` no lo llamaba NADIE. Con `_conversation` en
+  `None`, tanto `build_context` como `persist_turn` no hacen nada
+  (`astromesh/core/memory.py:93,138`) — y los spans `memory_build` y
+  `memory_persist` reportan `ok`. Ningún agente tuvo memoria nunca, con ningún
+  backend, y no había forma de darse cuenta sin leer el código.
+
+  Medido con un agente de cobranzas sobre WhatsApp: encontraba la deuda de la
+  persona en el ERP y al mensaje siguiente le volvía a pedir el teléfono, con
+  `memory.conversational` bien declarado y Redis arriba y alcanzable.
+
+  Un backend que el factory no sabe construir ahora degrada a SIN memoria con
+  un **warning que lo nombra**, en vez de en silencio. No tira: es el mismo
+  criterio que las claves de más en una tool — una parte del manifiesto que
+  este runtime no entiende no vuelve inválido al agente entero, pero el
+  operador tiene que poder verlo en el log del pod.
+
+### Known
+
+- `build_conversation_backend` sigue construyendo **sólo `redis`**, mientras
+  `agent.schema.json` anuncia además `sqlite`, `postgres` e `in_memory`.
+  Declarar uno de esos tres cae por el warning nuevo. El schema y el factory
+  todavía no dicen lo mismo.
+
 ## [0.43.0] - 2026-08-21
 
 ### Added

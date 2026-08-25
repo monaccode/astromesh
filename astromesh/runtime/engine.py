@@ -16,6 +16,7 @@ from astromesh.core.tools import ToolRegistry
 from astromesh.errors import AgentConfigError
 from astromesh.integrations import default_catalog
 from astromesh.integrations.credentials import CredentialResolver
+from astromesh.memory.factory import build_conversation_backend
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
     PipelinePattern,
@@ -538,6 +539,48 @@ class AgentRuntime:
         roles["default"] = {"candidates": candidates, "strategy": strategy}
         return roles
 
+    @staticmethod
+    def _conversation_backend(nombre: str, memory_spec: dict):
+        """El backend conversacional del agente, o None si no declara memoria.
+
+        Un backend que el factory no sabe construir degrada a SIN MEMORIA con
+        un warning, en vez de tirar: es el mismo criterio que las claves de más
+        en una tool unas líneas más abajo — una parte del manifiesto que este
+        runtime no entiende no vuelve inválido al agente entero, pero el
+        operador tiene que poder verlo en el log del pod sin entrar a la base.
+
+        Hoy `build_conversation_backend` sólo construye `redis`
+        (`astromesh/memory/factory.py:23-30`), y el `agent.schema.json` de este
+        repo todavía anuncia `sqlite`, `postgres` e `in_memory`: hasta que el
+        factory los implemente, declararlos cae por acá.
+        """
+        conv = (memory_spec or {}).get("conversational")
+        if not conv:
+            return None
+        try:
+            return build_conversation_backend(conv)
+        except ValueError as err:
+            logger.warning(
+                "agent %r declara memoria conversacional con backend %r que este "
+                "runtime no construye (%s): va a correr SIN memoria y se vuelve a "
+                "presentar en cada mensaje.",
+                nombre,
+                conv.get("backend"),
+                err,
+            )
+            return None
+        except KeyError as err:
+            # `redis` lee `connection.url` sin default: sin esa clave el
+            # manifiesto revienta acá, no en la primera corrida.
+            logger.warning(
+                "agent %r declara memoria conversacional %r sin %s: va a correr "
+                "SIN memoria.",
+                nombre,
+                conv.get("backend"),
+                err,
+            )
+            return None
+
     def _build_role_routers(self, model_spec: dict) -> dict[str, "ModelRouter"]:
         """Build one ModelRouter per role from the normalized spec."""
         roles = self._normalize_model_spec(model_spec)
@@ -629,7 +672,24 @@ class AgentRuntime:
             )
         model_spec = spec.get("model", {})
         routers = self._build_role_routers(model_spec)
-        memory = MemoryManager(agent_id=metadata["name"], config=spec.get("memory", {}))
+        memory_spec = spec.get("memory", {})
+        # El backend conversacional se CONSTRUYE acá o no existe: sin esta
+        # línea `MemoryManager._conversation` queda en None, y entonces
+        # `build_context` y `persist_turn` no hacen nada
+        # (`astromesh/core/memory.py:93,138`). El resultado es un agente que se
+        # vuelve a presentar en cada mensaje, sin un error en ningún lado y con
+        # los spans `memory_build`/`memory_persist` reportando `ok`.
+        #
+        # Medido con un agente de cobranzas sobre WhatsApp: encontraba la deuda
+        # de la persona y al mensaje siguiente le volvía a pedir el teléfono,
+        # con `memory.conversational` bien declarado en su manifiesto y Redis
+        # arriba y alcanzable. La memoria conversacional era código muerto:
+        # `build_conversation_backend` no lo llamaba NADIE.
+        memory = MemoryManager(
+            agent_id=metadata["name"],
+            config=memory_spec,
+            conversation=self._conversation_backend(metadata["name"], memory_spec),
+        )
         rag = self._resolve_rag(spec)
         tools = ToolRegistry()
         from astromesh.tools import ToolLoader
