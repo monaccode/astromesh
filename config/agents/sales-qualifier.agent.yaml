@@ -74,6 +74,10 @@ spec:
   memory:
     conversational:
       backend: redis
+      # `redis` lee `connection.url` sin default: sin esto el agente carga pero
+      # corre SIN memoria, que es justo lo que no se quiere de un ejemplo.
+      connection:
+        url: redis://localhost:6379
       strategy: sliding_window
       max_turns: 20
       ttl: 3600

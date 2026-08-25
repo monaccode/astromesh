@@ -573,8 +573,23 @@ class AgentRuntime:
             # `redis` lee `connection.url` sin default: sin esa clave el
             # manifiesto revienta acá, no en la primera corrida.
             logger.warning(
-                "agent %r declara memoria conversacional %r sin %s: va a correr "
-                "SIN memoria.",
+                "agent %r declara memoria conversacional %r sin %s: va a correr SIN memoria.",
+                nombre,
+                conv.get("backend"),
+                err,
+            )
+            return None
+        except ImportError as err:
+            # El backend es un EXTRA opcional (`astromesh[redis]`): esta build
+            # no lo tiene instalado. Degradar y avisar, no dejar al agente en
+            # `draft`: el resto de sus capacidades funciona perfectamente, y un
+            # agente muerto por una dependencia de memoria es una falla mucho
+            # más grande que un agente sin memoria. El mensaje nombra el extra
+            # para que quien lea el log sepa qué instalar.
+            logger.warning(
+                "agent %r declara memoria conversacional %r y esta build no "
+                "tiene el paquete (%s): instalá el extra correspondiente "
+                "(p.ej. `astromesh[redis]`). Va a correr SIN memoria.",
                 nombre,
                 conv.get("backend"),
                 err,

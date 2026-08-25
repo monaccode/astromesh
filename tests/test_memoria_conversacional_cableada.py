@@ -109,3 +109,32 @@ def test_el_agente_construido_lleva_el_backend(monkeypatch):
     conv = visto["conversation"]
     assert conv is not None
     assert type(conv).__name__ == "RedisConversationBackend"
+
+
+def test_un_extra_que_falta_degrada_en_vez_de_matar_al_agente(caplog, monkeypatch):
+    """Un backend cuyo paquete no está instalado NO puede dejar al agente en
+    `draft`: el resto de sus capacidades anda, y un agente muerto por una
+    dependencia de memoria es una falla mucho más grande que un agente sin
+    memoria. Pasó de verdad: al cablear el backend, la imagen del repo —que
+    instala `--extra glyph` pero no `redis`— dejó de cargar un agente de
+    `config/agents/` que hasta entonces arrancaba (sin memoria, en silencio).
+    """
+    import logging
+
+    from astromesh.memory import factory
+
+    def sin_paquete(_conv):
+        raise ImportError("No module named 'redis'")
+
+    monkeypatch.setattr("astromesh.runtime.engine.build_conversation_backend", sin_paquete)
+    assert factory  # el módulo real sigue existiendo; se parchea el uso, no la fuente
+
+    with caplog.at_level(logging.WARNING):
+        backend = AgentRuntime._conversation_backend(
+            "agente-x",
+            {"conversational": {"backend": "redis", "connection": {"url": "redis://x"}}},
+        )
+    assert backend is None
+    assert "SIN memoria" in caplog.text
+    # El log tiene que decir QUÉ instalar, o no sirve de nada.
+    assert "extra" in caplog.text.lower()

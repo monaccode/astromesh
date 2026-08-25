@@ -251,7 +251,7 @@
               "properties": {
                 "backend": {
                   "type": "string",
-                  "description": "Storage backend identifier.",
+                  "description": "Conversational backend. NOTE: today `build_conversation_backend` only constructs `redis` (astromesh/memory/factory.py); the other values are accepted by this schema but the runtime degrades to NO memory with a warning. The enum is left wide so existing manifests keep validating — narrow it when the factory implements them.",
                   "enum": [
                     "sqlite",
                     "redis",
@@ -282,6 +282,20 @@
                   "type": "integer",
                   "description": "Time-to-live in seconds for stored conversations.",
                   "minimum": 1
+                },
+                "connection": {
+                  "type": "object",
+                  "description": "Connection for the backend. `redis` REQUIRES it: the factory reads conv_config['connection']['url'] with no default (astromesh/memory/factory.py), so a manifest without it loads the agent and then runs it WITHOUT memory. The schema used to forbid this key outright, which made every manifest that actually works fail validation.",
+                  "additionalProperties": false,
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "Backend DSN, e.g. redis://localhost:6379."
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ]
                 }
               }
             },
