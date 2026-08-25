@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.2] - 2026-08-25
+
+### Fixed
+
+- **El error del proveedor de modelo llega entero.** `complete` y `stream` de
+  `OpenAICompatProvider` hacían `resp.raise_for_status()`, que descarta el
+  cuerpo de la respuesta: httpx deja sólo `Client error '400 Bad Request' for
+  url ...`, y ese texto es lo único que sube hasta quien invocó al agente. Las
+  APIs compatibles con OpenAI mandan el motivo exacto en el cuerpo —qué campo
+  del payload está mal, qué límite se pasó— y ahora se propaga. Costó
+  descubrirlo: un agente en dev dejó de contestar y hubo que falsificar a mano
+  seis hipótesis contra el proveedor vivo, teniendo el proveedor la respuesta
+  exacta desde el primer intento. El cuerpo se recorta a 800 caracteres y sale
+  de la respuesta, nunca del request (que lleva el prompt y la credencial).
+- `[tool.commitizen] version` había quedado en `0.44.0` mientras el paquete iba
+  por `0.44.1`. `cz bump` lee ese valor como versión actual, así que el próximo
+  bump habría intentado re-emitir un tag existente.
+
+### Known
+
+- El mismo `raise_for_status()` pelado sigue en los adapters `centinela`,
+  `vllm`, `llamacpp`, `ollama` y `hf_tgi`. Es el mismo defecto; no entraron en
+  este cambio porque ninguno intervino en el despliegue que lo destapó.
+
 ## [0.44.1] - 2026-08-25
 
 ### Fixed

@@ -1,6 +1,6 @@
 [project]
 name = "astromesh"
-version = "0.44.1"
+version = "0.44.2"
 description = "Astromesh Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -149,7 +149,10 @@ ignore = [
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.44.0"
+# Quedó en 0.44.0 mientras el paquete iba por 0.44.1: `cz bump` lee ESTE valor
+# como versión actual, así que el próximo bump habría intentado re-emitir un tag
+# que ya existe. Se empareja acá con las otras dos.
+version = "0.44.2"
 version_files = [
     "pyproject.toml:version",
     "astromesh/__init__.py:__version__",
