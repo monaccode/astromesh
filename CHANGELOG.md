@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.1] - 2026-08-25
+
+### Fixed
+
+- **`0.44.0` nunca llegó a PyPI**: el bump tocó `pyproject.toml` y no
+  `astromesh/__init__.py`, y el gate de la release corta con
+  `Version mismatch`. La imagen Docker sí se publicó, así que el paquete quedó
+  en 0.43.0 en PyPI y en 0.44.0 en Docker Hub. Las dos versiones ahora se
+  emparejan y hay un test que lo sostiene.
+- Un backend conversacional cuyo paquete no está instalado degrada a SIN memoria
+  con un warning que nombra el extra, en vez de dejar al agente en `draft`. Un
+  agente muerto por una dependencia de memoria es una falla mucho más grande que
+  un agente sin memoria.
+- `docker/Dockerfile` instala el extra `redis`, que su propio `config/agents/`
+  necesita. Ojo: **son dos Dockerfiles** — el de la release es el de la raíz, y
+  ya lo instalaba; el de `docker/` es el que construye el CI y estaba corto.
+- El `agent.schema.json` permite `memory.conversational.connection`, que el
+  factory EXIGE sin default: un manifiesto que de verdad funciona no validaba, y
+  uno que validaba corría sin memoria.
+
 ## [0.44.0] - 2026-08-24
 
 ### Fixed
