@@ -660,3 +660,99 @@ async def test_complete_reads_cache_from_the_openai_nested_shape():
     result = await provider.complete(MESSAGES)
     assert result.usage["cache_read_input_tokens"] == 1000
     assert result.cost == pytest.approx(0.00195)
+
+
+# ---------------------------------------------------------------------------
+# El error del proveedor tiene que llegar entero
+# ---------------------------------------------------------------------------
+
+# El cuerpo REAL que devuelve Moonshot cuando un tool tiene un nombre inválido.
+# Se copia literal a propósito: es la clase de mensaje que el adapter tiraba a
+# la basura, y el único que dice qué hay que arreglar.
+MOONSHOT_400 = {
+    "error": {
+        "message": (
+            "Invalid request: function name is invalid, must start with a "
+            "letter and can contain letters, numbers, underscores, and dashes"
+        ),
+        "type": "invalid_request_error",
+    }
+}
+
+
+@respx.mock
+async def test_openai_compat_complete_conserva_el_cuerpo_del_error():
+    """Un 4xx del proveedor llega con lo que el proveedor dijo.
+
+    Antes era `resp.raise_for_status()` pelado, que descarta el cuerpo: quien
+    operaba recibía "Client error '400 Bad Request' for url ..." y tenía que
+    adivinar, contra el proveedor vivo, cuál de las N cosas del payload estaba
+    mal. Medido en dev: seis hipótesis falsificadas a mano antes de dar con la
+    buena, teniendo el proveedor la respuesta exacta desde el primer intento.
+    """
+    respx.post("https://api.moonshot.ai/v1/chat/completions").mock(
+        return_value=httpx.Response(400, json=MOONSHOT_400)
+    )
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k2.5", "api_key": "sk-test"}
+    )
+
+    with pytest.raises(ModelProviderError) as exc:
+        await provider.complete(MESSAGES)
+
+    assert "function name is invalid" in str(exc.value)
+    assert "400" in str(exc.value)
+
+
+@respx.mock
+async def test_openai_compat_complete_no_filtra_la_api_key():
+    """El mensaje viaja hasta la pantalla del cliente: la credencial no va."""
+    respx.post("https://api.moonshot.ai/v1/chat/completions").mock(
+        return_value=httpx.Response(401, text="unauthorized")
+    )
+    provider = OpenAICompatProvider(
+        {
+            "base_url": "https://api.moonshot.ai/v1",
+            "model": "kimi-k2.5",
+            "api_key": "sk-super-secreta",
+        }
+    )
+
+    with pytest.raises(ModelProviderError) as exc:
+        await provider.complete(MESSAGES)
+
+    assert "sk-super-secreta" not in str(exc.value)
+    assert "sk-super-secreta" not in (exc.value.hint or "")
+
+
+@respx.mock
+async def test_openai_compat_stream_conserva_el_cuerpo_del_error():
+    """El camino de streaming tenía el MISMO `raise_for_status` pelado."""
+    respx.post("https://api.moonshot.ai/v1/chat/completions").mock(
+        return_value=httpx.Response(400, json=MOONSHOT_400)
+    )
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k2.5", "api_key": "sk-test"}
+    )
+
+    with pytest.raises(ModelProviderError) as exc:
+        async for _ in provider.stream(MESSAGES):
+            pass
+
+    assert "function name is invalid" in str(exc.value)
+
+
+@respx.mock
+async def test_openai_compat_cuerpo_enorme_se_recorta():
+    """Un ingress que devuelve un HTML gigante no puede llenar el log."""
+    respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(500, text="x" * 20_000)
+    )
+    provider = OpenAICompatProvider(
+        {"base_url": "https://api.openai.com/v1", "model": "gpt-4o", "api_key": "sk-test"}
+    )
+
+    with pytest.raises(ModelProviderError) as exc:
+        await provider.complete(MESSAGES)
+
+    assert len(str(exc.value)) < 2_000
