@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `ADKRuntime._run_swarm` now raises a descriptive `ValueError` (`swarm team '<name>' has no entry_agent and no agents`) when an `AgentTeam` with the `swarm` pattern has neither `entry_agent` nor `agents`, instead of crashing with `IndexError` on `team.agents[0]` (`astromesh_adk/runner.py`)
+
 ## [0.1.9] - 2026-07-10
 
 ### Added

@@ -438,6 +438,8 @@ class ADKRuntime:
         )
 
     async def _run_swarm(self, team, query, session_id, context) -> RunResult:
+        if team.entry_agent is None and not team.agents:
+            raise ValueError(f"swarm team {team.name!r} has no entry_agent and no agents")
         agents = {a.name: a for a in team.agents}
         entry = team.entry_agent or team.agents[0]
         tctx = TracingContext(entry.name, session_id)

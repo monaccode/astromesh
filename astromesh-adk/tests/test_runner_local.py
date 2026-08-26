@@ -318,3 +318,24 @@ async def test_run_class_agent_runs_hooks():
     result = await rt.run_class_agent(MyAgent(), "q", "s")
     assert result.answer == "cls-out"
     assert calls == ["before", "after"]
+
+
+@pytest.mark.asyncio
+async def test_run_team_swarm_returns_entry_answer():
+    rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m, content="swarm-final"))
+    team = AgentTeam(
+        name="sw",
+        pattern="swarm",
+        agents=[_agent(name="a1", model="claude-x"), _agent(name="a2", model="gpt-y")],
+        entry_agent=_agent(name="entry", model="claude-x"),
+    )
+    result = await rt.run_team(team, "q", "s")
+    assert result.answer == "swarm-final"
+
+
+@pytest.mark.asyncio
+async def test_run_team_swarm_empty_team_raises_valueerror():
+    rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m))
+    team = AgentTeam(name="empty", pattern="swarm", agents=[], entry_agent=None)
+    with pytest.raises(ValueError, match=r"swarm team 'empty' has no entry_agent and no agents"):
+        await rt.run_team(team, "q", "s")
