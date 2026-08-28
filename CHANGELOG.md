@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added (Docs site)
+
+- **Las integraciones tienen página** (`configuration/integrations`). El marco existe desde
+  la 0.37.0 y el sitio no lo nombraba en ningún lado: doce manifiestos en el catálogo, el
+  tipo de tool `integration`, la resolución de credenciales (bundle de Nexus →
+  `config/connections.yaml` → ausente), cómo se escribe un `integration.yaml`, y —lo que
+  cuesta caro no tener escrito— **la tabla de qué se ignora en silencio y con qué warning**:
+  slug fuera del catálogo, sin `connection`, sin `actions`, acción inexistente, clave que
+  este runtime no lee. Todas fallas que no rompen el despliegue.
+- **El gate de confirmación tiene página** (`configuration/confirmation-gate`): qué cuenta
+  como un sí, qué autoriza exactamente una confirmación (la tool Y sus argumentos), por qué
+  una corrida re-entrante no puede confirmar, y los límites declarados —el aviso garantiza
+  "se redactó", no "le llegó"—.
+- `reference/core/builtin-tools`: faltaba `send_message` (0.40.0). El sitio decía 17 tools y
+  son 18. Incluye lo que no es obvio: sólo funciona en una corrida despachada por Nexus,
+  porque la credencial se acuña por invocación.
+- `reference/api-endpoints`: `GET /v1/integrations` y `GET /v1/integrations/{slug}`, y el
+  campo `connections` del body de `POST /v1/agents/{name}/run`.
+
+### Changed (Docs site)
+
+- `configuration/agent-yaml` documentaba `type: webhook` en su ejemplo de tools —un tipo que
+  el runtime warnea y saltea desde la 0.35.0—. Ahora el ejemplo es una integración real, y
+  la nota de tipos incluye `integration` y el warning de claves ignoradas de la 0.43.0.
+- **La memoria conversacional estaba documentada con tres backends que el runtime no
+  construye.** `agent-yaml` y `reference/core/memory-manager` mostraban `postgres` y
+  `sqlite`, y el segundo además con una forma de config equivocada (`redis:` anidado en vez
+  de `connection.url`). Seguir esa página daba un agente SIN memoria. Ahora dicen que el
+  factory arma sólo `redis`, que `connection.url` no tiene default, y que el schema va
+  adelante del factory.
+- Las versiones del sitio estaban cinco releases atrás: `ecosystem.ts` tenía el core en
+  0.40.0. Se emparejan core (0.45.0), Glyph, ADK, CLI, Node y Orbit en `ecosystem.ts`,
+  `getting-started/ecosystem` y las dos copias de `ECOSYSTEM_DEPENDENCIES`, cuya sección
+  «main vs develop» describía un estado de hace cinco versiones y afirmaba que no había
+  código nuevo desde la v0.40.0.
+
+### Fixed
+
+- **`[tool.commitizen] version` volvió a quedar atrás** (0.44.2 con el paquete en 0.45.0),
+  la misma falla que la 0.44.2 dice haber cerrado. No está en `version_files`, así que nada
+  la verificaba: `cz bump` la lee como versión ACTUAL, y desde 0.44.2 habría calculado
+  0.45.0 —un tag que ya existe—. `tests/test_version_coherente.py` ahora compara las tres
+  copias, no dos.
+
 ## [0.45.0] - 2026-08-28
 
 ### Added

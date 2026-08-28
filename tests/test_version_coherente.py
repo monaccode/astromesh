@@ -57,3 +57,25 @@ def test_version_del_modulo_coincide_con_la_del_paquete() -> None:
         f"instalada dice {instalada!r}. Los dos salen de `version_files` en "
         f"pyproject.toml y se bumpean juntos con `cz bump`."
     )
+
+
+def test_version_de_commitizen_coincide_con_la_del_paquete() -> None:
+    """`[tool.commitizen] version` es la tercera copia, y la que nadie mira.
+
+    No está en `version_files`, así que `cz bump` la escribe pero nada la
+    verifica. Ya se atrasó dos veces (0.44.0 y 0.44.2). Importa porque `cz bump`
+    la lee como versión ACTUAL: atrasada, calcula la próxima desde el número
+    viejo y trata de emitir un tag que ya existe.
+    """
+    import tomllib
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parent.parent
+    datos = tomllib.loads((raiz / "pyproject.toml").read_text())
+    cz = datos["tool"]["commitizen"]["version"]
+
+    assert cz == astromesh.__version__, (
+        f"[tool.commitizen] version dice {cz!r} y astromesh.__version__ dice "
+        f"{astromesh.__version__!r}. `cz bump` toma la de commitizen como la "
+        f"versión actual: atrasada, el próximo bump re-emite un tag existente."
+    )

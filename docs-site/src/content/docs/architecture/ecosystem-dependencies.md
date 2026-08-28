@@ -17,12 +17,12 @@ These directories ship from this repository on their own tags and versions.
 
 | Component | Package | Directory | `main` version | `develop` version | Version source | Min Python / Runtime |
 |-----------|---------|-----------|----------------|-------------------|----------------|----------------------|
-| **Core Runtime** | `astromesh` | `astromesh/` | `0.40.0` | `0.40.0` | `astromesh/__init__.py` | Python 3.12 |
-| **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.0` | `0.1.0` | `astromesh_glyph/__init__.py` | Python 3.12 |
-| **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.2.0` | `0.2.0` | `astromesh_adk/__init__.py` | Python 3.12 |
-| **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.2.0` | `0.2.0` | `astromesh_cli/__init__.py` | Python 3.12 |
-| **Node** | `astromesh-node` | `astromesh-node/` | `0.1.1` | `0.1.1` | `src/astromesh_node/__init__.py` | Python 3.12 |
-| **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.0` | `0.4.0` | `astromesh_orbit/__init__.py` | Python 3.12 |
+| **Core Runtime** | `astromesh` | `astromesh/` | `0.45.0` | `0.45.0` | `astromesh/__init__.py` | Python 3.12 |
+| **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.2` | `0.1.2` | `astromesh_glyph/__init__.py` | Python 3.12 |
+| **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.3.0` | `0.3.0` | `astromesh_adk/__init__.py` | Python 3.12 |
+| **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.3.0` | `0.3.0` | `astromesh_cli/__init__.py` | Python 3.12 |
+| **Node** | `astromesh-node` | `astromesh-node/` | `0.1.2` | `0.1.2` | `src/astromesh_node/__init__.py` | Python 3.12 |
+| **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.1` | `0.4.1` | `astromesh_orbit/__init__.py` | Python 3.12 |
 | **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.24.0` | `0.24.0` | `package.json` | Node 22.12 |
 | **Docs site** | `docs-site` | `docs-site/` | `0.1.0` | `0.1.0` | `package.json` | Node (site build) |
 | **VS Code extension** | `vscode-extension` | `vscode-extension/` | `0.1.0` | `0.1.0` | `package.json` | Node (build) |
@@ -132,43 +132,32 @@ All authoring tools produce the same agent spec that the core runtime understand
 
 ## 4. `main` vs `develop` status
 
-Last merge from `develop` to `main`: **v0.40.0**.
-Current state: `develop` is ahead of `main` with documentation-only changes; no monorepo package versions have changed since the last merge.
+Last merge from `develop` to `main`: **v0.45.0**.
 
-### 4.1 Versions in `main`
+`main` and `develop` are level. The versions in section 1.1 are the versions on both
+branches; when they diverge, the difference is a core release in flight and this line says
+so.
 
-All monorepo packages currently on `main`:
+### 4.1 What the v0.41.0 → v0.45.0 run carried
 
-| Package | Version in `main` |
-|---------|-------------------|
-| `astromesh` | `0.40.0` |
-| `astromesh-glyph` | `0.1.0` |
-| `astromesh-adk` | `0.2.0` |
-| `astromesh-cli` | `0.2.0` |
-| `astromesh-node` | `0.1.1` |
-| `astromesh-orbit` | `0.4.0` |
-| `astromesh-forge` | `0.24.0` |
+Five core releases, all of them runtime behaviour rather than site changes. Each is
+described in full in [`CHANGELOG.md`](https://github.com/monaccode/astromesh/blob/main/CHANGELOG.md):
 
-### 4.2 What is in `develop` but not yet in `main`
+| Version | What landed |
+|---------|-------------|
+| `0.41.0` | PRAXIS as a declarative catalog integration — three actions, no runtime code. |
+| `0.42.0` | The **confirmation gate**: an action declared in `confirm:` does not run until a person writes a literal yes. Plus `praxis_cobranzas`. |
+| `0.43.0` | A tool key the runtime does not read stops being ignored in silence — it warns, naming the agent, the tool and the keys. |
+| `0.44.0` | **Conversational memory was dead code.** No agent had memory with any backend, and the spans still reported `ok`. Fixed, and an unbuildable backend now degrades with a warning that names it. |
+| `0.44.1` / `0.44.2` | `0.44.0` never reached PyPI (version mismatch gate); the model provider's error body now propagates instead of a bare `400 Bad Request`. |
+| `0.45.0` | `praxis_inmobiliaria` and `praxis_mecanicos` — the second had been declared by a live template that the runtime was silently skipping. |
 
-These changes are documentation/site updates and do not require a version bump of any runtime package:
+### 4.2 Release flow
 
-- **Documentation site**: ecosystem star-map on the homepage, Glyph and Herald sections, release ledger, status board, Prisma page.
-- **README.md**: ecosystem table rewritten by layer, layer badge, updated orchestration pattern count.
-- **CHANGELOG.md**: `[Unreleased]` section documenting the docs-site changes.
-- **AGENTS.md**: guidance file for AI coding agents.
-- **`.claude/settings.local.json`**: local Claude command history.
-
-### 4.3 What needs to be taken to `main`
-
-A merge of the current `develop` branch into `main` would carry the documentation and site updates. No package releases are required because no code changed since `v0.40.0`.
-
-If a new runtime release is desired, the normal release flow applies:
-
-1. Update `CHANGELOG.md` under `[Unreleased]` (already done).
-2. Run `cz bump` on `develop` to bump `astromesh` to the next version.
-3. Re-lock `uv.lock` files for packages that reference the core as an editable path (`astromesh-node`, `astromesh-cli`, root).
-4. Merge `develop` into `main` and tag `vX.Y.Z`.
+1. Update `CHANGELOG.md` under `[Unreleased]`.
+2. Run `cz bump` on `develop` to bump `astromesh` (it moves `pyproject.toml` and `astromesh/__init__.py` together).
+3. Re-lock `uv.lock` in the root, `astromesh-node/` and `astromesh-cli/` — all three record the core version, and CI installs with `uv sync --locked`.
+4. Merge `develop` into `main` and push the tag `vX.Y.Z`. Pushing the tag publishes to PyPI.
 
 ## 5. Keeping this page current
 

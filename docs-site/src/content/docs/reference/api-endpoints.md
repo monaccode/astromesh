@@ -107,6 +107,18 @@ Execute an agent with a user query.
 |-------|------|----------|-------------|
 | `query` | `string` | Yes | User input text |
 | `session_id` | `string` | No | Session ID for memory continuity. Auto-generated if omitted |
+| `connections` | `object` | No | Per-run credential bundle for [integration tools](/astromesh/configuration/integrations/). Takes priority over `config/connections.yaml`; the runtime never stores it |
+
+A run that uses integrations supplies their credentials here:
+
+```json
+{
+  "query": "how much does customer 42 owe?",
+  "connections": {
+    "praxis_main": { "api_key": "...", "base_url": "https://erp.example.com" }
+  }
+}
+```
 
 **Response:**
 ```json
@@ -378,6 +390,67 @@ List all available built-in tools with metadata.
   "count": 17
 }
 ```
+
+---
+
+### `GET /v1/integrations`
+
+List the integration catalog: what each manifest reaches, and which credential material a
+connection has to supply. Never returns credential **values** — this is what a control
+plane reads to draw its connections UI.
+
+**Response:**
+```json
+{
+  "integrations": [
+    {
+      "slug": "google_sheets",
+      "version": "0.1.0",
+      "description": "Read, overwrite and append rows on Google Sheets.",
+      "base_url": "https://sheets.googleapis.com/v4",
+      "auth": { "scheme": "bearer", "credential": "access_token" },
+      "action_count": 4
+    }
+  ],
+  "count": 12
+}
+```
+
+---
+
+### `GET /v1/integrations/{slug}`
+
+The same payload for one integration, plus every action with its JSON Schema.
+
+**Response:**
+```json
+{
+  "slug": "google_sheets",
+  "version": "0.1.0",
+  "base_url": "https://sheets.googleapis.com/v4",
+  "auth": { "scheme": "bearer", "credential": "access_token" },
+  "action_count": 4,
+  "actions": [
+    {
+      "name": "append_values",
+      "description": "Append rows to the end of a sheet range.",
+      "writes": true,
+      "paginated": false,
+      "parameters": {
+        "type": "object",
+        "properties": { "spreadsheet_id": { "type": "string" } },
+        "required": ["spreadsheet_id"]
+      }
+    }
+  ]
+}
+```
+
+**Errors:**
+
+| Status | Description |
+|--------|-------------|
+| `404` | No integration with that slug in the catalog |
 
 ---
 

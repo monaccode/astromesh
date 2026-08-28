@@ -110,12 +110,12 @@ export const CORE: Component = {
   name: 'Core Runtime',
   short: 'Core',
   group: 'runtime',
-  version: '0.40.0',
-  released: '2026-08-06',
+  version: '0.45.0',
+  released: '2026-08-28',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
   latest:
-    'Builtin tool `send_message`: an agent can reach a person mid-run instead of only answering whoever wrote first.',
+    'Two vertical integrations join the catalog — one of them, `praxis_mecanicos`, had been declared by a live template the runtime was silently skipping.',
   install: 'pip install astromesh',
   href: '/astromesh/getting-started/what-is-astromesh/',
 };

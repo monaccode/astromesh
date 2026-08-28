@@ -149,10 +149,11 @@ ignore = [
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-# Quedó en 0.44.0 mientras el paquete iba por 0.44.1: `cz bump` lee ESTE valor
-# como versión actual, así que el próximo bump habría intentado re-emitir un tag
-# que ya existe. Se empareja acá con las otras dos.
-version = "0.44.2"
+# `cz bump` lee ESTE valor como versión actual, y NO está en `version_files`, así
+# que no se actualiza solo: quedó atrás en 0.44.0 y otra vez en 0.44.2, y en las
+# dos el próximo bump habría intentado re-emitir un tag que ya existe. Lo sostiene
+# `tests/test_version_coherente.py`, que ahora compara las tres.
+version = "0.45.0"
 version_files = [
     "pyproject.toml:version",
     "astromesh/__init__.py:__version__",

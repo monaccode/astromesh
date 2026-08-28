@@ -124,40 +124,48 @@ spec:
   # --- Tools ---
   tools:
     - name: lookup_company
-      type: builtin                 # builtin | agent | client
+      type: builtin                 # builtin | agent | client | integration
       description: "Look up company information from CRM"
       parameters:
         company_name:
           type: string
           description: "Company name to look up"
 
-    - name: search_crm
-      type: webhook
-      description: "Search CRM records"
-      parameters:
-        query:
-          type: string
-          description: "Search query"
+    - name: google_sheets           # an integration slug: one entry, several tools
+      type: integration
+      connection: sheets_main       # which connection carries the credential
+      actions:                      # allowlist — required
+        - get_values
+        - append_values
+      confirm:                      # subset of actions that need a human "yes"
+        - append_values
 ```
 
 > **Tool types loadable from YAML:** `builtin` (a tool shipped with the runtime),
-> `agent` (another agent, callable as a tool), and `client` (announced to the model,
+> `agent` (another agent, callable as a tool), `client` (announced to the model,
 > executed by whoever is listening — the call arrives live via `on_event` and
-> afterwards in `steps`; with nobody listening it is a no-op).
+> afterwards in `steps`; with nobody listening it is a no-op), and `integration`
+> (actions from a catalog manifest — see [Integrations](/astromesh/configuration/integrations/)).
 >
 > `webhook` and `rag` appear in `ToolType` but are **not** declarable from YAML.
 > `internal` is deprecated: a YAML cannot supply a Python handler, so what it meant
 > is now `client`. Declaring an unsupported type logs a warning and skips the tool;
 > from 1.0 it will be an error.
+>
+> A key this runtime does not read is **warned about, not ignored in silence** (since
+> v0.43.0): the log names the agent, the tool and the ignored keys. That usually means the
+> manifest was written for a newer runtime than the one running it.
 
 ```yaml
   # --- Memory ---
   memory:
     conversational:
-      backend: redis                # Storage backend (redis, postgres, sqlite)
+      backend: redis                # redis is the only backend the runtime builds
+      connection:
+        url: redis://localhost:6379/0   # required — no default
       strategy: sliding_window      # How conversation history is managed
       max_turns: 20                 # For sliding_window: number of turns to retain
-      ttl: 3600                     # Time-to-live in seconds (redis and sqlite)
+      ttl: 3600                     # Time-to-live in seconds (default: 259200 — 72h)
 
     semantic:                       # Vector-based memory for similarity search
       backend: chromadb             # Vector store (pgvector, chromadb, qdrant, faiss)
@@ -327,13 +335,30 @@ Each tool is an object in the `tools` array:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `conversational.backend` | No | Storage backend: `redis`, `postgres`, `sqlite`. |
+| `conversational.backend` | No | `redis`. See the caveat below. |
+| `conversational.connection.url` | With `redis` | Redis URL. Read with no default — omit it and the agent runs **without memory**. |
 | `conversational.strategy` | No | History management strategy. See the strategies table below. |
 | `conversational.max_turns` | No | Number of conversation turns to retain (for `sliding_window`). |
-| `conversational.ttl` | No | Time-to-live in seconds. Conversations expire after this duration. |
+| `conversational.ttl` | No | Time-to-live in seconds. Default `259200` (72h). |
 | `semantic.backend` | No | Vector store: `pgvector`, `chromadb`, `qdrant`, `faiss`. |
 | `semantic.similarity_threshold` | No | Minimum cosine similarity score (0.0-1.0) for results. |
 | `semantic.max_results` | No | Maximum number of similar items to retrieve. |
+
+:::caution[The schema announces more backends than the factory builds]
+`agent.schema.json` accepts `redis`, `postgres`, `sqlite` and `in_memory` for
+`conversational.backend`. The factory builds **only `redis`**. Declaring one of the other
+three logs a warning naming the backend and the agent runs **without conversational
+memory** — it will reintroduce itself on every message. The runtime degrades rather than
+refusing to start: an agent killed by a memory dependency is a bigger failure than an
+agent without memory, but the operator has to be able to see it in the pod log.
+
+The same warning fires when the backend package is not installed in this build
+(`pip install "astromesh[redis]"`), and when `connection.url` is missing.
+
+Until **v0.44.0** none of this was visible: the `MemoryManager` was constructed without its
+backend at all, so *no agent had conversational memory with any backend* and the
+`memory_build` / `memory_persist` spans still reported `ok`.
+:::
 
 ### `spec.guardrails`
 
