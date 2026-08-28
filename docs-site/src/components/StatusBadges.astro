@@ -77,8 +77,9 @@ const rows: Row[] = [
     group: 'author',
     href: 'https://pypi.org/project/astromesh/',
     layerLabel: 'Artifacts',
-    note: 'Everything in the monorepo that ships as an installable artifact.',
+    note: 'Everything in the monorepo that ships as an installable artifact. Each README has its own badge row; this is the consolidated registry.',
     items: [
+      wf('astromesh', 'release-pypi.yml', 'Core Publish'),
       shield(
         `pypi/v/astromesh?label=astromesh&color=${hex(accent('runtime'))}`,
         'astromesh on PyPI',
@@ -89,21 +90,25 @@ const rows: Row[] = [
         'ADK on PyPI',
         'https://pypi.org/project/astromesh-adk/',
       ),
-      shield(
-        `pypi/v/astromesh-orbit?label=orbit&color=${hex(accent('ship'))}`,
-        'Orbit on PyPI',
-        'https://pypi.org/project/astromesh-orbit/',
-      ),
+      wf('astromesh', 'release-cli.yml', 'CLI Publish'),
       shield(
         `pypi/v/astromesh-cli?label=astromeshctl&color=${hex(accent('operate'))}`,
         'CLI on PyPI',
         'https://pypi.org/project/astromesh-cli/',
       ),
+      wf('astromesh', 'release-orbit.yml', 'Orbit Publish'),
+      shield(
+        `pypi/v/astromesh-orbit?label=orbit&color=${hex(accent('ship'))}`,
+        'Orbit on PyPI',
+        'https://pypi.org/project/astromesh-orbit/',
+      ),
+      wf('astromesh', 'release-node.yml', 'Node Release'),
       shield(
         `github/v/release/monaccode/astromesh?filter=node-v*&label=node&color=${hex(accent('ship'))}`,
         'Node release',
         'https://github.com/monaccode/astromesh/releases?q=node',
       ),
+      wf('astromesh', 'release-glyph.yml', 'Glyph Publish'),
       shield(
         `badge/glyph-v${COMPONENTS.find((c) => c.id === 'glyph')!.version}-${hex(accent('runtime'))}`,
         'Glyph version',

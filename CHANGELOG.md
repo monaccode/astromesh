@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de `connection.url`). Seguir esa página daba un agente SIN memoria. Ahora dicen que el
   factory arma sólo `redis`, que `connection.url` no tiene default, y que el schema va
   adelante del factory.
+- `StatusBadges` vuelve de `main`, donde se había mejorado sin volver nunca: la fila
+  «Artifacts» ahora pone el badge del workflow de release **al lado** del badge de PyPI de
+  cada paquete (`release-pypi`, `release-cli`, `release-orbit`, `release-node`,
+  `release-glyph`). El sitio se despliega sólo desde `develop`, así que esa mejora no
+  estaba publicada.
 - Las versiones del sitio estaban cinco releases atrás: `ecosystem.ts` tenía el core en
   0.40.0. Se emparejan core (0.45.0), Glyph, ADK, CLI, Node y Orbit en `ecosystem.ts`,
   `getting-started/ecosystem` y las dos copias de `ECOSYSTEM_DEPENDENCIES`, cuya sección
