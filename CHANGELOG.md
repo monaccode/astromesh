@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.0] - 2026-08-28
+
+### Added
+
+- **`praxis_inmobiliaria`: la integración del vertical de alquileres**, con una
+  sola acción, `informar_pago`. Registra en UNA llamada el pago que un
+  inquilino dice haber hecho: crea el pago, deja la cuota como informada y
+  anota la gestión. Existe por tres fallas medidas en dev con las tools
+  genéricas de `praxis` en manos del agente, cada escritura con su propio gate
+  de confirmación: tras el "SI" el re-llamado era una moneda al aire (una
+  corrida escribió, otra contestó *"ya fue registrado"* con la tabla en cero),
+  una carga de tres escrituras se cortaba en la primera, y dos "SI" seguidos
+  duplicaban el pago. Un gate, una confirmación, una llamada idempotente.
+- **`praxis_mecanicos`: `saldo_cliente` y `disponibilidad`.** Llega TARDE y ése
+  es el punto: la plantilla `mecanicos-taller` de CLARUS declara esa integración
+  desde que la vertical existe, y como no estaba en el catálogo el runtime la
+  salteaba con un warning —*"declara la integración %r, que no existe en el
+  catálogo — se ignora"*, `runtime/engine.py`, rama `integration`—. O sea que el
+  agente del taller **nunca tuvo** esas dos herramientas, mientras su prompt le
+  decía que usara `saldo_cliente` SIEMPRE para decir cuánto debe un cliente.
+  Una integración inexistente es exactamente la clase de falla muda que el
+  warning no alcanza a evitar: no rompe el despliegue, no rompe la corrida, y el
+  modelo improvisa el número.
+
 ## [0.44.2] - 2026-08-25
 
 ### Fixed
