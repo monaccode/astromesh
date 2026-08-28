@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-10
+
 ### Added
 - `compile_program(..., predefined=)` y `execute(..., initial_env=)`: el host puede
   ligar variables antes de que el programa corra. Es lo que permite que un programa
