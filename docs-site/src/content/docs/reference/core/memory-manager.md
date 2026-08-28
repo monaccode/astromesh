@@ -36,9 +36,17 @@ Each memory type supports multiple storage backends:
 
 | Backend | Identifier | Description |
 |---------|-----------|-------------|
-| In-memory | `memory` | Dictionary-based, lost on restart. Good for development |
-| Redis | `redis` | Persistent across restarts, TTL support, shared across instances |
-| PostgreSQL | `postgres` | Full durability, SQL queryable, suitable for production |
+| Redis | `redis` | Persistent across restarts, TTL support, shared across instances. **The only one the factory builds.** |
+
+:::caution[`redis` or no memory]
+`agent.schema.json` also accepts `postgres`, `sqlite` and `in_memory`, but
+`build_conversation_backend` constructs only `redis`. Declaring one of the other three logs
+a warning naming the backend, and the agent runs **without conversational memory**. The
+schema and the factory do not yet say the same thing; the schema is the one that is ahead.
+
+Omitting `connection.url`, or running a build without the `redis` extra installed, degrades
+the same way — with a warning that names what is missing.
+:::
 
 ### Semantic Memory Backends
 
@@ -151,9 +159,9 @@ spec:
       backend: redis
       strategy: token_budget
       max_tokens: 8000
-      redis:
-        url: "redis://localhost:6379/0"
-        ttl: 86400
+      connection:
+        url: "redis://localhost:6379/0"   # required, no default
+      ttl: 86400                          # default: 259200 (72h)
     semantic:
       backend: chroma
       collection: "my_agent_memory"
@@ -168,7 +176,9 @@ spec:
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `conversational.backend` | No | `memory` | Storage backend for chat history |
+| `conversational.backend` | No | -- | `redis`. Omit to run without conversational memory |
+| `conversational.connection.url` | With `redis` | -- | Redis URL. Read with no default |
+| `conversational.ttl` | No | `259200` | Seconds a session's history survives (72h) |
 | `conversational.strategy` | No | `sliding_window` | Retention strategy |
 | `conversational.window_size` | No | `20` | Turns to keep (sliding_window strategy) |
 | `conversational.summary_threshold` | No | `30` | Turn count that triggers summarization (summary strategy) |

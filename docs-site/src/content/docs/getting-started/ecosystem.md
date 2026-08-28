@@ -13,15 +13,15 @@ Nothing here ships on the same clock. Each package carries its own version and i
 
 | Component | What it does | Package / Repo | Version |
 |-----------|-------------|----------------|---------|
-| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, memory, tools, and guardrails | `astromesh` | v0.40.0 |
-| **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.1 |
-| **ADK** | Python-first agent SDK with decorators, CLI, and hot reload | `astromesh-adk` | v0.2.1 |
-| **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.2.1 |
+| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of declarative integrations, memory, tools, and guardrails | `astromesh` | v0.45.0 |
+| **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.2 |
+| **ADK** | Python-first agent SDK with decorators, CLI, and hot reload | `astromesh-adk` | v0.3.0 |
+| **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.3.0 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.2 |
 | **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.10.1 (Phase 4 + post-4) |
 | **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.24.0 |
 | **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.19.0 |
-| **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.0 |
+| **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.1 |
 | **Prisma** | Multi-cloud reconciler — translates the same agent spec into a cloud's own managed AI primitives | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | *in development* |
 | **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.11.0 |
 | **Herald** | Communications gateway — channel messages reach agents, and agents reach people back | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.1.0 |

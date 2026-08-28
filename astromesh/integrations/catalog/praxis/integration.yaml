@@ -1,0 +1,109 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: praxis
+  version: 0.1.0
+  description: >
+    PRAXIS, el ERP AI-native del cliente: buscar, crear y actualizar registros
+    de cualquier entidad. Sin base_url a propósito — lo trae la conexión del
+    tenant, y eso es lo que permite servir a todos los clientes con un solo
+    manifest. La credencial es la API key de máquina de PRAXIS (praxis_...),
+    que no vence.
+spec:
+  auth:
+    scheme: bearer
+    credential: api_key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: buscar_records
+      description: >
+        Lista registros de una entidad de PRAXIS. Devuelve
+        {rows, total, page}. IMPORTANTE: los campos de negocio de cada fila
+        vienen ANIDADOS bajo `data` — el nombre de un cliente está en
+        rows[0].data.nombre, no en rows[0].nombre. El `id` de la fila sí está
+        al tope, en rows[0].id. Usá esta acción antes de actualizar, para
+        conseguir el id.
+      parameters:
+        entidad:
+          type: string
+          description: >
+            Nombre de la entidad en PRAXIS, por ejemplo 'pedido' o 'cliente'.
+          required: true
+        filter:
+          type: string
+          description: >
+            Un filtro, en la forma 'campo:operador:valor', por ejemplo
+            'estado:eq:pendiente'. Operadores: eq, neq, gt, gte, lt, lte,
+            contains, in, is_null, is_not_null. Los unarios (is_null,
+            is_not_null) van sin valor: 'entregado_el:is_null'. UN SOLO filtro
+            por llamada; si necesitás cruzar dos condiciones, traé el conjunto
+            más chico y filtrá vos el resto.
+        sort:
+          type: string
+          description: "Orden de las filas, en la forma 'campo:asc' o 'campo:desc'."
+        limit:
+          type: integer
+          description: "Cuántas filas devolver. Por defecto 50, máximo 500."
+      request:
+        method: GET
+        path: "/api/data/{entidad}"
+        query:
+          filter: "{filter}"
+          sort: "{sort}"
+          limit: "{limit}"
+
+    - name: crear_record
+      description: >
+        Crea un registro nuevo en una entidad de PRAXIS. `campos` es un mapa
+        PLANO de nombre de campo a valor: no lo envuelvas en 'data'.
+        Confirmá con la persona lo que vas a crear antes de llamar esta
+        acción: escribe en el ERP del cliente y no hay deshacer.
+      writes: true
+      parameters:
+        entidad:
+          type: string
+          description: >
+            Nombre de la entidad en PRAXIS donde crear el registro, por
+            ejemplo 'pedido' o 'cliente'.
+          required: true
+        campos:
+          type: object
+          description: >
+            Mapa plano de nombre de campo a valor, por ejemplo
+            {"nombre": "Ana", "credito": 1200}. Los campos que no mandes
+            quedan con su valor por defecto.
+          required: true
+      request:
+        method: POST
+        path: "/api/data/{entidad}"
+        body: "{campos}"
+
+    - name: actualizar_record
+      description: >
+        Modifica campos de un registro existente de PRAXIS, identificado por
+        su id. Sólo se tocan los campos que mandes; el resto queda como está.
+        Confirmá con la persona el cambio antes de llamar esta acción:
+        escribe en el ERP del cliente y no hay deshacer.
+      writes: true
+      parameters:
+        entidad:
+          type: string
+          description: "Nombre de la entidad en PRAXIS, por ejemplo 'pedido'."
+          required: true
+        id:
+          type: string
+          description: >
+            UUID del registro a modificar, tal como viene en rows[].id de
+            buscar_records. PRAXIS rechaza cualquier cosa que no sea un UUID.
+          required: true
+        campos:
+          type: object
+          description: >
+            Mapa plano de los campos a modificar y sus valores nuevos, por
+            ejemplo {"estado": "entregado"}.
+          required: true
+      request:
+        method: PATCH
+        path: "/api/data/{entidad}/{id}"
+        body: "{campos}"

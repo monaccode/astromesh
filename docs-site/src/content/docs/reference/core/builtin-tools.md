@@ -1,9 +1,9 @@
 ---
 title: Built-in Tools
-description: 17 ready-to-use tools for common agent tasks
+description: 18 ready-to-use tools for common agent tasks
 ---
 
-Astromesh ships with 17 built-in tools that cover common agent needs. They are implemented as Python classes extending `BuiltinTool` and registered via `type: builtin` in agent YAML. No external dependencies are needed for most tools.
+Astromesh ships with 18 built-in tools that cover common agent needs. They are implemented as Python classes extending `BuiltinTool` and registered via `type: builtin` in agent YAML. No external dependencies are needed for most tools.
 
 ## Quick Reference
 
@@ -23,6 +23,7 @@ Astromesh ships with 17 built-in tools that cover common agent needs. They are i
 | `send_webhook` | Communication | POST to webhook URLs |
 | `send_slack` | Communication | Slack messages via webhook |
 | `send_email` | Communication | Email via SMTP |
+| `send_message` | Communication | Reach a person on a channel mid-run (needs Nexus) |
 | `text_summarize` | AI | Summarize text via agent's model |
 | `rag_query` | RAG | Query RAG pipeline |
 | `rag_ingest` | RAG | Ingest into RAG pipeline |
@@ -272,6 +273,39 @@ Sends an email via SMTP. Uses `asyncio.to_thread()` internally to avoid blocking
 | `smtp_user` | string | -- | SMTP username |
 | `smtp_password` | string | -- | SMTP password |
 | `from_address` | string | -- | Sender email address |
+
+### send_message
+
+Reaches a person through a communications channel — WhatsApp, today — **while the run is in
+progress**. Every other tool here answers whoever wrote first; this one lets an agent start
+the conversation, or come back to someone hours later.
+
+Added in **v0.40.0**.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `channel` | string | Yes | Channel to send through, e.g. `whatsapp` |
+| `recipient` | string | Yes | Who to reach on that channel, e.g. a phone number in E.164 |
+| `text` | string | Yes | The message body |
+| `conversation_ref` | string | No | Id of an existing conversation. Pinning the send to one keeps it inside WhatsApp's 24-hour window; without it the send is a cold contact and the provider may require an approved template |
+
+**Config options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `nexus_url` | string | `$ASTROMESH_NEXUS_URL` | Base URL of the Nexus that owns the outbox |
+
+:::note[It only works on a run Nexus dispatched]
+The send is signed with a **per-invocation token** that Nexus mints for one tenant, one
+capability (enqueue a message) and one run. The shared runtime pool never holds a tenant
+secret, so there is nothing to rotate or revoke — the credential dies with the run.
+
+Outside such a run the tool returns that as an error rather than attempting anything. A
+sub-agent invoked as a tool does **not** inherit the token: its run is a different run.
+:::
+
+Delivery is asynchronous. A successful call means the message was **queued** in the
+Herald/Nexus outbox — `pending` is the normal answer, not a problem.
 
 ## AI Tools
 

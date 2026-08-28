@@ -9,6 +9,243 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Docs site)
 
+- **Las integraciones tienen página** (`configuration/integrations`). El marco existe desde
+  la 0.37.0 y el sitio no lo nombraba en ningún lado: doce manifiestos en el catálogo, el
+  tipo de tool `integration`, la resolución de credenciales (bundle de Nexus →
+  `config/connections.yaml` → ausente), cómo se escribe un `integration.yaml`, y —lo que
+  cuesta caro no tener escrito— **la tabla de qué se ignora en silencio y con qué warning**:
+  slug fuera del catálogo, sin `connection`, sin `actions`, acción inexistente, clave que
+  este runtime no lee. Todas fallas que no rompen el despliegue.
+- **El gate de confirmación tiene página** (`configuration/confirmation-gate`): qué cuenta
+  como un sí, qué autoriza exactamente una confirmación (la tool Y sus argumentos), por qué
+  una corrida re-entrante no puede confirmar, y los límites declarados —el aviso garantiza
+  "se redactó", no "le llegó"—.
+- `reference/core/builtin-tools`: faltaba `send_message` (0.40.0). El sitio decía 17 tools y
+  son 18. Incluye lo que no es obvio: sólo funciona en una corrida despachada por Nexus,
+  porque la credencial se acuña por invocación.
+- `reference/api-endpoints`: `GET /v1/integrations` y `GET /v1/integrations/{slug}`, y el
+  campo `connections` del body de `POST /v1/agents/{name}/run`.
+
+### Changed (Docs site)
+
+- `configuration/agent-yaml` documentaba `type: webhook` en su ejemplo de tools —un tipo que
+  el runtime warnea y saltea desde la 0.35.0—. Ahora el ejemplo es una integración real, y
+  la nota de tipos incluye `integration` y el warning de claves ignoradas de la 0.43.0.
+- **La memoria conversacional estaba documentada con tres backends que el runtime no
+  construye.** `agent-yaml` y `reference/core/memory-manager` mostraban `postgres` y
+  `sqlite`, y el segundo además con una forma de config equivocada (`redis:` anidado en vez
+  de `connection.url`). Seguir esa página daba un agente SIN memoria. Ahora dicen que el
+  factory arma sólo `redis`, que `connection.url` no tiene default, y que el schema va
+  adelante del factory.
+- Las versiones del sitio estaban cinco releases atrás: `ecosystem.ts` tenía el core en
+  0.40.0. Se emparejan core (0.45.0), Glyph, ADK, CLI, Node y Orbit en `ecosystem.ts`,
+  `getting-started/ecosystem` y las dos copias de `ECOSYSTEM_DEPENDENCIES`, cuya sección
+  «main vs develop» describía un estado de hace cinco versiones y afirmaba que no había
+  código nuevo desde la v0.40.0.
+
+### Fixed
+
+- **`[tool.commitizen] version` volvió a quedar atrás** (0.44.2 con el paquete en 0.45.0),
+  la misma falla que la 0.44.2 dice haber cerrado. No está en `version_files`, así que nada
+  la verificaba: `cz bump` la lee como versión ACTUAL, y desde 0.44.2 habría calculado
+  0.45.0 —un tag que ya existe—. `tests/test_version_coherente.py` ahora compara las tres
+  copias, no dos.
+
+## [0.45.0] - 2026-08-28
+
+### Added
+
+- **`praxis_inmobiliaria`: la integración del vertical de alquileres**, con una
+  sola acción, `informar_pago`. Registra en UNA llamada el pago que un
+  inquilino dice haber hecho: crea el pago, deja la cuota como informada y
+  anota la gestión. Existe por tres fallas medidas en dev con las tools
+  genéricas de `praxis` en manos del agente, cada escritura con su propio gate
+  de confirmación: tras el "SI" el re-llamado era una moneda al aire (una
+  corrida escribió, otra contestó *"ya fue registrado"* con la tabla en cero),
+  una carga de tres escrituras se cortaba en la primera, y dos "SI" seguidos
+  duplicaban el pago. Un gate, una confirmación, una llamada idempotente.
+- **`praxis_mecanicos`: `saldo_cliente` y `disponibilidad`.** Llega TARDE y ése
+  es el punto: la plantilla `mecanicos-taller` de CLARUS declara esa integración
+  desde que la vertical existe, y como no estaba en el catálogo el runtime la
+  salteaba con un warning —*"declara la integración %r, que no existe en el
+  catálogo — se ignora"*, `runtime/engine.py`, rama `integration`—. O sea que el
+  agente del taller **nunca tuvo** esas dos herramientas, mientras su prompt le
+  decía que usara `saldo_cliente` SIEMPRE para decir cuánto debe un cliente.
+  Una integración inexistente es exactamente la clase de falla muda que el
+  warning no alcanza a evitar: no rompe el despliegue, no rompe la corrida, y el
+  modelo improvisa el número.
+
+## [0.44.2] - 2026-08-25
+
+### Fixed
+
+- **El error del proveedor de modelo llega entero.** `complete` y `stream` de
+  `OpenAICompatProvider` hacían `resp.raise_for_status()`, que descarta el
+  cuerpo de la respuesta: httpx deja sólo `Client error '400 Bad Request' for
+  url ...`, y ese texto es lo único que sube hasta quien invocó al agente. Las
+  APIs compatibles con OpenAI mandan el motivo exacto en el cuerpo —qué campo
+  del payload está mal, qué límite se pasó— y ahora se propaga. Costó
+  descubrirlo: un agente en dev dejó de contestar y hubo que falsificar a mano
+  seis hipótesis contra el proveedor vivo, teniendo el proveedor la respuesta
+  exacta desde el primer intento. El cuerpo se recorta a 800 caracteres y sale
+  de la respuesta, nunca del request (que lleva el prompt y la credencial).
+- `[tool.commitizen] version` había quedado en `0.44.0` mientras el paquete iba
+  por `0.44.1`. `cz bump` lee ese valor como versión actual, así que el próximo
+  bump habría intentado re-emitir un tag existente.
+
+### Known
+
+- El mismo `raise_for_status()` pelado sigue en los adapters `centinela`,
+  `vllm`, `llamacpp`, `ollama` y `hf_tgi`. Es el mismo defecto; no entraron en
+  este cambio porque ninguno intervino en el despliegue que lo destapó.
+
+## [0.44.1] - 2026-08-25
+
+### Fixed
+
+- **`0.44.0` nunca llegó a PyPI**: el bump tocó `pyproject.toml` y no
+  `astromesh/__init__.py`, y el gate de la release corta con
+  `Version mismatch`. La imagen Docker sí se publicó, así que el paquete quedó
+  en 0.43.0 en PyPI y en 0.44.0 en Docker Hub. Las dos versiones ahora se
+  emparejan y hay un test que lo sostiene.
+- Un backend conversacional cuyo paquete no está instalado degrada a SIN memoria
+  con un warning que nombra el extra, en vez de dejar al agente en `draft`. Un
+  agente muerto por una dependencia de memoria es una falla mucho más grande que
+  un agente sin memoria.
+- `docker/Dockerfile` instala el extra `redis`, que su propio `config/agents/`
+  necesita. Ojo: **son dos Dockerfiles** — el de la release es el de la raíz, y
+  ya lo instalaba; el de `docker/` es el que construye el CI y estaba corto.
+- El `agent.schema.json` permite `memory.conversational.connection`, que el
+  factory EXIGE sin default: un manifiesto que de verdad funciona no validaba, y
+  uno que validaba corría sin memoria.
+
+## [0.44.0] - 2026-08-24
+
+### Fixed
+
+- **La memoria conversacional era código muerto.** `AgentRuntime._build_agent`
+  construía el `MemoryManager` sin pasarle `conversation=`, y
+  `build_conversation_backend` no lo llamaba NADIE. Con `_conversation` en
+  `None`, tanto `build_context` como `persist_turn` no hacen nada
+  (`astromesh/core/memory.py:93,138`) — y los spans `memory_build` y
+  `memory_persist` reportan `ok`. Ningún agente tuvo memoria nunca, con ningún
+  backend, y no había forma de darse cuenta sin leer el código.
+
+  Medido con un agente de cobranzas sobre WhatsApp: encontraba la deuda de la
+  persona en el ERP y al mensaje siguiente le volvía a pedir el teléfono, con
+  `memory.conversational` bien declarado y Redis arriba y alcanzable.
+
+  Un backend que el factory no sabe construir ahora degrada a SIN memoria con
+  un **warning que lo nombra**, en vez de en silencio. No tira: es el mismo
+  criterio que las claves de más en una tool — una parte del manifiesto que
+  este runtime no entiende no vuelve inválido al agente entero, pero el
+  operador tiene que poder verlo en el log del pod.
+
+### Known
+
+- `build_conversation_backend` sigue construyendo **sólo `redis`**, mientras
+  `agent.schema.json` anuncia además `sqlite`, `postgres` e `in_memory`.
+  Declarar uno de esos tres cae por el warning nuevo. El schema y el factory
+  todavía no dicen lo mismo.
+
+## [0.43.0] - 2026-08-21
+
+### Added
+
+- **Una clave que el runtime no lee deja de ignorarse en silencio**
+  (`astromesh/runtime/engine.py`). `_build_agent` lee el tool_def con `.get()`,
+  así que una clave desconocida no falla, no avisa y no hace nada. Ahora sale un
+  warning que nombra el agente, la tool y las claves ignoradas.
+- Ese silencio costó un release en CLARUS: la plantilla declaró `confirm` contra
+  un runtime **0.32.0** que no lo conocía, el pod arrancó sano, y la escritura al
+  ERP siguió sin gatear hasta que alguien entró al pod a mirar. **No arregla
+  retroactivamente a un runtime ya desplegado** —eso es imposible— pero hace que
+  el próximo campo no repita el episodio.
+- Warning y no `raise`, por la misma razón que la rama del tipo no soportado que
+  cerró este mismo modo de fallar en 0.35.0: una clave de más no invalida al
+  resto del agente.
+- `confirm` queda fuera del chequeo a propósito: mal puesto ya tiene un warning
+  propio que explica por qué no gatea, y duplicarlo taparía el bueno.
+
+Cazó un caso vivo al escribirse: la plantilla `atencion` de CLARUS le pone
+`description` al tool de PRAXIS, y `register_integration_tool` usa la del
+manifiesto de la integración, así que la del YAML nunca llegaba a ningún lado.
+
+## [0.42.0] - 2026-08-21
+
+### Added
+
+- **El gate de confirmación** (`astromesh/runtime/confirmacion.py`): una acción
+  declarada en `confirm:` dentro del tool de un agente **no se ejecuta** hasta
+  que la persona conteste una palabra exacta. La 0.41.0 dejó dicho que el pedido
+  de confirmación de PRAXIS era **blando** —`writes: true` alimentaba
+  `requires_approval` y nadie lo leía—; esto es la contención dura.
+- `ToolDefinition.needs_confirmation`, un campo **nuevo** al lado de
+  `requires_approval`, que queda intacto. Gatear sobre `requires_approval` no
+  servía: está en `true` para 15 acciones de 9 integraciones, incluida
+  `whatsapp_send_text`, así que un agente pediría permiso antes de *responder un
+  mensaje*.
+- `ToolRegistry.get(name)`, accesor público para lo que los tests alcanzaban
+  metiendo mano en `._tools`.
+- **`praxis_cobranzas` en el catálogo de integraciones**
+  (`integrations/catalog/praxis_cobranzas/integration.yaml`): las funciones del
+  vertical de cobranzas quedan invocables por un agente. Un opcional ausente se
+  **omite** del body anidado en vez de viajar como `null` — si viajara, un
+  `capacidad_pago` nulo se leería del otro lado como capacidad cero y el agente
+  diría "no tengo nada para ofrecerte" cuando la persona simplemente no dijo
+  cuánto puede pagar.
+
+### Changed
+
+- **El chequeo compara el texto crudo del humano.** La decisión ocurre al entrar
+  a `run()` sobre el `query` que la persona escribió, normalizado (minúsculas,
+  sin acentos) contra un conjunto explícito: `si`, `confirmo`, `dale`, `ok`,
+  `listo`. Al modelo nunca se le pregunta si hubo consentimiento.
+- El pendiente guarda `(session_id, tool, hash de argumentos)`: confirmar un
+  pedido de dos unidades no ejecuta uno de doscientas.
+- **El aviso lo redacta el runtime**, no el modelo. La respuesta de una corrida
+  con una propuesta pendiente nombra la tool y sus argumentos —claves ordenadas,
+  tope por valor— y el modelo no puede suprimir esa línea.
+- `Agent.run` y `AgentRuntime.run` aceptan `desde_humano` (default `True`),
+  forzado a `False` en las dos entradas que no vienen de una persona.
+
+### Fixed
+
+- **Cuatro bypasses, cada uno reproducido antes de arreglarlo**: un sub-agente
+  que se auto-confirmaba re-entrando a `run()` con un `query` escrito por el
+  modelo; un solo "sí" que autorizaba N escrituras en la misma corrida (medido:
+  3 POSTs); una propuesta que pisaba a otra sin confirmar, atando el
+  consentimiento a algo que la persona nunca vio; y el modelo redactando la
+  pregunta que el "dale" contestaba.
+
+**Límites declarados:** el aviso garantiza "se redactó", no "le llegó". Una
+corrida que lanza una excepción *después* de registrar el pendiente no alcanza a
+avisar, y el pendiente sobrevive — acotado porque ese turno no se persiste. El
+pendiente vive en memoria del proceso, indexado por sesión.
+
+## [0.41.0] - 2026-08-18
+
+### Added
+
+- **PRAXIS en el catálogo de integraciones** (`integrations/catalog/praxis/`):
+  tres acciones declarativas sobre el ERP AI-native de un cliente —
+  `buscar_records`, `crear_record` y `actualizar_record`, genéricas sobre
+  cualquier entidad. Cero código de runtime: el manifest declara los requests y
+  `HttpActionExecutor` los ejecuta.
+- El manifest **no trae `base_url`** a propósito: lo aporta la conexión del
+  tenant, que es lo que permite servir a todos los clientes con un solo archivo.
+  Un default acá le pegaría al ERP equivocado en silencio; sin él, la falta de
+  URL falla con un mensaje claro.
+
+### Notes
+
+- Las dos acciones que mutan llevan `writes: true` y piden confirmación en su
+  descripción, pero **ese pedido es blando**: `writes` alimenta
+  `ToolDefinition.requires_approval` y hoy nadie lo lee. La contención dura es
+  el alcance de la credencial que la conexión del tenant aporte.
+
+### Added (Docs site)
+
 - **Animaciones de scroll y transiciones** en la portada: los componentes del
   ecosistema (`EcosystemMap`, `StatusBadges`, `ReleaseRadar`) revelan sus
   elementos al entrar en el viewport vía `IntersectionObserver`. Sectores del

@@ -156,6 +156,7 @@ Una integración es un servicio externo descrito por un manifest en
 | `google_drive` | Listar, buscar y leer archivos; subir por sesión resumable | bearer (Google) |
 | `google_sheets` | Leer, sobrescribir y agregar filas | bearer (Google) |
 | `tiktok` | Perfil, listado de videos, publicar por URL | bearer (TikTok) |
+| `praxis` | ERP del cliente: buscar, crear y actualizar registros de cualquier entidad; base_url y API key vienen de la conexión | bearer (API key de máquina) |
 
 Las tres de Meta comparten base_url y esquema de auth; las tres de Google
 comparten esquema y difieren sólo en base_url. Por eso una integración nueva de

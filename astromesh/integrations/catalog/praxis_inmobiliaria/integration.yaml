@@ -1,0 +1,72 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: praxis_inmobiliaria
+  version: 0.1.0
+  description: >
+    Las FUNCIONES del vertical de inmobiliaria de PRAXIS: hoy una sola, la que
+    registra el pago que un inquilino dice haber hecho. Aparte del manifest
+    `praxis` a propósito — aquel es genérico y sirve a cualquier cliente; éste
+    nombra un dominio. Comparte su conexión y su credencial: sin base_url, con
+    la API key de máquina.
+spec:
+  auth:
+    scheme: bearer
+    credential: api_key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: informar_pago
+      description: >
+        Registra el pago que el inquilino dice haber hecho de una cuota de
+        alquiler. Hace TODO junto: crea el pago, deja la cuota como
+        "informada" y anota la gestión del contacto. Usala en vez de crear los
+        registros a mano: así es una sola confirmación y no tres, y si la
+        llamás dos veces no duplica nada.
+        NO acredita el pago — nadie vio un comprobante. Lo que queda es un
+        aviso para que la administración lo concilie, y hay que decírselo a la
+        persona con esas palabras.
+        Devuelve registrado, ya_estaba, pago_id, cuota_estado y gestion_id. Si
+        `ya_estaba` viene en verdadero, el pago YA estaba informado y no se
+        creó otro: decíselo así, no como si lo acabaras de registrar. Si
+        `registrado` viene en falso con un `motivo`, leelo y contáselo — no es
+        un error del sistema.
+      writes: true
+      parameters:
+        cuota_id:
+          type: string
+          description: >
+            El id de la cuota que la persona dice haber pagado, tal como viene
+            en rows[].id de buscar_records sobre la entidad 'inmo_cuota'.
+          required: true
+        fecha:
+          type: string
+          description: "Cuándo pagó, en formato AAAA-MM-DD."
+          required: true
+        importe:
+          type: number
+          description: "Cuánto pagó."
+          required: true
+        medio:
+          type: string
+          description: >
+            Cómo pagó. Uno de: transferencia, efectivo, deposito,
+            debito_automatico, cheque.
+          required: true
+        referencia:
+          type: string
+          description: >
+            El número de la transferencia, del depósito o del recibo. Pedísela
+            siempre que la persona la tenga: es lo único con lo que quien
+            concilia puede encontrar el movimiento, y es lo que evita que un
+            segundo "sí" registre el pago dos veces.
+      request:
+        method: POST
+        path: "/api/functions/inmo_informar_pago"
+        body:
+          args:
+            cuota_id: "{cuota_id}"
+            fecha: "{fecha}"
+            importe: "{importe}"
+            medio: "{medio}"
+            referencia: "{referencia}"

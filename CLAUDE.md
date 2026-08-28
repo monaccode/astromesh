@@ -56,11 +56,20 @@ Pytest runs with `asyncio_mode = "auto"` — async test functions work without d
 ## Linting
 
 ```bash
-uv run ruff check astromesh/ tests/       # Lint
-uv run ruff format astromesh/ tests/      # Format
+uv run ruff check astromesh/ tests/          # Lint
+uv run ruff format --check astromesh/ tests/ # Format — the gate CI actually runs
+uv run ruff format astromesh/ tests/         # Format — writes the fix
 ```
 
 Line length: 100. Target: Python 3.12.
+
+**`ruff check` passing does NOT mean CI is green.** `.github/workflows/ci.yml:48`
+runs `ruff format --check` as its own step, and a file that lints clean can still
+be unformatted. This is measured, not theoretical: the merge of the confirmation
+gate went red on `Format check` with both test files lint-clean, and cost an extra
+commit on `develop`. Run the `--check` form before pushing, or `ruff format` and
+commit what it rewrites. The same pairing guards `astromesh_orbit/` (`ci.yml:114`)
+and `astromesh_glyph/` (`ci.yml:142`).
 
 ## Docker
 

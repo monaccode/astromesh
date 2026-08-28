@@ -1,0 +1,104 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: praxis_mecanicos
+  version: 0.1.0
+  description: >
+    Las FUNCIONES del vertical de mecánicos de PRAXIS: cuánto debe un cliente
+    del taller, y qué turnos tiene libres. Aparte del manifest `praxis` a
+    propósito — aquel es genérico y sirve a cualquier cliente; éste nombra un
+    dominio. Comparte su conexión y su credencial: sin base_url, con la API key
+    de máquina.
+
+    Llega TARDE: la plantilla `mecanicos-taller` de CLARUS la declara desde que
+    esa vertical existe, y como no estaba en el catálogo el runtime la salteaba
+    con un warning (`runtime/engine.py`, rama `integration`: "declara la
+    integración %r, que no existe en el catálogo — se ignora"). O sea que el
+    agente del taller nunca tuvo estas dos herramientas, y su prompt le dice
+    que use `saldo_cliente` SIEMPRE para decir cuánto debe alguien.
+spec:
+  auth:
+    scheme: bearer
+    credential: api_key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: saldo_cliente
+      description: >
+        Cuánto debe un cliente del taller. Recorre sus autos, sus órdenes de
+        reparación, los ítems de cada una y los pagos recibidos, y devuelve
+        ordenes, total, pagado, saldo, en_curso, truncado y un detalle por
+        orden.
+        Usala SIEMPRE para decir cuánto debe alguien: es plata, y sumar
+        renglones a mano es la clase de error que nadie detecta hasta que
+        alguien paga de menos. No redondees lo que devuelve.
+        El saldo cuenta sólo las órdenes ENTREGADAS: lo que todavía está en el
+        taller no se cobró, y va aparte en `en_curso`. Si `truncado` viene en
+        verdadero el número está INCOMPLETO — decilo, no lo des como exacto.
+      # POST y `writes: false` no se contradicen: invocar una función de PRAXIS
+      # es un POST aunque la función sólo lea. Declararla `true` haría que el
+      # agente pida confirmación para averiguar un saldo.
+      writes: false
+      parameters:
+        cliente_id:
+          type: string
+          description: >
+            El id del cliente, tal como viene en rows[].id de buscar_records
+            sobre la entidad 'mec_cliente'.
+          required: true
+      request:
+        method: POST
+        path: "/api/functions/mec_saldo_cliente"
+        body:
+          args:
+            cliente_id: "{cliente_id}"
+
+    - name: disponibilidad
+      description: >
+        Los huecos libres de la agenda del taller entre dos fechas, respetando
+        lo que ya está agendado. Ofrecé SÓLO lo que devuelve: un horario que se
+        te ocurra puede estar ocupado.
+      writes: false
+      parameters:
+        taller_id:
+          type: string
+          description: "El id del taller, de buscar_records sobre 'mec_taller'."
+          required: true
+        desde:
+          type: string
+          description: "Primer día a mirar, inclusive, en formato AAAA-MM-DD."
+          required: true
+        hasta:
+          type: string
+          description: "Último día a mirar, inclusive, en formato AAAA-MM-DD."
+          required: true
+        duracion_min:
+          type: number
+          description: "Cuántos minutos ocupa el trabajo."
+          required: true
+        hora_desde:
+          type: string
+          description: "Hora de apertura del taller, HH:MM."
+          required: true
+        hora_hasta:
+          type: string
+          description: "Hora de cierre del taller, HH:MM."
+          required: true
+        zona:
+          type: string
+          description: >
+            Zona horaria IANA del taller, por ejemplo
+            America/Argentina/Buenos_Aires.
+          required: true
+      request:
+        method: POST
+        path: "/api/functions/mec_disponibilidad"
+        body:
+          args:
+            taller_id: "{taller_id}"
+            desde: "{desde}"
+            hasta: "{hasta}"
+            duracion_min: "{duracion_min}"
+            hora_desde: "{hora_desde}"
+            hora_hasta: "{hora_hasta}"
+            zona: "{zona}"

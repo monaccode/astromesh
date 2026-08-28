@@ -18,15 +18,21 @@ COPY astromesh-glyph/ astromesh-glyph/
 # con el fuente presente. Un solo sync antes de copiar `astromesh/` no puede
 # construir el proyecto y falla.
 #
+# `--extra redis` por la misma razón que `--extra glyph`: `config/agents/` trae
+# un agente con memoria conversacional en redis, y sin el extra el runtime no
+# puede construir ese backend. Desde 0.44.0 eso se NOTA —antes el backend no se
+# construía nunca y la falta pasaba desapercibida—, así que la imagen instala lo
+# que su propia config declara.
+#
 # `--extra glyph` porque `config/agents/` trae un agente con `spec.program`, y sin
 # el extra ese agente queda en `draft` con error — deliberadamente, para no
 # degradarse en silencio a un patrón 400x más caro.
-RUN uv sync --frozen --no-dev --extra glyph --no-install-project
+RUN uv sync --frozen --no-dev --extra glyph --extra redis --no-install-project
 
 COPY astromesh/ astromesh/
 COPY config/ config/
 
-RUN uv sync --frozen --no-dev --extra glyph
+RUN uv sync --frozen --no-dev --extra glyph --extra redis
 
 EXPOSE 8000
 

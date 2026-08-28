@@ -47,6 +47,51 @@ def _provider_label(model: str) -> str:
     return "openai_compat"
 
 
+# Cuánto del cuerpo del proveedor entra en el mensaje de error. Suficiente para
+# el JSON de error de cualquier API compatible; corto para que un ingress que
+# devuelve una página de HTML no llene el log ni el `lastError` de quien consume.
+_TOPE_CUERPO_ERROR = 800
+
+
+async def _fallar_si_es_error(resp: httpx.Response, model: str, base_url: str) -> None:
+    """Convierte un status de error en un `ModelProviderError` que DICE qué pasó.
+
+    Reemplaza a `resp.raise_for_status()`, que descarta el cuerpo: httpx sólo
+    deja "Client error '400 Bad Request' for url ...", y quien opera se queda
+    sin lo único que sirve. Las APIs compatibles con OpenAI mandan el motivo
+    exacto en el cuerpo —qué campo del payload está mal, qué límite se pasó— y
+    eso es lo que hay que propagar.
+
+    Sube por `ModelRouter.route`, que hace `str(last_error)` para armar el error
+    final (`errors.py:83`), así que el motivo llega hasta quien invocó al agente.
+
+    Del cuerpo del proveedor, y nunca del request: el payload lleva el prompt y
+    los headers la credencial. Acá no se toca ninguno de los dos.
+    """
+    if not resp.is_error:
+        return
+
+    # En el camino de streaming el cuerpo todavía no se leyó. Sobre una
+    # respuesta ya leída `aread()` devuelve lo cacheado, así que sirve para los
+    # dos usos sin ramificar.
+    try:
+        await resp.aread()
+        cuerpo = " ".join(resp.text.split())[:_TOPE_CUERPO_ERROR]
+    except Exception:  # noqa: BLE001  (un cuerpo ilegible no puede tapar el status)
+        cuerpo = ""
+
+    raise ModelProviderError(
+        f"Provider returned {resp.status_code} for model {model!r}: "
+        f"{cuerpo or '(empty response body)'}",
+        hint=(
+            f"The message above is verbatim from the provider at {base_url}. "
+            "Fix what it names — a rejected request is not a transport failure "
+            "and retrying will reproduce it."
+        ),
+        code="model_provider_http_error",
+    )
+
+
 def _normalize_tool_calls(raw: list[dict] | None) -> list[dict]:
     """Normalize OpenAI nested tool-calls to astromesh's flat canonical shape.
 
@@ -130,7 +175,7 @@ class OpenAICompatProvider:
         start = time.perf_counter()
         resp = await client.post("/chat/completions", json=payload)
         latency_ms = (time.perf_counter() - start) * 1000
-        resp.raise_for_status()
+        await _fallar_si_es_error(resp, model, self.base_url)
         data = resp.json()
 
         choice = data["choices"][0]
@@ -170,7 +215,7 @@ class OpenAICompatProvider:
         # TODO: if a streaming consumer ever needs cache tokens, the streamed usage
         # must also carry cache_read_input_tokens (from the final [DONE] chunk) like complete() does.
         async with client.stream("POST", "/chat/completions", json=payload) as resp:
-            resp.raise_for_status()
+            await _fallar_si_es_error(resp, model, self.base_url)
             async for line in resp.aiter_lines():
                 if not line or not line.startswith("data: "):
                     continue

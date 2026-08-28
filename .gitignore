@@ -43,3 +43,9 @@ docs-site/.astro/
 # SDD scratch
 .superpowers/
 config/connections.yaml
+
+# Worktrees de sesiones de Claude Code. Son repos git EMBEBIDOS: un `git add -A`
+# se los lleva adentro de un commit, y ya pasó — en astromesh-herald entró uno
+# dentro de un commit de release. Se ignora SÓLO `worktrees/`: este repo SÍ
+# versiona `.claude/skills/` y sus comandos, y un ignore amplio se los llevaría.
+.claude/worktrees/
