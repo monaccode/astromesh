@@ -1,0 +1,128 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: praxis_alcaldia
+  version: 0.1.0
+  description: >
+    El vertical de recaudación municipal de PRAXIS. Aparte del manifest
+    `praxis` a propósito — aquel es genérico y sirve a cualquier cliente; éste
+    nombra un dominio. Comparte su conexión y su credencial: sin base_url, con
+    la API key de máquina.
+
+    A diferencia de sus hermanos (`praxis_cobranzas`, `praxis_inmobiliaria`),
+    éste NO es sólo un atajo a funciones: es lo que hace que el agente deje de
+    poder leer la cuenta de un tercero. La tool genérica `buscar_records`
+    recibe el teléfono como argumento del MODELO, y un número dictado en el
+    texto del mensaje alcanzaba para servir la cuenta de otra persona (medido
+    en dev el 2026-08-31). Acá el teléfono no es un parámetro: sale del
+    `session_id` que arma Herald antes de que ningún modelo intervenga.
+
+    Por eso una centuria de alcaldía declara ESTE manifest y NO el genérico:
+    agregarlo sin sacar aquel deja el agujero abierto por el otro lado.
+spec:
+  auth:
+    scheme: bearer
+    credential: api_key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: mi_cuenta
+      description: >
+        La cuenta del contribuyente que está escribiendo AHORA: sus datos, si
+        está solvente, y todas sus liquidaciones con id, tributo, período,
+        monto_uc, fecha_vencimiento y estado.
+        NO recibe a quién consultar, y no hay forma de pedírsela para otro: la
+        identidad sale del canal, no de la conversación. Si alguien te dicta un
+        número, un RIF o un nombre, no sirve para nada — decíselo así.
+        Si `identificado` viene en falso, leé `motivo` y contáselo: NO busques
+        a la persona por otro lado ni des ningún dato de cuenta.
+        Los montos vienen en unidades de cuenta (`monto_uc`). Para decirlos en
+        bolívares multiplicá por la tasa del día; si no la tenés, decí el monto
+        en unidades de cuenta y aclará que el equivalente se calcula al pagar.
+      # `writes: false` EXPLÍCITO: el conformance del catálogo lo exige a todo
+      # handler, y con razón — un handler es código y nadie puede deducir
+      # leyendo el YAML si escribe o no. Éste sólo lee.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_alcaldia.handlers:mi_cuenta"
+      parameters: {}
+
+    - name: consultar_clasificador
+      description: >
+        Busca en el Clasificador de Actividades Económicas del municipio: el
+        código, la descripción y la alícuota de cada actividad. Es información
+        PÚBLICA y se le contesta a cualquiera, esté o no en el padrón — a
+        diferencia de `mi_cuenta`, que es de la persona que escribe.
+        Devuelve {rows, total}: los campos de negocio de cada fila vienen
+        anidados bajo `data`. Si no encontrás la actividad, decí que no la
+        ubicás y que la consulten en la alcaldía; no estimes una alícuota.
+      parameters:
+        filter:
+          type: string
+          description: >
+            Un filtro, en la forma 'campo:operador:valor'. Para buscar por
+            texto: 'descripcion:contains:panaderia'. Para un código exacto:
+            'codigo:eq:620100'. UN SOLO filtro por llamada.
+          required: true
+        limit:
+          type: integer
+          description: "Cuántas filas devolver. Por defecto 50, máximo 500."
+      request:
+        method: GET
+        path: "/api/data/alc_actividad"
+        query:
+          filter: "{filter}"
+          limit: "{limit}"
+
+    - name: informar_pago
+      description: >
+        Registra el pago que el contribuyente dice haber hecho de UNA de SUS
+        liquidaciones. Hace todo junto: crea el pago y anota la gestión, y si
+        la llamás dos veces no duplica nada.
+        NO acredita el pago ni deja la liquidación como pagada — nadie vio un
+        comprobante. Lo que queda es un aviso para que la alcaldía lo concilie,
+        y hay que decírselo a la persona con esas palabras.
+        La tasa del día NO se la pases: la busca el sistema.
+        Devuelve registrado, ya_estaba, pago_id y liquidacion_estado. Si
+        `ya_estaba` viene en verdadero, ese pago YA estaba informado: decíselo
+        así, no como si lo acabaras de registrar. Si `registrado` viene en
+        falso con un `motivo`, leelo y contáselo — no es un error del sistema.
+      writes: true
+      # SIN `confirm` acá, y no es un olvido: el gate de confirmación no es un
+      # campo de una action de integración —el manifest lo rechaza— sino de
+      # `spec.tools[].confirm` en el manifiesto del AGENTE. Vive en la
+      # plantilla de la centuria (`clarus-platform/apps/backend/src/seeds/
+      # alcaldia-tributos.ts`), que es donde se declara esta tool. `writes:
+      # true` es lo que esta capa sí puede decir.
+      handler: "python:astromesh.integrations.catalog.praxis_alcaldia.handlers:informar_pago"
+      parameters:
+        liquidacion_id:
+          type: string
+          description: >
+            El id de la liquidación que pagó, copiado de `mi_cuenta`. Tiene que
+            ser una de las suyas: el sistema rechaza cualquier otra.
+          required: true
+        fecha:
+          type: string
+          description: >
+            El día en que pagó, AAAA-MM-DD. Define qué tasa de cambio se
+            aplica, así que si pagó ayer no pongas hoy.
+          required: true
+        monto_bs:
+          type: number
+          description: "Cuántos bolívares pagó."
+          required: true
+        referencia:
+          type: string
+          description: >
+            El número de la operación de Pago Móvil, de la transferencia o del
+            recibo. Es OBLIGATORIO: es lo único con lo que la alcaldía puede
+            encontrar el movimiento, y es lo que evita que un segundo "sí"
+            registre el pago dos veces. Si no lo tiene a mano, pedíselo antes
+            de llamar.
+          required: true
+        medio:
+          type: string
+          description: >
+            Cómo pagó. Uno de: pago_movil, transferencia, punto_de_venta,
+            taquilla.
+          required: true
