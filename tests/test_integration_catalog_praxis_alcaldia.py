@@ -67,6 +67,12 @@ def _liquidaciones(rows=None):
     return httpx.Response(200, json={"rows": rows if rows is not None else [], "total": 0})
 
 
+def _tasa(valor=322.75, fecha="2026-09-01"):
+    return httpx.Response(
+        200, json={"rows": [{"id": "t-1", "data": {"fecha": fecha, "valor_bs": valor}}], "total": 1}
+    )
+
+
 # --------------------------------------------------------------------------
 # Forma
 # --------------------------------------------------------------------------
@@ -150,6 +156,7 @@ async def test_mi_cuenta_busca_por_el_telefono_de_la_sesion_y_no_por_uno_dictado
     """
     padron = respx.get(f"{BASE}/api/data/alc_contribuyente").mock(return_value=_padron())
     respx.get(f"{BASE}/api/data/alc_liquidacion").mock(return_value=_liquidaciones())
+    respx.get(f"{BASE}/api/data/alc_tasa_cambio").mock(return_value=_tasa())
 
     res = await _correr(
         "mi_cuenta",
@@ -216,6 +223,7 @@ async def test_mi_cuenta_dice_si_esta_solvente_y_saca_las_anuladas():
             ]
         )
     )
+    respx.get(f"{BASE}/api/data/alc_tasa_cambio").mock(return_value=_tasa())
     res = await _correr("mi_cuenta", {})
 
     ids = [x["id"] for x in res.data["liquidaciones"]]
@@ -231,8 +239,43 @@ async def test_sin_liquidaciones_pendientes_esta_solvente():
     respx.get(f"{BASE}/api/data/alc_liquidacion").mock(
         return_value=_liquidaciones([{"id": "l-2", "data": {"estado": "pagada"}}])
     )
+    respx.get(f"{BASE}/api/data/alc_tasa_cambio").mock(return_value=_tasa())
     res = await _correr("mi_cuenta", {})
     assert res.data["solvente"] is True
+
+
+
+@respx.mock
+async def test_mi_cuenta_trae_la_tasa_con_su_fecha_en_la_misma_llamada():
+    """Sin la tasa, el agente no puede pasar de unidades de cuenta a bolívares
+    — y la tool genérica que hacía esa consulta es justamente la que se sacó.
+
+    Viaja con su FECHA porque este handler no conoce la zona del municipio:
+    preguntar por "hoy" en UTC le erraría por un día cuatro horas de cada
+    veinticuatro en Venezuela. Con la fecha al lado, el agente puede decir "al
+    cambio del 1/9" y darse cuenta cuando la última cargada quedó vieja.
+    """
+    respx.get(f"{BASE}/api/data/alc_contribuyente").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/alc_liquidacion").mock(return_value=_liquidaciones())
+    respx.get(f"{BASE}/api/data/alc_tasa_cambio").mock(return_value=_tasa())
+
+    res = await _correr("mi_cuenta", {})
+    assert res.data["tasa"] == {"fecha": "2026-09-01", "valor_bs": 322.75}
+
+
+@respx.mock
+async def test_sin_tasa_cargada_la_cuenta_igual_se_devuelve_con_tasa_en_none():
+    """Degradar, no romper: los montos en unidades de cuenta siguen siendo
+    ciertos, y el prompt ya sabe qué decir cuando no hay conversión."""
+    respx.get(f"{BASE}/api/data/alc_contribuyente").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/alc_liquidacion").mock(return_value=_liquidaciones())
+    respx.get(f"{BASE}/api/data/alc_tasa_cambio").mock(
+        return_value=httpx.Response(200, json={"rows": [], "total": 0})
+    )
+
+    res = await _correr("mi_cuenta", {})
+    assert res.data["identificado"] is True
+    assert res.data["tasa"] is None
 
 
 # --------------------------------------------------------------------------

@@ -77,6 +77,31 @@ def _sin_identidad() -> ToolResult:
     )
 
 
+async def _tasa_mas_reciente(ctx: IntegrationContext):
+    """La última tasa de cambio cargada, con SU fecha.
+
+    La más reciente y no "la de hoy" a propósito: este handler no conoce la
+    zona horaria del municipio, y preguntar por `hoy` en UTC le erraría por un
+    día cuatro horas de cada veinticuatro en Venezuela. Devolver la fecha junto
+    al valor deja que el agente diga *"al cambio del 1/9"* — y que se dé cuenta
+    solo cuando la última cargada es vieja, en vez de convertir con un número
+    de la semana pasada como si fuera el de hoy.
+    """
+    res = await ctx.client.get(
+        f"{ctx.base_url}/api/data/alc_tasa_cambio",
+        params={"sort": "fecha:desc", "limit": "1"},
+    )
+    if res.status_code >= 400:
+        return None
+    filas = (res.json() or {}).get("rows") or []
+    if not filas:
+        return None
+    datos = filas[0].get("data") or {}
+    if not datos.get("valor_bs"):
+        return None
+    return {"fecha": datos.get("fecha"), "valor_bs": datos.get("valor_bs")}
+
+
 async def _buscar(ctx: IntegrationContext, entidad: str, filtro: str, limite: int = 50) -> Any:
     """Una consulta a la API de datos de PRAXIS.
 
@@ -141,6 +166,7 @@ async def mi_cuenta(arguments: dict, ctx: IntegrationContext) -> ToolResult:
         if (f.get("data") or {}).get("estado") != "anulada"
     ]
     pendientes = [x for x in liquidaciones if x.get("estado") in ("pendiente", "vencida")]
+    tasa = await _tasa_mas_reciente(ctx)
 
     datos = contribuyente.get("data") or {}
     return ToolResult(
@@ -154,6 +180,12 @@ async def mi_cuenta(arguments: dict, ctx: IntegrationContext) -> ToolResult:
             },
             "solvente": len(pendientes) == 0,
             "liquidaciones": liquidaciones,
+            # Viaja acá y no en una acción aparte porque el agente la necesita
+            # SIEMPRE que dice un monto: las liquidaciones vienen en unidades
+            # de cuenta y sin la tasa no hay bolívares. Una llamada, no dos.
+            # `None` cuando la alcaldía no cargó ninguna: ahí el agente dice el
+            # monto en unidades de cuenta y no improvisa la conversión.
+            "tasa": tasa,
         },
         metadata={},
     )
