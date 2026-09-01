@@ -48,18 +48,32 @@ SIN_IDENTIDAD = (
 def telefono_de_sesion(session_id: str) -> str | None:
     """El teléfono del que escribe, o None si esta sesión no identifica a nadie.
 
-    NO se acepta cualquier cosa con `__`: el canal tiene que ser WhatsApp y la
-    parte del usuario tiene que empezar con `+`. Un `session_id` del banco de
-    pruebas (`prueba-<ts>-<azar>-…`) no matchea, y ésa es la intención — ahí no
-    hay ninguna persona real detrás y devolver la cuenta de alguien sería peor
-    que no funcionar.
+    **Se lee desde el FINAL, y eso no es un detalle de estilo.** Lo que Herald
+    arma es `whatsapp__+58…`, pero eso no es lo que llega: Nexus le antepone su
+    propio espacio de nombres antes de pasarlo al runtime, y el valor real es
+
+        t_tenant-<uuid>__<agente>__whatsapp__+584141234567
+
+    medido en dev el 2026-09-01 leyendo el span `agent.run` de una invocación.
+    Partir por el PRIMER `__` da un "canal" que es el tenant, no matchea nunca,
+    y la identidad falla para todo el mundo — incluido el contribuyente
+    legítimo. Los dos últimos segmentos son los de Herald: ni un canal ni un
+    teléfono pueden contener `__`.
+
+    Lo demás sigue siendo estricto: el canal tiene que ser WhatsApp y el
+    usuario empezar con `+`. Un `session_id` del banco de pruebas
+    (`…__prueba-<ts>-<azar>-…`) no matchea, y ésa es la intención — ahí no hay
+    ninguna persona real detrás y devolver la cuenta de alguien sería peor que
+    no funcionar.
     """
-    if not isinstance(session_id, str) or "__" not in session_id:
+    if not isinstance(session_id, str):
         return None
-    canal, _, usuario = session_id.partition("__")
+    partes = session_id.split("__")
+    if len(partes) < 2:
+        return None
+    canal, usuario = partes[-2], partes[-1].strip()
     if canal != CANAL_CON_TELEFONO:
         return None
-    usuario = usuario.strip()
     if not usuario.startswith("+") or not usuario[1:].isdigit():
         return None
     return usuario

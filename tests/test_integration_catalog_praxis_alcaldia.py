@@ -27,7 +27,12 @@ from astromesh.integrations.executor import HttpActionExecutor
 
 BASE = "https://erp.elhatillo.gob.ve"
 TELEFONO = "+584141234567"
-SESION = f"whatsapp__{TELEFONO}"
+# El session_id REAL que llega al runtime, medido en dev el 2026-09-01 leyendo
+# el span `agent.run` de una invocación: Herald arma `whatsapp__+58…` y Nexus le
+# antepone SU espacio de nombres antes de pasarlo. Los tests usan éste y no el
+# de Herald a secas, porque la primera versión del parser partía por el primer
+# `__` —pasaba con el de Herald y fallaba con TODOS los reales—.
+SESION = f"t_tenant-e07042fe-4994-409b-bff0-ba5eb68a6466__suhat-tributos__whatsapp__{TELEFONO}"
 CONTRIBUYENTE = "c-1"
 
 
@@ -128,20 +133,29 @@ def test_mi_cuenta_no_declara_ningun_parametro():
 # --------------------------------------------------------------------------
 
 
-def test_el_telefono_sale_del_session_id_de_herald():
-    """Formato `<canal>__<usuario>`
-    (`astromesh-herald/internal/domain/conversation.go:26-28`)."""
+def test_el_telefono_sale_del_session_id_prefijado_por_nexus():
+    """El caso que rompió en dev: Nexus antepone tenant y agente.
+
+    Herald arma `<canal>__<usuario>`
+    (`astromesh-herald/internal/domain/conversation.go:26-28`) pero eso NO es lo
+    que llega al runtime. Leer desde el primer `__` da un "canal" que es el
+    tenant, y la identidad falla para todo el mundo — incluido el contribuyente
+    legítimo, que es exactamente lo que pasó el 2026-09-01.
+    """
     assert telefono_de_sesion(SESION) == TELEFONO
+    # Y el de Herald a secas también, por si alguna vez llega sin prefijo.
+    assert telefono_de_sesion(f"whatsapp__{TELEFONO}") == TELEFONO
 
 
 def test_una_sesion_que_no_identifica_a_nadie_devuelve_none():
     casos = [
         "",  # sin sesión
         "prueba-mths8cm3-bullje-tributos",  # el banco de pruebas de Centuria
-        "telegram__123456789",  # un id de chat NO es un teléfono del padrón
-        "instagram__17841400000000000",  # un id de la plataforma tampoco
-        "whatsapp__no-es-un-numero",
-        "whatsapp__584141234567",  # sin el '+': no es como lo manda Herald
+        "t_tenant-x__prueba-mths8cm3-bullje-tributos",  # el mismo, prefijado
+        "t_tenant-x__ag__telegram__123456789",  # un id de chat NO es un teléfono
+        "t_tenant-x__ag__instagram__17841400000000000",  # ni un id de Instagram
+        "t_tenant-x__ag__whatsapp__no-es-un-numero",
+        "t_tenant-x__ag__whatsapp__584141234567",  # sin el '+'
     ]
     for caso in casos:
         assert telefono_de_sesion(caso) is None, caso
@@ -180,7 +194,7 @@ async def test_sin_sesion_util_no_consulta_nada_y_lo_explica():
     """
     padron = respx.get(f"{BASE}/api/data/alc_contribuyente").mock(return_value=_padron())
 
-    res = await _correr("mi_cuenta", {}, session_id="prueba-mths8cm3-bullje-tributos")
+    res = await _correr("mi_cuenta", {}, session_id="t_tenant-x__ag__prueba-mths8cm3-bullje")
 
     assert res.success  # no es un error del sistema: es un dato de la conversación
     assert res.data["identificado"] is False
@@ -361,7 +375,7 @@ async def test_informar_pago_sin_identidad_no_escribe():
             "referencia": "PM-1",
             "medio": "pago_movil",
         },
-        session_id="prueba-abc-def-tributos",
+        session_id="t_tenant-x__ag__prueba-abc-def",
     )
     assert res.data["identificado"] is False
     assert fn.call_count == 0
@@ -382,7 +396,7 @@ async def test_el_clasificador_se_consulta_sin_identidad():
         return_value=httpx.Response(200, json={"rows": [], "total": 0})
     )
     res = await _correr(
-        "consultar_clasificador", {"filter": "codigo:eq:620100"}, session_id="prueba-x"
+        "consultar_clasificador", {"filter": "codigo:eq:620100"}, session_id="t_tenant-x__ag__prueba-x"
     )
     assert res.success
     assert ruta.calls[0].request.url.params["filter"] == "codigo:eq:620100"
