@@ -39,9 +39,11 @@ CANAL_CON_TELEFONO = "whatsapp"
 #: Lo que se le contesta a quien no se puede identificar. Es un dato para el
 #: agente, no un error del sistema: tiene que poder decírselo a la persona.
 SIN_IDENTIDAD = (
-    "No puedo identificar a nadie en esta conversación: la cuenta sólo se consulta "
-    "desde el WhatsApp que el contribuyente tenga registrado en la alcaldía. No "
-    "busques por un número que te hayan dictado ni des ningún dato de cuenta."
+    "No puedo identificar a nadie en esta conversación. La cuenta sólo se consulta "
+    "desde el teléfono que el contribuyente tenga registrado en la alcaldía: por "
+    "WhatsApp es el número desde el que escribe, y por Telegram hay que tocar el "
+    "botón para compartir el número. No busques por un número que te hayan dictado "
+    "ni des ningún dato de cuenta."
 )
 
 
@@ -140,9 +142,33 @@ async def _buscar(ctx: IntegrationContext, entidad: str, filtro: str, limite: in
     return (res.json() or {}), None
 
 
+def telefono_del_canal(ctx: IntegrationContext) -> str | None:
+    """El teléfono de quien escribe, o None si el canal no lo garantiza.
+
+    DOS fuentes, y las dos las escribe la plataforma antes de que ningún modelo
+    intervenga:
+
+    1. `caller_context["sender_phone"]`, que pone Herald. En WhatsApp es el
+       `from`; en Telegram es el número que la persona compartió con el botón
+       `request_contact`, que Telegram garantiza. **Es la fuente preferida**
+       porque es la única que funciona en un canal cuyo identificador no es un
+       teléfono.
+    2. El `session_id`, que en WhatsApp trae el número adentro. Se conserva
+       como respaldo para un Herald anterior al que manda `sender_phone`: sin
+       esto, el día que este handler se despliegue antes que aquél, la
+       vertical entera deja de identificar a nadie.
+
+    Nunca los argumentos: ahí escribe el modelo.
+    """
+    del_canal = (ctx.caller_context or {}).get("sender_phone")
+    if isinstance(del_canal, str) and del_canal.strip():
+        return del_canal.strip()
+    return telefono_de_sesion(ctx.session_id)
+
+
 async def _contribuyente_de_sesion(ctx: IntegrationContext):
-    """(fila, None) si la sesión identifica a un contribuyente activo del padrón."""
-    telefono = telefono_de_sesion(ctx.session_id)
+    """(fila, None) si el canal identifica a un contribuyente activo del padrón."""
+    telefono = telefono_del_canal(ctx)
     if telefono is None:
         return None, _sin_identidad()
 

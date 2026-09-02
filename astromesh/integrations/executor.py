@@ -42,6 +42,18 @@ class IntegrationContext:
     auth_headers: dict = field(default_factory=dict)
     agent_name: str = ""
     session_id: str = ""
+    #: El context de la invocación, ya filtrado de claves del runtime (las que
+    #: empiezan con `_`, que incluyen la API key del proveedor).
+    #:
+    #: Es lo que el CANAL sabe del mensaje y de quién lo manda —`channel`,
+    #: `sender`, `sender_phone`, `contact_name`, `fecha`— puesto por Herald
+    #: antes de que ningún modelo intervenga. Un handler que necesita saber
+    #: QUIÉN escribe lo lee de acá: es el único dato de identidad que el
+    #: modelo no puede escribir.
+    #:
+    #: Vacío cuando la corrida no viene de un canal (una invocación por API,
+    #: el banco de pruebas), y eso tiene que fallar cerrado en quien lo use.
+    caller_context: dict = field(default_factory=dict)
 
 
 def _select(payload: Any, path: str | None) -> Any:
@@ -75,6 +87,7 @@ class HttpActionExecutor:
         *,
         agent_name: str = "",
         session_id: str = "",
+        caller_context: dict | None = None,
     ) -> ToolResult:
         """Nunca levanta. Todo fallo sale como ToolResult(success=False).
 
@@ -100,7 +113,15 @@ class HttpActionExecutor:
 
         if action.handler:
             return await self._run_handler(
-                action, args, base_url, headers, resolved, timeout, agent_name, session_id
+                action,
+                args,
+                base_url,
+                headers,
+                resolved,
+                timeout,
+                agent_name,
+                session_id,
+                caller_context or {},
             )
         return await self._run_request(
             manifest, action, args, base_url, headers, auth_params, timeout
@@ -127,6 +148,7 @@ class HttpActionExecutor:
         timeout,  # noqa: ASYNC109
         agent_name,
         session_id,
+        caller_context,
     ) -> ToolResult:
         try:
             fn = load_handler(action.handler)
@@ -141,6 +163,7 @@ class HttpActionExecutor:
                     auth_headers=headers,
                     agent_name=agent_name,
                     session_id=session_id,
+                    caller_context=caller_context,
                 )
                 result = await fn(args, ctx)
             if isinstance(result, ToolResult):

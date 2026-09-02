@@ -1,6 +1,6 @@
 [project]
 name = "astromesh"
-version = "0.46.2"
+version = "0.47.0"
 description = "Astromesh Agent Runtime Platform — multi-model, multi-pattern AI agent runtime"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -153,7 +153,7 @@ name = "cz_conventional_commits"
 # que no se actualiza solo: quedó atrás en 0.44.0 y otra vez en 0.44.2, y en las
 # dos el próximo bump habría intentado re-emitir un tag que ya existe. Lo sostiene
 # `tests/test_version_coherente.py`, que ahora compara las tres.
-version = "0.46.2"
+version = "0.47.0"
 version_files = [
     "pyproject.toml:version",
     "astromesh/__init__.py:__version__",

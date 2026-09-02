@@ -46,10 +46,16 @@ def _conn():
     return ResolvedConnection(name="praxis", material={"api_key": "praxis_K"}, base_url=BASE)
 
 
-async def _correr(accion: str, args: dict, session_id: str = SESION):
+async def _correr(accion: str, args: dict, session_id: str = SESION, ctx: dict | None = None):
     m = _alc()
     return await HttpActionExecutor().execute(
-        m, m.action(accion), args, _conn(), agent_name="tributos", session_id=session_id
+        m,
+        m.action(accion),
+        args,
+        _conn(),
+        agent_name="tributos",
+        session_id=session_id,
+        caller_context=ctx,
     )
 
 
@@ -400,3 +406,81 @@ async def test_el_clasificador_se_consulta_sin_identidad():
     )
     assert res.success
     assert ruta.calls[0].request.url.params["filter"] == "codigo:eq:620100"
+
+
+# --------------------------------------------------------------------------
+# Telegram: la identidad que no viene en el session_id
+# --------------------------------------------------------------------------
+
+
+@respx.mock
+async def test_en_telegram_la_identidad_sale_del_sender_phone():
+    """En Telegram el `session_id` NO trae teléfono: el usuario es un `chat.id`.
+
+    El número lo pone Herald en `sender_phone` cuando la persona lo comparte
+    con el botón `request_contact`, y Telegram garantiza que es el de su
+    cuenta. Sin este camino, la vertical entera no puede identificar a nadie
+    fuera de WhatsApp.
+    """
+    padron = respx.get(f"{BASE}/api/data/alc_contribuyente").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/alc_liquidacion").mock(return_value=_liquidaciones())
+    respx.get(f"{BASE}/api/data/alc_tasa_cambio").mock(return_value=_tasa())
+
+    res = await _correr(
+        "mi_cuenta",
+        {},
+        session_id="t_tenant-x__ag__telegram__4242",
+        ctx={"channel": "telegram", "sender": "4242", "sender_phone": TELEFONO},
+    )
+
+    assert res.data["identificado"] is True
+    assert padron.calls[0].request.url.params["filter"] == f"telefono:eq:{TELEFONO}"
+
+
+@respx.mock
+async def test_en_telegram_sin_compartir_el_numero_no_identifica():
+    """El caso normal antes de tocar el botón: `sender_phone` viene vacío."""
+    padron = respx.get(f"{BASE}/api/data/alc_contribuyente").mock(return_value=_padron())
+    res = await _correr(
+        "mi_cuenta",
+        {},
+        session_id="t_tenant-x__ag__telegram__4242",
+        ctx={"channel": "telegram", "sender": "4242", "sender_phone": ""},
+    )
+    assert res.data["identificado"] is False
+    assert padron.call_count == 0
+
+
+@respx.mock
+async def test_el_sender_phone_gana_pero_sigue_sin_venir_de_los_argumentos():
+    """La fuente nueva no reabre la vieja.
+
+    `sender_phone` lo escribe Herald; un argumento lo escribe el MODELO. Si el
+    handler mirara los argumentos —aunque fuera como último recurso— el
+    agujero volvería por ahí.
+    """
+    padron = respx.get(f"{BASE}/api/data/alc_contribuyente").mock(return_value=_padron())
+    res = await _correr(
+        "mi_cuenta",
+        {"sender_phone": "+584149999999", "telefono": "+584149999999"},
+        session_id="t_tenant-x__ag__telegram__4242",
+        ctx={"channel": "telegram", "sender": "4242", "sender_phone": ""},
+    )
+    assert res.data["identificado"] is False
+    assert padron.call_count == 0
+
+
+@respx.mock
+async def test_sin_sender_phone_todavia_sirve_el_session_id_de_whatsapp():
+    """El respaldo, para un Herald anterior al que manda `sender_phone`.
+
+    Sin esto, desplegar este handler antes que ese Herald dejaría a la
+    vertical sin identificar a nadie, ni siquiera en WhatsApp.
+    """
+    padron = respx.get(f"{BASE}/api/data/alc_contribuyente").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/alc_liquidacion").mock(return_value=_liquidaciones())
+    respx.get(f"{BASE}/api/data/alc_tasa_cambio").mock(return_value=_tasa())
+
+    res = await _correr("mi_cuenta", {}, ctx={"channel": "whatsapp"})
+    assert res.data["identificado"] is True
+    assert padron.calls[0].request.url.params["filter"] == f"telefono:eq:{TELEFONO}"
