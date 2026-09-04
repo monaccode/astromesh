@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **ReAct agrupa las tool calls de una misma respuesta en UN mensaje del
+  asistente.** El bucle emitía un `assistant` POR cada `tool_call`, y cada uno
+  repetía el mismo `content` y el mismo `reasoning_content` de esa respuesta —
+  que en un modelo de razonamiento (Kimi k2.x) es la parte más larga del
+  mensaje. Con tres tools en una respuesta el razonamiento viajaba tres veces,
+  y como el transcripto se re-manda entero en cada vuelta siguiente del bucle,
+  ese triple se volvía a pagar en todas. Ahora va un `assistant` con la lista
+  completa de `tool_calls` seguido de un `tool` por cada uno, apareados por
+  `tool_call_id`, que además es la forma que el protocolo de OpenAI define.
+  El caso de UNA sola tool no cambia de forma, y hay un test que lo fija:
+  ningún test cubría más de una tool por respuesta, así que la duplicación
+  pasaba en verde.
+
+### Added
+
+- **El span `llm.complete` lleva `cached_tokens`.** El provider ya los leía
+  (`read_cached_tokens`) y `estimated_cost()` ya los descontaba, pero el dato
+  no quedaba en ninguna parte: no estaba en el span y Nexus no tiene columna
+  para él. Sin eso, `input_tokens` se lee como si todo se pagara a precio
+  lleno y **cualquier optimización de prefijo es inverificable**. Medido
+  contra Moonshot el 2026-09-04: cachea en bloques de 4096 tokens y llega al
+  86-88% del prompt cuando el prefijo es estable.
+
 ### Added (Docs site)
 
 - **Las integraciones tienen página** (`configuration/integrations`). El marco existe desde

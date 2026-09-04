@@ -1292,6 +1292,21 @@ class Agent:
                         llm_span.set_attribute(
                             "output_tokens", response.usage.get("output_tokens", 0)
                         )
+                        # Los tokens de entrada que el proveedor sirvió de su
+                        # caché de prefijo. **El provider ya los lee y
+                        # `estimated_cost()` ya los descuenta, pero hasta acá
+                        # se perdían**: no quedaban en el span, y Nexus no
+                        # tiene columna para ellos, así que no había forma de
+                        # saber si el caché estaba pegando. Sin este dato,
+                        # `input_tokens` se lee como si todo se pagara a
+                        # precio lleno y cualquier optimización de prefijo es
+                        # inverificable. Medido contra Moonshot el 2026-09-04:
+                        # cachea en bloques de 4096 y llega al 86-88% del
+                        # prompt cuando el prefijo es estable.
+                        llm_span.set_attribute(
+                            "cached_tokens",
+                            response.usage.get("cache_read_input_tokens", 0),
+                        )
                     llm_span.set_attribute("model", response.model)
                     llm_span.set_attribute("provider", response.provider)
                     llm_span.set_attribute("latency_ms", response.latency_ms)
