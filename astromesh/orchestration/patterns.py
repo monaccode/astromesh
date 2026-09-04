@@ -69,9 +69,7 @@ class ReActPattern(OrchestrationPattern):
                             "type": "function",
                             "function": {
                                 "name": tc["name"],
-                                "arguments": json_mod.dumps(
-                                    tc["arguments"], ensure_ascii=False
-                                ),
+                                "arguments": json_mod.dumps(tc["arguments"], ensure_ascii=False),
                             },
                         }
                         for tc in response.tool_calls

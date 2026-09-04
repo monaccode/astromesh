@@ -406,9 +406,7 @@ async def test_react_una_sola_tool_sigue_igual():
     tool_fn = AsyncMock(return_value={"r": 1})
 
     pattern = ReActPattern()
-    await pattern.execute(
-        query="buscá", context={}, model_fn=model_fn, tool_fn=tool_fn, tools=[]
-    )
+    await pattern.execute(query="buscá", context={}, model_fn=model_fn, tool_fn=tool_fn, tools=[])
 
     enviados = model_fn.call_args_list[1].args[0]
     assert [m["role"] for m in enviados] == ["user", "assistant", "tool"]
