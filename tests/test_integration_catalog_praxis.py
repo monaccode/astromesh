@@ -37,9 +37,10 @@ def test_the_manifest_brings_no_base_url_so_the_connection_must():
     assert _praxis().base_url is None
 
 
-def test_it_exposes_exactly_the_three_actions():
+def test_it_exposes_exactly_the_four_actions():
     assert {a.name for a in _praxis().actions} == {
         "buscar_records",
+        "obtener_record",
         "crear_record",
         "actualizar_record",
     }
@@ -51,9 +52,10 @@ def test_auth_is_the_machine_api_key_as_a_bearer():
     assert manifest.auth.credential == "api_key"
 
 
-def test_the_two_writers_declare_writes_and_the_search_does_not():
+def test_the_two_writers_declare_writes_and_the_readers_do_not():
     actions = {a.name: a for a in _praxis().actions}
     assert actions["buscar_records"].mutates is False
+    assert actions["obtener_record"].mutates is False
     assert actions["crear_record"].writes is True
     assert actions["actualizar_record"].writes is True
 
@@ -194,3 +196,70 @@ async def test_an_entity_name_cannot_escape_the_path():
         m, m.action("buscar_records"), {"entidad": "../../admin"}, _conn()
     )
     assert result.success is False
+
+
+def test_obtener_record_says_why_buscar_records_cannot_do_it():
+    """El modelo sólo lee la descripción, y el atajo que parece obvio no anda.
+
+    `filter` resuelve contra los campos DECLARADOS de la entidad
+    (`praxis/apps/backend/src/records/query-builder.ts:224`) e `id` es columna
+    de sistema, no campo: `id:eq:<uuid>` sale 422 'unknown field'. Medido en
+    `praxis-mvp` el 2026-09-08, y el agente que se comió ese 422 terminó
+    creando una `fai_empresa` duplicada en vez de resolver la relación. Si
+    alguien recorta esta descripción, el modelo vuelve a intentar el filtro.
+    """
+    obtener = _praxis().action("obtener_record")
+    d = obtener.description.lower()
+    assert "id:eq:" in d
+    assert "422" in d
+    # Y que un 404 no es permiso para crear de nuevo: ése fue el duplicado.
+    assert "404" in d
+
+
+@respx.mock
+async def test_obtener_record_hits_the_by_id_route_and_returns_the_bare_record():
+    """`GET /api/data/:entity/:id` devuelve el registro SOLO, no `{rows: [...]}`.
+
+    (`praxis/apps/backend/src/records/records.controller.ts:192-204`: devuelve
+    `record` o tira `NotFoundError`.)
+    """
+    route = respx.get(f"{BASE}/api/data/fai_empresa/7e3ee5ed-5fe8-4f05-ac70-784138763b96").mock(
+        return_value=httpx.Response(
+            200,
+            json={"id": "7e3ee5ed-5fe8-4f05-ac70-784138763b96", "data": {"nombre": "FAinansu"}},
+        )
+    )
+    m = _praxis()
+    result = await HttpActionExecutor().execute(
+        m,
+        m.action("obtener_record"),
+        {"entidad": "fai_empresa", "id": "7e3ee5ed-5fe8-4f05-ac70-784138763b96"},
+        _conn(),
+    )
+    assert result.success is True
+    # Sin envoltorio de lista: el campo está bajo `data`, igual que en una fila.
+    assert result.data["data"]["nombre"] == "FAinansu"
+    assert "rows" not in result.data
+    assert route.calls[0].request.headers["Authorization"] == "Bearer praxis_K"
+
+
+@respx.mock
+async def test_obtener_record_reports_the_404_instead_of_pretending_it_is_empty():
+    """Un id que no resuelve tiene que llegarle al modelo como falla.
+
+    Devolver `success: True` con nada adentro es indistinguible de "existe y
+    está vacío", que es justo el estado en el que el agente crea el registro
+    de nuevo.
+    """
+    respx.get(f"{BASE}/api/data/fai_empresa/00000000-0000-0000-0000-000000000000").mock(
+        return_value=httpx.Response(404, json={"statusCode": 404, "message": "record not found"})
+    )
+    m = _praxis()
+    result = await HttpActionExecutor().execute(
+        m,
+        m.action("obtener_record"),
+        {"entidad": "fai_empresa", "id": "00000000-0000-0000-0000-000000000000"},
+        _conn(),
+    )
+    assert result.success is False
+    assert "404" in (result.error or "")

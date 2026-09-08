@@ -291,9 +291,7 @@ class ToolRegistry:
                 # runtime y una de ellas —`_provider_override`— lleva una API
                 # key. Un handler del catálogo no tiene por qué verla, y si la
                 # viera podría terminar en la traza.
-                caller_context={
-                    k: v for k, v in (context or {}).items() if not k.startswith("_")
-                },
+                caller_context={k: v for k, v in (context or {}).items() if not k.startswith("_")},
             )
             return result.to_dict()
         return {"error": f"Unsupported tool type: {tool.tool_type}"}

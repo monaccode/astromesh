@@ -264,7 +264,6 @@ async def test_sin_liquidaciones_pendientes_esta_solvente():
     assert res.data["solvente"] is True
 
 
-
 @respx.mock
 async def test_mi_cuenta_trae_la_tasa_con_su_fecha_en_la_misma_llamada():
     """Sin la tasa, el agente no puede pasar de unidades de cuenta a bolívares
@@ -402,7 +401,9 @@ async def test_el_clasificador_se_consulta_sin_identidad():
         return_value=httpx.Response(200, json={"rows": [], "total": 0})
     )
     res = await _correr(
-        "consultar_clasificador", {"filter": "codigo:eq:620100"}, session_id="t_tenant-x__ag__prueba-x"
+        "consultar_clasificador",
+        {"filter": "codigo:eq:620100"},
+        session_id="t_tenant-x__ag__prueba-x",
     )
     assert res.success
     assert ruta.calls[0].request.url.params["filter"] == "codigo:eq:620100"

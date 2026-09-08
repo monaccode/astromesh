@@ -2,10 +2,10 @@ apiVersion: astromesh/v1
 kind: Integration
 metadata:
   name: praxis
-  version: 0.1.0
+  version: 0.2.0
   description: >
-    PRAXIS, el ERP AI-native del cliente: buscar, crear y actualizar registros
-    de cualquier entidad. Sin base_url a propósito — lo trae la conexión del
+    PRAXIS, el ERP AI-native del cliente: buscar, obtener por id, crear y
+    actualizar registros de cualquier entidad. Sin base_url a propósito — lo trae la conexión del
     tenant, y eso es lo que permite servir a todos los clientes con un solo
     manifest. La credencial es la API key de máquina de PRAXIS (praxis_...),
     que no vence.
@@ -52,6 +52,37 @@ spec:
           filter: "{filter}"
           sort: "{sort}"
           limit: "{limit}"
+
+    - name: obtener_record
+      description: >
+        Trae UN registro de PRAXIS por su id, tal como viene en rows[].id de
+        buscar_records o en el campo de una relación de otro registro. Devuelve
+        el registro solo, no una lista: sus campos de negocio están anidados
+        bajo `data`, igual que en buscar_records, y el `id` al tope.
+
+        Usala siempre que tengas un id y quieras el registro al que apunta —
+        en particular para seguir una relación, por ejemplo el campo `empresa`
+        de un contacto. NO se puede llegar a eso con buscar_records: su
+        `filter` resuelve contra los campos DECLARADOS de la entidad e `id` no
+        es uno, así que 'id:eq:<uuid>' devuelve un 422 'unknown field'.
+
+        Si el registro no existe da 404, y si el id no tiene forma de UUID da
+        400. Ninguna de las dos es motivo para crear el registro de nuevo:
+        preguntá antes de duplicar algo que quizá ya está.
+      parameters:
+        entidad:
+          type: string
+          description: "Nombre de la entidad en PRAXIS, por ejemplo 'pedido'."
+          required: true
+        id:
+          type: string
+          description: >
+            UUID del registro. PRAXIS rechaza cualquier cosa que no sea un
+            UUID.
+          required: true
+      request:
+        method: GET
+        path: "/api/data/{entidad}/{id}"
 
     - name: crear_record
       description: >

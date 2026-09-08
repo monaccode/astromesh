@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.49.0] - 2026-09-08
+
+### Added
+
+- **`praxis.obtener_record`: un agente ya puede seguir una relación.** La
+  integración de PRAXIS tenía tres acciones y ninguna leía un registro por su
+  id: `buscar_records` es `GET /api/data/{entidad}` con `filter`, y ese filtro
+  resuelve contra los campos **declarados** de la entidad
+  (`praxis/apps/backend/src/records/query-builder.ts:224`) — `id` es columna de
+  sistema, no campo, así que `id:eq:<uuid>` sale **422 `unknown field 'id'`**.
+  O sea que el agente podía escribir por id (`actualizar_record` es
+  `PATCH /api/data/{entidad}/{id}`) pero no leer por id, aunque PRAXIS sirve
+  esa ruta desde siempre (`records.controller.ts:192`).
+
+  **Lo que costó el hueco, medido en `praxis-mvp` el 2026-09-08:** el agente de
+  FAINANSU leyó un `fai_contacto`, sacó su campo `empresa` —un uuid—, intentó
+  `fai_empresa id:eq:<uuid>`, se comió el 422, cayó a buscar por nombre y
+  terminó con **dos `FAinansu` creadas con 2,7 segundos de diferencia**. No
+  falló nada visible: duplicó.
+
+  La descripción de la acción nombra el 422 y el 404 a propósito. El modelo
+  sólo lee eso, y las dos cosas que tiene que saber son que el atajo por
+  `filter` no existe y que un 404 **no es permiso para crear de nuevo** —que
+  fue exactamente el camino al duplicado—. Hay un test que se pone rojo si
+  alguien recorta cualquiera de las dos.
+
+### Fixed
+
+- **La CI estaba roja en `main` desde el 2026-09-04, por tres cosas y ninguna
+  era un test.** El job `test` moría en `ruff format --check` sobre dos
+  archivos que la 0.48.0 no formateó (`astromesh/core/tools.py` y
+  `tests/test_integration_catalog_praxis_alcaldia.py`), y como el formato corre
+  **antes** que `pytest`, la suite no llegaba a ejecutarse nunca. `test-cli` y
+  `test-node` morían a los 4 segundos en `uv sync --locked`: los locks de esos
+  dos subproyectos habían quedado en `astromesh 0.45.0`. Las tres arregladas;
+  los tres jobs corren de verdad otra vez.
+
 ## [Unreleased]
 
 ### Changed
