@@ -145,7 +145,7 @@ The `api_key_env` field is the name of the environment variable — not the key 
 
 ### Moonshot / Kimi
 
-Moonshot's Kimi models (`kimi-k2.5`, `kimi-k2.6`) are served through the same `openai_compat` provider type — the Moonshot API implements the OpenAI chat-completions interface. No dedicated provider type is needed; you only change the endpoint, API key, and model names.
+Moonshot's Kimi models (`kimi-k2.6`, `kimi-k2.7-code`, `kimi-k2.7-code-highspeed`, `kimi-k3`) are served through the same `openai_compat` provider type — the Moonshot API implements the OpenAI chat-completions interface. No dedicated provider type is needed; you only change the endpoint, API key, and model names.
 
 **Setup:**
 
@@ -162,15 +162,30 @@ kimi:
   endpoint: "https://api.moonshot.ai/v1"
   api_key_env: MOONSHOT_API_KEY
   models:
-    - "kimi-k2.5"
     - "kimi-k2.6"
+    - "kimi-k3"
 ```
+
+:::caution[Moonshot retires model ids, and the failure is not subtle]
+`kimi-k2.5` was withdrawn on 2026-09-08 and the API answers
+`404 {"message": "Not found the model kimi-k2.5 or Permission denied", "type": "resource_not_found_error"}`.
+Every agent pointing at it stopped working at the same moment. Ask the API what still exists
+rather than trusting a config file:
+
+```bash
+curl -s https://api.moonshot.ai/v1/models \
+  -H "Authorization: Bearer $MOONSHOT_API_KEY" | jq -r '.data[].id'
+```
+
+An agent with a `fallback_model` degrades to it; one that calls the model directly through
+`call_with_structured_output` has nowhere to fall and retries the same dead id.
+:::
 
 Kimi models are labelled `kimi` (rather than `openai_compat`) in cost reports and metrics — the provider label is derived from the model name, so `by_provider` breakdowns and the `provider` Prometheus label separate Kimi traffic from OpenAI traffic automatically. See [Provider Labels](#provider-labels) below.
 
 #### Thinking Models (`reasoning_content`)
 
-Kimi k2.5 / k2.6 are **thinking models**: when reasoning is enabled they return a `reasoning_content` field alongside `tool_calls`, and the API **requires** that field to be echoed back on the assistant tool-call message in the next turn. If it is dropped, the API rejects the follow-up request with:
+Kimi models are **thinking models**: when reasoning is enabled they return a `reasoning_content` field alongside `tool_calls`, and the API **requires** that field to be echoed back on the assistant tool-call message in the next turn. If it is dropped, the API rejects the follow-up request with:
 
 ```
 400 Bad Request — thinking is enabled but reasoning_content is missing in assistant tool call message
@@ -416,10 +431,36 @@ The `openai_compat` provider ships a built-in per-model price table (USD per 1 0
 | `gpt-4-turbo` | $0.0100 | $0.0300 | — |
 | `gpt-4` | $0.0300 | $0.0600 | — |
 | `gpt-3.5-turbo` | $0.0005 | $0.0015 | — |
-| `kimi-k2.5` | $0.0006 | $0.0025 | $0.0001 |
+| `kimi-k2.5` *(retired)* | $0.0006 | $0.0025 | $0.0001 |
 | `kimi-k2.6` | $0.00095 | $0.0040 | $0.00016 |
+| `kimi-k2.7-code` | $0.00095 | $0.0040 | $0.00019 |
+| `kimi-k2.7-code-highspeed` | $0.0019 | $0.0080 | $0.00038 |
+| `kimi-k3` | $0.0030 | $0.0150 | $0.00030 |
 
-Models not in the table estimate to `$0.00` — cost tracking only reflects models with known pricing. Kimi rates are cache-miss list prices; confirm them against your Moonshot account before relying on them for billing.
+The Kimi rows come from Moonshot's own published tables
+([k2.6](https://platform.kimi.ai/docs/pricing/chat-k26), [k2.7 Code](https://platform.kimi.ai/docs/pricing/chat-k27-code),
+[k3](https://platform.kimi.ai/docs/pricing/chat-k3)), read on 2026-09-08, divided by 1 000 —
+the vendor quotes per 1M tokens and this table is per 1K. `kimi-k2.5` keeps its row although
+Moonshot withdrew the model: removing a price would rewrite what a past run cost, and nothing
+can call it any more anyway.
+
+:::danger[A model with no row is not free — it is unmeasured]
+`PRICING.get()` returns **`0.0`** for a model it does not know, and nothing warns. An agent
+pointed at an unpriced model runs perfectly, reports `cost = 0.0`, and every ledger downstream
+records a run that apparently cost nothing — with any spend ceiling built on that number left
+with nothing to measure. Before pointing an agent at a model, check it has a row here.
+:::
+
+:::note[The account balance cannot confirm these numbers]
+Moonshot's `/v1/users/me/balance` settles in arrears: measured on 2026-09-08, two paid calls
+left the balance byte-identical twelve seconds later. A before/after read shows zero and
+proves nothing — the published tables above are the source, and the check that gives them
+weight is that `kimi-k2.6` already matched all three of its numbers before this table cited
+anything.
+:::
+
+The `gpt-*` rows are older and carry no such cross-check; treat them as estimates rather than
+as billing input.
 
 ### Cache-Aware Pricing (Kimi context cache)
 

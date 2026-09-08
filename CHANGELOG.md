@@ -76,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dos subproyectos habían quedado en `astromesh 0.45.0`. Las tres arregladas;
   los tres jobs corren de verdad otra vez.
 
-## [Unreleased]
+## [0.48.0] - 2026-09-04
 
 ### Changed
 
@@ -151,6 +151,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   la verificaba: `cz bump` la lee como versión ACTUAL, y desde 0.44.2 habría calculado
   0.45.0 —un tag que ya existe—. `tests/test_version_coherente.py` ahora compara las tres
   copias, no dos.
+
+## [0.47.0] - 2026-09-01
+
+### Added
+
+- **Un handler de integración puede saber quién escribe.** La identidad de quien
+  origina la llamada llegaba hasta el borde y ahí se perdía, así que un handler
+  no podía distinguir a un contribuyente de otro y toda regla de identidad tenía
+  que resolverse fuera del catálogo. Es lo que hace posible `mi_cuenta` de
+  `praxis_alcaldia`, que no recibe a quién consultar **a propósito**: preguntarlo
+  sería dejar que la conversación elija de quién son los datos.
+
+## [0.46.2] - 2026-09-01
+
+### Fixed
+
+- **El `session_id` que llega al runtime ya viene prefijado por Nexus**, y el
+  runtime lo volvía a prefijar. Un parser que lee desde el principio falla para
+  TODOS los canales, y el síntoma engaña porque la sesión igual se rechaza.
+
+## [0.46.1] - 2026-09-01
+
+### Added
+
+- **`mi_cuenta` devuelve también la tasa del día.** Sin ella el agente contesta
+  en unidades de cuenta y quien pregunta necesita bolívares: el dato existía en
+  el ERP y no llegaba a la conversación.
+
+## [0.46.0] - 2026-09-01
+
+### Added
+
+- **`praxis_alcaldia`**, el vertical de recaudación municipal, entra al catálogo
+  de integraciones: `mi_cuenta`, `consultar_clasificador` e `informar_pago`.
+  Aparte del manifiesto `praxis` genérico a propósito —aquel sirve a cualquier
+  cliente, éste nombra un dominio— y compartiendo su conexión y su credencial.
+
+  `informar_pago` **no acredita** el pago: nadie vio un comprobante, así que deja
+  un aviso para que la alcaldía concilie, y el prompt tiene que decirlo con esas
+  palabras. Llamarla dos veces no duplica nada.
 
 ## [0.45.0] - 2026-08-28
 

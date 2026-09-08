@@ -110,12 +110,12 @@ export const CORE: Component = {
   name: 'Core Runtime',
   short: 'Core',
   group: 'runtime',
-  version: '0.45.0',
-  released: '2026-08-28',
+  version: '0.50.0',
+  released: '2026-09-08',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
   latest:
-    'Two vertical integrations join the catalog — one of them, `praxis_mecanicos`, had been declared by a live template the runtime was silently skipping.',
+    'Price rows for the three Kimi models that had none. `estimated_cost()` returns 0.0 for a model it does not know, so pointing an agent at `kimi-k3` ran perfectly and cost nothing anyone could see.',
   install: 'pip install astromesh',
   href: '/astromesh/getting-started/what-is-astromesh/',
 };
@@ -192,12 +192,12 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Herald',
     short: 'Herald',
     group: 'reach',
-    version: '0.1.0',
-    released: '2026-08-06',
+    version: '0.7.4',
+    released: '2026-09-08',
     tagline:
       'Communications gateway. Inbound WhatsApp messages reach an agent; agents reach people back through the same outbox.',
     latest:
-      'First release: WhatsApp Cloud API, two-way routing decided by an entry agent, a Postgres outbox with a retry budget, and an embedded operator console.',
+      'One answer can leave as several messages with a pause between them. The pause is a row in the outbox, not a sleep, so a pod restart picks the batch up where it was.',
     install: 'docker compose -f deploy/docker-compose.yaml up',
     href: '/astromesh/herald/introduction/',
     repo: 'https://github.com/monaccode/astromesh-herald',
@@ -260,11 +260,11 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Nexus',
     short: 'Nexus',
     group: 'operate',
-    version: '0.11.0',
-    released: '2026-08-06',
+    version: '0.19.0',
+    released: '2026-09-08',
     tagline: 'Multi-tenant control plane: publishes agents, dispatches runs to a shared pool, meters and bills them.',
     latest:
-      'Per-run credentials — Nexus mints a short-lived token per invocation, so an agent can send a message without the shared pool holding any tenant secret.',
+      'Tariffs for every Kimi the runtime can reach, not just the ones with traffic. An unpriced model is not free: it bills zero and says nothing.',
     install: 'kubectl apply -k deploy/overlays/mvp',
     href: '/astromesh/nexus/introduction/',
     repo: 'https://github.com/monaccode/astromesh-nexus',

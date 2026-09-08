@@ -3,7 +3,7 @@ title: Ecosystem Components & Dependencies
 description: Component registry, monorepo dependency graph, and main-vs-develop status for the Astromesh ecosystem
 ---
 
-This page tracks the **components that make up the Astromesh ecosystem**, how they relate to each other, and the **dependency graph between the packages in the monorepo**. It is kept in sync with [`docs/ECOSYSTEM_DEPENDENCIES.md`](https://github.com/monaccode/astromesh/blob/develop/docs/ECOSYSTEM_DEPENDENCIES.md) in the repository.
+This page tracks the **components that make up the Astromesh ecosystem**, how they relate to each other, and the **dependency graph between the packages in the monorepo**. It is kept in sync with [`docs/ECOSYSTEM_DEPENDENCIES.md`](https://github.com/monaccode/astromesh/blob/main/docs/ECOSYSTEM_DEPENDENCIES.md) in the repository.
 
 :::tip
 For the high-level introduction to the ecosystem, see [The Astromesh Ecosystem](/astromesh/getting-started/ecosystem/). This page focuses on the package-level dependency graph and release state.
@@ -15,18 +15,22 @@ For the high-level introduction to the ecosystem, see [The Astromesh Ecosystem](
 
 These directories ship from this repository on their own tags and versions.
 
-| Component | Package | Directory | `main` version | `develop` version | Version source | Min Python / Runtime |
-|-----------|---------|-----------|----------------|-------------------|----------------|----------------------|
-| **Core Runtime** | `astromesh` | `astromesh/` | `0.45.0` | `0.45.0` | `astromesh/__init__.py` | Python 3.12 |
-| **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.2` | `0.1.2` | `astromesh_glyph/__init__.py` | Python 3.12 |
-| **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.3.0` | `0.3.0` | `astromesh_adk/__init__.py` | Python 3.12 |
-| **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.3.0` | `0.3.0` | `astromesh_cli/__init__.py` | Python 3.12 |
-| **Node** | `astromesh-node` | `astromesh-node/` | `0.1.2` | `0.1.2` | `src/astromesh_node/__init__.py` | Python 3.12 |
-| **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.1` | `0.4.1` | `astromesh_orbit/__init__.py` | Python 3.12 |
-| **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.24.0` | `0.24.0` | `package.json` | Node 22.12 |
-| **Docs site** | `docs-site` | `docs-site/` | `0.1.0` | `0.1.0` | `package.json` | Node (site build) |
-| **VS Code extension** | `vscode-extension` | `vscode-extension/` | `0.1.0` | `0.1.0` | `package.json` | Node (build) |
-| **Native extension** | `astromesh-native` | `native/` | `0.1.0` | `0.1.0` | `Cargo.toml` | Rust |
+| Component | Package | Directory | Version | Version source | Min Python / Runtime |
+|-----------|---------|-----------|---------|----------------|----------------------|
+| **Core Runtime** | `astromesh` | `astromesh/` | `0.50.0` | `astromesh/__init__.py` | Python 3.12 |
+| **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.2` | `astromesh_glyph/__init__.py` | Python 3.12 |
+| **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.3.0` | `astromesh_adk/__init__.py` | Python 3.12 |
+| **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.3.0` | `astromesh_cli/__init__.py` | Python 3.12 |
+| **Node** | `astromesh-node` | `astromesh-node/` | `0.1.2` | `src/astromesh_node/__init__.py` | Python 3.12 |
+| **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.1` | `astromesh_orbit/__init__.py` | Python 3.12 |
+| **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.24.0` | `package.json` | Node 22.12 |
+| **Docs site** | `docs-site` | `docs-site/` | `0.1.0` | `package.json` | Node (site build) |
+| **VS Code extension** | `vscode-extension` | `vscode-extension/` | `0.1.0` | `package.json` | Node (build) |
+| **Native extension** | `astromesh-native` | `native/` | `0.1.0` | `Cargo.toml` | Rust |
+
+One column and not two: this table used to carry a `main` and a `develop` version side by
+side, from when `develop` was the integration branch. It is not one any more — see
+[section 4](#4-branches-and-release-flow).
 
 ### 1.2 Satellite repositories
 
@@ -36,10 +40,10 @@ These components are part of the Astromesh ecosystem but live in their own repos
 |-----------|------------|-----------------|-----------------|--------|
 | **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.19.0` | Author | Shipped |
 | **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.5.0` | Author | Shipped |
-| **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.1.0` | Reach | Shipped |
+| **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.7.4` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.10.1` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.1.0` | Ship | In development |
-| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.11.0` | Operate | Shipped |
+| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.19.0` | Operate | Shipped |
 | **Nebula** | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | `0.1.0` | Models | Preview |
 
 ## 2. Dependency graph (monorepo)
@@ -67,11 +71,11 @@ flowchart TB
         orbit["astromesh-orbit"]
     end
 
-    adk -->|>=0.30.0| core
-    cli -->|>=0.36.0| core
-    node -->|>=0.18.0| core
-    node -->|>=0.1.0| cli
-    core -.optional: extra glyph.->|>=0.1.0| glyph
+    adk -->|>=0.40.0| core
+    cli -->|>=0.40.0| core
+    node -->|>=0.40.0| core
+    node -->|>=0.3.0| cli
+    core -.optional: extra glyph.->|>=0.1.1| glyph
     orbit -.plugin for.-> cli
 ```
 
@@ -79,11 +83,16 @@ flowchart TB
 
 | Consumer package | Declared dependency | Minimum version | Notes |
 |------------------|---------------------|-----------------|-------|
-| `astromesh-adk` | `astromesh` | `>=0.30.0` | Editable path source in the monorepo (`..`) |
-| `astromesh-cli` | `astromesh` | `>=0.36.0` | Editable path source in the monorepo (`..`) |
-| `astromesh-node` | `astromesh` | `>=0.18.0` | Editable path source in the monorepo (`..`) |
-| `astromesh-node` | `astromesh-cli` | `>=0.1.0` | Editable path source (`../astromesh-cli`) |
-| `astromesh` | `astromesh-glyph` | `>=0.1.0` | Optional extra only (`astromesh[glyph]`); editable path source in the monorepo |
+| `astromesh-adk` | `astromesh` | `>=0.40.0` | Editable path source in the monorepo (`..`) |
+| `astromesh-cli` | `astromesh` | `>=0.40.0` | Editable path source in the monorepo (`..`) |
+| `astromesh-node` | `astromesh` | `>=0.40.0` | Editable path source in the monorepo (`..`) |
+| `astromesh-node` | `astromesh-cli` | `>=0.3.0` | Editable path source (`../astromesh-cli`) |
+| `astromesh` | `astromesh-glyph` | `>=0.1.1` | Optional extra only (`astromesh[glyph]`); editable path source in the monorepo |
+
+These are the floors the packages actually declare, read from their `pyproject.toml`. They
+are not decorative: a floor that lags reality lets `uv` resolve a runtime too old for the
+feature a package depends on, and the failure shows up as behaviour that silently does
+nothing rather than as a resolution error.
 
 ### 2.2 Plugin wiring
 
@@ -130,34 +139,47 @@ All authoring tools produce the same agent spec that the core runtime understand
 
 - **Nebula** (own repo) — Open-model foundry that trains, gates, and publishes the models the runtime routes to.
 
-## 4. `main` vs `develop` status
+## 4. Branches and release flow
 
-Last merge from `develop` to `main`: **v0.45.0**.
+**`main` is the branch.** `origin/HEAD` points at it, every release tag since `v0.46.0` was
+cut on it, and the documentation site publishes from it.
 
-`main` and `develop` are level. The versions in section 1.1 are the versions on both
-branches; when they diverge, the difference is a core release in flight and this line says
-so.
+`develop` still exists and is **not used**: it sits behind `main` and has nothing of its
+own. It was the integration branch until the repository moved, and for a while the way to
+publish the docs was to back-merge `main` into `develop` by hand — the docs workflow was
+still watching that branch. When nobody remembered, the site stayed on the 2026-08-28 build
+for eleven days and three releases while `main` moved on, and nothing said so. The workflow
+now triggers on `main`.
 
-### 4.1 What the v0.41.0 → v0.45.0 run carried
+### 4.1 What the v0.45.0 → v0.50.0 run carried
 
-Five core releases, all of them runtime behaviour rather than site changes. Each is
-described in full in [`CHANGELOG.md`](https://github.com/monaccode/astromesh/blob/main/CHANGELOG.md):
+Each is described in full in [`CHANGELOG.md`](https://github.com/monaccode/astromesh/blob/main/CHANGELOG.md):
 
 | Version | What landed |
 |---------|-------------|
-| `0.41.0` | PRAXIS as a declarative catalog integration — three actions, no runtime code. |
-| `0.42.0` | The **confirmation gate**: an action declared in `confirm:` does not run until a person writes a literal yes. Plus `praxis_cobranzas`. |
-| `0.43.0` | A tool key the runtime does not read stops being ignored in silence — it warns, naming the agent, the tool and the keys. |
-| `0.44.0` | **Conversational memory was dead code.** No agent had memory with any backend, and the spans still reported `ok`. Fixed, and an unbuildable backend now degrades with a warning that names it. |
-| `0.44.1` / `0.44.2` | `0.44.0` never reached PyPI (version mismatch gate); the model provider's error body now propagates instead of a bare `400 Bad Request`. |
-| `0.45.0` | `praxis_inmobiliaria` and `praxis_mecanicos` — the second had been declared by a live template that the runtime was silently skipping. |
+| `0.46.0` | `praxis_alcaldia` — the municipal-revenue vertical joins the integration catalog. |
+| `0.46.1` / `0.46.2` | `mi_cuenta` also returns the day's rate; the runtime stops re-prefixing a `session_id` that Nexus already namespaced. |
+| `0.47.0` | An integration handler can know **who is writing** — the caller's identity reaches the handler instead of being dropped at the boundary. |
+| `0.48.0` | ReAct groups the tool calls of one response into a single assistant message instead of repeating the reasoning; the `llm.complete` span carries `cached_tokens`, so the context cache can be measured rather than assumed. |
+| `0.49.0` | `praxis.obtener_record` — an agent can follow a relation. `buscar_records` filters on **declared** fields and `id` is a system column, so `id:eq:<uuid>` came back `422`; without a way to read by id an agent duplicated a record instead of failing. |
+| `0.50.0` | Price rows for `kimi-k2.7-code`, `kimi-k2.7-code-highspeed` and `kimi-k3`. `estimated_cost()` returns `0.0` for a model it does not know, so an agent pointed at `kimi-k3` ran perfectly and reported no cost at all. |
 
 ### 4.2 Release flow
 
-1. Update `CHANGELOG.md` under `[Unreleased]`.
-2. Run `cz bump` on `develop` to bump `astromesh` (it moves `pyproject.toml` and `astromesh/__init__.py` together).
-3. Re-lock `uv.lock` in the root, `astromesh-node/` and `astromesh-cli/` — all three record the core version, and CI installs with `uv sync --locked`.
-4. Merge `develop` into `main` and push the tag `vX.Y.Z`. Pushing the tag publishes to PyPI.
+1. Update `CHANGELOG.md` under the new version's heading.
+2. Bump `astromesh` — `pyproject.toml` (**two** places: `project.version` and
+   `[tool.commitizen] version`, which is not in `version_files` and does not move on its
+   own) and `astromesh/__init__.py`. `tests/test_version_coherente.py` compares the three.
+3. Re-lock **all three** `uv.lock` files — root, `astromesh-cli/` and `astromesh-node/`.
+   The sub-packages depend on the root and their jobs run `uv sync --locked`, so a stale
+   lock turns jobs red that have nothing to do with the change.
+4. Push `main`, then push the tag `vX.Y.Z`.
+
+The tag fires **two independent publications** — Docker Hub (`Release`) and PyPI
+(`Release PyPI`) — and one can fail while the other succeeds. PyPI additionally gates on
+`pyproject.toml` and `astromesh/__init__.py` agreeing. Check both before calling a release
+done: `v0.50.0` published its image and failed on PyPI, leaving the package split across
+registries until the job was re-run.
 
 ## 5. Keeping this page current
 

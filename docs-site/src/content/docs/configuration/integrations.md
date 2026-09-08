@@ -49,10 +49,11 @@ Manifests are auto-discovered from `astromesh/integrations/catalog/`. What ships
 | `facebook` | `list_page_posts`, `get_post`, `list_comments`, `create_post` | Page feed and comments. |
 | `instagram` | `list_media`, `get_media`, `list_comments`, `publish_photo`, `publish_container` | Publishing chains container + publish in one handler. |
 | `tiktok` | `get_user_info`, `list_videos`, `publish_video`, `get_publish_status` | Paginates over POST bodies (`cursor_in: body`). |
-| `praxis` | `buscar_records`, `crear_record`, `actualizar_record` | Generic CRUD over any entity of the PRAXIS ERP. |
+| `praxis` | `buscar_records`, `obtener_record`, `crear_record`, `actualizar_record` | Generic CRUD over any entity of the PRAXIS ERP. `obtener_record` reads one row by id — `buscar_records` cannot, because its filter resolves against *declared* fields and `id` is a system column, so `id:eq:<uuid>` comes back `422`. |
 | `praxis_cobranzas` | `simular_planes`, `registrar_acuerdo` | Debt-collection vertical: offer payment plans, record the agreement. |
 | `praxis_mecanicos` | `saldo_cliente`, `disponibilidad` | Workshop vertical: what a customer owes, and free slots in the calendar. |
 | `praxis_inmobiliaria` | `informar_pago` | Rentals vertical: record a payment a tenant reports, in one idempotent call. |
+| `praxis_alcaldia` | `mi_cuenta`, `consultar_clasificador`, `informar_pago` | Municipal-revenue vertical. `mi_cuenta` takes **no parameters** on purpose: the taxpayer's identity comes from the channel, never from the conversation, so there is no way to ask for somebody else's account. |
 
 The `praxis_*` manifests are deliberately separate from `praxis`: the generic one serves
 any customer, the verticals name a domain. They share the same connection.
