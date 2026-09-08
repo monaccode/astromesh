@@ -21,15 +21,34 @@ PRICING: dict[str, tuple[float, float]] = {
     "gpt-4-turbo": (0.0100, 0.0300),
     "gpt-4": (0.0300, 0.0600),
     "gpt-3.5-turbo": (0.0005, 0.0015),
-    # Moonshot / Kimi (cache-miss). Confirm against the account before publishing.
+    # Moonshot / Kimi (cache-miss), from the vendor's published tables, read
+    # 2026-09-08: platform.kimi.ai/docs/pricing/chat-{k26,k27-code,k3}. Divide the
+    # per-1M prices there by 1000. `kimi-k2.6` already matched those three numbers
+    # before this table listed a source, which is what makes the rest credible.
+    #
+    # `kimi-k2.5` is RETIRED — Moonshot answers 404 for it since 2026-09-08. The row
+    # stays because removing a price rewrites what a past run cost, and nothing can
+    # call the model any more anyway.
+    #
+    # The account balance is NOT a way to confirm these: /v1/users/me/balance settles
+    # in arrears (measured 2026-09-08 — two paid calls, balance unchanged 12s later),
+    # so a before/after read shows zero and proves nothing.
     "kimi-k2.5": (0.0006, 0.0025),
     "kimi-k2.6": (0.00095, 0.0040),
+    "kimi-k2.7-code": (0.00095, 0.0040),
+    "kimi-k2.7-code-highspeed": (0.0019, 0.0080),
+    "kimi-k3": (0.0030, 0.0150),
 }
 
-# Cached-input rates (Moonshot/Kimi context cache). Confirm against the account before publishing.
+# Cached-input rates (Moonshot/Kimi context cache), same source and same date.
+# A model absent here is charged the cache-MISS rate on its cached tokens, which
+# overstates the cost rather than understating it — see estimated_cost().
 CACHE_INPUT_PRICING: dict[str, float] = {
     "kimi-k2.5": 0.0001,
     "kimi-k2.6": 0.00016,
+    "kimi-k2.7-code": 0.00019,
+    "kimi-k2.7-code-highspeed": 0.00038,
+    "kimi-k3": 0.00030,
 }
 
 

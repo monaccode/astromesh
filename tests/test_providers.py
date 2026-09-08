@@ -16,6 +16,7 @@ from astromesh.providers.ollama_provider import OllamaProvider
 from astromesh.providers.onnx_provider import ONNXProvider
 from astromesh.providers.openai_compat import (
     CACHE_INPUT_PRICING,
+    PRICING,
     OpenAICompatProvider,
     _normalize_tool_calls,
     _provider_label,
@@ -577,9 +578,39 @@ def test_estimated_cost_cache_discount_k26():
     )
 
 
-def test_cache_input_pricing_has_kimi():
-    assert CACHE_INPUT_PRICING["kimi-k2.5"] == 0.0001
-    assert CACHE_INPUT_PRICING["kimi-k2.6"] == 0.00016
+# La tabla PUBLICADA por Moonshot, en USD por 1M de tokens, leída el 2026-09-08 de
+# platform.kimi.ai/docs/pricing/chat-{k26,k27-code,k3}. Se declara en las unidades
+# del vendedor a propósito: el error probable no es copiar mal un número, es
+# perder un cero al dividir por 1000, y eso cobra 10x sin que nada falle. Escrita
+# en per-1k a los dos lados, el test compararía el mismo desliz contra sí mismo.
+#
+# `kimi-k2.5` no está: Moonshot lo dio de baja (404 desde el 2026-09-08) y ya no
+# publica su precio, así que no hay tabla contra la cual fijarlo.
+TARIFA_PUBLICADA_POR_1M = {
+    # modelo: (entrada cache-miss, entrada cache-hit, salida)
+    "kimi-k2.6": (0.95, 0.16, 4.00),
+    "kimi-k2.7-code": (0.95, 0.19, 4.00),
+    "kimi-k2.7-code-highspeed": (1.90, 0.38, 8.00),
+    "kimi-k3": (3.00, 0.30, 15.00),
+}
+
+
+@pytest.mark.parametrize("modelo", sorted(TARIFA_PUBLICADA_POR_1M))
+def test_pricing_kimi_coincide_con_la_tabla_publicada(modelo):
+    por_1m_in, por_1m_hit, por_1m_out = TARIFA_PUBLICADA_POR_1M[modelo]
+    assert PRICING[modelo] == pytest.approx((por_1m_in / 1000, por_1m_out / 1000))
+    assert CACHE_INPUT_PRICING[modelo] == pytest.approx(por_1m_hit / 1000)
+
+
+def test_todo_kimi_con_precio_tiene_tarifa_cacheada():
+    """Un kimi en PRICING y no en CACHE_INPUT_PRICING sobrefactura y no falla.
+
+    `estimated_cost` cae a la tarifa de cache-miss cuando no encuentra la
+    cacheada, así que el descuento del contexto cacheado —que en k3 es 10x—
+    desaparece en silencio.
+    """
+    con_precio = {m for m in PRICING if m.startswith("kimi")}
+    assert con_precio - set(CACHE_INPUT_PRICING) == set()
 
 
 # ===================================================================

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.50.0] - 2026-09-08
+
+### Added
+
+- **Precio para los tres modelos Kimi que faltaban.** `PRICING` sólo conocía
+  `kimi-k2.5` y `kimi-k2.6`, y `estimated_cost()` devuelve **0.0** para un modelo
+  que no encuentra: apuntar un agente a `kimi-k3` lo dejaba corriendo bien y
+  costando cero en todo ledger río abajo, con los topes de gasto sin nada que
+  medir. Entran `kimi-k2.7-code`, `kimi-k2.7-code-highspeed` y `kimi-k3`, con su
+  tarifa de contexto cacheado en `CACHE_INPUT_PRICING`.
+
+  Los números salen de las tablas **publicadas por el vendedor**, leídas el
+  2026-09-08 (`platform.kimi.ai/docs/pricing/chat-{k26,k27-code,k3}`), y la
+  tabla ahora dice de dónde: el comentario decía *"confirm against the account
+  before publishing"* y nadie podía saber si eso se había hecho. Lo que las hace
+  creíbles es que **`kimi-k2.6` ya coincidía con sus tres números** —0.95 /
+  0.16 / 4.00 por 1M— antes de que esta tabla citara una fuente.
+
+  **El saldo de la cuenta NO sirve para confirmarlas**: `/v1/users/me/balance`
+  liquida en diferido (medido el 2026-09-08: dos llamadas pagas, saldo idéntico
+  12s después), así que una lectura antes/después da cero y no prueba nada.
+
+  `kimi-k2.5` queda con su fila aunque Moonshot lo haya dado de baja (404 desde
+  el 2026-09-08): sacarle el precio reescribiría lo que costó una corrida
+  pasada, y ya no hay forma de llamarlo.
+
+  Dos tests lo sostienen. Uno declara la tabla del vendedor **en las unidades del
+  vendedor** (USD por 1M) y compara contra el per-1k del código, porque el error
+  probable no es copiar mal un número sino perder un cero al dividir —y eso cobra
+  10x sin que nada falle—; escrito en per-1k a los dos lados, el test compararía
+  el mismo desliz contra sí mismo. El otro exige que todo Kimi con precio tenga
+  tarifa cacheada: sin ella `estimated_cost` cae a la de cache-miss y el
+  descuento, que en k3 es 10x, desaparece en silencio.
+
 ## [0.49.0] - 2026-09-08
 
 ### Added
