@@ -239,7 +239,7 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl: 'https://github.com/monaccode/astromesh/edit/develop/docs-site/',
+        baseUrl: 'https://github.com/monaccode/astromesh/edit/main/docs-site/',
       },
       customCss: ['./src/styles/custom.css'],
     }),

@@ -2,10 +2,17 @@ name: Deploy Docs
 
 on:
   push:
-    branches: [develop]
+    # `main`, no `develop`. El repo se mudó a main —ahí salen los releases y ahí
+    # apunta origin/HEAD— y este workflow se quedó mirando la rama vieja: para
+    # publicar había que back-mergear main→develop a mano, y cuando nadie se
+    # acordó el sitio quedó 10 commits y tres releases atrás (0.48, 0.49, 0.50),
+    # publicando desde el 2026-08-28 hasta el 2026-09-08 sin que nada avisara.
+    branches: [main]
     paths:
       - 'docs-site/**'
       - 'docs/**'
+  # Para republicar sin tener que tocar un archivo de docs.
+  workflow_dispatch:
 
 permissions:
   contents: read

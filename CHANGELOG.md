@@ -33,6 +33,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     tiene que guardarse con `prefetch is defined`: `SilentUndefined` no silencia
     leer un atributo de algo indefinido.
 
+## [0.50.0] - 2026-09-08
+
+### Added
+
+- **Precio para los tres modelos Kimi que faltaban.** `PRICING` sólo conocía
+  `kimi-k2.5` y `kimi-k2.6`, y `estimated_cost()` devuelve **0.0** para un modelo
+  que no encuentra: apuntar un agente a `kimi-k3` lo dejaba corriendo bien y
+  costando cero en todo ledger río abajo, con los topes de gasto sin nada que
+  medir. Entran `kimi-k2.7-code`, `kimi-k2.7-code-highspeed` y `kimi-k3`, con su
+  tarifa de contexto cacheado en `CACHE_INPUT_PRICING`.
+
+  Los números salen de las tablas **publicadas por el vendedor**, leídas el
+  2026-09-08 (`platform.kimi.ai/docs/pricing/chat-{k26,k27-code,k3}`), y la
+  tabla ahora dice de dónde: el comentario decía *"confirm against the account
+  before publishing"* y nadie podía saber si eso se había hecho. Lo que las hace
+  creíbles es que **`kimi-k2.6` ya coincidía con sus tres números** —0.95 /
+  0.16 / 4.00 por 1M— antes de que esta tabla citara una fuente.
+
+  **El saldo de la cuenta NO sirve para confirmarlas**: `/v1/users/me/balance`
+  liquida en diferido (medido el 2026-09-08: dos llamadas pagas, saldo idéntico
+  12s después), así que una lectura antes/después da cero y no prueba nada.
+
+  `kimi-k2.5` queda con su fila aunque Moonshot lo haya dado de baja (404 desde
+  el 2026-09-08): sacarle el precio reescribiría lo que costó una corrida
+  pasada, y ya no hay forma de llamarlo.
+
+  Dos tests lo sostienen. Uno declara la tabla del vendedor **en las unidades del
+  vendedor** (USD por 1M) y compara contra el per-1k del código, porque el error
+  probable no es copiar mal un número sino perder un cero al dividir —y eso cobra
+  10x sin que nada falle—; escrito en per-1k a los dos lados, el test compararía
+  el mismo desliz contra sí mismo. El otro exige que todo Kimi con precio tenga
+  tarifa cacheada: sin ella `estimated_cost` cae a la de cache-miss y el
+  descuento, que en k3 es 10x, desaparece en silencio.
+
+## [0.49.0] - 2026-09-08
+
+### Added
+
+- **`praxis.obtener_record`: un agente ya puede seguir una relación.** La
+  integración de PRAXIS tenía tres acciones y ninguna leía un registro por su
+  id: `buscar_records` es `GET /api/data/{entidad}` con `filter`, y ese filtro
+  resuelve contra los campos **declarados** de la entidad
+  (`praxis/apps/backend/src/records/query-builder.ts:224`) — `id` es columna de
+  sistema, no campo, así que `id:eq:<uuid>` sale **422 `unknown field 'id'`**.
+  O sea que el agente podía escribir por id (`actualizar_record` es
+  `PATCH /api/data/{entidad}/{id}`) pero no leer por id, aunque PRAXIS sirve
+  esa ruta desde siempre (`records.controller.ts:192`).
+
+  **Lo que costó el hueco, medido en `praxis-mvp` el 2026-09-08:** el agente de
+  FAINANSU leyó un `fai_contacto`, sacó su campo `empresa` —un uuid—, intentó
+  `fai_empresa id:eq:<uuid>`, se comió el 422, cayó a buscar por nombre y
+  terminó con **dos `FAinansu` creadas con 2,7 segundos de diferencia**. No
+  falló nada visible: duplicó.
+
+  La descripción de la acción nombra el 422 y el 404 a propósito. El modelo
+  sólo lee eso, y las dos cosas que tiene que saber son que el atajo por
+  `filter` no existe y que un 404 **no es permiso para crear de nuevo** —que
+  fue exactamente el camino al duplicado—. Hay un test que se pone rojo si
+  alguien recorta cualquiera de las dos.
+
+### Fixed
+
+- **La CI estaba roja en `main` desde el 2026-09-04, por tres cosas y ninguna
+  era un test.** El job `test` moría en `ruff format --check` sobre dos
+  archivos que la 0.48.0 no formateó (`astromesh/core/tools.py` y
+  `tests/test_integration_catalog_praxis_alcaldia.py`), y como el formato corre
+  **antes** que `pytest`, la suite no llegaba a ejecutarse nunca. `test-cli` y
+  `test-node` morían a los 4 segundos en `uv sync --locked`: los locks de esos
+  dos subproyectos habían quedado en `astromesh 0.45.0`. Las tres arregladas;
+  los tres jobs corren de verdad otra vez.
+
+## [0.48.0] - 2026-09-04
+
+### Changed
+
+- **ReAct agrupa las tool calls de una misma respuesta en UN mensaje del
+  asistente.** El bucle emitía un `assistant` POR cada `tool_call`, y cada uno
+  repetía el mismo `content` y el mismo `reasoning_content` de esa respuesta —
+  que en un modelo de razonamiento (Kimi k2.x) es la parte más larga del
+  mensaje. Con tres tools en una respuesta el razonamiento viajaba tres veces,
+  y como el transcripto se re-manda entero en cada vuelta siguiente del bucle,
+  ese triple se volvía a pagar en todas. Ahora va un `assistant` con la lista
+  completa de `tool_calls` seguido de un `tool` por cada uno, apareados por
+  `tool_call_id`, que además es la forma que el protocolo de OpenAI define.
+  El caso de UNA sola tool no cambia de forma, y hay un test que lo fija:
+  ningún test cubría más de una tool por respuesta, así que la duplicación
+  pasaba en verde.
+
+### Added
+
+- **El span `llm.complete` lleva `cached_tokens`.** El provider ya los leía
+  (`read_cached_tokens`) y `estimated_cost()` ya los descontaba, pero el dato
+  no quedaba en ninguna parte: no estaba en el span y Nexus no tiene columna
+  para él. Sin eso, `input_tokens` se lee como si todo se pagara a precio
+  lleno y **cualquier optimización de prefijo es inverificable**. Medido
+  contra Moonshot el 2026-09-04: cachea en bloques de 4096 tokens y llega al
+  86-88% del prompt cuando el prefijo es estable.
+
 ### Added (Docs site)
 
 - **Las integraciones tienen página** (`configuration/integrations`). El marco existe desde
@@ -81,6 +179,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   la verificaba: `cz bump` la lee como versión ACTUAL, y desde 0.44.2 habría calculado
   0.45.0 —un tag que ya existe—. `tests/test_version_coherente.py` ahora compara las tres
   copias, no dos.
+
+## [0.47.0] - 2026-09-01
+
+### Added
+
+- **Un handler de integración puede saber quién escribe.** La identidad de quien
+  origina la llamada llegaba hasta el borde y ahí se perdía, así que un handler
+  no podía distinguir a un contribuyente de otro y toda regla de identidad tenía
+  que resolverse fuera del catálogo. Es lo que hace posible `mi_cuenta` de
+  `praxis_alcaldia`, que no recibe a quién consultar **a propósito**: preguntarlo
+  sería dejar que la conversación elija de quién son los datos.
+
+## [0.46.2] - 2026-09-01
+
+### Fixed
+
+- **El `session_id` que llega al runtime ya viene prefijado por Nexus**, y el
+  runtime lo volvía a prefijar. Un parser que lee desde el principio falla para
+  TODOS los canales, y el síntoma engaña porque la sesión igual se rechaza.
+
+## [0.46.1] - 2026-09-01
+
+### Added
+
+- **`mi_cuenta` devuelve también la tasa del día.** Sin ella el agente contesta
+  en unidades de cuenta y quien pregunta necesita bolívares: el dato existía en
+  el ERP y no llegaba a la conversación.
+
+## [0.46.0] - 2026-09-01
+
+### Added
+
+- **`praxis_alcaldia`**, el vertical de recaudación municipal, entra al catálogo
+  de integraciones: `mi_cuenta`, `consultar_clasificador` e `informar_pago`.
+  Aparte del manifiesto `praxis` genérico a propósito —aquel sirve a cualquier
+  cliente, éste nombra un dominio— y compartiendo su conexión y su credencial.
+
+  `informar_pago` **no acredita** el pago: nadie vio un comprobante, así que deja
+  un aviso para que la alcaldía concilie, y el prompt tiene que decirlo con esas
+  palabras. Llamarla dos veces no duplica nada.
 
 ## [0.45.0] - 2026-08-28
 

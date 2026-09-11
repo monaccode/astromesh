@@ -42,6 +42,48 @@ class ReActPattern(OrchestrationPattern):
         for _ in range(max_iterations):
             response = await model_fn(messages, tools, role="reasoner")
             if response.tool_calls:
+                # UN assistant con TODAS las tool_calls de esta respuesta, y
+                # después un `tool` por cada una. Es la forma de OpenAI, y
+                # además es la barata: antes se emitía un assistant POR
+                # tool_call, y cada uno repetía el mismo `content` y el mismo
+                # `reasoning_content`. En un modelo de razonamiento —Kimi k2.x,
+                # el que corre toda la flota— el razonamiento es la parte más
+                # larga del mensaje, así que tres tools en una respuesta lo
+                # mandaban tres veces; y como el transcripto se re-manda entero
+                # en cada vuelta siguiente, ese triple se volvía a pagar en
+                # todas. Lo fija `test_react_agrupa_tool_calls_de_una_misma_respuesta`.
+                #
+                # Reshape the normalized internal tool_call back to OpenAI
+                # format before echoing it to the LLM. Since 0.28.4 the
+                # provider normalizes tool_calls to {id, name, arguments:dict}
+                # for internal consumption — but the assistant.tool_calls
+                # field sent over the wire MUST be the nested OpenAI shape
+                # {id, type:"function", function:{name, arguments:<JSON
+                # string>}}, or the API rejects the next request as 400.
+                assistant_msg = {
+                    "role": "assistant",
+                    "content": response.content,
+                    "tool_calls": [
+                        {
+                            "id": tc["id"],
+                            "type": "function",
+                            "function": {
+                                "name": tc["name"],
+                                "arguments": json_mod.dumps(tc["arguments"], ensure_ascii=False),
+                            },
+                        }
+                        for tc in response.tool_calls
+                    ],
+                }
+                # Thinking models (Kimi k2.5/k2.6 on Moonshot) require the
+                # assistant's reasoning_content to be echoed back on the
+                # tool-call message, or the next request 400s with
+                # "reasoning_content is missing in assistant tool call message".
+                reasoning = getattr(response, "reasoning_content", None)
+                if reasoning:
+                    assistant_msg["reasoning_content"] = reasoning
+                messages.append(assistant_msg)
+
                 for tc in response.tool_calls:
                     observation = await tool_fn(tc["name"], tc["arguments"])
                     steps.append(
@@ -52,34 +94,6 @@ class ReActPattern(OrchestrationPattern):
                             observation=str(observation),
                         )
                     )
-                    # Reshape the normalized internal tool_call back to OpenAI
-                    # format before echoing it to the LLM. Since 0.28.4 the
-                    # provider normalizes tool_calls to {id, name, arguments:dict}
-                    # for internal consumption — but the assistant.tool_calls
-                    # field sent over the wire MUST be the nested OpenAI shape
-                    # {id, type:"function", function:{name, arguments:<JSON
-                    # string>}}, or the API rejects the next request as 400.
-                    oai_tc = {
-                        "id": tc["id"],
-                        "type": "function",
-                        "function": {
-                            "name": tc["name"],
-                            "arguments": json_mod.dumps(tc["arguments"], ensure_ascii=False),
-                        },
-                    }
-                    assistant_msg = {
-                        "role": "assistant",
-                        "content": response.content,
-                        "tool_calls": [oai_tc],
-                    }
-                    # Thinking models (Kimi k2.5/k2.6 on Moonshot) require the
-                    # assistant's reasoning_content to be echoed back on the
-                    # tool-call message, or the next request 400s with
-                    # "reasoning_content is missing in assistant tool call message".
-                    reasoning = getattr(response, "reasoning_content", None)
-                    if reasoning:
-                        assistant_msg["reasoning_content"] = reasoning
-                    messages.append(assistant_msg)
                     messages.append(
                         {
                             "role": "tool",

@@ -110,10 +110,20 @@ jobs:
               --only-binary=:all: \
               --index-url https://pypi.org/simple \
               --extra-index-url https://test.pypi.org/simple \
-              "astromesh==${CORE_VERSION}" && break
+              "astromesh==${CORE_VERSION}" && instalado=1 && break
             echo "Not yet available, waiting 30s..."
             sleep 30
           done
+          # Sin esta línea el paso sale en VERDE aunque los cinco intentos
+          # fallen: el estado de un `for` es el del último comando que corrió,
+          # que acá es `sleep 30`. La falla aparecía recién en "Verify import"
+          # como `ModuleNotFoundError: No module named 'astromesh'`, que se lee
+          # como un paquete roto y no como "TestPyPI nunca lo sirvió". Pasó en
+          # v0.50.0, sobre un release que era un dict de precios.
+          if [ "${instalado:-}" != "1" ]; then
+            echo "::error::astromesh==${CORE_VERSION} no se pudo instalar desde TestPyPI tras 5 intentos"
+            exit 1
+          fi
 
       - name: Verify import
         run: |

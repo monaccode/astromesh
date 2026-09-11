@@ -347,3 +347,67 @@ async def test_react_without_history_unchanged():
 
     await ReActPattern().execute("q", {}, model_fn, tool_fn, [], max_iterations=3)
     assert seen["messages"] == [{"role": "user", "content": "q"}]
+
+
+@pytest.mark.asyncio
+async def test_react_agrupa_tool_calls_de_una_misma_respuesta():
+    """Varias tools en UNA respuesta van en UN assistant, no en uno por tool.
+
+    **Es un ahorro de tokens y además la forma correcta del protocolo.** El
+    bucle armaba un `assistant` por cada `tool_call`, y cada uno repetía el
+    MISMO `content` y el MISMO `reasoning_content` de esa respuesta — que en un
+    modelo de razonamiento (Kimi k2.x, el que corre toda la flota) es la parte
+    más larga del mensaje. Con tres tools en una respuesta, el razonamiento
+    viajaba tres veces; y como el transcripto se re-manda entero en cada vuelta
+    siguiente del ReAct, ese triple se pagaba otra vez en cada una.
+
+    La forma de OpenAI es un `assistant` con la lista completa de `tool_calls`
+    seguido de un `tool` por cada uno, apareados por `tool_call_id`. Ningún test
+    cubría el caso de más de una tool por respuesta, así que la duplicación
+    pasaba en verde.
+    """
+    tc1 = {"id": "tc_1", "name": "buscar", "arguments": {"q": "a"}}
+    tc2 = {"id": "tc_2", "name": "buscar", "arguments": {"q": "b"}}
+
+    primera = make_response("Voy a buscar las dos.", tool_calls=[tc1, tc2])
+    primera.reasoning_content = "un razonamiento largo que no hay que repetir"
+    model_fn = AsyncMock(side_effect=[primera, make_response("Listo.")])
+    tool_fn = AsyncMock(side_effect=[{"r": 1}, {"r": 2}])
+
+    pattern = ReActPattern()
+    await pattern.execute(
+        query="buscá las dos",
+        context={},
+        model_fn=model_fn,
+        tool_fn=tool_fn,
+        tools=[],
+    )
+
+    # Lo que el modelo ve en la SEGUNDA vuelta es lo que se paga.
+    enviados = model_fn.call_args_list[1].args[0]
+    asistentes = [m for m in enviados if m["role"] == "assistant"]
+    tools_msgs = [m for m in enviados if m["role"] == "tool"]
+
+    assert len(asistentes) == 1, "un assistant por respuesta, no uno por tool"
+    assert [tc["id"] for tc in asistentes[0]["tool_calls"]] == ["tc_1", "tc_2"]
+    # El razonamiento viaja UNA vez.
+    assert sum(1 for m in enviados if m.get("reasoning_content")) == 1
+    # Y cada tool_call sigue teniendo su resultado, apareado por id.
+    assert [m["tool_call_id"] for m in tools_msgs] == ["tc_1", "tc_2"]
+
+
+@pytest.mark.asyncio
+async def test_react_una_sola_tool_sigue_igual():
+    """El caso de una tool no cambia de forma: un assistant, un tool."""
+    tc = {"id": "tc_1", "name": "buscar", "arguments": {"q": "a"}}
+    model_fn = AsyncMock(
+        side_effect=[make_response("Busco.", tool_calls=[tc]), make_response("Listo.")]
+    )
+    tool_fn = AsyncMock(return_value={"r": 1})
+
+    pattern = ReActPattern()
+    await pattern.execute(query="buscá", context={}, model_fn=model_fn, tool_fn=tool_fn, tools=[])
+
+    enviados = model_fn.call_args_list[1].args[0]
+    assert [m["role"] for m in enviados] == ["user", "assistant", "tool"]
+    assert len(enviados[1]["tool_calls"]) == 1
