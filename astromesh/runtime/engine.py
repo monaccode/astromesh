@@ -26,6 +26,7 @@ from astromesh.orchestration.patterns import (
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
 from astromesh.runtime.confirmacion import Pendientes, huella
+from astromesh.runtime.prefetch import validar_prefetch
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
 
 logger = logging.getLogger(__name__)
@@ -890,6 +891,9 @@ class AgentRuntime:
         prompts = spec.get("prompts", {})
         for name, tmpl in prompts.get("templates", {}).items():
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
+        # Después de registrar TODAS las tools: el prefetch nombra una por su
+        # nombre registrado (`<slug>_<acción>`).
+        prefetch = validar_prefetch(metadata["name"], spec.get("prefetch"), tools)
         return Agent(
             name=metadata["name"],
             version=metadata.get("version", "0.1.0"),
@@ -906,6 +910,7 @@ class AgentRuntime:
             orchestration_config=spec.get("orchestration", {}),
             rag=rag,
             output_schema=normalize_output_schema(spec.get("output_schema")),
+            prefetch=prefetch,
         )
 
     def _build_pattern(self, spec: dict, tool_schemas: list[dict] | None = None):
@@ -1144,6 +1149,7 @@ class Agent:
         orchestration_config,
         rag=None,
         output_schema=None,
+        prefetch=None,
     ):
         self.name = name
         self.version = version
@@ -1161,6 +1167,7 @@ class Agent:
         self._permissions = permissions
         self._output_schema = output_schema
         self._orchestration_config = orchestration_config
+        self._prefetch = prefetch or []
 
     async def run(
         self,
