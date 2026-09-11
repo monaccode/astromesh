@@ -23,6 +23,15 @@ class PromptEngine:
     def render(self, template_str, variables):
         return self._env.from_string(template_str).render(**variables)
 
+    def evaluate(self, expression, variables):
+        """Evalúa una EXPRESIÓN Jinja (sin llaves) y devuelve el valor, no un string.
+
+        El `when` de `spec.prefetch` se evalúa acá y no con `render`: `{{ rows }}`
+        de una lista vacía renderiza "[]", que no es vacío. Una variable indefinida
+        da `None`, y `a and a.b` corta antes de leer `b` de algo indefinido.
+        """
+        return self._env.compile_expression(expression, undefined_to_none=True)(**variables)
+
     def register_template(self, name, template_str, scope=None):
         self._templates[(scope, name)] = template_str
 

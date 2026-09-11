@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.0] - 2026-09-11
+
+### Added
+
+- **`spec.prefetch`: búsquedas de solo lectura antes del LLM.** Una lista de
+  entradas `{name, tool, arguments, when}` que el runtime corre en orden, entre
+  `rag_build` y `prompt_render`, por `ToolRegistry.execute` y con las mismas
+  credenciales de la corrida que usa `tool_fn`. El resultado queda en la variable
+  `prefetch` del prompt (`prefetch.<name>` = `{success, data, metadata, error}`) y
+  cada llamada deja un span `tool.prefetch`.
+
+  Por qué existe: un turno que siempre empieza buscando lo mismo gasta un viaje
+  al LLM por búsqueda sólo para decidir hacerla. Medido en el auditor del kiosco
+  de CLARUS: ~5 s por viaje contra ~55 ms de la búsqueda.
+
+  Tres cosas que no se deducen del diff:
+
+  - **`when` es una expresión, no un string renderizado.** `{{ rows }}` de una
+    lista vacía renderiza `"[]"`, que no es vacío. Se evalúa con
+    `PromptEngine.evaluate` (`compile_expression`).
+  - **Una declaración inválida no carga el agente** (tool no registrada, acción
+    que no es GET, acción en `confirm`, `name` repetido), a diferencia del resto
+    del spec: saltearlo en silencio deja al modelo sin los datos.
+  - **Una búsqueda que falla no tumba la corrida**: queda `success: false` y el
+    modelo conserva sus tools. Un prompt que lea `prefetch` en un runtime anterior
+    tiene que guardarse con `prefetch is defined`: `SilentUndefined` no silencia
+    leer un atributo de algo indefinido.
+
 ## [0.50.0] - 2026-09-08
 
 ### Added

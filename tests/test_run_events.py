@@ -83,6 +83,7 @@ def _make_agent(pattern, tool_impl=None, model_content="thinking"):
     agent._rag = None
     agent._knowledge = None
     agent._system_prompt = "you are a test agent"
+    agent._prefetch = []
 
     router = MagicMock()
     router.route = AsyncMock(return_value=FakeResponse(content=model_content))
