@@ -91,6 +91,7 @@ def _agent(tools: ToolRegistry, pattern) -> Agent:
     agent._rag = None
     agent._knowledge = None
     agent._system_prompt = "you are a test agent"
+    agent._prefetch = []
     agent._tools = tools
 
     router = MagicMock()

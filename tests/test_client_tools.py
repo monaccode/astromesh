@@ -194,6 +194,7 @@ async def test_a_client_tool_reaches_a_consumer_live_and_in_steps():
     agent._rag = None
     agent._knowledge = None
     agent._system_prompt = "you are a test agent"
+    agent._prefetch = []
 
     router = MagicMock()
     router.route = AsyncMock(return_value=_FakeResponse(content="narrando"))

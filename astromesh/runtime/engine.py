@@ -26,7 +26,7 @@ from astromesh.orchestration.patterns import (
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
 from astromesh.runtime.confirmacion import Pendientes, huella
-from astromesh.runtime.prefetch import validar_prefetch
+from astromesh.runtime.prefetch import ejecutar_prefetch, validar_prefetch
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
 
 logger = logging.getLogger(__name__)
@@ -1229,10 +1229,43 @@ class Agent:
             knowledge_context = await self._rag.build_context(query_text) if self._rag else ""
             tracing.finish_span(rag_span)
 
+            # La credencial que Nexus acuña por invocación, si el llamador es
+            # Nexus. Clave reservada (prefijo `_`), así que nunca llegó a un
+            # patrón ni a la traza — ver `_public_caller_context` — y de acá baja
+            # a las tools por el dict de `tool_fn`, no por `args`, por lo mismo.
+            # Muere con la corrida: no hay nada que rotar ni que revocar.
+            run_secrets = {}
+            run_token = (context or {}).get("_nexus_run_token")
+            if run_token:
+                run_secrets["NEXUS_RUN_TOKEN"] = run_token
+
+            # Las búsquedas fijas del turno, antes del LLM: con las MISMAS
+            # credenciales que `tool_fn` (connections + run_secrets). Ver
+            # astromesh/runtime/prefetch.py.
+            prefetch_resultados = await ejecutar_prefetch(
+                self._prefetch,
+                tools=self._tools,
+                prompt_engine=self._prompt_engine,
+                context=context,
+                tool_context={
+                    "agent": self.name,
+                    "session": session_id,
+                    "connections": connections or {},
+                    "secrets": run_secrets,
+                },
+                tracing=tracing,
+                parent_span_id=root_span.span_id,
+            )
+
             prompt_span = tracing.start_span("prompt_render")
             rendered_prompt = self._prompt_engine.render(
                 self._system_prompt,
-                {**(context or {}), "memory": memory_context, "knowledge": knowledge_context},
+                {
+                    **(context or {}),
+                    "memory": memory_context,
+                    "knowledge": knowledge_context,
+                    "prefetch": prefetch_resultados,
+                },
             )
             if self._output_schema:
                 # Ningún provider del repo soporta response_format/json_schema, así
@@ -1260,16 +1293,6 @@ class Agent:
                 override_key = provider_override_config["key"]
                 override_provider = create_provider(override_name, api_key=override_key)
                 route_kwargs["provider_override"] = (override_name, override_provider)
-
-            # La credencial que Nexus acuña por invocación, si el llamador es
-            # Nexus. Clave reservada (prefijo `_`), así que nunca llegó a un
-            # patrón ni a la traza — ver `_public_caller_context` — y de acá baja
-            # a las tools por el dict de `tool_fn`, no por `args`, por lo mismo.
-            # Muere con la corrida: no hay nada que rotar ni que revocar.
-            run_secrets = {}
-            run_token = (context or {}).get("_nexus_run_token")
-            if run_token:
-                run_secrets["NEXUS_RUN_TOKEN"] = run_token
 
             async def model_fn(messages, tools, role=None):
                 llm_span = tracing.start_span("llm.complete", parent_span_id=root_span.span_id)

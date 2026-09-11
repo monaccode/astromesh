@@ -13,6 +13,7 @@ modelo sin los datos, y el síntoma sería negarle el acceso a alguien que sí e
 
 from astromesh.core.tools import ToolType
 from astromesh.errors import AgentConfigError
+from astromesh.observability.tracing import SpanStatus
 
 
 def validar_prefetch(agente, declarado, tools):
@@ -63,3 +64,42 @@ def validar_prefetch(agente, declarado, tools):
 
         entradas.append({"name": nombre, "tool": tool, "arguments": argumentos, "when": when})
     return entradas
+
+
+_TRUNCAR = 5_000
+
+
+async def ejecutar_prefetch(
+    entradas, *, tools, prompt_engine, context, tool_context, tracing, parent_span_id
+):
+    """Corre las entradas en orden y devuelve `{name: resultado}`.
+
+    Cada entrada ve el contexto de la corrida y lo que ya dejaron las
+    anteriores. Una búsqueda que falla no tumba la corrida: queda
+    `{success: False, ...}` y el modelo conserva sus tools para buscar solo.
+    """
+    resultados = {}
+    for entrada in entradas:
+        variables = {**(context or {}), "prefetch": resultados}
+        if entrada["when"] is not None and not prompt_engine.evaluate(entrada["when"], variables):
+            continue
+
+        span = tracing.start_span(
+            "tool.prefetch", {"tool": entrada["tool"]}, parent_span_id=parent_span_id
+        )
+        estado = SpanStatus.OK
+        try:
+            argumentos = {
+                clave: prompt_engine.render(valor, variables) if isinstance(valor, str) else valor
+                for clave, valor in entrada["arguments"].items()
+            }
+            span.set_attribute("tool_args", argumentos)
+            resultado = await tools.execute(entrada["tool"], argumentos, tool_context)
+        except Exception as exc:  # noqa: BLE001 — una lectura previa no puede tumbar el turno
+            resultado = {"success": False, "data": None, "metadata": {}, "error": str(exc)}
+            span.set_attribute("error_message", str(exc))
+            estado = SpanStatus.ERROR
+        span.set_attribute("tool_result", str(resultado)[:_TRUNCAR])
+        tracing.finish_span(span, status=estado)
+        resultados[entrada["name"]] = resultado
+    return resultados
