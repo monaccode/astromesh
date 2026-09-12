@@ -383,6 +383,7 @@ async def mi_stock(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolRe
 
 async def mi_resumen(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
     from datetime import timedelta
+    from zoneinfo import ZoneInfo
 
     productor, fallo = await _productor_de_sesion(ctx)
     if fallo is not None:
@@ -392,7 +393,11 @@ async def mi_resumen(arguments: dict[str, Any], ctx: IntegrationContext) -> Tool
     except (TypeError, ValueError):
         semanas = 1
 
-    hoy = datetime.now(UTC).date()
+    # El negocio está en Belgrano (Argentina, UTC-3), no en UTC: entre las
+    # 21:00 y la medianoche locales el día en UTC ya saltó al siguiente, y con
+    # `datetime.now(UTC).date()` un domingo a la noche calculaba "hoy" como
+    # lunes, corriendo toda la ventana de semanas antes de tiempo.
+    hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
     lunes = hoy - timedelta(days=(hoy.weekday()))
     salida = []
     for i in range(semanas):

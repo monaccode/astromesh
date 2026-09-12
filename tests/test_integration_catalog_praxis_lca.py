@@ -14,6 +14,7 @@ import httpx
 import respx
 
 from astromesh.integrations import IntegrationCatalog
+from astromesh.integrations.catalog.praxis_lca import handlers
 from astromesh.integrations.credentials import ResolvedConnection
 from astromesh.integrations.executor import HttpActionExecutor
 
@@ -71,6 +72,20 @@ def _padron(estado="activo", membresia="gratuita", direccion=TELEFONO):
 
 def _vacio():
     return httpx.Response(200, json={"rows": [], "total": 0})
+
+
+def _instante_fijo(monkeypatch, iso_utc: str):
+    """Congela `datetime.now(tz)` dentro de `handlers` a un instante fijo (dado
+    en UTC), para poder poner al servidor "del otro lado" de la medianoche
+    argentina sin depender de la hora real de quien corre el test."""
+    fijo = datetime.fromisoformat(iso_utc)
+
+    class _DatetimeFijo(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fijo.astimezone(tz) if tz is not None else fijo
+
+    monkeypatch.setattr(handlers, "datetime", _DatetimeFijo)
 
 
 # --- Forma -----------------------------------------------------------------
@@ -431,6 +446,17 @@ async def test_mis_liquidaciones_no_devuelve_borradores():
 
 
 @respx.mock
+async def test_mis_liquidaciones_filtra_por_el_productor_de_la_sesion():
+    """Sin este chequeo, `productor:eq:{id}` se podía borrar o apuntar a otro
+    id y ningún test se ponía rojo: el mock de respx devuelve el mismo
+    payload sin importar qué filtro viajó."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    ruta = respx.get(f"{BASE}/api/data/lca_liquidacion").mock(return_value=_vacio())
+    await _correr("mis_liquidaciones")
+    assert ruta.calls[0].request.url.params["filter"] == f"productor:eq:{PRODUCTOR}"
+
+
+@respx.mock
 async def test_mis_envios_abiertos_trae_los_propuestos_y_confirmados_del_que_escribe():
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
     respx.get(f"{BASE}/api/data/lca_producto").mock(
@@ -480,3 +506,72 @@ async def test_mis_envios_abiertos_trae_los_propuestos_y_confirmados_del_que_esc
     r = await _correr("mis_envios_abiertos")
     assert [e["envio_id"] for e in r.data["envios"]] == ["e-1"]
     assert r.data["envios"][0]["producto"] == "Miel de eucalipto"
+
+
+@respx.mock
+async def test_mis_envios_abiertos_filtra_los_productos_por_el_productor_de_la_sesion():
+    """`lca_envio` viene SIN scoping del lado de PRAXIS: el mapa de productos
+    propios es lo único que separa un envío mío de uno ajeno, y ese mapa sale
+    de este filtro. Sin este chequeo, apuntarlo a otro productor (o borrarlo)
+    no ponía rojo nada — el mock de `lca_producto` responde igual."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    ruta = respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    respx.get(f"{BASE}/api/data/lca_envio").mock(return_value=_vacio())
+    await _correr("mis_envios_abiertos")
+    assert ruta.calls[0].request.url.params["filter"] == f"productor:eq:{PRODUCTOR}"
+
+
+# --- mi_resumen --------------------------------------------------------------
+
+
+@respx.mock
+async def test_mi_resumen_recorta_semanas_al_piso():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    fn = respx.post(f"{BASE}/api/functions/lca_reporte_semanal").mock(
+        return_value=_funcion({"unidades": 1})
+    )
+    r = await _correr("mi_resumen", {"semanas": 0})
+    assert r.success is True
+    assert len(fn.calls) == 1
+
+
+@respx.mock
+async def test_mi_resumen_recorta_semanas_al_techo():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    fn = respx.post(f"{BASE}/api/functions/lca_reporte_semanal").mock(
+        return_value=_funcion({"unidades": 1})
+    )
+    r = await _correr("mi_resumen", {"semanas": 100})
+    assert r.success is True
+    assert len(fn.calls) == 8
+
+
+@respx.mock
+async def test_mi_resumen_llama_una_vez_por_semana_pedida():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    fn = respx.post(f"{BASE}/api/functions/lca_reporte_semanal").mock(
+        return_value=_funcion({"unidades": 1})
+    )
+    r = await _correr("mi_resumen", {"semanas": 3})
+    assert r.success is True
+    assert len(fn.calls) == 3
+    cuerpos = [json.loads(c.request.content)["args"] for c in fn.calls]
+    assert all(c["productor"] == PRODUCTOR for c in cuerpos)
+    fechas = [c["desde"] for c in cuerpos]
+    assert len(set(fechas)) == 3, "cada semana pedida tiene que traer un `desde` distinto"
+
+
+@respx.mock
+async def test_mi_resumen_calcula_la_semana_en_la_zona_de_argentina_y_no_en_utc(monkeypatch):
+    """Domingo 30/8 a las 23:30 en Argentina (UTC-3) ya es lunes 31/8 02:30 en
+    UTC. Si `mi_resumen` calculara "hoy" en UTC, tomaría el lunes siguiente
+    como el de la semana en curso y pediría una semana entera más tarde de lo
+    que la persona considera "la semana pasada"."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    fn = respx.post(f"{BASE}/api/functions/lca_reporte_semanal").mock(
+        return_value=_funcion({"unidades": 1})
+    )
+    _instante_fijo(monkeypatch, "2026-08-31T02:30:00+00:00")
+    await _correr("mi_resumen")
+    cuerpo = json.loads(fn.calls[0].request.content)["args"]
+    assert cuerpo["desde"] == "2026-08-17"
