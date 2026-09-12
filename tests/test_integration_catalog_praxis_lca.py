@@ -181,3 +181,66 @@ async def test_mi_ficha_aprende_la_direccion_del_canal_cuando_cambia():
     await _correr("mi_ficha")
     assert patch.called
     assert patch.calls[0].request.read().decode().find("direccion_canal") != -1
+
+
+# --- Alta -------------------------------------------------------------------
+
+
+@respx.mock
+async def test_corregir_un_producto_de_otro_productor_se_rechaza_sin_tocarlo():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto/ajeno").mock(
+        return_value=httpx.Response(200, json={"id": "ajeno", "data": {"productor": "p-999"}})
+    )
+    patch = respx.patch(f"{BASE}/api/data/lca_producto/ajeno").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    r = await _correr("corregir_producto", {"producto_id": "ajeno", "precio_publico": 1})
+    assert r.success is False
+    assert not patch.called, "no se tocó nada de otro productor"
+
+
+@respx.mock
+async def test_corregir_lo_propio_anda():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto/mio").mock(
+        return_value=httpx.Response(200, json={"id": "mio", "data": {"productor": PRODUCTOR}})
+    )
+    patch = respx.patch(f"{BASE}/api/data/lca_producto/mio").mock(
+        return_value=httpx.Response(200, json={"id": "mio", "data": {"precio_publico": 4800}})
+    )
+    r = await _correr("corregir_producto", {"producto_id": "mio", "precio_publico": 4800})
+    assert r.success is True
+    assert patch.called
+
+
+@respx.mock
+async def test_agregar_producto_nace_con_sku_provisorio_y_lo_dice():
+    """Sólo La Carta sabe con qué código lo vende Belgrano. El provisorio hace
+    que sus ventas se rechacen con ese motivo hasta que lo carguen, en vez de
+    aparear contra el producto equivocado."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    post = respx.post(f"{BASE}/api/data/lca_producto").mock(
+        return_value=httpx.Response(201, json={"id": "nuevo", "data": {}})
+    )
+    r = await _correr(
+        "agregar_producto",
+        {"nombre": "Miel cremosa", "presentacion": "250g", "precio_publico": 3800},
+    )
+    assert r.success is True
+    assert r.data["provisorio"] is True
+    assert r.data["sku_externo"].startswith("pendiente:")
+    assert post.calls[0].request.read().decode().find(PRODUCTOR) != -1
+
+
+@respx.mock
+async def test_completar_alta_activa_y_guarda_el_mail():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron(estado="precargado"))
+    patch = respx.patch(f"{BASE}/api/data/lca_productor/{PRODUCTOR}").mock(
+        return_value=httpx.Response(200, json={"id": PRODUCTOR, "data": {"estado": "activo"}})
+    )
+    r = await _correr("completar_alta", {"email": "juan@mieldeltalar.com.ar"})
+    assert r.success is True
+    cuerpo = patch.calls[-1].request.read().decode()
+    assert "activo" in cuerpo
+    assert "juan@mieldeltalar.com.ar" in cuerpo

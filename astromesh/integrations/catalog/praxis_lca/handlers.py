@@ -24,6 +24,8 @@ inventado podría recorrer.
 from __future__ import annotations
 
 import logging
+import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from astromesh.integrations import errors
@@ -242,4 +244,92 @@ async def mi_ficha(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolRe
             ),
         },
         metadata={},
+    )
+
+
+async def corregir_producto(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    producto_id = str(arguments.get("producto_id") or "").strip()
+    if not producto_id:
+        return _fallo("falta el id del producto", 400)
+    if not await _es_suyo(ctx, "lca_producto", producto_id, str(productor["id"])):
+        # Mismo mensaje para "no existe" y "es de otro": distinguirlos le diría
+        # a quien prueba ids cuáles existen.
+        return _fallo("ese producto no es tuyo o no existe", 404)
+
+    patch = {
+        campo: arguments[campo]
+        for campo in ("nombre", "presentacion", "precio_publico")
+        if arguments.get(campo) is not None
+    }
+    if not patch:
+        return _fallo("no me dijiste qué cambiar", 400)
+
+    res = await ctx.client.patch(f"{ctx.base_url}/api/data/lca_producto/{producto_id}", json=patch)
+    if res.status_code >= 400:
+        return _fallo(
+            f"corregir el producto falló: HTTP {res.status_code}: {res.text[:200]}", res.status_code
+        )
+    return ToolResult(
+        success=True, data={"producto_id": producto_id, "cambiado": list(patch)}, metadata={}
+    )
+
+
+async def agregar_producto(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    nombre = str(arguments.get("nombre") or "").strip()
+    if not nombre:
+        return _fallo("falta el nombre del producto", 400)
+
+    # El código de Belgrano lo sabe SÓLO La Carta. Un provisorio hace que las
+    # ventas de este producto se rechacen con ese motivo hasta que lo carguen,
+    # que es mejor que aparear contra el producto equivocado.
+    sku = f"pendiente:{uuid.uuid4()}"
+    res = await ctx.client.post(
+        f"{ctx.base_url}/api/data/lca_producto",
+        json={
+            "nombre": nombre,
+            "presentacion": arguments.get("presentacion"),
+            "precio_publico": arguments.get("precio_publico"),
+            "sku_externo": sku,
+            "productor": str(productor["id"]),
+        },
+    )
+    if res.status_code >= 400:
+        return _fallo(
+            f"crear el producto falló: HTTP {res.status_code}: {res.text[:200]}", res.status_code
+        )
+    return ToolResult(
+        success=True,
+        data={"producto_id": (res.json() or {}).get("id"), "sku_externo": sku, "provisorio": True},
+        metadata={},
+    )
+
+
+async def completar_alta(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    email = str(arguments.get("email") or "").strip()
+    if not email:
+        return _fallo("falta el mail", 400)
+
+    res = await ctx.client.patch(
+        f"{ctx.base_url}/api/data/lca_productor/{productor['id']}",
+        json={
+            "email": email,
+            "estado": "activo",
+            "alta_completada_el": datetime.now(UTC).isoformat(),
+        },
+    )
+    if res.status_code >= 400:
+        return _fallo(
+            f"completar el alta falló: HTTP {res.status_code}: {res.text[:200]}", res.status_code
+        )
+    return ToolResult(
+        success=True, data={"productor_id": str(productor["id"]), "estado": "activo"}, metadata={}
     )

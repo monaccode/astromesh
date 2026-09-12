@@ -44,3 +44,59 @@ spec:
       writes: true   # aprende `direccion_canal` — es escritura aunque no lo parezca
       handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mi_ficha"
       parameters: {}
+
+    - name: corregir_producto
+      description: >
+        Corrige un producto del productor que escribe: su nombre, su
+        presentación o su precio de venta al público. Sólo se puede corregir lo
+        propio; un id de otro productor se rechaza.
+        Pasá SÓLO los campos que cambian.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:corregir_producto"
+      parameters:
+        producto_id:
+          type: string
+          description: "El id del producto, copiado de `mi_ficha`."
+          required: true
+        nombre:
+          type: string
+          description: "El nombre nuevo, si cambia."
+        presentacion:
+          type: string
+          description: "La presentación nueva, si cambia. Por ejemplo 500g."
+        precio_publico:
+          type: number
+          description: "El precio de venta al público nuevo, si cambia."
+
+    - name: agregar_producto
+      description: >
+        Da de alta un producto del productor que escribe. Queda con un código
+        PROVISORIO hasta que La Carta le cargue el que usa Belgrano: hasta
+        entonces sus ventas no se pueden importar, y conviene decírselo en una
+        línea sin dramatizar.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:agregar_producto"
+      parameters:
+        nombre:
+          type: string
+          description: "Cómo se llama el producto."
+          required: true
+        presentacion:
+          type: string
+          description: "La presentación. Por ejemplo 500g."
+        precio_publico:
+          type: number
+          description: "A cuánto lo vende al público."
+
+    - name: completar_alta
+      description: >
+        Cierra el alta del productor: guarda su mail y lo deja activo. Llamala
+        cuando ya confirmó sus productos y sus precios. Después contale en dos
+        líneas qué va a empezar a recibir, concreto y sin lista de funciones.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:completar_alta"
+      parameters:
+        email:
+          type: string
+          description: "El mail del productor."
+          required: true
