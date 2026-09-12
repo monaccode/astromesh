@@ -100,3 +100,46 @@ spec:
           type: string
           description: "El mail del productor."
           required: true
+
+    - name: mi_stock
+      description: >
+        Qué le queda en góndola en Belgrano al productor que escribe, producto
+        por producto, a qué ritmo se vende y para cuántos días le alcanza.
+        **Cuando `dias_cobertura` viene en null no inventes una proyección**:
+        significa que todavía no hay historia suficiente (hacen falta tres
+        semanas) o que ese producto no se vendió nada. Decilo así.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mi_stock"
+      parameters: {}
+
+    - name: mi_resumen
+      description: >
+        Cómo le fue en Belgrano en las últimas semanas: unidades por semana, el
+        desglose por producto y cuál se llevó más. Sin `semanas`, la última.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mi_resumen"
+      parameters:
+        semanas:
+          type: integer
+          description: "Cuántas semanas hacia atrás, de 1 a 8. Por defecto 1."
+
+    - name: mis_envios_abiertos
+      description: >
+        Las reposiciones del productor que todavía esperan algo: propuestas sin
+        contestar y confirmadas sin recibir.
+        **Llamala ANTES de interpretar un "sí", un "dale", un "no" o un "mejor
+        20"**: esas respuestas contestan un mensaje que mandó el sistema, y vos
+        no lo tenés en la conversación. Si hay dos propuestas abiertas y la
+        respuesta no dice cuál, preguntá cuál en una línea.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mis_envios_abiertos"
+      parameters: {}
+
+    - name: mis_liquidaciones
+      description: >
+        Las liquidaciones del productor, con su período, unidades, neto y
+        cuándo se acredita. Sólo las que La Carta ya aprobó: una liquidación en
+        borrador todavía puede cambiar y no se le menciona.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mis_liquidaciones"
+      parameters: {}

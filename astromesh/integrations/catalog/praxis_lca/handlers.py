@@ -333,3 +333,125 @@ async def completar_alta(arguments: dict[str, Any], ctx: IntegrationContext) -> 
     return ToolResult(
         success=True, data={"productor_id": str(productor["id"]), "estado": "activo"}, metadata={}
     )
+
+
+async def _invocar(ctx: IntegrationContext, funcion: str, args: dict[str, Any]):
+    """Una función de PRAXIS.
+
+    La ruta es `POST /api/functions/<api_name>` —**sin** `/invoke`— con body
+    `{"args": {...}}`, y la respuesta es `{"value": ...}`. Verificado en
+    `praxis/apps/backend/src/functions/functions.controller.ts:84-105`.
+    """
+    res = await ctx.client.post(f"{ctx.base_url}/api/functions/{funcion}", json={"args": args})
+    if res.status_code >= 400:
+        return None, _fallo(
+            f"{funcion} falló: HTTP {res.status_code}: {res.text[:300]}", res.status_code
+        )
+    cuerpo = res.json() or {}
+    return cuerpo.get("value"), None
+
+
+async def mi_stock(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    # El `productor` de la función sale de la SESIÓN. Si el modelo mandó un
+    # `productor_id` en `arguments`, acá no se lee: no existe ese parámetro.
+    datos, fallo = await _invocar(
+        ctx, "lca_stock_y_proyeccion", {"productor": str(productor["id"])}
+    )
+    if fallo is not None:
+        return fallo
+    return ToolResult(success=True, data=datos, metadata={})
+
+
+async def mi_resumen(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    from datetime import timedelta
+
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    try:
+        semanas = max(1, min(8, int(arguments.get("semanas") or 1)))
+    except (TypeError, ValueError):
+        semanas = 1
+
+    hoy = datetime.now(UTC).date()
+    lunes = hoy - timedelta(days=(hoy.weekday()))
+    salida = []
+    for i in range(semanas):
+        desde = lunes - timedelta(days=7 * (i + 1))
+        datos, fallo = await _invocar(
+            ctx,
+            "lca_reporte_semanal",
+            {"productor": str(productor["id"]), "desde": desde.isoformat()},
+        )
+        if fallo is not None:
+            return fallo
+        salida.append(datos)
+    return ToolResult(success=True, data={"semanas": salida}, metadata={})
+
+
+async def mis_envios_abiertos(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+
+    payload, fallo = await _buscar(ctx, "lca_producto", f"productor:eq:{productor['id']}", 200)
+    if fallo is not None:
+        return fallo
+    mios = {str(f["id"]): (f.get("data") or {}) for f in (payload.get("rows") or [])}
+
+    # Un solo filtro por llamada: se traen los abiertos y se filtran en Python
+    # contra los productos del que escribe. Ese filtro ES el aislamiento: la
+    # consulta a PRAXIS trae los envíos abiertos de TODO el tenant.
+    envios, fallo = await _buscar(ctx, "lca_envio", "estado:in:propuesto,confirmado", 200)
+    if fallo is not None:
+        return fallo
+
+    salida = []
+    for fila in envios.get("rows") or []:
+        d = fila.get("data") or {}
+        producto = mios.get(str(d.get("producto") or ""))
+        if producto is None:
+            continue
+        salida.append(
+            {
+                "envio_id": fila.get("id"),
+                "producto": producto.get("nombre"),
+                "presentacion": producto.get("presentacion"),
+                "estado": d.get("estado"),
+                "cantidad_sugerida": d.get("cantidad_sugerida"),
+                "cantidad": d.get("cantidad"),
+                "vence_el": d.get("vence_el"),
+            }
+        )
+    return ToolResult(success=True, data={"envios": salida}, metadata={})
+
+
+async def mis_liquidaciones(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    payload, fallo = await _buscar(ctx, "lca_liquidacion", f"productor:eq:{productor['id']}", 50)
+    if fallo is not None:
+        return fallo
+
+    salida = []
+    for fila in payload.get("rows") or []:
+        d = fila.get("data") or {}
+        # Un BORRADOR no llega nunca al productor: es un número que La Carta
+        # todavía no aprobó, y prometerlo sería prometer una plata que puede
+        # cambiar.
+        if d.get("estado") not in {"aprobada", "acreditada"}:
+            continue
+        salida.append(
+            {
+                "periodo": d.get("periodo"),
+                "unidades": d.get("unidades"),
+                "neto": d.get("neto"),
+                "estado": d.get("estado"),
+                "fecha_acreditacion": d.get("fecha_acreditacion"),
+            }
+        )
+    return ToolResult(success=True, data={"liquidaciones": salida}, metadata={})

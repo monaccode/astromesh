@@ -244,3 +244,109 @@ async def test_completar_alta_activa_y_guarda_el_mail():
     cuerpo = patch.calls[-1].request.read().decode()
     assert "activo" in cuerpo
     assert "juan@mieldeltalar.com.ar" in cuerpo
+
+
+# --- Consultas --------------------------------------------------------------
+
+
+def _funcion(resultado):
+    return httpx.Response(200, json={"value": resultado})
+
+
+@respx.mock
+async def test_mi_stock_llama_a_la_funcion_con_el_productor_de_la_sesion():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    fn = respx.post(f"{BASE}/api/functions/lca_stock_y_proyeccion").mock(
+        return_value=_funcion(
+            {"productos": [{"producto_id": "x", "en_gondola": 24, "dias_cobertura": 18.6}]}
+        )
+    )
+    r = await _correr("mi_stock", {"productor_id": "p-999"})
+    assert r.success is True
+    cuerpo = fn.calls[0].request.read().decode()
+    assert PRODUCTOR in cuerpo
+    assert "p-999" not in cuerpo
+
+
+@respx.mock
+async def test_mis_liquidaciones_no_devuelve_borradores():
+    """Un borrador es un número que La Carta todavía no aprobó. Que llegue al
+    productor sería prometerle una plata que puede cambiar."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_liquidacion").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "rows": [
+                    {
+                        "id": "l-1",
+                        "data": {"periodo": "2026-08", "estado": "borrador", "neto": 100},
+                    },
+                    {
+                        "id": "l-2",
+                        "data": {"periodo": "2026-07", "estado": "aprobada", "neto": 200},
+                    },
+                    {
+                        "id": "l-3",
+                        "data": {"periodo": "2026-06", "estado": "acreditada", "neto": 300},
+                    },
+                ],
+                "total": 3,
+            },
+        )
+    )
+    r = await _correr("mis_liquidaciones")
+    periodos = [x["periodo"] for x in r.data["liquidaciones"]]
+    assert periodos == ["2026-07", "2026-06"]
+
+
+@respx.mock
+async def test_mis_envios_abiertos_trae_los_propuestos_y_confirmados_del_que_escribe():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "rows": [
+                    {
+                        "id": "prod-1",
+                        "data": {
+                            "nombre": "Miel de eucalipto",
+                            "presentacion": "500g",
+                            "productor": PRODUCTOR,
+                        },
+                    }
+                ],
+                "total": 1,
+            },
+        )
+    )
+    respx.get(f"{BASE}/api/data/lca_envio").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "rows": [
+                    {
+                        "id": "e-1",
+                        "data": {
+                            "producto": "prod-1",
+                            "estado": "propuesto",
+                            "cantidad_sugerida": 12,
+                        },
+                    },
+                    {
+                        "id": "e-2",
+                        "data": {
+                            "producto": "ajeno",
+                            "estado": "propuesto",
+                            "cantidad_sugerida": 5,
+                        },
+                    },
+                ],
+                "total": 2,
+            },
+        )
+    )
+    r = await _correr("mis_envios_abiertos")
+    assert [e["envio_id"] for e in r.data["envios"]] == ["e-1"]
+    assert r.data["envios"][0]["producto"] == "Miel de eucalipto"
