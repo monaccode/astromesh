@@ -109,6 +109,18 @@ async def test_una_accion_en_confirm_no_carga(tmp_path, monkeypatch):
     _no_carga(rt, "confirm")
 
 
+async def test_un_when_con_error_de_sintaxis_no_carga(tmp_path, monkeypatch):
+    pf = [{"name": "x", "tool": "demo_ping", "when": "prefetch.persona and"}]
+    rt = await _runtime(tmp_path, monkeypatch, _agente(pf))
+    _no_carga(rt, "when")
+
+
+async def test_un_argument_con_error_de_sintaxis_no_carga(tmp_path, monkeypatch):
+    pf = [{"name": "x", "tool": "demo_ping", "arguments": {"q": "{{ sender_phone"}}]
+    rt = await _runtime(tmp_path, monkeypatch, _agente(pf))
+    _no_carga(rt, "arguments.q")
+
+
 async def test_un_prefetch_valido_carga(tmp_path, monkeypatch):
     pf = [{"name": "x", "tool": "demo_ping", "when": "sender_phone", "arguments": {"q": "1"}}]
     rt = await _runtime(tmp_path, monkeypatch, _agente(pf))
@@ -248,6 +260,26 @@ async def test_usa_las_credenciales_de_la_corrida(tmp_path, monkeypatch):
     )
 
     assert ruta.calls[0].request.headers["authorization"] == "Bearer TOKEN-DE-LA-CORRIDA"
+
+
+@respx.mock
+async def test_un_when_que_rompe_en_runtime_degrada_como_una_busqueda_fallida(
+    tmp_path, monkeypatch
+):
+    ruta = respx.get("https://api.demo.test/ping").mock(
+        return_value=httpx.Response(200, json={"rows": []})
+    )
+    sistema = "OK={{ prefetch.x.success }} ERR={{ prefetch.x.error }}"
+    pf = [{"name": "x", "tool": "demo_ping", "when": "1/0", "arguments": {"q": "1"}}]
+    rt = await _runtime(tmp_path, monkeypatch, _agente(pf, prompts={"system": sistema}))
+
+    system, resultado = await _correr_capturando(rt, {})
+
+    assert "OK=False" in system
+    assert "division" in system.lower() or "zero" in system.lower()
+    assert resultado["answer"] == "listo"
+    assert not ruta.calls  # el `when` rompió antes de llamar la tool
+    assert not [s for s in resultado["trace"]["spans"] if s["name"] == "tool.prefetch"]
 
 
 async def test_un_agente_sin_prefetch_renderiza_igual(tmp_path, monkeypatch):

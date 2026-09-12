@@ -893,7 +893,9 @@ class AgentRuntime:
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
         # Después de registrar TODAS las tools: el prefetch nombra una por su
         # nombre registrado (`<slug>_<acción>`).
-        prefetch = validar_prefetch(metadata["name"], spec.get("prefetch"), tools)
+        prefetch = validar_prefetch(
+            metadata["name"], spec.get("prefetch"), tools, prompt_engine=self._prompt_engine
+        )
         return Agent(
             name=metadata["name"],
             version=metadata.get("version", "0.1.0"),
