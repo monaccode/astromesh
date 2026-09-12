@@ -497,6 +497,8 @@ async def confirmar_envio(arguments: dict[str, Any], ctx: IntegrationContext) ->
     fallo = await _suyo_o_fallo(ctx, "lca_envio", envio_id, str(productor["id"]))
     if fallo is not None:
         return fallo
+    if arguments.get("cantidad") is None:
+        return _fallo("falta la cantidad", 400)
     datos, fallo = await _invocar(
         ctx, "lca_confirmar_envio", {"envio": envio_id, "cantidad": arguments.get("cantidad")}
     )
@@ -527,6 +529,8 @@ async def pedir_reposicion(arguments: dict[str, Any], ctx: IntegrationContext) -
     fallo = await _suyo_o_fallo(ctx, "lca_producto", producto_id, str(productor["id"]))
     if fallo is not None:
         return fallo
+    if arguments.get("cantidad") is None:
+        return _fallo("falta la cantidad", 400)
     datos, fallo = await _invocar(
         ctx,
         "lca_pedir_reposicion",
@@ -589,7 +593,9 @@ async def escalar(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolRes
     return ToolResult(success=True, data={"escalado": True, "ya_estaba": False}, metadata={})
 
 
-async def responder_oferta_membresia(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+async def responder_oferta_membresia(
+    arguments: dict[str, Any], ctx: IntegrationContext
+) -> ToolResult:
     productor, fallo = await _productor_de_sesion(ctx)
     if fallo is not None:
         return fallo
