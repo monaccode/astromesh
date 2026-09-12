@@ -199,7 +199,11 @@ spec:
         reclama por un número mal calculado, cuando pide la baja, cuando hay un
         problema con una liquidación, o cuando alguien que NO está en el padrón
         dice ser productor.
-        Contale que ya avisaste, sin prometer un plazo.
+        Contale que ya avisaste, sin prometer un plazo. Si vuelve
+        `identificado` en falso, leé `motivo`: no se pudo dejar nada porque no
+        hay por dónde volver a contestarle, y eso es lo que hay que decirle.
+        `ya_estaba` en verdadero significa que ya había uno abierto por lo
+        mismo; decilo una vez y no lo repitas.
       writes: true
       handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:escalar"
       parameters:
@@ -220,6 +224,8 @@ spec:
         completa. `acepta` en verdadero deja el pedido para que La Carta lo
         contacte; en falso queda registrado y **no se le vuelve a ofrecer por
         treinta días**. No insistas después de un no.
+        `ya_estaba` en verdadero significa que ese pedido ya estaba anotado: no
+        le digas que lo anotaste de nuevo.
       writes: true
       handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:responder_oferta_membresia"
       parameters:

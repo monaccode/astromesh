@@ -16,16 +16,18 @@ Por eso acá:
      cuelgue del que escribe, ANTES de llamar a la función que escribe.
 
 **Sin respaldo por `session_id`, a diferencia de `praxis_alcaldia`.** Aquél lo
-conserva por un Herald anterior al que manda `sender_phone`; acá los dos
-entornos ya lo mandan, y el respaldo abriría un camino que un `session_id`
-inventado podría recorrer.
+conserva por un Herald anterior al que manda `sender_phone`; acá se EXIGE el
+campo que Herald escribe (`astromesh-herald/internal/app/receive.go:146`,
+`"sender_phone": telefonoDelRemitente(...)`), porque el respaldo abriría un
+camino que un `session_id` inventado podría recorrer. Sin ese campo la acción
+contesta `SIN_IDENTIDAD`, que es una negativa visible y nunca el dato de otro.
 """
 
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from astromesh.integrations import errors
@@ -73,8 +75,28 @@ def _fallo(mensaje: str, status: int) -> ToolResult:
     )
 
 
-async def _buscar(ctx: IntegrationContext, entidad: str, filtro: str, limite: int = 50):
-    """Una consulta a la API de datos. UN solo filtro, que es lo que PRAXIS acepta.
+async def _buscar(
+    ctx: IntegrationContext,
+    entidad: str,
+    filtro: str | list[str],
+    limite: int = 50,
+    orden: str | None = None,
+):
+    """Una consulta a la API de datos. `filtro` puede ser UNO o VARIOS.
+
+    PRAXIS acepta `filter` repetido y los combina con AND:
+    `praxis/apps/backend/src/records/query-params.util.ts:10` lo documenta
+    (`?filter=field:op:value (repeatable; AND-combined)`) y `:100` lo
+    implementa (`toStringArray(query.filter).map(parseFilter)`). El que admite
+    un solo filtro es el manifest genérico `praxis`, donde es un parámetro
+    string del modelo (`catalog/praxis/integration.yaml:33`) — y estos
+    handlers no pasan por ahí, llaman a httpx directo.
+
+    `orden` es el `sort` de PRAXIS (`query-params.util.ts:12`,
+    `?sort=field:asc`). El campo se resuelve contra los campos DECLARADOS de la
+    entidad y uno desconocido es un 422, nunca un orden ignorado
+    (`query-builder.ts:224-227`): `created_at` no es un campo declarado, así
+    que ordenar por fecha sólo se puede donde la entidad tiene una.
 
     `params={...}` y NO una query armada a mano: httpx encodea `+` como `%2B`,
     y ES lo que tiene que pasar. El parser de query strings del lado de PRAXIS
@@ -85,10 +107,10 @@ async def _buscar(ctx: IntegrationContext, entidad: str, filtro: str, limite: in
     otro lado. `praxis_alcaldia` usa esta misma forma y anda medido en dev con
     teléfonos `+58…`.
     """
-    res = await ctx.client.get(
-        f"{ctx.base_url}/api/data/{entidad}",
-        params={"filter": filtro, "limit": str(limite)},
-    )
+    params: dict[str, Any] = {"filter": filtro, "limit": str(limite)}
+    if orden:
+        params["sort"] = orden
+    res = await ctx.client.get(f"{ctx.base_url}/api/data/{entidad}", params=params)
     if res.status_code >= 400:
         return None, _fallo(
             f"consultar {entidad} falló: HTTP {res.status_code}: {res.text[:300]}", res.status_code
@@ -102,7 +124,13 @@ async def _productor_de_sesion(ctx: IntegrationContext):
     if telefono is None:
         return None, _sin_identidad()
 
-    payload, fallo = await _buscar(ctx, "lca_productor", f"telefono:eq:{telefono}", 2)
+    # Cinco y no dos: las de baja se descartan ACÁ, en Python, así que un
+    # `limit` justo al tope del guard lo esquiva — con tres fichas del mismo
+    # número (una de baja y dos activas) `limit=2` podía traer [baja, activa],
+    # dejar UNA fila y servirle la ficha a una de las dos que se disputan el
+    # teléfono. El margen tiene que ser mayor que el número de fichas de baja
+    # plausibles sobre un mismo número.
+    payload, fallo = await _buscar(ctx, "lca_productor", f"telefono:eq:{telefono}", 5)
     if fallo is not None:
         return None, fallo
 
@@ -134,22 +162,35 @@ async def _es_suyo(ctx: IntegrationContext, entidad: str, id_: str, productor_id
         if not producto_id:
             return False
         return await _es_suyo(ctx, "lca_producto", str(producto_id), productor_id)
-    if entidad == "lca_liquidacion":
-        return datos.get("productor") == productor_id
     return False
 
 
 async def _oferta_habilitada(ctx: IntegrationContext, productor_id: str, membresia: str) -> bool:
-    """Reglas de spec §15.2: a lo sumo 2 ofertas por trimestre, y ninguna en los
-    30 días posteriores a un "no". Se cuenta sobre `lca_pendiente`, que es donde
-    quedan registradas — el registro ES el dato que dice qué vende la membresía."""
+    """Reglas de spec §15.2, contadas sobre lo que quedó REGISTRADO.
+
+    A lo sumo 2 respuestas registradas (`interes_membresia` / `oferta_rechazada`)
+    por trimestre, y ninguna oferta en los 30 días posteriores a un "no". No
+    cuenta ofertas: una oferta que la persona ignoró no deja fila y no consume
+    cuota — el registro es lo único que existe de este lado."""
     if membresia == "paga":
         return False
     # No sólo el status HTTP: un error de transporte (timeout, red caída) no
     # puede tirar abajo `mi_ficha` entera por un campo secundario. Cierra en
     # `False` — el peor caso es no ofrecer la membresía, nunca romper la ficha.
     try:
-        payload, fallo = await _buscar(ctx, "lca_pendiente", f"productor:eq:{productor_id}", 50)
+        # Los DOS tipos que cuentan van en la query y no en el `if` de abajo:
+        # `lca_pendiente` acumula también los escalamientos, y traer los 50
+        # primeros pendientes del productor para descartar casi todos dejaba
+        # afuera las respuestas viejas apenas alguien escalaba seguido.
+        # Ordenar por fecha no es una opción acá: `lca_pendiente` no declara
+        # ningún campo de fecha de alta (`praxis/apps/backend/src/packages/lca/
+        # lca.package.ts:366-390`) y `created_at` no es un campo declarado.
+        payload, fallo = await _buscar(
+            ctx,
+            "lca_pendiente",
+            [f"productor:eq:{productor_id}", "tipo:in:interes_membresia,oferta_rechazada"],
+            50,
+        )
     except Exception:
         # No es lo mismo «la regla dice que no» que «no pudimos consultar la
         # regla»: sin este log, un timeout de red se ve exactamente igual que
@@ -162,8 +203,6 @@ async def _oferta_habilitada(ctx: IntegrationContext, productor_id: str, membres
         return False
     if fallo is not None:
         return False
-
-    from datetime import UTC, datetime, timedelta
 
     ahora = datetime.now(UTC)
     trimestre = 0
@@ -268,12 +307,11 @@ async def corregir_producto(arguments: dict[str, Any], ctx: IntegrationContext) 
     if fallo is not None:
         return fallo
     producto_id = str(arguments.get("producto_id") or "").strip()
-    if not producto_id:
-        return _fallo("falta el id del producto", 400)
-    if not await _es_suyo(ctx, "lca_producto", producto_id, str(productor["id"])):
-        # Mismo mensaje para "no existe" y "es de otro": distinguirlos le diría
-        # a quien prueba ids cuáles existen.
-        return _fallo("ese producto no es tuyo o no existe", 404)
+    # El MISMO helper que las otras cuatro acciones que reciben un id: dos
+    # caminos para la misma comprobación divergen el día que uno se arregla.
+    fallo = await _suyo_o_fallo(ctx, "lca_producto", producto_id, str(productor["id"]))
+    if fallo is not None:
+        return fallo
 
     patch = {
         campo: arguments[campo]
@@ -382,7 +420,6 @@ async def mi_stock(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolRe
 
 
 async def mi_resumen(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
-    from datetime import timedelta
     from zoneinfo import ZoneInfo
 
     productor, fallo = await _productor_de_sesion(ctx)
@@ -422,17 +459,31 @@ async def mis_envios_abiertos(arguments: dict[str, Any], ctx: IntegrationContext
     if fallo is not None:
         return fallo
     mios = {str(f["id"]): (f.get("data") or {}) for f in (payload.get("rows") or [])}
+    # Sin productos no puede haber un envío suyo. Cortar acá es además lo que
+    # impide armar un `producto:in:` VACÍO abajo, que no filtraría por producto
+    # y traería los envíos abiertos de todo el tenant.
+    if not mios:
+        return ToolResult(success=True, data={"envios": []}, metadata={})
 
-    # Un solo filtro por llamada: se traen los abiertos y se filtran en Python
-    # contra los productos del que escribe. Ese filtro ES el aislamiento: la
-    # consulta a PRAXIS trae los envíos abiertos de TODO el tenant.
-    envios, fallo = await _buscar(ctx, "lca_envio", "estado:in:propuesto,confirmado", 200)
+    # DOS filtros, AND del lado de PRAXIS: el aislamiento viaja en la QUERY.
+    # Antes se traían los abiertos de todo el tenant y se recortaban en Python:
+    # con 300 productores eso pasa las 200 filas sin esfuerzo (el techo de
+    # PRAXIS es 500, `records/query-builder.ts:94`), y un envío propio que
+    # quedaba fuera de la página se veía como "no tenés nada pendiente".
+    envios, fallo = await _buscar(
+        ctx,
+        "lca_envio",
+        ["estado:in:propuesto,confirmado", f"producto:in:{','.join(mios)}"],
+        200,
+    )
     if fallo is not None:
         return fallo
 
     salida = []
     for fila in envios.get("rows") or []:
         d = fila.get("data") or {}
+        # Segundo cierre: la query ya filtró por los productos propios, pero el
+        # nombre y la presentación salen de este mapa igual.
         producto = mios.get(str(d.get("producto") or ""))
         if producto is None:
             continue
@@ -454,7 +505,19 @@ async def mis_liquidaciones(arguments: dict[str, Any], ctx: IntegrationContext) 
     productor, fallo = await _productor_de_sesion(ctx)
     if fallo is not None:
         return fallo
-    payload, fallo = await _buscar(ctx, "lca_liquidacion", f"productor:eq:{productor['id']}", 50)
+    # Las MÁS RECIENTES primero: sin `sort`, pasadas las 50 filas las que
+    # vuelven son arbitrarias (`records/query-builder.ts:341-344` — sin orden,
+    # "whatever order Postgres feels like") y a un productor viejo se le podía
+    # contestar con las liquidaciones de 2024. `periodo` es `AAAA-MM`, así que
+    # el orden lexicográfico ES el cronológico, y está declarado e indexado
+    # (`praxis/apps/backend/src/packages/lca/lca.package.ts:313`).
+    payload, fallo = await _buscar(
+        ctx,
+        "lca_liquidacion",
+        f"productor:eq:{productor['id']}",
+        50,
+        orden="periodo:desc",
+    )
     if fallo is not None:
         return fallo
 
@@ -481,9 +544,20 @@ async def mis_liquidaciones(arguments: dict[str, Any], ctx: IntegrationContext) 
 async def _suyo_o_fallo(ctx: IntegrationContext, entidad: str, id_: str, productor_id: str):
     """La pertenencia SIEMPRE se verifica antes de invocar la función de PRAXIS
     que escribe: un envío o un pedido de reposición mueve stock, y confirmar o
-    pedir sobre lo de otro productor sería mover el suyo."""
+    pedir sobre lo de otro productor sería mover el suyo.
+
+    **Divergencia DELIBERADA con el molde**: `praxis_alcaldia:266-276` devuelve
+    `success=True` con un `motivo` cuando algo no es de la cuenta, argumentando
+    (`praxis_alcaldia:86-88`) que un ToolResult fallado le llega al modelo como
+    "el sistema se rompió". Acá se eligió `success=False` con un `error` claro,
+    que es lo que hacen las trece acciones de esta integración: un id ajeno lo
+    pone el MODELO (la persona nunca los ve), así que no es un caso normal de
+    conversación como un vecino fuera del padrón, y uniformar la forma de fallar
+    vale más que la diferencia de tono. No es un descuido."""
     if not id_:
         return _fallo("falta el id", 400)
+    # Mismo mensaje para "no existe" y "es de otro": distinguirlos le diría a
+    # quien prueba ids cuáles existen.
     if not await _es_suyo(ctx, entidad, id_, productor_id):
         return _fallo("eso no es tuyo o no existe", 404)
     return None
@@ -558,25 +632,46 @@ async def escalar(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolRes
     if motivo not in MOTIVOS:
         return _fallo(f"motivo desconocido: {motivo}", 400)
 
-    productor, _ = await _productor_de_sesion(ctx)
+    productor, fallo = await _productor_de_sesion(ctx)
+    # Es la única acción que necesita distinguir "no está en el padrón" de "el
+    # padrón no contestó", y la distinción viene gratis: `_sin_identidad()`
+    # viaja con `success=True`, un HTTP 500 con `success=False`. Tragarse el
+    # segundo abría un pendiente de "teléfono desconocido" para alguien que SÍ
+    # está en el padrón —basura en la bandeja de La Carta— o le decía "no puedo
+    # identificarte" a un productor legítimo.
+    if fallo is not None and fallo.success is False:
+        return fallo
     telefono = telefono_del_canal(ctx) or ""
 
     if productor is None:
         if motivo != "telefono_desconocido":
             return _sin_identidad()
+        if not telefono:
+            # Sin productor y sin teléfono el pendiente no tiene por dónde
+            # volver: nadie de La Carta puede atender un "alguien dice ser
+            # productor" sin número ni ficha. Pasa en el banco de pruebas y en
+            # una invocación por API, y sin este corte cada llamada agrega una
+            # fila indistinguible de la anterior — el dedupe de abajo necesita
+            # justamente el teléfono para poder deduplicar.
+            return _sin_identidad()
         # Uno solo por teléfono: si ya hay uno abierto, no se abre otro. Sin
         # esto, cinco mensajes de la misma persona son cinco ítems en la bandeja.
-        if telefono:
-            payload, fallo = await _buscar(ctx, "lca_pendiente", f"telefono:eq:{telefono}", 20)
-            if fallo is None:
-                abiertos = [
-                    f
-                    for f in (payload.get("rows") or [])
-                    if (f.get("data") or {}).get("estado") == "abierto"
-                    and (f.get("data") or {}).get("tipo") == "telefono_desconocido"
-                ]
-                if abiertos:
-                    return ToolResult(success=True, data={"ya_estaba": True}, metadata={})
+        # Los tres filtros van en la QUERY: filtrarlos en Python sobre las 20
+        # primeras filas del teléfono se saltea el duplicado en cuanto hay
+        # veinte pendientes viejos, y `lca_pendiente` no tiene campo de fecha
+        # por el que ordenar para quedarse con los últimos.
+        payload, fallo = await _buscar(
+            ctx,
+            "lca_pendiente",
+            [
+                f"telefono:eq:{telefono}",
+                "tipo:eq:telefono_desconocido",
+                "estado:eq:abierto",
+            ],
+            20,
+        )
+        if fallo is None and (payload.get("rows") or []):
+            return ToolResult(success=True, data={"ya_estaba": True}, metadata={})
 
     cuerpo: dict[str, Any] = {
         "tipo": "escalamiento" if productor is not None else "telefono_desconocido",
@@ -601,6 +696,29 @@ async def responder_oferta_membresia(
         return fallo
     acepta = bool(arguments.get("acepta"))
 
+    # Mismo dedupe que `escalar`, por el mismo motivo: dos "sí" seguidos en la
+    # misma conversación son DOS ítems para que La Carta llame a la misma
+    # persona por lo mismo. Sólo sobre el "sí": un "no" nace `resuelto` y no
+    # entra a ninguna bandeja, y además la regla de §15.2 cuenta esas filas —
+    # deduplicarlas le regalaría cuota a quien dice que no dos veces.
+    if acepta:
+        payload, fallo = await _buscar(
+            ctx,
+            "lca_pendiente",
+            [
+                f"productor:eq:{productor['id']}",
+                "tipo:eq:interes_membresia",
+                "estado:eq:abierto",
+            ],
+            20,
+        )
+        if fallo is None and (payload.get("rows") or []):
+            return ToolResult(
+                success=True,
+                data={"registrado": True, "acepta": True, "ya_estaba": True},
+                metadata={},
+            )
+
     # Un "no" se guarda YA RESUELTO: existe para que la regla de oferta lo
     # cuente, no para que nadie lo atienda.
     cuerpo = {
@@ -617,4 +735,8 @@ async def responder_oferta_membresia(
             f"registrar la respuesta falló: HTTP {res.status_code}: {res.text[:200]}",
             res.status_code,
         )
-    return ToolResult(success=True, data={"registrado": True, "acepta": acepta}, metadata={})
+    return ToolResult(
+        success=True,
+        data={"registrado": True, "acepta": acepta, "ya_estaba": False},
+        metadata={},
+    )

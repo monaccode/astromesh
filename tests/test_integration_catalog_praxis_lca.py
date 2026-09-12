@@ -172,6 +172,39 @@ async def test_el_filtro_viaja_encodeado_y_no_como_un_espacio():
 
 
 @respx.mock
+async def test_mi_ficha_lista_solo_los_productos_del_productor_de_la_sesion():
+    """La tercera lista de la integración, con la misma regla que
+    `mis_liquidaciones` y `mis_envios_abiertos`: sin este chequeo, apuntar el
+    filtro a otro id (o borrarlo) no ponía rojo nada — el mock de
+    `lca_producto` responde igual mande el filtro que mande."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    ruta = respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    await _correr("mi_ficha")
+    assert ruta.calls[0].request.url.params["filter"] == f"productor:eq:{PRODUCTOR}"
+
+
+@respx.mock
+async def test_mi_ficha_no_lista_los_productos_dados_de_baja():
+    """Un producto `activo: False` es uno que La Carta ya no vende. Ofrecérselo
+    para reponer manda mercadería que va a quedar en el depósito."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "rows": [
+                    {"id": "prod-1", "data": {"nombre": "Miel", "activo": True}},
+                    {"id": "prod-2", "data": {"nombre": "Dulce viejo", "activo": False}},
+                ],
+                "total": 2,
+            },
+        )
+    )
+    r = await _correr("mi_ficha")
+    assert [p["id"] for p in r.data["productos"]] == ["prod-1"]
+
+
+@respx.mock
 async def test_sin_sender_phone_no_identifica_a_nadie_y_no_lee_ningun_dato():
     ruta = respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
     r = await _correr("mi_ficha", ctx={"channel": "telegram", "sender": "12345"})
@@ -214,6 +247,20 @@ async def test_un_productor_de_baja_no_se_identifica():
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron(estado="baja"))
     r = await _correr("mi_ficha")
     assert r.data["identificado"] is False
+
+
+@respx.mock
+async def test_el_padron_se_pide_con_margen_sobre_el_guard_de_duplicados():
+    """El guard de teléfono duplicado descarta las fichas de baja EN PYTHON,
+    así que un `limit` justo lo esquiva: con tres fichas del mismo número —una
+    de baja y dos activas— `limit=2` podía traer [baja, activa], dejar UNA fila
+    y servirle la ficha a una de las dos que se disputan el teléfono. respx
+    responde lo mismo mande el limit que mande, así que lo único que discrimina
+    es el parámetro que viaja."""
+    ruta = respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    await _correr("mi_ficha")
+    assert int(ruta.calls[0].request.url.params["limit"]) >= 5
 
 
 @respx.mock
@@ -315,6 +362,46 @@ async def test_un_productor_limpio_recibe_la_oferta_de_membresia():
     assert r.data["puede_ofrecer_membresia"] is True
 
 
+@respx.mock
+async def test_la_regla_de_oferta_mide_contra_el_reloj_de_handlers_y_no_contra_el_real(
+    monkeypatch,
+):
+    """`_oferta_habilitada` re-importaba `datetime` DENTRO de la función, y ese
+    import local tapaba el `monkeypatch.setattr(handlers, "datetime", …)` de
+    `_instante_fijo`: el reloj congelado no congelaba nada y la ventana de 30
+    días se medía contra la hora real de quien corre el test. Con el reloj en
+    enero de 2026 un "no" del 10/1/2026 está a cinco días y bloquea; contra la
+    hora real está a meses y no bloquearía, así que este caso distingue las dos
+    cosas — los demás tests de la regla usan fechas relativas y no pueden."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    respx.get(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=_pendiente(
+            [{"id": "p1", "created_at": "2026-01-10", "data": {"tipo": "oferta_rechazada"}}]
+        )
+    )
+    _instante_fijo(monkeypatch, "2026-01-15T12:00:00+00:00")
+    r = await _correr("mi_ficha")
+    assert r.data["puede_ofrecer_membresia"] is False
+
+
+@respx.mock
+async def test_la_regla_de_oferta_acota_los_dos_tipos_en_la_query_y_no_en_python():
+    """`lca_pendiente` acumula TAMBIÉN los escalamientos: traer los 50 primeros
+    del productor para descartar casi todos en Python dejaba afuera las
+    respuestas viejas apenas alguien escalara seguido, y la cuota del trimestre
+    se calculaba sobre una muestra. Ordenar por fecha no es una alternativa
+    acá: `lca_pendiente` no declara ningún campo de fecha de alta y `created_at`
+    no es un campo declarado (sería un 422, no un orden ignorado)."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    ruta = respx.get(f"{BASE}/api/data/lca_pendiente").mock(return_value=_vacio())
+    await _correr("mi_ficha")
+    filtros = ruta.calls[0].request.url.params.get_list("filter")
+    assert f"productor:eq:{PRODUCTOR}" in filtros
+    assert "tipo:in:interes_membresia,oferta_rechazada" in filtros
+
+
 # --- Alta -------------------------------------------------------------------
 
 
@@ -330,7 +417,10 @@ async def test_corregir_un_producto_de_otro_productor_se_rechaza_sin_tocarlo():
     r = await _correr("corregir_producto", {"producto_id": "ajeno", "precio_publico": 1})
     assert r.success is False
     assert not patch.called, "no se tocó nada de otro productor"
-    assert r.error == "ese producto no es tuyo o no existe"
+    # El mensaje del helper compartido `_suyo_o_fallo`, el mismo que dan las
+    # otras cuatro acciones que reciben un id: un mensaje propio acá significa
+    # que esta acción volvió a tener su propio camino de verificación.
+    assert r.error == "eso no es tuyo o no existe"
 
 
 @respx.mock
@@ -344,7 +434,20 @@ async def test_corregir_un_producto_inexistente_da_el_mismo_mensaje_que_uno_ajen
     )
     r = await _correr("corregir_producto", {"producto_id": "no-existe", "precio_publico": 1})
     assert r.success is False
-    assert r.error == "ese producto no es tuyo o no existe"
+    assert r.error == "eso no es tuyo o no existe"
+
+
+@respx.mock
+async def test_corregir_sin_id_falla_con_el_mensaje_del_helper_compartido():
+    """`corregir_producto` es la 12va acción con id y pasa por el MISMO
+    `_suyo_o_fallo` que las otras cuatro. Sin este caso, volver a darle un
+    camino propio (`falta el id del producto`) no ponía rojo nada."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    ruta = respx.get(f"{BASE}/api/data/lca_producto/")
+    r = await _correr("corregir_producto", {"producto_id": "  ", "precio_publico": 1})
+    assert r.success is False
+    assert r.error == "falta el id"
+    assert not ruta.called
 
 
 @respx.mock
@@ -462,6 +565,19 @@ async def test_mis_liquidaciones_filtra_por_el_productor_de_la_sesion():
 
 
 @respx.mock
+async def test_mis_liquidaciones_pide_las_mas_recientes_primero():
+    """Sin `sort`, pasadas las 50 filas PRAXIS devuelve las que quiera ("whatever
+    order Postgres feels like") y a un productor viejo se le contestaría con las
+    liquidaciones de hace dos años. respx responde lo mismo con orden o sin él:
+    lo único que discrimina es el parámetro que viaja. `periodo` es `AAAA-MM`,
+    así que el orden lexicográfico ES el cronológico."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    ruta = respx.get(f"{BASE}/api/data/lca_liquidacion").mock(return_value=_vacio())
+    await _correr("mis_liquidaciones")
+    assert ruta.calls[0].request.url.params["sort"] == "periodo:desc"
+
+
+@respx.mock
 async def test_mis_envios_abiertos_trae_los_propuestos_y_confirmados_del_que_escribe():
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
     respx.get(f"{BASE}/api/data/lca_producto").mock(
@@ -524,6 +640,49 @@ async def test_mis_envios_abiertos_filtra_los_productos_por_el_productor_de_la_s
     respx.get(f"{BASE}/api/data/lca_envio").mock(return_value=_vacio())
     await _correr("mis_envios_abiertos")
     assert ruta.calls[0].request.url.params["filter"] == f"productor:eq:{PRODUCTOR}"
+
+
+@respx.mock
+async def test_mis_envios_abiertos_pide_los_dos_filtros_y_no_recorta_en_python():
+    """El aislamiento viaja en la QUERY, no en el `if` de después: traer los
+    abiertos de TODO el tenant con `limit=200` y recortarlos acá se comía un
+    envío propio apenas los 300 productores pasaran las 200 filas abiertas, y
+    el síntoma era el agente contestando "no tenés nada pendiente" al productor
+    que acababa de decir que sí. Los DOS filtros tienen que llegar: con uno
+    solo, PRAXIS devuelve de más o de menos y nada falla."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "rows": [
+                    {"id": "prod-1", "data": {"nombre": "Miel"}},
+                    {"id": "prod-2", "data": {"nombre": "Dulce"}},
+                ],
+                "total": 2,
+            },
+        )
+    )
+    ruta = respx.get(f"{BASE}/api/data/lca_envio").mock(return_value=_vacio())
+    await _correr("mis_envios_abiertos")
+    filtros = ruta.calls[0].request.url.params.get_list("filter")
+    assert "estado:in:propuesto,confirmado" in filtros
+    assert "producto:in:prod-1,prod-2" in filtros
+
+
+@respx.mock
+async def test_mis_envios_abiertos_sin_productos_no_consulta_los_envios():
+    """El borde del filtro de arriba: sin productos propios, `producto:in:`
+    quedaría VACÍO y esa consulta no filtra por producto — traería los envíos
+    abiertos de todo el tenant. Sin productos tampoco puede haber un envío
+    suyo, así que se corta antes."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    ruta = respx.get(f"{BASE}/api/data/lca_envio").mock(return_value=_vacio())
+    r = await _correr("mis_envios_abiertos")
+    assert r.success is True
+    assert r.data["envios"] == []
+    assert not ruta.called
 
 
 # --- mi_resumen --------------------------------------------------------------
@@ -773,6 +932,73 @@ async def test_escalar_sin_identidad_abre_el_pendiente_con_el_telefono_del_canal
 
 
 @respx.mock
+async def test_escalar_ignora_un_telefono_dictado_en_los_argumentos():
+    """El docstring de `escalar` promete que el teléfono sale del CANAL: si
+    viniera del modelo, cualquiera podría llenar la bandeja de La Carta con
+    números ajenos. El invariante de los PARÁMETROS no alcanza para fijarlo —
+    el executor le pasa al handler el dict de argumentos SIN filtrar
+    (`executor.py:_with_defaults` copia todo), así que un handler que lee una
+    clave no declarada le es invisible."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_vacio())
+    dedupe = respx.get(f"{BASE}/api/data/lca_pendiente").mock(return_value=_vacio())
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={"id": "pend-9", "data": {}})
+    )
+    r = await _correr(
+        "escalar",
+        {
+            "motivo": "telefono_desconocido",
+            "resumen": "x",
+            "telefono": "+5491199999999",
+        },
+    )
+    assert r.success is True
+    cuerpo = json.loads(post.calls[0].request.content)
+    assert cuerpo["telefono"] == TELEFONO
+    assert "+5491199999999" not in post.calls[0].request.read().decode()
+    # Y el dedupe busca por el número del canal, no por el dictado: buscar por
+    # el ajeno abriría un pendiente nuevo cada vez.
+    assert f"telefono:eq:{TELEFONO}" in dedupe.calls[0].request.url.params.get_list("filter")
+
+
+@respx.mock
+async def test_escalar_no_confunde_un_padron_caido_con_un_telefono_desconocido():
+    """Es la única acción que distingue "no está en el padrón" de "el padrón no
+    contestó", y la distinción viene gratis: `_sin_identidad()` viaja con
+    `success=True` y un HTTP 500 con `success=False`. Tragarse el segundo abría
+    un pendiente de "teléfono desconocido" para alguien que SÍ está en el
+    padrón — basura que una persona de La Carta tiene que atender."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=httpx.Response(500, text="boom"))
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={})
+    )
+    r = await _correr("escalar", {"motivo": "telefono_desconocido", "resumen": "x"})
+    assert r.success is False
+    assert "consultar lca_productor falló" in (r.error or "")
+    assert not post.called, "con el padrón caído no se abre ningún pendiente"
+
+
+@respx.mock
+async def test_escalar_sin_telefono_en_el_canal_no_crea_un_pendiente_ciego():
+    """Sin productor y sin teléfono el pendiente no tiene por dónde volver:
+    nadie de La Carta puede atender un "alguien dice ser productor" sin número
+    ni ficha. Y el dedupe es POR teléfono, así que sin él cada llamada desde el
+    banco de pruebas dejaba una fila más, indistinguible de la anterior."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_vacio())
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={})
+    )
+    r = await _correr(
+        "escalar",
+        {"motivo": "telefono_desconocido", "resumen": "x"},
+        ctx={"channel": "telegram", "sender": "12345"},
+    )
+    assert r.success is True
+    assert r.data["identificado"] is False
+    assert not post.called
+
+
+@respx.mock
 async def test_escalar_dos_veces_el_mismo_telefono_no_abre_dos_pendientes():
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_vacio())
     respx.get(f"{BASE}/api/data/lca_pendiente").mock(
@@ -799,6 +1025,16 @@ async def test_escalar_dos_veces_el_mismo_telefono_no_abre_dos_pendientes():
     r = await _correr("escalar", {"motivo": "telefono_desconocido", "resumen": "otra vez"})
     assert r.success is True
     assert not post.called
+    # El dedupe descansa ENTERO en la query: acotar el tipo y el estado en
+    # Python sobre las 20 primeras filas del teléfono se saltea el duplicado en
+    # cuanto hay veinte pendientes viejos, y `lca_pendiente` no tiene campo de
+    # fecha por el que ordenar para quedarse con los últimos. El mock devuelve
+    # la misma fila mande el filtro que mande, así que lo que discrimina es
+    # esto.
+    filtros = respx.calls[1].request.url.params.get_list("filter")
+    assert f"telefono:eq:{TELEFONO}" in filtros
+    assert "tipo:eq:telefono_desconocido" in filtros
+    assert "estado:eq:abierto" in filtros
 
 
 @respx.mock
@@ -854,8 +1090,50 @@ async def test_un_productor_pago_nunca_recibe_la_oferta_bis():
 
 
 @respx.mock
+async def test_dos_sies_seguidos_a_la_membresia_no_abren_dos_pendientes():
+    """Mismo dedupe que `escalar` y por lo mismo: dos "sí" en la misma
+    conversación son DOS ítems para que La Carta llame a la misma persona por
+    lo mismo."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    ruta = respx.get(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=_pendiente(
+            [{"id": "p-1", "data": {"tipo": "interes_membresia", "estado": "abierto"}}]
+        )
+    )
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={})
+    )
+    r = await _correr("responder_oferta_membresia", {"acepta": True})
+    assert r.success is True
+    assert r.data["ya_estaba"] is True
+    assert not post.called
+    filtros = ruta.calls[0].request.url.params.get_list("filter")
+    assert f"productor:eq:{PRODUCTOR}" in filtros
+    assert "tipo:eq:interes_membresia" in filtros
+    assert "estado:eq:abierto" in filtros
+
+
+@respx.mock
+async def test_un_no_a_la_membresia_se_registra_siempre_y_no_se_deduplica():
+    """El dedupe es SÓLO del "sí". Un "no" nace `resuelto` y no entra a ninguna
+    bandeja, y la regla de §15.2 cuenta esas filas: deduplicarlas le regalaría
+    cuota a quien dice que no dos veces."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    ruta = respx.get(f"{BASE}/api/data/lca_pendiente").mock(return_value=_vacio())
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={})
+    )
+    r = await _correr("responder_oferta_membresia", {"acepta": False})
+    assert r.success is True
+    assert r.data["ya_estaba"] is False
+    assert post.called
+    assert not ruta.called, "un `no` no consulta la bandeja: se registra siempre"
+
+
+@respx.mock
 async def test_aceptar_la_oferta_abre_un_pendiente_para_la_bandeja():
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_pendiente").mock(return_value=_vacio())
     post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
         return_value=httpx.Response(201, json={"id": "pend-2", "data": {}})
     )
