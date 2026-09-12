@@ -38,6 +38,32 @@ PRICING: dict[str, tuple[float, float]] = {
     "kimi-k2.7-code": (0.00095, 0.0040),
     "kimi-k2.7-code-highspeed": (0.0019, 0.0080),
     "kimi-k3": (0.0030, 0.0150),
+    # Google / Gemini, from the vendor's published table, read 2026-09-12:
+    # ai.google.dev/gemini-api/docs/pricing. Divide the per-1M prices there by
+    # 1000. Only TEXT models are listed: Gemini's image models are billed per
+    # image (or per 1M output tokens) and CLARUS calls that API directly without
+    # going through this adapter, so a row here would never be read.
+    #
+    # The three 3.x Flash rows are INTRODUCTORY pricing: the same page says
+    # $1.50 / $7.50 per 1M from 2027-01-01. That date is the one thing in this
+    # block that expires on its own -- when it passes, these three rows are
+    # wrong by 2x and nothing will fail to say so.
+    #
+    # Gemini bills long context at a higher rate (Pro: $2.00 -> $4.00 input
+    # above 200k tokens). This table has one rate per model, so the SHORT-context
+    # price is the one listed and a long-context call is UNDER-counted. That is
+    # the opposite of the cache-miss choice above; it is recorded here rather
+    # than hidden because estimated_cost() has nowhere to put a second rate.
+    "gemini-3.8-flash": (0.00075, 0.00375),
+    "gemini-3.7-flash": (0.00075, 0.00375),
+    "gemini-3.6-flash": (0.00075, 0.00375),
+    "gemini-3.5-flash": (0.0015, 0.0090),
+    "gemini-3.5-flash-lite": (0.00030, 0.0025),
+    "gemini-3.1-flash-lite": (0.00025, 0.0015),
+    "gemini-3.1-pro-preview": (0.0020, 0.0120),
+    "gemini-2.5-pro": (0.00125, 0.0100),
+    "gemini-2.5-flash": (0.00030, 0.0025),
+    "gemini-2.5-flash-lite": (0.00010, 0.00040),
 }
 
 # Cached-input rates (Moonshot/Kimi context cache), same source and same date.
