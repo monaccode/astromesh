@@ -115,6 +115,9 @@ def test_los_parametros_de_cada_accion_son_exactamente_estos():
         "mi_resumen": {"semanas"},
         "mis_envios_abiertos": set(),
         "mis_liquidaciones": set(),
+        "confirmar_envio": {"envio_id", "cantidad"},
+        "rechazar_envio": {"envio_id"},
+        "pedir_reposicion": {"producto_id", "cantidad"},
     }
     vistos = {accion.name for accion in m.actions}
     assert vistos == set(esperados), "una acción nueva o borrada no está en esta lista"
@@ -575,3 +578,77 @@ async def test_mi_resumen_calcula_la_semana_en_la_zona_de_argentina_y_no_en_utc(
     await _correr("mi_resumen")
     cuerpo = json.loads(fn.calls[0].request.content)["args"]
     assert cuerpo["desde"] == "2026-08-17"
+
+
+# --- Envíos ------------------------------------------------------------------
+
+
+@respx.mock
+async def test_confirmar_un_envio_ajeno_no_llama_a_la_funcion():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_envio/e-otro").mock(
+        return_value=httpx.Response(200, json={"id": "e-otro", "data": {"producto": "prod-otro"}})
+    )
+    respx.get(f"{BASE}/api/data/lca_producto/prod-otro").mock(
+        return_value=httpx.Response(200, json={"id": "prod-otro", "data": {"productor": "p-999"}})
+    )
+    fn = respx.post(f"{BASE}/api/functions/lca_confirmar_envio").mock(
+        return_value=_funcion({"envio": {}})
+    )
+    r = await _correr("confirmar_envio", {"envio_id": "e-otro", "cantidad": 20})
+    assert r.success is False
+    assert not fn.called
+
+
+@respx.mock
+async def test_confirmar_lo_propio_pasa_la_cantidad_que_dijo_el_productor():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_envio/e-1").mock(
+        return_value=httpx.Response(200, json={"id": "e-1", "data": {"producto": "prod-1"}})
+    )
+    respx.get(f"{BASE}/api/data/lca_producto/prod-1").mock(
+        return_value=httpx.Response(200, json={"id": "prod-1", "data": {"productor": PRODUCTOR}})
+    )
+    fn = respx.post(f"{BASE}/api/functions/lca_confirmar_envio").mock(
+        return_value=_funcion({"envio": {"id": "e-1", "estado": "confirmado", "cantidad": 20}})
+    )
+    r = await _correr("confirmar_envio", {"envio_id": "e-1", "cantidad": 20})
+    assert r.success is True
+    # httpx serializa el JSON compacto (`separators=(",", ":")`), sin espacio
+    # después de los dos puntos: comparar la forma exacta rompería contra ese
+    # detalle de encoding en vez de contra el dato que importa.
+    cuerpo = json.loads(fn.calls[0].request.read().decode())["args"]
+    assert cuerpo == {"envio": "e-1", "cantidad": 20}
+
+
+@respx.mock
+async def test_una_cantidad_bajo_el_lote_minimo_vuelve_con_el_motivo_y_no_rompe():
+    """PRAXIS rechaza con 422 y el mensaje dice cuál es el lote mínimo. El
+    agente tiene que poder contárselo, así que el error viaja completo."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_envio/e-1").mock(
+        return_value=httpx.Response(200, json={"id": "e-1", "data": {"producto": "prod-1"}})
+    )
+    respx.get(f"{BASE}/api/data/lca_producto/prod-1").mock(
+        return_value=httpx.Response(200, json={"id": "prod-1", "data": {"productor": PRODUCTOR}})
+    )
+    respx.post(f"{BASE}/api/functions/lca_confirmar_envio").mock(
+        return_value=httpx.Response(422, text="El lote mínimo de ese producto es 6.")
+    )
+    r = await _correr("confirmar_envio", {"envio_id": "e-1", "cantidad": 2})
+    assert r.success is False
+    assert "lote mínimo" in (r.error or "")
+
+
+@respx.mock
+async def test_pedir_reposicion_de_un_producto_ajeno_se_rechaza():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto/ajeno").mock(
+        return_value=httpx.Response(200, json={"id": "ajeno", "data": {"productor": "p-999"}})
+    )
+    fn = respx.post(f"{BASE}/api/functions/lca_pedir_reposicion").mock(
+        return_value=_funcion({"envio": {}})
+    )
+    r = await _correr("pedir_reposicion", {"producto_id": "ajeno", "cantidad": 12})
+    assert r.success is False
+    assert not fn.called

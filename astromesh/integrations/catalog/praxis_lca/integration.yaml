@@ -143,3 +143,51 @@ spec:
       writes: false
       handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mis_liquidaciones"
       parameters: {}
+
+    - name: confirmar_envio
+      description: >
+        El productor confirma una reposición que el sistema le propuso, con la
+        cantidad que él diga: puede ser la sugerida u otra ("mejor 20"). Sacá el
+        `envio_id` de `mis_envios_abiertos`, nunca lo inventes.
+        Si vuelve un error hablando del lote mínimo, contáselo tal cual y
+        preguntale si quiere mandar esa cantidad.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:confirmar_envio"
+      parameters:
+        envio_id:
+          type: string
+          description: "El id de la reposición propuesta."
+          required: true
+        cantidad:
+          type: number
+          description: "Cuántas unidades manda."
+          required: true
+
+    - name: rechazar_envio
+      description: >
+        El productor dice que no manda. La reposición queda cerrada y no se le
+        vuelve a preguntar por ésa. No insistas después.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:rechazar_envio"
+      parameters:
+        envio_id:
+          type: string
+          description: "El id de la reposición propuesta."
+          required: true
+
+    - name: pedir_reposicion
+      description: >
+        El productor quiere mandar mercadería sin que hubiera una alerta. Queda
+        confirmada en el acto. Confirmá con él el producto y la cantidad ANTES
+        de llamarla — acá nadie le preguntó primero.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:pedir_reposicion"
+      parameters:
+        producto_id:
+          type: string
+          description: "El id del producto, copiado de `mi_ficha`."
+          required: true
+        cantidad:
+          type: number
+          description: "Cuántas unidades manda."
+          required: true

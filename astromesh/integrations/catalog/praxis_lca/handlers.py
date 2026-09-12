@@ -476,3 +476,62 @@ async def mis_liquidaciones(arguments: dict[str, Any], ctx: IntegrationContext) 
             }
         )
     return ToolResult(success=True, data={"liquidaciones": salida}, metadata={})
+
+
+async def _suyo_o_fallo(ctx: IntegrationContext, entidad: str, id_: str, productor_id: str):
+    """La pertenencia SIEMPRE se verifica antes de invocar la función de PRAXIS
+    que escribe: un envío o un pedido de reposición mueve stock, y confirmar o
+    pedir sobre lo de otro productor sería mover el suyo."""
+    if not id_:
+        return _fallo("falta el id", 400)
+    if not await _es_suyo(ctx, entidad, id_, productor_id):
+        return _fallo("eso no es tuyo o no existe", 404)
+    return None
+
+
+async def confirmar_envio(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    envio_id = str(arguments.get("envio_id") or "").strip()
+    fallo = await _suyo_o_fallo(ctx, "lca_envio", envio_id, str(productor["id"]))
+    if fallo is not None:
+        return fallo
+    datos, fallo = await _invocar(
+        ctx, "lca_confirmar_envio", {"envio": envio_id, "cantidad": arguments.get("cantidad")}
+    )
+    if fallo is not None:
+        return fallo
+    return ToolResult(success=True, data=datos, metadata={})
+
+
+async def rechazar_envio(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    envio_id = str(arguments.get("envio_id") or "").strip()
+    fallo = await _suyo_o_fallo(ctx, "lca_envio", envio_id, str(productor["id"]))
+    if fallo is not None:
+        return fallo
+    datos, fallo = await _invocar(ctx, "lca_rechazar_envio", {"envio": envio_id})
+    if fallo is not None:
+        return fallo
+    return ToolResult(success=True, data=datos, metadata={})
+
+
+async def pedir_reposicion(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    producto_id = str(arguments.get("producto_id") or "").strip()
+    fallo = await _suyo_o_fallo(ctx, "lca_producto", producto_id, str(productor["id"]))
+    if fallo is not None:
+        return fallo
+    datos, fallo = await _invocar(
+        ctx,
+        "lca_pedir_reposicion",
+        {"producto": producto_id, "cantidad": arguments.get("cantidad")},
+    )
+    if fallo is not None:
+        return fallo
+    return ToolResult(success=True, data=datos, metadata={})
