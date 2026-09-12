@@ -535,3 +535,80 @@ async def pedir_reposicion(arguments: dict[str, Any], ctx: IntegrationContext) -
     if fallo is not None:
         return fallo
     return ToolResult(success=True, data=datos, metadata={})
+
+
+#: Los únicos motivos que el YAML le ofrece al modelo. Uno inventado es un
+#: prompt confundido, no un caso de negocio nuevo.
+MOTIVOS = {"fuera_de_alcance", "error_de_calculo", "baja", "liquidacion", "telefono_desconocido"}
+
+
+async def escalar(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    """La ÚNICA acción que corre sin identidad.
+
+    Es el caso que hay que poder registrar: alguien que dice ser productor de La
+    Carta y no está en el padrón. El teléfono sale del CANAL, nunca de un
+    argumento — si viniera del modelo, cualquiera podría llenar la bandeja de La
+    Carta con números ajenos.
+    """
+    motivo = str(arguments.get("motivo") or "").strip()
+    if motivo not in MOTIVOS:
+        return _fallo(f"motivo desconocido: {motivo}", 400)
+
+    productor, _ = await _productor_de_sesion(ctx)
+    telefono = telefono_del_canal(ctx) or ""
+
+    if productor is None:
+        if motivo != "telefono_desconocido":
+            return _sin_identidad()
+        # Uno solo por teléfono: si ya hay uno abierto, no se abre otro. Sin
+        # esto, cinco mensajes de la misma persona son cinco ítems en la bandeja.
+        if telefono:
+            payload, fallo = await _buscar(ctx, "lca_pendiente", f"telefono:eq:{telefono}", 20)
+            if fallo is None:
+                abiertos = [
+                    f
+                    for f in (payload.get("rows") or [])
+                    if (f.get("data") or {}).get("estado") == "abierto"
+                    and (f.get("data") or {}).get("tipo") == "telefono_desconocido"
+                ]
+                if abiertos:
+                    return ToolResult(success=True, data={"ya_estaba": True}, metadata={})
+
+    cuerpo: dict[str, Any] = {
+        "tipo": "escalamiento" if productor is not None else "telefono_desconocido",
+        "estado": "abierto",
+        "telefono": telefono,
+        "resumen": f"[{motivo}] {str(arguments.get('resumen') or '').strip()}",
+    }
+    if productor is not None:
+        cuerpo["productor"] = str(productor["id"])
+
+    res = await ctx.client.post(f"{ctx.base_url}/api/data/lca_pendiente", json=cuerpo)
+    if res.status_code >= 400:
+        return _fallo(f"escalar falló: HTTP {res.status_code}: {res.text[:200]}", res.status_code)
+    return ToolResult(success=True, data={"escalado": True, "ya_estaba": False}, metadata={})
+
+
+async def responder_oferta_membresia(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolResult:
+    productor, fallo = await _productor_de_sesion(ctx)
+    if fallo is not None:
+        return fallo
+    acepta = bool(arguments.get("acepta"))
+
+    # Un "no" se guarda YA RESUELTO: existe para que la regla de oferta lo
+    # cuente, no para que nadie lo atienda.
+    cuerpo = {
+        "tipo": "interes_membresia" if acepta else "oferta_rechazada",
+        "estado": "abierto" if acepta else "resuelto",
+        "productor": str(productor["id"]),
+        "resumen": "Quiere que La Carta lo contacte por la membresía completa."
+        if acepta
+        else "No quiere la membresía completa por ahora.",
+    }
+    res = await ctx.client.post(f"{ctx.base_url}/api/data/lca_pendiente", json=cuerpo)
+    if res.status_code >= 400:
+        return _fallo(
+            f"registrar la respuesta falló: HTTP {res.status_code}: {res.text[:200]}",
+            res.status_code,
+        )
+    return ToolResult(success=True, data={"registrado": True, "acepta": acepta}, metadata={})

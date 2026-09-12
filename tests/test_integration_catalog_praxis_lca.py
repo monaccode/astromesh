@@ -118,6 +118,8 @@ def test_los_parametros_de_cada_accion_son_exactamente_estos():
         "confirmar_envio": {"envio_id", "cantidad"},
         "rechazar_envio": {"envio_id"},
         "pedir_reposicion": {"producto_id", "cantidad"},
+        "escalar": {"motivo", "resumen"},
+        "responder_oferta_membresia": {"acepta"},
     }
     vistos = {accion.name for accion in m.actions}
     assert vistos == set(esperados), "una acción nueva o borrada no está en esta lista"
@@ -652,3 +654,121 @@ async def test_pedir_reposicion_de_un_producto_ajeno_se_rechaza():
     r = await _correr("pedir_reposicion", {"producto_id": "ajeno", "cantidad": 12})
     assert r.success is False
     assert not fn.called
+
+
+# --- Pendientes y membresía -------------------------------------------------
+
+
+@respx.mock
+async def test_escalar_sin_identidad_abre_el_pendiente_con_el_telefono_del_canal():
+    """La única acción que corre sin identificar a nadie: es exactamente el caso
+    de alguien que dice ser productor y no está en el padrón."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_vacio())
+    respx.get(f"{BASE}/api/data/lca_pendiente").mock(return_value=_vacio())
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={"id": "pend-1", "data": {}})
+    )
+    r = await _correr("escalar", {"motivo": "telefono_desconocido", "resumen": "Dice que es productor"})
+    assert r.success is True
+    cuerpo = post.calls[0].request.read().decode()
+    assert TELEFONO in cuerpo
+    assert "telefono_desconocido" in cuerpo
+
+
+@respx.mock
+async def test_escalar_dos_veces_el_mismo_telefono_no_abre_dos_pendientes():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_vacio())
+    respx.get(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "rows": [
+                    {
+                        "id": "pend-1",
+                        "data": {"tipo": "telefono_desconocido", "estado": "abierto", "telefono": TELEFONO},
+                    }
+                ],
+                "total": 1,
+            },
+        )
+    )
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(return_value=httpx.Response(201, json={}))
+    r = await _correr("escalar", {"motivo": "telefono_desconocido", "resumen": "otra vez"})
+    assert r.success is True
+    assert not post.called
+
+
+@respx.mock
+async def test_escalar_con_motivo_desconocido_se_rechaza_sin_consultar_nada():
+    """La validación de `motivo` corta ANTES de resolver identidad: ningún
+    endpoint se llega a consultar. Si no fuera así, este test pasaría igual
+    por cualquier otra falla (por ejemplo una ruta sin mockear), sin decir
+    nada sobre el chequeo real."""
+    ruta = respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_vacio())
+    r = await _correr("escalar", {"motivo": "invento", "resumen": "algo"})
+    assert r.success is False
+    assert "motivo desconocido" in (r.error or "")
+    assert not ruta.called
+
+
+@respx.mock
+async def test_escalar_identificado_por_otro_motivo_manda_el_id_del_productor():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={"id": "pend-3", "data": {}})
+    )
+    r = await _correr("escalar", {"motivo": "liquidacion", "resumen": "no le cerró un número"})
+    assert r.success is True
+    cuerpo = json.loads(post.calls[0].request.content)
+    assert cuerpo["productor"] == PRODUCTOR
+    assert cuerpo["tipo"] == "escalamiento"
+
+
+@respx.mock
+async def test_un_no_a_la_membresia_apaga_la_oferta_por_30_dias():
+    ayer = (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    respx.get(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(
+            200, json={"rows": [{"id": "p1", "created_at": ayer, "data": {"tipo": "oferta_rechazada"}}], "total": 1}
+        )
+    )
+    r = await _correr("mi_ficha")
+    assert r.data["puede_ofrecer_membresia"] is False
+
+
+@respx.mock
+async def test_un_productor_pago_nunca_recibe_la_oferta_bis():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron(membresia="paga"))
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    r = await _correr("mi_ficha")
+    assert r.data["puede_ofrecer_membresia"] is False
+
+
+@respx.mock
+async def test_aceptar_la_oferta_abre_un_pendiente_para_la_bandeja():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={"id": "pend-2", "data": {}})
+    )
+    r = await _correr("responder_oferta_membresia", {"acepta": True})
+    assert r.success is True
+    cuerpo = post.calls[0].request.read().decode()
+    assert "interes_membresia" in cuerpo
+    # httpx serializa compacto (`separators=(",", ":")`), sin espacio tras los
+    # dos puntos.
+    assert '"estado":"abierto"' in cuerpo
+
+
+@respx.mock
+async def test_rechazar_la_oferta_queda_resuelto_y_no_en_la_bandeja():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={"id": "pend-4", "data": {}})
+    )
+    r = await _correr("responder_oferta_membresia", {"acepta": False})
+    assert r.success is True
+    cuerpo = json.loads(post.calls[0].request.content)
+    assert cuerpo["tipo"] == "oferta_rechazada"
+    assert cuerpo["estado"] == "resuelto"

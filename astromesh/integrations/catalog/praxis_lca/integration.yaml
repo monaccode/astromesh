@@ -191,3 +191,39 @@ spec:
           type: number
           description: "Cuántas unidades manda."
           required: true
+
+    - name: escalar
+      description: >
+        Deja el tema en manos de una persona de La Carta. Usala cuando el
+        productor pide algo que no hacés y ya se lo dijiste dos veces, cuando
+        reclama por un número mal calculado, cuando pide la baja, cuando hay un
+        problema con una liquidación, o cuando alguien que NO está en el padrón
+        dice ser productor.
+        Contale que ya avisaste, sin prometer un plazo.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:escalar"
+      parameters:
+        motivo:
+          type: string
+          description: >
+            Uno de: fuera_de_alcance, error_de_calculo, baja, liquidacion,
+            telefono_desconocido.
+          required: true
+        resumen:
+          type: string
+          description: "Qué pasó, en dos líneas, con lo que la persona necesita para atenderlo."
+          required: true
+
+    - name: responder_oferta_membresia
+      description: >
+        Registra qué contestó el productor cuando le ofreciste la membresía
+        completa. `acepta` en verdadero deja el pedido para que La Carta lo
+        contacte; en falso queda registrado y **no se le vuelve a ofrecer por
+        treinta días**. No insistas después de un no.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:responder_oferta_membresia"
+      parameters:
+        acepta:
+          type: boolean
+          description: "Verdadero si quiere que lo contacten."
+          required: true
