@@ -204,10 +204,26 @@ async def mi_ficha(arguments: dict[str, Any], ctx: IntegrationContext) -> ToolRe
         and direccion.strip()
         and datos.get("direccion_canal") != direccion.strip()
     ):
-        await ctx.client.patch(
-            f"{ctx.base_url}/api/data/lca_productor/{productor_id}",
-            json={"direccion_canal": direccion.strip()},
-        )
+        # Dato útil, no precondición: igual que `_oferta_habilitada`, un
+        # fallo acá (de red o de status) no puede tumbar la ficha entera.
+        # Con log del motivo, nunca un catch mudo.
+        try:
+            res = await ctx.client.patch(
+                f"{ctx.base_url}/api/data/lca_productor/{productor_id}",
+                json={"direccion_canal": direccion.strip()},
+            )
+            if res.status_code >= 400:
+                logger.warning(
+                    "no se pudo guardar direccion_canal para %s: HTTP %s",
+                    productor_id,
+                    res.status_code,
+                )
+        except Exception:
+            logger.warning(
+                "no se pudo guardar direccion_canal para %s: PATCH falló",
+                productor_id,
+                exc_info=True,
+            )
 
     payload, fallo = await _buscar(ctx, "lca_producto", f"productor:eq:{productor_id}", 200)
     if fallo is not None:

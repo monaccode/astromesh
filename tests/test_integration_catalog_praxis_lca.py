@@ -7,6 +7,9 @@ forma sino los que prueban que **no hay forma de pedir lo de otro** — ni por
 parámetro, ni dictando un teléfono, ni con un id ajeno.
 """
 
+import json
+from datetime import UTC, datetime, timedelta
+
 import httpx
 import respx
 
@@ -80,6 +83,30 @@ def test_ninguna_accion_recibe_la_identidad_como_parametro():
     prohibidos = {"productor", "productor_id", "telefono", "sender", "sender_phone"}
     for accion in m.actions:
         assert not (set(accion.parameters) & prohibidos), f"{accion.name} nombra la identidad"
+
+
+def test_los_parametros_de_cada_accion_son_exactamente_estos():
+    """La lista negra de arriba la esquiva un parámetro con otro nombre
+    (`numero`, `wa_id`). Esto fija la lista COMPLETA por acción: agregar
+    cualquier parámetro nuevo, se llame como se llame, tiene que tocar este
+    test — y un revisor lo ve en el diff."""
+    m = _lca()
+    esperados = {
+        "mi_ficha": set(),
+        "corregir_producto": {"producto_id", "nombre", "presentacion", "precio_publico"},
+        "agregar_producto": {"nombre", "presentacion", "precio_publico"},
+        "completar_alta": {"email"},
+        "mi_stock": set(),
+        "mi_resumen": {"semanas"},
+        "mis_envios_abiertos": set(),
+        "mis_liquidaciones": set(),
+    }
+    vistos = {accion.name for accion in m.actions}
+    assert vistos == set(esperados), "una acción nueva o borrada no está en esta lista"
+    for accion in m.actions:
+        assert set(accion.parameters) == esperados[accion.name], (
+            f"{accion.name} cambió sus parámetros"
+        )
 
 
 def test_toda_accion_con_handler_declara_writes():
@@ -183,6 +210,91 @@ async def test_mi_ficha_aprende_la_direccion_del_canal_cuando_cambia():
     assert patch.calls[0].request.read().decode().find("direccion_canal") != -1
 
 
+@respx.mock
+async def test_mi_ficha_no_se_rompe_si_guardar_la_direccion_del_canal_tira_una_excepcion():
+    """La dirección del canal es un dato útil, no una precondición: un
+    timeout al aprenderla no puede tumbar la ficha, que es lo único crítico
+    de esta acción."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron(direccion=""))
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    respx.patch(f"{BASE}/api/data/lca_productor/{PRODUCTOR}").mock(
+        side_effect=httpx.ConnectError("boom")
+    )
+    r = await _correr("mi_ficha")
+    assert r.success is True
+    assert r.data["identificado"] is True
+
+
+@respx.mock
+async def test_mi_ficha_no_se_rompe_si_guardar_la_direccion_del_canal_responde_500():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron(direccion=""))
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    respx.patch(f"{BASE}/api/data/lca_productor/{PRODUCTOR}").mock(
+        return_value=httpx.Response(500, json={})
+    )
+    r = await _correr("mi_ficha")
+    assert r.success is True
+    assert r.data["identificado"] is True
+
+
+# --- Oferta de membresía (spec §15.2) ---------------------------------------
+
+
+def _pendiente(rows: list[dict]) -> httpx.Response:
+    return httpx.Response(200, json={"rows": rows, "total": len(rows)})
+
+
+def _pendiente_row(tipo: str, hace_dias: int) -> dict:
+    fecha = (datetime.now(UTC) - timedelta(days=hace_dias)).date().isoformat()
+    return {"id": f"pend-{tipo}-{hace_dias}", "created_at": fecha, "data": {"tipo": tipo}}
+
+
+@respx.mock
+async def test_un_productor_pago_nunca_recibe_la_oferta_de_membresia():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron(membresia="paga"))
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    pendientes = respx.get(f"{BASE}/api/data/lca_pendiente")
+    r = await _correr("mi_ficha")
+    assert r.data["puede_ofrecer_membresia"] is False
+    assert not pendientes.called, "pago no necesita ni consultar la regla"
+
+
+@respx.mock
+async def test_un_no_reciente_bloquea_la_oferta_treinta_dias():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    respx.get(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=_pendiente([_pendiente_row("oferta_rechazada", hace_dias=10)])
+    )
+    r = await _correr("mi_ficha")
+    assert r.data["puede_ofrecer_membresia"] is False
+
+
+@respx.mock
+async def test_dos_ofertas_en_el_trimestre_agotan_la_cuota():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    respx.get(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=_pendiente(
+            [
+                _pendiente_row("interes_membresia", hace_dias=80),
+                _pendiente_row("interes_membresia", hace_dias=40),
+            ]
+        )
+    )
+    r = await _correr("mi_ficha")
+    assert r.data["puede_ofrecer_membresia"] is False
+
+
+@respx.mock
+async def test_un_productor_limpio_recibe_la_oferta_de_membresia():
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    respx.get(f"{BASE}/api/data/lca_pendiente").mock(return_value=_vacio())
+    r = await _correr("mi_ficha")
+    assert r.data["puede_ofrecer_membresia"] is True
+
+
 # --- Alta -------------------------------------------------------------------
 
 
@@ -198,6 +310,21 @@ async def test_corregir_un_producto_de_otro_productor_se_rechaza_sin_tocarlo():
     r = await _correr("corregir_producto", {"producto_id": "ajeno", "precio_publico": 1})
     assert r.success is False
     assert not patch.called, "no se tocó nada de otro productor"
+    assert r.error == "ese producto no es tuyo o no existe"
+
+
+@respx.mock
+async def test_corregir_un_producto_inexistente_da_el_mismo_mensaje_que_uno_ajeno():
+    """El comentario en `corregir_producto` afirma que "no existe" y "es de
+    otro" comparten mensaje para no delatar qué ids existen. Sin este caso,
+    separar los mensajes no pondría rojo nada."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto/no-existe").mock(
+        return_value=httpx.Response(404, json={})
+    )
+    r = await _correr("corregir_producto", {"producto_id": "no-existe", "precio_publico": 1})
+    assert r.success is False
+    assert r.error == "ese producto no es tuyo o no existe"
 
 
 @respx.mock
@@ -230,7 +357,10 @@ async def test_agregar_producto_nace_con_sku_provisorio_y_lo_dice():
     assert r.success is True
     assert r.data["provisorio"] is True
     assert r.data["sku_externo"].startswith("pendiente:")
-    assert post.calls[0].request.read().decode().find(PRODUCTOR) != -1
+    cuerpo = json.loads(post.calls[0].request.content)
+    assert cuerpo["productor"] == PRODUCTOR
+    assert cuerpo["presentacion"] == "250g"
+    assert cuerpo["precio_publico"] == 3800
 
 
 @respx.mock
@@ -241,9 +371,9 @@ async def test_completar_alta_activa_y_guarda_el_mail():
     )
     r = await _correr("completar_alta", {"email": "juan@mieldeltalar.com.ar"})
     assert r.success is True
-    cuerpo = patch.calls[-1].request.read().decode()
-    assert "activo" in cuerpo
-    assert "juan@mieldeltalar.com.ar" in cuerpo
+    cuerpo = json.loads(patch.calls[-1].request.content)
+    assert cuerpo["estado"] == "activo"
+    assert cuerpo["email"] == "juan@mieldeltalar.com.ar"
 
 
 # --- Consultas --------------------------------------------------------------
