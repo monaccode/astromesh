@@ -32,6 +32,19 @@ class PromptEngine:
         """
         return self._env.compile_expression(expression, undefined_to_none=True)(**variables)
 
+    def compile_expression(self, expression):
+        """Compila una EXPRESIÓN Jinja sin evaluarla — para validar sintaxis al cargar.
+
+        Levanta `jinja2.TemplateSyntaxError` si `expression` no parsea. No lee
+        ninguna variable, así que una expresión que referencia algo que sólo
+        existe en runtime (p.ej. `prefetch.x`) sigue siendo válida acá.
+        """
+        self._env.compile_expression(expression, undefined_to_none=True)
+
+    def compile_template(self, template_str):
+        """Compila un TEMPLATE Jinja sin renderizarlo — para validar sintaxis al cargar."""
+        self._env.from_string(template_str)
+
     def register_template(self, name, template_str, scope=None):
         self._templates[(scope, name)] = template_str
 

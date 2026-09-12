@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.1] - 2026-09-12
+
+### Fixed
+
+- **Un `when` de `spec.prefetch` con un error de sintaxis mataba TODOS los
+  turnos del agente, no sólo el prefetch.** `validar_prefetch` sólo chequeaba
+  que `when` fuera un `str`; nunca lo compilaba. `ejecutar_prefetch` evaluaba
+  esa expresión con `prompt_engine.evaluate` **fuera** del `try` que envuelve
+  la llamada a la tool, así que un `TemplateSyntaxError` (`prefetch.persona
+  and`, por ejemplo) se escapaba de `ejecutar_prefetch`, de `Agent.run`, y
+  tumbaba cada mensaje que le llegara al agente — exactamente lo que este
+  bloque existe para evitar, ya que una declaración inválida en cualquier otro
+  campo (`tool`, `arguments`) sí quedaba atajada al cargar.
+
+  Ahora `validar_prefetch` **compila** cada `when` (`Environment.compile_expression`,
+  sin evaluar) y cada valor de `arguments` (`Environment.from_string`) al
+  cargar el agente, así que un template roto en cualquiera de los dos campos
+  no carga el agente — igual que el resto de los chequeos de este bloque —
+  en vez de esperar al primer mensaje real para reventar. Referirse a una
+  variable que sólo existe en runtime (`prefetch.x`, del propio bloque) sigue
+  siendo válido: compilar no lee variables, sólo parsea.
+
+  Un `when` que compila pero **falla al evaluarse en runtime** (depende de
+  datos — p.ej. una expresión que divide por cero) ya no puede pasar: ahora
+  se evalúa DENTRO del mismo `try` que la llamada a la tool y degrada igual
+  que una búsqueda fallida, dejando `{success: false, ...}` para esa entrada
+  y dejando que el resto del turno complete. Un `when` falso (sin error) sigue
+  sin abrir el span `tool.prefetch` — eso no cambió.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

@@ -11,12 +11,14 @@ resto del spec, que avisa y sigue—: un prefetch salteado en silencio deja al
 modelo sin los datos, y el síntoma sería negarle el acceso a alguien que sí está.
 """
 
+from jinja2 import TemplateError
+
 from astromesh.core.tools import ToolType
 from astromesh.errors import AgentConfigError
 from astromesh.observability.tracing import SpanStatus
 
 
-def validar_prefetch(agente, declarado, tools):
+def validar_prefetch(agente, declarado, tools, *, prompt_engine):
     """Las entradas normalizadas de `spec.prefetch`, o `[]` si no hay bloque."""
     if declarado is None:
         return []
@@ -62,6 +64,29 @@ def validar_prefetch(agente, declarado, tools):
         if when is not None and not isinstance(when, str):
             raise AgentConfigError(f"{donde} ({nombre!r}): `when` tiene que ser un string")
 
+        # Un `when` o un `arguments` que no parsean matan TODOS los turnos del
+        # agente en runtime (ejecutar_prefetch los evalúa recién ahí) — se
+        # compilan acá, sin evaluar, para que ese error aparezca al cargar y
+        # no en el primer mensaje real. `prefetch.x` no existe todavía en este
+        # punto y eso es esperado: compilar no lee variables.
+        if when is not None:
+            try:
+                prompt_engine.compile_expression(when)
+            except TemplateError as exc:
+                raise AgentConfigError(
+                    f"{donde} ({nombre!r}): `when` no es una expresión Jinja válida: {exc}"
+                ) from exc
+        for clave, valor in argumentos.items():
+            if not isinstance(valor, str):
+                continue
+            try:
+                prompt_engine.compile_template(valor)
+            except TemplateError as exc:
+                raise AgentConfigError(
+                    f"{donde} ({nombre!r}): `arguments.{clave}` no es un template Jinja "
+                    f"válido: {exc}"
+                ) from exc
+
         entradas.append({"name": nombre, "tool": tool, "arguments": argumentos, "when": when})
     return entradas
 
@@ -81,25 +106,35 @@ async def ejecutar_prefetch(
     resultados = {}
     for entrada in entradas:
         variables = {**(context or {}), "prefetch": resultados}
-        if entrada["when"] is not None and not prompt_engine.evaluate(entrada["when"], variables):
-            continue
 
-        span = tracing.start_span(
-            "tool.prefetch", {"tool": entrada["tool"]}, parent_span_id=parent_span_id
-        )
+        # `when` compiló al cargar (validar_prefetch), pero evaluarlo puede
+        # seguir fallando en runtime — depende de datos, p.ej. divide por
+        # cero. Ese error entra al MISMO try que la tool: degrada igual que
+        # una búsqueda fallida. Un `when` falso, en cambio, sigue siendo un
+        # `continue` que no abre span ni el turno.
+        span = None
         estado = SpanStatus.OK
         try:
+            if entrada["when"] is not None and not prompt_engine.evaluate(
+                entrada["when"], variables
+            ):
+                continue
+            span = tracing.start_span(
+                "tool.prefetch", {"tool": entrada["tool"]}, parent_span_id=parent_span_id
+            )
             argumentos = {
                 clave: prompt_engine.render(valor, variables) if isinstance(valor, str) else valor
                 for clave, valor in entrada["arguments"].items()
             }
             span.set_attribute("tool_args", argumentos)
             resultado = await tools.execute(entrada["tool"], argumentos, tool_context)
-        except Exception as exc:  # noqa: BLE001 — una lectura previa no puede tumbar el turno
+        except Exception as exc:  # noqa: BLE001 — un `when` roto o una lectura fallida no tumban el turno
             resultado = {"success": False, "data": None, "metadata": {}, "error": str(exc)}
-            span.set_attribute("error_message", str(exc))
+            if span is not None:
+                span.set_attribute("error_message", str(exc))
             estado = SpanStatus.ERROR
-        span.set_attribute("tool_result", str(resultado)[:_TRUNCAR])
-        tracing.finish_span(span, status=estado)
+        if span is not None:
+            span.set_attribute("tool_result", str(resultado)[:_TRUNCAR])
+            tracing.finish_span(span, status=estado)
         resultados[entrada["name"]] = resultado
     return resultados
