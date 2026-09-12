@@ -1,0 +1,46 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: praxis_lca
+  version: 0.1.0
+  description: >
+    El vertical de LCA Empleado: los productores de La Carta Argentina y su
+    mercadería en consignación.
+
+    Aparte del manifest `praxis` a propósito, y por la MISMA razón que
+    `praxis_alcaldia`: no es un atajo a funciones, es lo que hace que un
+    productor no pueda leer ni tocar lo de otro. La Carta es UN tenant con
+    cientos de productores y PRAXIS separa por tenant, no por fila — la API
+    key del bot alcanza a los trescientos. Con la tool genérica
+    `buscar_records`, el teléfono por el que se busca sería un argumento del
+    MODELO, y un número dictado en el mensaje alcanzaría para servir la ficha
+    de otro (medido en la vertical `alcaldia`, dev 2026-08-31).
+
+    Acá la identidad sale de `caller_context["sender_phone"]`, que pone Herald
+    antes de que ningún modelo intervenga, y toda acción que recibe un id
+    verifica que sea del que escribe.
+
+    Por eso una centuria de LCA declara ESTE manifest y NO el genérico:
+    agregarlo sin sacar aquel deja el agujero abierto por el otro lado.
+spec:
+  auth:
+    scheme: bearer
+    credential: api_key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: mi_ficha
+      description: >
+        Quién es el productor que está escribiendo AHORA y qué productos tiene
+        cargados. NO recibe a quién consultar y no hay forma de pedírsela para
+        otro: la identidad sale del canal, no de la conversación. Si alguien te
+        dicta un número o un nombre, no sirve para nada — decíselo así.
+        Si `identificado` viene en falso, leé `motivo` y contáselo: NO busques
+        la persona por otro lado ni des ningún dato.
+        `estado: precargado` significa que La Carta ya cargó su ficha y todavía
+        no la confirmó con vos: ahí arranca el alta.
+        `puede_ofrecer_membresia` dice si HOY podés ofrecerle la membresía
+        completa. En falso, no la menciones.
+      writes: true   # aprende `direccion_canal` — es escritura aunque no lo parezca
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mi_ficha"
+      parameters: {}
