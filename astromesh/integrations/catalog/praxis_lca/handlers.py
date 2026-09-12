@@ -23,12 +23,14 @@ inventado podría recorrer.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
-from urllib.parse import quote
 
 from astromesh.integrations import errors
 from astromesh.integrations.executor import IntegrationContext
 from astromesh.tools.base import ToolResult
+
+logger = logging.getLogger(__name__)
 
 #: Lo que se le contesta a quien no se puede identificar. Es un dato para el
 #: agente, no un error: tiene que poder explicárselo a la persona.
@@ -72,15 +74,18 @@ def _fallo(mensaje: str, status: int) -> ToolResult:
 async def _buscar(ctx: IntegrationContext, entidad: str, filtro: str, limite: int = 50):
     """Una consulta a la API de datos. UN solo filtro, que es lo que PRAXIS acepta.
 
-    La query se arma a mano y no con `params={...}` porque httpx re-encodea
-    `:` y `+` dentro de un dict de params (`telefono:eq:+549…` sale
-    `telefono%3Aeq%3A%2B549…`), y un teléfono con `+` es el caso normal acá.
-    `quote(..., safe=":+")` deja esos dos caracteres literales y sigue
-    escapando cualquier otro que no sea seguro en una URL.
+    `params={...}` y NO una query armada a mano: httpx encodea `+` como `%2B`,
+    y ES lo que tiene que pasar. El parser de query strings del lado de PRAXIS
+    (Express, `qs`) decodifica un `+` LITERAL como espacio — es el default de
+    `application/x-www-form-urlencoded` — así que un filtro con un `+` sin
+    escapar (`telefono:eq:+549…`) le llega al servidor como `telefono:eq: 549…`
+    y no matchea a nadie. `%2B` es lo único que decodifica de vuelta a `+` del
+    otro lado. `praxis_alcaldia` usa esta misma forma y anda medido en dev con
+    teléfonos `+58…`.
     """
-    filtro_q = quote(filtro, safe=":+")
     res = await ctx.client.get(
-        f"{ctx.base_url}/api/data/{entidad}?filter={filtro_q}&limit={limite}"
+        f"{ctx.base_url}/api/data/{entidad}",
+        params={"filter": filtro, "limit": str(limite)},
     )
     if res.status_code >= 400:
         return None, _fallo(
@@ -143,7 +148,15 @@ async def _oferta_habilitada(ctx: IntegrationContext, productor_id: str, membres
     # `False` — el peor caso es no ofrecer la membresía, nunca romper la ficha.
     try:
         payload, fallo = await _buscar(ctx, "lca_pendiente", f"productor:eq:{productor_id}", 50)
-    except Exception:  # noqa: BLE001  (un campo secundario no puede tirar abajo la ficha)
+    except Exception:
+        # No es lo mismo «la regla dice que no» que «no pudimos consultar la
+        # regla»: sin este log, un timeout de red se ve exactamente igual que
+        # un productor que ya usó sus dos ofertas del trimestre.
+        logger.warning(
+            "no se pudo evaluar puede_ofrecer_membresia para %s: consulta a lca_pendiente falló",
+            productor_id,
+            exc_info=True,
+        )
         return False
     if fallo is not None:
         return False

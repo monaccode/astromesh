@@ -97,10 +97,31 @@ async def test_mi_ficha_resuelve_por_sender_phone_y_no_pide_a_quien():
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
     respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
     r = await _correr("mi_ficha")
-    assert r.success and r.data["identificado"] is True
+    assert r.success
+    assert r.data["identificado"] is True
     assert r.data["productor_id"] == PRODUCTOR
     pedido = respx.calls[0].request
-    assert f"telefono:eq:{TELEFONO}" in str(pedido.url)
+    # Decodificado, no el string crudo de la URL: httpx manda el filtro
+    # url-encoded (`+` sale `%2B`) y eso es lo correcto — `.url.params` lo
+    # decodifica de vuelta, que es lo que importa comparar acá.
+    assert pedido.url.params["filter"] == f"telefono:eq:{TELEFONO}"
+
+
+@respx.mock
+async def test_el_filtro_viaja_encodeado_y_no_como_un_espacio():
+    """El caso que rompía en silencio: un `+` sin escapar en el query string
+    decodifica del lado del servidor (Express + `qs`, que es lo que usa
+    PRAXIS) como un ESPACIO, no como el signo. Si `_buscar` armara la URL a
+    mano sin encodear el filtro, esta consulta no fallaría — simplemente no
+    matchearía a ningún productor, y el síntoma sería indistinguible de "no
+    está en el padrón". Se verifica sobre la URL cruda que salió realmente:
+    lo que el servidor va a decodificar es `%2B`, nunca un `+` literal."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    await _correr("mi_ficha")
+    cruda = str(respx.calls[0].request.url)
+    assert "%2B5491155512345" in cruda
+    assert "+5491155512345" not in cruda
 
 
 @respx.mock
@@ -119,7 +140,7 @@ async def test_un_telefono_dictado_en_los_argumentos_no_sirve_de_nada():
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
     respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
     r = await _correr("mi_ficha", {"telefono": "+5491199999999", "productor_id": "p-999"})
-    assert f"telefono:eq:{TELEFONO}" in str(respx.calls[0].request.url)
+    assert respx.calls[0].request.url.params["filter"] == f"telefono:eq:{TELEFONO}"
     assert r.data["productor_id"] == PRODUCTOR
 
 
