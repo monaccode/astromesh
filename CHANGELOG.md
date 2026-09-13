@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.52.0] - 2026-09-12
+
+### Added
+
+- **`praxis_lca` en el catálogo de integraciones**: las trece acciones con las
+  que el agente de la vertical LCA Empleado habla con el ERP PRAXIS por
+  WhatsApp/Telegram. Ficha del productor, alta y corrección de productos, stock
+  con proyección, resumen semanal, envíos abiertos, liquidaciones,
+  confirmar/rechazar un envío, pedir reposición, escalar a una persona y la
+  oferta de membresía.
+
+  **La integración existe por el aislamiento, no por comodidad.** PRAXIS tiene
+  RLS por tenant pero **no por fila**, así que una consulta a `lca_envio` trae
+  el tenant entero: la única barrera que impide que un productor vea o toque lo
+  de otro vive en estos handlers. Las trece acciones resuelven la identidad
+  desde `caller_context['sender_phone']` —nunca desde un argumento que el
+  modelo pueda inventar—, ninguna expone un parámetro por donde nombrar a otro
+  productor, y las cuatro que reciben un id verifican pertenencia **antes** de
+  invocar la función de PRAXIS.
+
+  Dos cosas que el camino dejó fijadas con tests, porque las dos fallan en
+  silencio: (1) los filtros van por `params=` y nunca concatenados a la URL —un
+  `+` literal en un teléfono lo decodifica el servidor como **espacio**, y
+  entonces no se identifica **ningún** productor; (2) `mis_envios_abiertos`
+  filtra por producto propio **en la query** y no en Python, porque con ~300
+  productores el conjunto abierto del tenant pasa el tope de filas y un envío
+  propio se caía de la página, que el productor lee como "no tenés nada
+  pendiente".
+
 ## [0.51.1] - 2026-09-12
 
 ### Fixed
