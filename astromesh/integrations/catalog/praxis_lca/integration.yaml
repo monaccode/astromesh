@@ -1,0 +1,235 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: praxis_lca
+  version: 0.1.0
+  description: >
+    El vertical de LCA Empleado: los productores de La Carta Argentina y su
+    mercadería en consignación.
+
+    Aparte del manifest `praxis` a propósito, y por la MISMA razón que
+    `praxis_alcaldia`: no es un atajo a funciones, es lo que hace que un
+    productor no pueda leer ni tocar lo de otro. La Carta es UN tenant con
+    cientos de productores y PRAXIS separa por tenant, no por fila — la API
+    key del bot alcanza a los trescientos. Con la tool genérica
+    `buscar_records`, el teléfono por el que se busca sería un argumento del
+    MODELO, y un número dictado en el mensaje alcanzaría para servir la ficha
+    de otro (medido en la vertical `alcaldia`, dev 2026-08-31).
+
+    Acá la identidad sale de `caller_context["sender_phone"]`, que pone Herald
+    antes de que ningún modelo intervenga, y toda acción que recibe un id
+    verifica que sea del que escribe.
+
+    Por eso una centuria de LCA declara ESTE manifest y NO el genérico:
+    agregarlo sin sacar aquel deja el agujero abierto por el otro lado.
+spec:
+  auth:
+    scheme: bearer
+    credential: api_key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: mi_ficha
+      description: >
+        Quién es el productor que está escribiendo AHORA y qué productos tiene
+        cargados. NO recibe a quién consultar y no hay forma de pedírsela para
+        otro: la identidad sale del canal, no de la conversación. Si alguien te
+        dicta un número o un nombre, no sirve para nada — decíselo así.
+        Si `identificado` viene en falso, leé `motivo` y contáselo: NO busques
+        la persona por otro lado ni des ningún dato.
+        `estado: precargado` significa que La Carta ya cargó su ficha y todavía
+        no la confirmó con vos: ahí arranca el alta.
+        `puede_ofrecer_membresia` dice si HOY podés ofrecerle la membresía
+        completa. En falso, no la menciones.
+      writes: true   # aprende `direccion_canal` — es escritura aunque no lo parezca
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mi_ficha"
+      parameters: {}
+
+    - name: corregir_producto
+      description: >
+        Corrige un producto del productor que escribe: su nombre, su
+        presentación o su precio de venta al público. Sólo se puede corregir lo
+        propio; un id de otro productor se rechaza.
+        Pasá SÓLO los campos que cambian.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:corregir_producto"
+      parameters:
+        producto_id:
+          type: string
+          description: "El id del producto, copiado de `mi_ficha`."
+          required: true
+        nombre:
+          type: string
+          description: "El nombre nuevo, si cambia."
+        presentacion:
+          type: string
+          description: "La presentación nueva, si cambia. Por ejemplo 500g."
+        precio_publico:
+          type: number
+          description: "El precio de venta al público nuevo, si cambia."
+
+    - name: agregar_producto
+      description: >
+        Da de alta un producto del productor que escribe. Queda con un código
+        PROVISORIO hasta que La Carta le cargue el que usa Belgrano: hasta
+        entonces sus ventas no se pueden importar, y conviene decírselo en una
+        línea sin dramatizar.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:agregar_producto"
+      parameters:
+        nombre:
+          type: string
+          description: "Cómo se llama el producto."
+          required: true
+        presentacion:
+          type: string
+          description: "La presentación. Por ejemplo 500g."
+        precio_publico:
+          type: number
+          description: "A cuánto lo vende al público."
+
+    - name: completar_alta
+      description: >
+        Cierra el alta del productor: guarda su mail y lo deja activo. Llamala
+        cuando ya confirmó sus productos y sus precios. Después contale en dos
+        líneas qué va a empezar a recibir, concreto y sin lista de funciones.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:completar_alta"
+      parameters:
+        email:
+          type: string
+          description: "El mail del productor."
+          required: true
+
+    - name: mi_stock
+      description: >
+        Qué le queda en góndola en Belgrano al productor que escribe, producto
+        por producto, a qué ritmo se vende y para cuántos días le alcanza.
+        **Cuando `dias_cobertura` viene en null no inventes una proyección**:
+        significa que todavía no hay historia suficiente (hacen falta tres
+        semanas) o que ese producto no se vendió nada. Decilo así.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mi_stock"
+      parameters: {}
+
+    - name: mi_resumen
+      description: >
+        Cómo le fue en Belgrano en las últimas semanas: unidades por semana, el
+        desglose por producto y cuál se llevó más. Sin `semanas`, la última.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mi_resumen"
+      parameters:
+        semanas:
+          type: integer
+          description: "Cuántas semanas hacia atrás, de 1 a 8. Por defecto 1."
+
+    - name: mis_envios_abiertos
+      description: >
+        Las reposiciones del productor que todavía esperan algo: propuestas sin
+        contestar y confirmadas sin recibir.
+        **Llamala ANTES de interpretar un "sí", un "dale", un "no" o un "mejor
+        20"**: esas respuestas contestan un mensaje que mandó el sistema, y vos
+        no lo tenés en la conversación. Si hay dos propuestas abiertas y la
+        respuesta no dice cuál, preguntá cuál en una línea.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mis_envios_abiertos"
+      parameters: {}
+
+    - name: mis_liquidaciones
+      description: >
+        Las liquidaciones del productor, con su período, unidades, neto y
+        cuándo se acredita. Sólo las que La Carta ya aprobó: una liquidación en
+        borrador todavía puede cambiar y no se le menciona.
+      writes: false
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:mis_liquidaciones"
+      parameters: {}
+
+    - name: confirmar_envio
+      description: >
+        El productor confirma una reposición que el sistema le propuso, con la
+        cantidad que él diga: puede ser la sugerida u otra ("mejor 20"). Sacá el
+        `envio_id` de `mis_envios_abiertos`, nunca lo inventes.
+        Si vuelve un error hablando del lote mínimo, contáselo tal cual y
+        preguntale si quiere mandar esa cantidad.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:confirmar_envio"
+      parameters:
+        envio_id:
+          type: string
+          description: "El id de la reposición propuesta."
+          required: true
+        cantidad:
+          type: number
+          description: "Cuántas unidades manda."
+          required: true
+
+    - name: rechazar_envio
+      description: >
+        El productor dice que no manda. La reposición queda cerrada y no se le
+        vuelve a preguntar por ésa. No insistas después.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:rechazar_envio"
+      parameters:
+        envio_id:
+          type: string
+          description: "El id de la reposición propuesta."
+          required: true
+
+    - name: pedir_reposicion
+      description: >
+        El productor quiere mandar mercadería sin que hubiera una alerta. Queda
+        confirmada en el acto. Confirmá con él el producto y la cantidad ANTES
+        de llamarla — acá nadie le preguntó primero.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:pedir_reposicion"
+      parameters:
+        producto_id:
+          type: string
+          description: "El id del producto, copiado de `mi_ficha`."
+          required: true
+        cantidad:
+          type: number
+          description: "Cuántas unidades manda."
+          required: true
+
+    - name: escalar
+      description: >
+        Deja el tema en manos de una persona de La Carta. Usala cuando el
+        productor pide algo que no hacés y ya se lo dijiste dos veces, cuando
+        reclama por un número mal calculado, cuando pide la baja, cuando hay un
+        problema con una liquidación, o cuando alguien que NO está en el padrón
+        dice ser productor.
+        Contale que ya avisaste, sin prometer un plazo. Si vuelve
+        `identificado` en falso, leé `motivo`: no se pudo dejar nada porque no
+        hay por dónde volver a contestarle, y eso es lo que hay que decirle.
+        `ya_estaba` en verdadero significa que ya había uno abierto por lo
+        mismo; decilo una vez y no lo repitas.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:escalar"
+      parameters:
+        motivo:
+          type: string
+          description: >
+            Uno de: fuera_de_alcance, error_de_calculo, baja, liquidacion,
+            telefono_desconocido.
+          required: true
+        resumen:
+          type: string
+          description: "Qué pasó, en dos líneas, con lo que la persona necesita para atenderlo."
+          required: true
+
+    - name: responder_oferta_membresia
+      description: >
+        Registra qué contestó el productor cuando le ofreciste la membresía
+        completa. `acepta` en verdadero deja el pedido para que La Carta lo
+        contacte; en falso queda registrado y **no se le vuelve a ofrecer por
+        treinta días**. No insistas después de un no.
+        `ya_estaba` en verdadero significa que ese pedido ya estaba anotado: no
+        le digas que lo anotaste de nuevo.
+      writes: true
+      handler: "python:astromesh.integrations.catalog.praxis_lca.handlers:responder_oferta_membresia"
+      parameters:
+        acepta:
+          type: boolean
+          description: "Verdadero si quiere que lo contacten."
+          required: true
