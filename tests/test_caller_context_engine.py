@@ -130,6 +130,28 @@ async def test_el_handler_ve_quien_escribe_por_el_camino_del_modelo(tmp_path, mo
     assert not [k for k in visto if k.startswith("_")]
 
 
+async def test_el_registry_filtra_las_claves_del_runtime_aunque_no_pase_por_el_engine(
+    tmp_path, monkeypatch
+):
+    # Defensa en profundidad: quien arme el dict a mano, sin
+    # `_public_caller_context`, igual no le pasa al handler las claves `_`.
+    VISTO.clear()
+    rt = await _runtime(tmp_path, monkeypatch, _agente())
+    tools = rt._agents["demo-agent"]._tools
+
+    await tools.execute(
+        "demo_quien",
+        {},
+        {
+            "connections": {"demo_conn": {"access_token": "t"}},
+            "secrets": {"NEXUS_RUN_TOKEN": "x"},
+            "caller_context": dict(CONTEXTO),
+        },
+    )
+
+    assert VISTO == [ESPERADO]
+
+
 @respx.mock
 async def test_el_prefetch_le_pasa_quien_escribe_a_la_integracion(tmp_path, monkeypatch):
     # El prefetch sólo corre acciones `request: GET` (validar_prefetch), que no
