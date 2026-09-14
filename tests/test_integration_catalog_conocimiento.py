@@ -46,7 +46,10 @@ async def test_busca_con_la_clave_en_el_header():
     route = respx.post(f"{BASE}/api/conocimiento/buscar").mock(
         return_value=httpx.Response(
             200,
-            json={"disponible": True, "fragmentos": [{"documento": "Látex", "texto": "rinde 10 m2"}]},
+            json={
+                "disponible": True,
+                "fragmentos": [{"documento": "Látex", "texto": "rinde 10 m2"}],
+            },
         )
     )
     manifest = _conocimiento()
