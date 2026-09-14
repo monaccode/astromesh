@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.52.1] - 2026-09-14
+
+### Fixed
+
+- **Una integración del catálogo recibe el contexto de quien escribe.** Desde
+  0.47.0, `ToolRegistry.execute` armaba `caller_context` filtrando el dict que
+  el engine le pasa a la tool (`agent`, `session`, `connections`, `secrets`),
+  y ese dict nunca llevó el contexto del llamador: `sender`, `sender_phone` y
+  compañía no llegaban a ningún handler en una corrida real. `praxis_lca` no
+  identificaba a ningún productor (medido en dev el 2026-09-14) y
+  `praxis_alcaldia` sólo andaba por su respaldo del `session_id`. Ahora el
+  engine manda el contexto público del llamador bajo `caller_context`, en el
+  `tool_fn` y en el prefetch.
+
+### Security
+
+- **Un handler de integración deja de recibir las credenciales de la corrida.**
+  El mismo `caller_context` le entregaba `connections` y `secrets` a cada
+  handler. Ahora recibe sólo el contexto del llamador, sin claves `_`.
+
 ## [0.52.0] - 2026-09-12
 
 ### Added

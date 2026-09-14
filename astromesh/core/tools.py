@@ -286,12 +286,19 @@ class ToolRegistry:
                 resolved,
                 agent_name=(context or {}).get("agent", ""),
                 session_id=(context or {}).get("session", ""),
-                # Filtrado con el MISMO criterio que lo que ve un patrón
-                # (`engine._public_caller_context`): las claves `_` son del
-                # runtime y una de ellas —`_provider_override`— lleva una API
-                # key. Un handler del catálogo no tiene por qué verla, y si la
-                # viera podría terminar en la traza.
-                caller_context={k: v for k, v in (context or {}).items() if not k.startswith("_")},
+                # Sólo la clave `caller_context` del dict de la corrida (el
+                # engine la llena con `_public_caller_context`), NUNCA el dict
+                # entero: ése trae `connections` y `secrets`, y un handler del
+                # catálogo no tiene por qué ver las credenciales de la corrida.
+                # Las claves `_` se vuelven a filtrar acá por si alguien arma el
+                # dict sin pasar por el engine: `_provider_override` lleva una
+                # API key y `_nexus_run_token` una credencial.
+                # Fijado por tests/test_caller_context_engine.py.
+                caller_context={
+                    k: v
+                    for k, v in ((context or {}).get("caller_context") or {}).items()
+                    if not k.startswith("_")
+                },
             )
             return result.to_dict()
         return {"error": f"Unsupported tool type: {tool.tool_type}"}
