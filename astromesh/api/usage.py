@@ -37,7 +37,8 @@ def usage_from_trace(trace: dict | None) -> dict | None:
     `model` is the first model seen, kept for backward compatibility; it has no
     correct value on a multi-model run. `by_model` is the authoritative
     breakdown: one entry per (provider, model, role), ordered by total tokens
-    descending, then by model name.
+    descending, then by model name. Each entry carries `tokens_cached`, the
+    part of `tokens_in` the provider served from its prefix cache.
     """
     spans = trace.get("spans", []) if isinstance(trace, dict) else []
     if not isinstance(spans, list):
@@ -82,12 +83,20 @@ def usage_from_trace(trace: dict | None) -> dict | None:
                     "calls": 0,
                     "tokens_in": 0,
                     "tokens_out": 0,
+                    "tokens_cached": 0,
                     "cost": 0.0,
                 }
                 breakdown[key] = entry
+            # Los tokens de entrada que el proveedor sirvió de su caché
+            # (engine.py los escribe en el span desde 0.48.0). Son parte de la
+            # entrada: se acotan a [0, span_in], igual que estimated_cost() en
+            # providers/openai_compat.py, para que un reporte de más no abarate
+            # la fila en Nexus más allá de lo que se pudo cachear.
+            span_cached = min(max(_as_int(attrs.get("cached_tokens", 0)), 0), max(span_in, 0))
             entry["calls"] += 1
             entry["tokens_in"] += span_in
             entry["tokens_out"] += span_out
+            entry["tokens_cached"] += span_cached
             entry["cost"] += _as_float(attrs.get("cost"))
 
         # Legacy / external providers nest them under metadata.usage.

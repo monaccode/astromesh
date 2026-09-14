@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`usage.by_model[].tokens_cached`: los tokens de entrada que el proveedor
+  sirvió de su caché, por modelo.** El runtime ya los leía
+  (`providers/base.py`, `read_cached_tokens`) y los escribía en el span
+  `llm.complete` desde 0.48.0, pero `usage_from_trace` no los sumaba al
+  desglose y `ModelUsage` no tenía el campo: ni `/run` ni el evento `done` del
+  WebSocket los devolvían. Ahora cada entrada lleva `tokens_cached`, 0 si el
+  span no trae el atributo y acotado a los `tokens_in` del span. Nexus lo usa
+  para cobrar esos tokens a la tarifa de caché.
+
 ## [0.53.0] - 2026-09-14
 
 ### Added
