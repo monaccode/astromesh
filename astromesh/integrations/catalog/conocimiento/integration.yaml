@@ -1,0 +1,45 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: conocimiento
+  version: 0.1.0
+  description: >
+    La base de conocimiento de la empresa: busca por significado en los
+    documentos que el cliente subió (fichas del fabricante, manuales,
+    garantías, políticas) y devuelve los fragmentos que mejor contestan. Sin
+    base_url a propósito — lo trae la conexión del tenant, que apunta al
+    backend que guarda su banco. La credencial es una API key por tenant, en
+    X-Api-Key.
+spec:
+  auth:
+    scheme: header
+    credential: api_key
+    header_name: X-Api-Key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    # Sin `writes`: es una lectura aunque vaya por POST (la consulta viaja en
+    # el cuerpo). `ActionSpec.writes` es tri-estado y omitirlo es `mutates`
+    # falso, igual que `buscar_records` de praxis.
+    - name: buscar_en_documentos
+      description: >
+        Busca en los documentos de la empresa por significado, no por palabras
+        exactas: preguntá con tus palabras. Devuelve {disponible, fragmentos},
+        donde cada fragmento es {documento, texto}. `disponible: false` quiere
+        decir que no hay nada que sirva: no inventes. Los precios, el stock, el
+        SKU y la disponibilidad de un producto NO salen de acá: salen del
+        catálogo, y si un documento dice otro número, gana el catálogo.
+      parameters:
+        consulta:
+          type: string
+          description: La pregunta del cliente, con tus palabras.
+          required: true
+        max:
+          type: integer
+          description: Cuántos fragmentos traer, de 1 a 8. Si no lo pasás, 5.
+      request:
+        method: POST
+        path: /api/conocimiento/buscar
+        body:
+          consulta: "{consulta}"
+          max: "{max}"
