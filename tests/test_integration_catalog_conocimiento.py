@@ -33,7 +33,7 @@ def test_una_sola_accion_y_no_escribe():
     manifest = _conocimiento()
     assert [a.name for a in manifest.actions] == ["buscar_en_documentos"]
     accion = manifest.action("buscar_en_documentos")
-    assert accion.writes is None
+    assert accion.writes is False
     assert accion.mutates is False
 
 
