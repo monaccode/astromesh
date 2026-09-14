@@ -18,10 +18,11 @@ spec:
   defaults:
     timeout_seconds: 30
   actions:
-    # Sin `writes`: es una lectura aunque vaya por POST (la consulta viaja en
-    # el cuerpo). `ActionSpec.writes` es tri-estado y omitirlo es `mutates`
-    # falso, igual que `buscar_records` de praxis.
+    # Lectura por POST (la consulta viaja en el cuerpo); se declara `writes:
+    # false` explícito porque el test de conformidad exige que todo método POST
+    # diga si muta. `mutates` queda falso.
     - name: buscar_en_documentos
+      writes: false
       description: >
         Busca en los documentos de la empresa por significado, no por palabras
         exactas: preguntá con tus palabras. Devuelve {disponible, fragmentos},
