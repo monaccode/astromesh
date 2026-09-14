@@ -42,8 +42,10 @@ class IntegrationContext:
     auth_headers: dict = field(default_factory=dict)
     agent_name: str = ""
     session_id: str = ""
-    #: El context de la invocación, ya filtrado de claves del runtime (las que
-    #: empiezan con `_`, que incluyen la API key del proveedor).
+    #: El context que mandó quien invocó la corrida, sin las claves del runtime
+    #: (las que empiezan con `_`, que incluyen la API key del proveedor) y sin
+    #: las credenciales de la corrida (`connections`, `secrets`): ésas viajan
+    #: aparte y un handler recibe sólo `material`. Ver `ToolRegistry.execute`.
     #:
     #: Es lo que el CANAL sabe del mensaje y de quién lo manda —`channel`,
     #: `sender`, `sender_phone`, `contact_name`, `fecha`— puesto por Herald

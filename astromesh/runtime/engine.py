@@ -1241,6 +1241,14 @@ class Agent:
             if run_token:
                 run_secrets["NEXUS_RUN_TOKEN"] = run_token
 
+            # Lo que mandó quien invocó la corrida (Herald: `sender`,
+            # `sender_phone`, `contact_name`...), sin las claves `_` del runtime.
+            # Baja a las tools bajo `caller_context`, separado de `connections` y
+            # `secrets`: `ToolRegistry.execute` le pasa a un handler de
+            # integración ESTA clave y no el dict entero, así que un handler ve
+            # quién escribe y no ve las credenciales de la corrida.
+            caller_publico = _public_caller_context(context)
+
             # Las búsquedas fijas del turno, antes del LLM: con las MISMAS
             # credenciales que `tool_fn` (connections + run_secrets). Ver
             # astromesh/runtime/prefetch.py.
@@ -1254,6 +1262,7 @@ class Agent:
                     "session": session_id,
                     "connections": connections or {},
                     "secrets": run_secrets,
+                    "caller_context": caller_publico,
                 },
                 tracing=tracing,
                 parent_span_id=root_span.span_id,
@@ -1441,6 +1450,8 @@ class Agent:
                             # como tool NO hereda esto: su corrida es otra, y
                             # reenviar la credencial es un cambio aparte.
                             "secrets": run_secrets,
+                            # Ver `caller_publico` arriba.
+                            "caller_context": caller_publico,
                         },
                     )
                     tool_span.set_attribute("tool_args", args)
