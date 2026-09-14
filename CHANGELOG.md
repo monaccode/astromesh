@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.53.0] - 2026-09-14
+
+### Added
+
+- **`conocimiento`: la base de conocimiento del tenant, como integración.**
+  Una acción, `buscar_en_documentos` (`POST /api/conocimiento/buscar`, cuerpo
+  `{consulta, max?}`), sin `writes`: busca por significado en los documentos
+  que el cliente subió y devuelve `{disponible, fragmentos}`. `base_url` y la
+  clave (`X-Api-Key`) vienen de la conexión. La descripción le dice al modelo
+  que los números del catálogo no salen de acá. La usa el técnico de PRESTO.
+
 ## [0.52.2] - 2026-09-14
 
 ### Fixed

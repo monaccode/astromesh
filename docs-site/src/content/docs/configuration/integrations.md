@@ -50,6 +50,7 @@ Manifests are auto-discovered from `astromesh/integrations/catalog/`. What ships
 | `instagram` | `list_media`, `get_media`, `list_comments`, `publish_photo`, `publish_container` | Publishing chains container + publish in one handler. |
 | `tiktok` | `get_user_info`, `list_videos`, `publish_video`, `get_publish_status` | Paginates over POST bodies (`cursor_in: body`). |
 | `praxis` | `buscar_records`, `obtener_record`, `crear_record`, `actualizar_record` | Generic CRUD over any entity of the PRAXIS ERP. `obtener_record` reads one row by id — `buscar_records` cannot, because its filter resolves against *declared* fields and `id` is a system column, so `id:eq:<uuid>` comes back `422`. |
+| `conocimiento` | `buscar_en_documentos` | Semantic search over the documents a tenant uploaded (read-only). `base_url` and the `X-Api-Key` come from the connection. |
 | `praxis_cobranzas` | `simular_planes`, `registrar_acuerdo` | Debt-collection vertical: offer payment plans, record the agreement. |
 | `praxis_mecanicos` | `saldo_cliente`, `disponibilidad` | Workshop vertical: what a customer owes, and free slots in the calendar. |
 | `praxis_inmobiliaria` | `informar_pago` | Rentals vertical: record a payment a tenant reports, in one idempotent call. |
