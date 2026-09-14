@@ -1113,21 +1113,65 @@ async def test_dos_sies_seguidos_a_la_membresia_no_abren_dos_pendientes():
     assert "estado:eq:abierto" in filtros
 
 
+class _PendientesComoPraxis:
+    """`lca_pendiente` con la máquina de estados del kernel de PRAXIS, y no un
+    doble que acepta cualquier cosa: `estado` declara `initial: 'abierto'` y
+    transiciones `abierto <-> resuelto` (`praxis/apps/backend/src/packages/lca/
+    lca.package.ts`, entidad `lca_pendiente`), crear en otro estado es 422
+    (`metadata/status-machine.ts:88-89`) y una transición ilegal también."""
+
+    TRANSICIONES = {"abierto": {"resuelto"}, "resuelto": {"abierto"}}
+
+    def __init__(self):
+        self.filas: dict[str, dict] = {}
+
+    def montar(self):
+        url = f"{BASE}/api/data/lca_pendiente"
+        respx.get(url).mock(side_effect=self._listar)
+        self.post = respx.post(url).mock(side_effect=self._crear)
+        self.patch = respx.patch(url__regex=rf"{url}/[^/]+$").mock(side_effect=self._editar)
+        return self
+
+    def _listar(self, request):
+        filas = list(self.filas.values())
+        return httpx.Response(200, json={"rows": filas, "total": len(filas)})
+
+    def _crear(self, request):
+        datos = json.loads(request.content)
+        estado = datos.setdefault("estado", "abierto")
+        if estado != "abierto":
+            return httpx.Response(
+                422, json={"message": f"must be created in the initial state 'abierto' ({estado})"}
+            )
+        id_ = f"pend-{len(self.filas) + 1}"
+        hoy = datetime.now(UTC).isoformat()
+        self.filas[id_] = {"id": id_, "created_at": hoy, "data": datos}
+        return httpx.Response(201, json=self.filas[id_])
+
+    def _editar(self, request):
+        fila = self.filas.get(request.url.path.rsplit("/", 1)[-1])
+        if fila is None:
+            return httpx.Response(404, json={})
+        cambio = json.loads(request.content)
+        de, a = fila["data"]["estado"], cambio.get("estado", fila["data"]["estado"])
+        if a != de and a not in self.TRANSICIONES[de]:
+            return httpx.Response(422, json={"message": f"illegal transition {de} -> {a}"})
+        fila["data"].update(cambio)
+        return httpx.Response(200, json=fila)
+
+
 @respx.mock
 async def test_un_no_a_la_membresia_se_registra_siempre_y_no_se_deduplica():
-    """El dedupe es SÓLO del "sí". Un "no" nace `resuelto` y no entra a ninguna
-    bandeja, y la regla de §15.2 cuenta esas filas: deduplicarlas le regalaría
-    cuota a quien dice que no dos veces."""
+    """El dedupe es SÓLO del "sí". Un "no" se cierra en `resuelto` y no queda en
+    ninguna bandeja, y la regla de §15.2 cuenta esas filas: deduplicarlas le
+    regalaría cuota a quien dice que no dos veces."""
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
-    ruta = respx.get(f"{BASE}/api/data/lca_pendiente").mock(return_value=_vacio())
-    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
-        return_value=httpx.Response(201, json={})
-    )
-    r = await _correr("responder_oferta_membresia", {"acepta": False})
-    assert r.success is True
-    assert r.data["ya_estaba"] is False
-    assert post.called
-    assert not ruta.called, "un `no` no consulta la bandeja: se registra siempre"
+    praxis = _PendientesComoPraxis().montar()
+    for _ in range(2):
+        r = await _correr("responder_oferta_membresia", {"acepta": False})
+        assert r.success is True, r.error
+        assert r.data["ya_estaba"] is False
+    assert [f["data"]["tipo"] for f in praxis.filas.values()] == ["oferta_rechazada"] * 2
 
 
 @respx.mock
@@ -1147,13 +1191,36 @@ async def test_aceptar_la_oferta_abre_un_pendiente_para_la_bandeja():
 
 
 @respx.mock
-async def test_rechazar_la_oferta_queda_resuelto_y_no_en_la_bandeja():
+async def test_rechazar_la_oferta_queda_resuelto_y_apaga_la_oferta():
+    """Contra un PRAXIS que hace cumplir `initial`: crear el "no" directo en
+    `resuelto` es 422, así que ningún "no" dejaba fila y la regla de los 30
+    días nunca se activaba. Nace `abierto` y se cierra con un PATCH."""
     respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
-    post = respx.post(f"{BASE}/api/data/lca_pendiente").mock(
-        return_value=httpx.Response(201, json={"id": "pend-4", "data": {}})
+    respx.get(f"{BASE}/api/data/lca_producto").mock(return_value=_vacio())
+    praxis = _PendientesComoPraxis().montar()
+    assert (await _correr("mi_ficha")).data["puede_ofrecer_membresia"] is True
+
+    r = await _correr("responder_oferta_membresia", {"acepta": False})
+
+    assert r.success is True, r.error
+    assert [f["data"]["estado"] for f in praxis.filas.values()] == ["resuelto"]
+    assert [f["data"]["tipo"] for f in praxis.filas.values()] == ["oferta_rechazada"]
+    assert json.loads(praxis.post.calls[0].request.content)["estado"] == "abierto"
+    assert json.loads(praxis.patch.calls[0].request.content) == {"estado": "resuelto"}
+    assert (await _correr("mi_ficha")).data["puede_ofrecer_membresia"] is False
+
+
+@respx.mock
+async def test_si_cerrar_el_no_falla_se_informa_y_no_se_traga():
+    """Un "no" que quedó `abierto` aparece en la bandeja de La Carta: es mejor
+    que perderlo, pero quien llamó tiene que enterarse de que no se cerró."""
+    respx.get(f"{BASE}/api/data/lca_productor").mock(return_value=_padron())
+    respx.post(f"{BASE}/api/data/lca_pendiente").mock(
+        return_value=httpx.Response(201, json={"id": "pend-9", "data": {}})
+    )
+    respx.patch(f"{BASE}/api/data/lca_pendiente/pend-9").mock(
+        return_value=httpx.Response(500, json={})
     )
     r = await _correr("responder_oferta_membresia", {"acepta": False})
-    assert r.success is True
-    cuerpo = json.loads(post.calls[0].request.content)
-    assert cuerpo["tipo"] == "oferta_rechazada"
-    assert cuerpo["estado"] == "resuelto"
+    assert r.success is False
+    assert "cerrar la respuesta" in r.error

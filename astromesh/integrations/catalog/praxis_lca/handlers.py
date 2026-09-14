@@ -698,8 +698,8 @@ async def responder_oferta_membresia(
 
     # Mismo dedupe que `escalar`, por el mismo motivo: dos "sí" seguidos en la
     # misma conversación son DOS ítems para que La Carta llame a la misma
-    # persona por lo mismo. Sólo sobre el "sí": un "no" nace `resuelto` y no
-    # entra a ninguna bandeja, y además la regla de §15.2 cuenta esas filas —
+    # persona por lo mismo. Sólo sobre el "sí": un "no" se cierra en `resuelto`
+    # y no queda en ninguna bandeja, y además la regla de §15.2 cuenta esas filas —
     # deduplicarlas le regalaría cuota a quien dice que no dos veces.
     if acepta:
         payload, fallo = await _buscar(
@@ -719,11 +719,14 @@ async def responder_oferta_membresia(
                 metadata={},
             )
 
-    # Un "no" se guarda YA RESUELTO: existe para que la regla de oferta lo
-    # cuente, no para que nadie lo atienda.
+    # Nace `abierto` SIEMPRE, también el "no": `lca_pendiente.estado` declara
+    # `initial: 'abierto'` y el kernel rechaza con 422 crear un registro en
+    # otro estado (`praxis/apps/backend/src/metadata/status-machine.ts:88-89`,
+    # llamado desde `records/record.repository.ts:248-250`). Crearlo directo en
+    # `resuelto` hacía fallar todo "no" sin dejar la fila que la regla cuenta.
     cuerpo = {
         "tipo": "interes_membresia" if acepta else "oferta_rechazada",
-        "estado": "abierto" if acepta else "resuelto",
+        "estado": "abierto",
         "productor": str(productor["id"]),
         "resumen": "Quiere que La Carta lo contacte por la membresía completa."
         if acepta
@@ -735,6 +738,19 @@ async def responder_oferta_membresia(
             f"registrar la respuesta falló: HTTP {res.status_code}: {res.text[:200]}",
             res.status_code,
         )
+    if not acepta:
+        # Un "no" existe para que la regla de oferta lo cuente, no para que
+        # nadie lo atienda: se cierra en el acto. Si cerrarlo falla NO se traga:
+        # un "no" `abierto` en la bandeja de La Carta es mejor que perderlo.
+        pendiente_id = (res.json() or {}).get("id")
+        res = await ctx.client.patch(
+            f"{ctx.base_url}/api/data/lca_pendiente/{pendiente_id}", json={"estado": "resuelto"}
+        )
+        if res.status_code >= 400:
+            return _fallo(
+                f"cerrar la respuesta falló: HTTP {res.status_code}: {res.text[:200]}",
+                res.status_code,
+            )
     return ToolResult(
         success=True,
         data={"registrado": True, "acepta": acepta, "ya_estaba": False},
