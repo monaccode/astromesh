@@ -52,6 +52,10 @@ class ModelUsage(BaseModel):
 
     Una invocación toca habitualmente varios modelos: por el patrón de
     orquestación, por el enrutamiento por rol, o por fallback entre proveedores.
+
+    `tokens_cached` es la parte de `tokens_in` que el proveedor sirvió de su
+    caché. Nexus la cobra a la tarifa de caché; sin el campo cobraría la entrada
+    completa.
     """
 
     provider: str = ""
@@ -60,6 +64,7 @@ class ModelUsage(BaseModel):
     calls: int = 0
     tokens_in: int = 0
     tokens_out: int = 0
+    tokens_cached: int = 0
     cost: float = 0.0
 
 

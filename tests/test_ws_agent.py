@@ -160,6 +160,34 @@ def test_usage_is_none_when_the_trace_reports_nothing(client, mock_runtime):
     assert events[-1]["usage"] is None
 
 
+def test_done_event_carries_tokens_cached_per_model(client, mock_runtime):
+    mock_runtime.run = AsyncMock(
+        return_value={
+            "answer": "listo",
+            "steps": [],
+            "trace": {
+                "spans": [
+                    {
+                        "attributes": {
+                            "model": "kimi-k2.6",
+                            "provider": "kimi",
+                            "input_tokens": 5000,
+                            "output_tokens": 100,
+                            "cached_tokens": 4096,
+                        }
+                    }
+                ]
+            },
+        }
+    )
+
+    with client.websocket_connect("/v1/ws/agent/demo") as ws:
+        ws.send_json({"query": "hola"})
+        events = _drain(ws)
+
+    assert events[-1]["usage"]["by_model"][0]["tokens_cached"] == 4096
+
+
 def test_a_failing_run_sends_error_not_silence(client, mock_runtime):
     """A consumer that gets silence hangs forever waiting to be told."""
     mock_runtime.run = AsyncMock(side_effect=RuntimeError("el modelo explotó"))

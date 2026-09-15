@@ -113,6 +113,7 @@ def test_reads_model_from_direct_span_attribute():
                 "calls": 1,
                 "tokens_in": 10,
                 "tokens_out": 4,
+                "tokens_cached": 0,
                 "cost": 0.0,
             }
         ],
@@ -192,6 +193,7 @@ def test_by_model_groups_by_provider_model_and_role():
             "calls": 2,
             "tokens_in": 150,
             "tokens_out": 30,
+            "tokens_cached": 0,
             "cost": 0.75,
         },
         {
@@ -201,6 +203,7 @@ def test_by_model_groups_by_provider_model_and_role():
             "calls": 1,
             "tokens_in": 30,
             "tokens_out": 5,
+            "tokens_cached": 0,
             "cost": 0.0,
         },
     ]
@@ -298,3 +301,76 @@ def test_legacy_only_trace_reports_empty_by_model():
     usage = usage_from_trace(trace)
     assert usage["tokens_in"] == 4
     assert usage["by_model"] == []
+
+
+def test_by_model_sums_cached_tokens_per_row():
+    """Nexus cobra los tokens cacheados a su tarifa de caché: el desglose los suma."""
+    trace = {
+        "spans": [
+            {
+                "attributes": {
+                    "model": "kimi-k2.6",
+                    "provider": "kimi",
+                    "input_tokens": 5000,
+                    "output_tokens": 100,
+                    "cached_tokens": 4096,
+                }
+            },
+            {
+                "attributes": {
+                    "model": "kimi-k2.6",
+                    "provider": "kimi",
+                    "input_tokens": 6000,
+                    "output_tokens": 80,
+                    "cached_tokens": 4096,
+                }
+            },
+        ]
+    }
+    assert usage_from_trace(trace)["by_model"][0]["tokens_cached"] == 8192
+
+
+def test_a_span_without_cached_tokens_counts_zero():
+    """Un trace sin el atributo (proveedor sin caché, runtime < 0.48.0) da 0."""
+    trace = {
+        "spans": [
+            {"attributes": {"model": "m", "provider": "p", "input_tokens": 10, "output_tokens": 1}}
+        ]
+    }
+    assert usage_from_trace(trace)["by_model"][0]["tokens_cached"] == 0
+
+
+def test_cached_tokens_are_clamped_to_the_span_input():
+    """Lo cacheado es parte de la entrada: nunca más que ella, nunca negativo, nunca basura."""
+    trace = {
+        "spans": [
+            {
+                "attributes": {
+                    "model": "m",
+                    "provider": "p",
+                    "input_tokens": 100,
+                    "output_tokens": 1,
+                    "cached_tokens": 4096,
+                }
+            },
+            {
+                "attributes": {
+                    "model": "m",
+                    "provider": "p",
+                    "input_tokens": 100,
+                    "output_tokens": 1,
+                    "cached_tokens": -5,
+                }
+            },
+            {
+                "attributes": {
+                    "model": "m",
+                    "provider": "p",
+                    "input_tokens": 100,
+                    "output_tokens": 1,
+                    "cached_tokens": "no-es-un-numero",
+                }
+            },
+        ]
+    }
+    assert usage_from_trace(trace)["by_model"][0]["tokens_cached"] == 100
