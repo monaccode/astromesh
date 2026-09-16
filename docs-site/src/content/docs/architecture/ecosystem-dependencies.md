@@ -17,7 +17,7 @@ These directories ship from this repository on their own tags and versions.
 
 | Component | Package | Directory | Version | Version source | Min Python / Runtime |
 |-----------|---------|-----------|---------|----------------|----------------------|
-| **Core Runtime** | `astromesh` | `astromesh/` | `0.50.0` | `astromesh/__init__.py` | Python 3.12 |
+| **Core Runtime** | `astromesh` | `astromesh/` | `0.55.0` | `astromesh/__init__.py` | Python 3.12 |
 | **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.2` | `astromesh_glyph/__init__.py` | Python 3.12 |
 | **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.3.0` | `astromesh_adk/__init__.py` | Python 3.12 |
 | **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.3.0` | `astromesh_cli/__init__.py` | Python 3.12 |
@@ -43,7 +43,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.7.4` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.10.1` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.1.0` | Ship | In development |
-| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.19.0` | Operate | Shipped |
+| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.23.1` | Operate | Shipped |
 | **Nebula** | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | `0.1.0` | Models | Preview |
 
 ## 2. Dependency graph (monorepo)
@@ -151,7 +151,7 @@ still watching that branch. When nobody remembered, the site stayed on the 2026-
 for eleven days and three releases while `main` moved on, and nothing said so. The workflow
 now triggers on `main`.
 
-### 4.1 What the v0.45.0 → v0.50.0 run carried
+### 4.1 What the v0.45.0 → v0.55.0 run carried
 
 Each is described in full in [`CHANGELOG.md`](https://github.com/monaccode/astromesh/blob/main/CHANGELOG.md):
 
@@ -163,6 +163,12 @@ Each is described in full in [`CHANGELOG.md`](https://github.com/monaccode/astro
 | `0.48.0` | ReAct groups the tool calls of one response into a single assistant message instead of repeating the reasoning; the `llm.complete` span carries `cached_tokens`, so the context cache can be measured rather than assumed. |
 | `0.49.0` | `praxis.obtener_record` — an agent can follow a relation. `buscar_records` filters on **declared** fields and `id` is a system column, so `id:eq:<uuid>` came back `422`; without a way to read by id an agent duplicated a record instead of failing. |
 | `0.50.0` | Price rows for `kimi-k2.7-code`, `kimi-k2.7-code-highspeed` and `kimi-k3`. `estimated_cost()` returns `0.0` for a model it does not know, so an agent pointed at `kimi-k3` ran perfectly and reported no cost at all. |
+| `0.51.0` / `0.51.1` | `spec.prefetch` — read-only lookups run before the LLM, so the model starts with the facts instead of spending a turn fetching them. A `when` with a syntax error used to kill every prefetch entry, not just its own. |
+| `0.52.0` | `praxis_lca` joins the integration catalog, thirteen actions. |
+| `0.52.1` / `0.52.2` | An integration handler learns **who is writing**; it stops receiving the run's credentials along with it. `praxis_lca` records a "no" to the membership offer. |
+| `0.53.0` | `conocimiento` — the tenant's knowledge base as an integration, so an agent can search the documents its tenant uploaded. |
+| `0.54.0` | `usage.by_model[].tokens_cached` — the input the provider served from cache, per model. The runtime already measured it; now the breakdown reports it, so a biller can discount it. |
+| `0.55.0` | An agent called as a tool returns its **answer**, not its whole run. Its `steps` and `trace` used to be stringified into the caller's history: about 13,000 extra input tokens per call, paid again on every later turn of the caller's loop. |
 
 ### 4.2 Release flow
 
