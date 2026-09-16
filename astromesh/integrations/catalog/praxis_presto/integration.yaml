@@ -21,8 +21,9 @@ spec:
         Arma el presupuesto ENTERO en una sola llamada: crea el presupuesto,
         una línea por producto y lo deja confirmado para que el sistema lo
         cotice y lo mande en PDF. Usala en vez de crear los registros a mano.
-        Pasá en `lineas` TODOS los productos del pedido, cada uno con el id
-        que devolvió la búsqueda. Pasa todo junto o no pasa nada.
+        Pasá en `lineas` TODOS los productos del pedido, cada uno con el sku
+        que le mostraste al cliente en el resumen: no hace falta volver a
+        buscarlos. Pasa todo junto o no pasa nada.
         Devuelve creado, presupuesto_id, lineas y motivo. Si `creado` viene en
         falso, NO se escribió nada: leé el `motivo` (un producto que no
         existe, uno que no está a la venta, una cantidad inválida), corregilo
@@ -56,7 +57,7 @@ spec:
             properties:
               producto:
                 type: string
-                description: "El id del producto, tal como vino en rows[].id de buscar_records."
+                description: "El sku del producto, tal como lo mostraste en el resumen (también acepta su id)."
               cantidad:
                 type: number
                 description: "Cuántos, mayor que 0."
