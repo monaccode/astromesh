@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.55.0] - 2026-09-16
+
+### Fixed
+
+- **La observación de una agent tool es la respuesta, no la corrida entera.**
+  Cuando un agente llamaba a otro como tool, volvía el resultado completo del
+  hijo —`steps` y `trace` adentro, o sea el prompt y la respuesta de **cada**
+  llamada que hizo—, y `ReActPattern` lo `str()`-ificaba entero dentro de la
+  historia del padre. Medido contra nexus-dev con el técnico de PRESTO, eso
+  sumaba ~13.000 tokens de entrada a cada vuelta siguiente del loop del que
+  preguntó, y los paga el cliente. Ahora vuelve `answer`, más `data` /
+  `data_error` cuando el hijo declara `output_schema`, y `error` si lo hay.
+  No se pierde nada observable: `Agent.run` emite la traza del hijo al
+  collector por su cuenta, y el span `tool.call` del padre ya guardaba un
+  `str()` del resultado truncado a 5.000 caracteres
+  (`core/tools.py`, `runtime/engine.py`).
+
 ## [0.54.0] - 2026-09-14
 
 ### Added
