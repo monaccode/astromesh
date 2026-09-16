@@ -8,7 +8,7 @@ import { Aside } from '@astrojs/starlight/components';
 Astromesh OS is an **API-only appliance**: there is no interactive shell, no SSH, and no package manager at runtime. You operate it by *pulling and booting an image*, *talking to its HTTP API*, and *shipping A/B image updates* — not by logging in and running commands on the box. This page collects the commands you actually use, on the host that builds/deploys it and against the running appliance.
 
 <Aside type="tip">
-The canonical artifact coordinates and workflow names live in the [`monaccode/astromesh-os`](https://github.com/monaccode/astromesh-os) repository. The registry path below is illustrative — check the repo's `phase1-publish` workflow for the exact ref.
+The canonical artifact coordinates and workflow names live in the [`monaccode/astromesh-os`](https://github.com/monaccode/astromesh-os) repository, in its `phase1-publish` workflow. The image is published to **Docker Hub**, not to GHCR.
 </Aside>
 
 ## 1. Pull the image (OCI artifact via ORAS)
@@ -17,8 +17,11 @@ The image is distributed as an **OCI artifact** and pulled with [`oras`](https:/
 
 ```bash
 # Pull the appliance image for a given version into ./out
-oras pull ghcr.io/monaccode/astromesh-os:v0.11.0 -o ./out
-ls ./out          # → the raw disk image + split UKI / partition artifacts
+oras pull docker.io/fulfarodev/astromesh-os:0.11.0 -o ./out
+ls ./out          # → astromesh-os-phase0.raw.zst (~187 MB compressed)
+
+# `latest` also tracks the newest published version
+oras pull docker.io/fulfarodev/astromesh-os:latest -o ./out
 ```
 
 <Aside type="caution">
