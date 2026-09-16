@@ -117,6 +117,7 @@ export default defineConfig({
           label: 'Glyph (Action Language)',
           items: [
             { label: 'Introduction', slug: 'glyph/introduction' },
+            { label: 'What it is good for — measured', slug: 'glyph/why-it-pays-off' },
             { label: 'In an agent (pattern: glyph)', slug: 'configuration/glyph' },
             { label: 'Embedding Glyph', slug: 'glyph/embedding' },
           ],
