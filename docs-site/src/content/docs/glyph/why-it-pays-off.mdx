@@ -1,0 +1,116 @@
+---
+title: What Glyph is good for — measured
+description: The benefits of Glyph that survived benchmarking against real models — a fixed program that runs with zero model calls — and the ones that did not.
+---
+
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
+
+Glyph was built on a hypothesis: an agent that emits **one program** would spend fewer tokens than
+one that makes a tool call per turn. We benchmarked it against three models before recommending it
+to anyone. **The hypothesis did not hold.** What held instead is more useful, and this page lists
+only that.
+
+## The model as author, not interpreter
+
+The model writes the program **once**. A human reviews it and pins it in the agent's YAML. The
+runtime executes it on every run **without calling the model**.
+
+```yaml
+spec:
+  orchestration:
+    pattern: glyph
+    narrate: false
+  program: |
+    local = datetime_now(timezone=context.zona)
+    utc   = datetime_now(timezone="UTC")
+    acuse = json_transform(data={local, utc}, template="...")
+    return {local, utc, acuse}
+```
+
+| Same scenario, `kimi-k2.7-code-highspeed` | cost / run | vs ReAct |
+|---|---:|---:|
+| ReAct | 0.00623 USD | — |
+| Glyph, model writes the program each run | 0.03226 USD | +418% |
+| **Glyph, fixed `spec.program`** | **0.00000 USD** | **−100%** |
+
+## What you get
+
+<CardGrid>
+  <Card title="Zero model calls per run" icon="rocket">
+    With `spec.program` and `narrate: false`, a run makes no model calls. It costs nothing in
+    tokens and adds no model latency.
+  </Card>
+  <Card title="Parallel by construction" icon="random">
+    The compiler builds a dependency graph. Statements that don't depend on each other run at the
+    same time, and `map` fans a capability out over a list (capped at 16 in flight). Nothing has
+    to declare concurrency.
+  </Card>
+  <Card title="Fails at deploy, not in production" icon="approve-check">
+    A program that does not compile stops the agent from loading. The compiler reports the line
+    and message, and a deploy through the API returns 400. Capabilities and their arguments are
+    checked against the permission-filtered catalog before anything runs.
+  </Card>
+  <Card title="No silent fallback" icon="warning">
+    A fixed program never degrades to generating or to `react`. Those modes differ in cost by two
+    orders of magnitude, so a fallback would change the bill without anyone noticing.
+  </Card>
+  <Card title="Auditable behaviour" icon="document">
+    The agent's plan is a short program in version control. It is reviewed like code,
+    diffed like code, and does the same thing on every run.
+  </Card>
+  <Card title="Safe partial failure" icon="setting">
+    If a capability fails mid-run, the agent returns the steps that did run. The serialised partial
+    state tells a repair which effects already happened, so a retry never charges a card twice.
+  </Card>
+  <Card title="The model only where it's needed" icon="magnifier">
+    `ask()` calls the model from inside the program for a single extraction, such as an order
+    number from free text. It costs about 30 output tokens, against the ~8,000 of writing a
+    program.
+  </Card>
+  <Card title="Keys stay out of the program" icon="information">
+    Context keys starting with `_` are reserved for the runtime. They are filtered out before the
+    program runs, so an invocation credential cannot land in tool arguments or traces.
+  </Card>
+</CardGrid>
+
+## The authoring cycle
+
+1. Run the agent **once** with `pattern: glyph` and no `program`, using a representative query.
+2. Take `glyph.program` from the result: the text the model wrote.
+3. Review it and replace whatever was hardcoded from that query with `context.<field>`.
+4. Paste it into `spec.program`. From then on, the agent runs without the model.
+
+A runnable example ships in
+[`config/agents/acuse-programa.agent.yaml`](https://github.com/monaccode/astromesh/blob/develop/config/agents/acuse-programa.agent.yaml).
+
+## What we measured that did *not* hold
+
+<Aside type="caution" title="Glyph as a runtime pattern costs more than ReAct">
+When the model writes the program on every run, Glyph costs **+164% to +2839% more** than ReAct
+across the measured scenarios. Output tokens cost ~4× input, and 81–99% of Glyph's cost is the model
+writing the program. Counting total tokens hides this, and that is how it was hidden at first.
+</Aside>
+
+- **Reliability on long chains is a signal, not a result.** On chains of 6+ tools, ReAct answered
+  correctly 1 time in 5 and Glyph 3 times in 5. It showed up across different models, but n=5.
+- **Building it found 8 parser bugs that 132 unit tests did not.** Every one was the model writing
+  Glyph the way it writes Python or JSON. Since then, every new capability is validated against a
+  real model before it counts as done.
+
+## Where it does not apply
+
+- **Conversational agents.** A fixed program is a contract; if every query needs a different plan,
+  use `react`.
+- **Agents with RAG or semantic memory** still pay embeddings on every run. "Zero" refers to
+  model calls, not to the whole run.
+- **`context` only arrives through `POST /v1/agents/{name}/run`.** Through chains, WebSocket or
+  channels, a program can only read `query`.
+
+## Go deeper
+
+| I want to… | Go to |
+|---|---|
+| Turn it on in an agent | [In an agent (pattern: glyph)](/astromesh/configuration/glyph/) |
+| Learn the language | [Glyph introduction](/astromesh/glyph/introduction/) |
+| See every number and how to measure my own case | [`docs/GLYPH_GUIDE.md`](https://github.com/monaccode/astromesh/blob/develop/docs/GLYPH_GUIDE.md) |
+| Read the raw benchmark output | [`bench/glyph/`](https://github.com/monaccode/astromesh/tree/develop/bench/glyph) |
