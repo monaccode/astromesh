@@ -15,7 +15,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 </p>
 
 <p>
-  <Badge text="v0.10.1" variant="tip" size="medium" /> &nbsp;
+  <Badge text="v0.11.0" variant="tip" size="medium" /> &nbsp;
   <Badge text="Phase 4 · post-4" variant="note" size="medium" /> &nbsp;
   <Badge text="Debian trixie" variant="default" size="medium" />
 </p>
@@ -28,9 +28,9 @@ Astromesh OS is built **capability-by-capability** through a phased roadmap, and
 
 **Astromesh OS** (`astromesh-os`) is a **minimal, immutable, API-only Linux appliance** — a purpose-built distribution whose sole job is running Astromesh AI agents (`astromeshd`). It is not a general-purpose operating system, and it is not something you install on top of an existing OS. It ships as a self-contained disk image: an appliance you boot, not a package you manage.
 
-It is built with [mkosi](https://github.com/systemd/mkosi) on **Debian trixie** (kernel 6.12+ LTS). The Astromesh agent runtime (`astromesh`) is baked directly into the image at a pinned ref (currently **`v0.37.0`**, declared in `runtime.pin`), so a given image is reproducible from one exact tag. The core image lands at **~378 MB of real blocks**, well under its 500 MB build ceiling — the published `.raw` looks larger because it is sparse, carrying an empty second A/B slot.
+It is built with [mkosi](https://github.com/systemd/mkosi) on **Debian trixie** (kernel 6.12+ LTS). The Astromesh agent runtime (`astromesh`) is baked directly into the image at a pinned ref (currently **`v0.55.0`**, declared in `runtime.pin`), so a given image is reproducible from one exact tag. The core image lands at **~378 MB of real blocks**, well under its 500 MB build ceiling — the published `.raw` looks larger because it is sparse, carrying an empty second A/B slot.
 
-Like every other product in the ecosystem, Astromesh OS is **versioned with semver** (`v0.10.1`); the roadmap **phase** is surfaced alongside it as a maturity signal.
+Like every other product in the ecosystem, Astromesh OS is **versioned with semver** (`v0.11.0`); the roadmap **phase** is surfaced alongside it as a maturity signal.
 
 ## The runtime pin
 
@@ -41,7 +41,9 @@ Like every other product in the ecosystem, Astromesh OS is **versioned with semv
 
 So each bump records, in the pin file itself, what was verified before it: that the diff adds no new import on the boot-sensitive paths, that the slim-install test passes, and — for the riskier bumps — that a real `.deb` boots in a container and serves an agent.
 
-The pin currently sits at **v0.37.0** (declarative integrations framework). The `spec.chain` work landed in core v0.38.1 and has not been pinned yet.
+The pin currently sits at **v0.55.0**, which `v0.11.0` of the image moved it to from v0.38.1 — sixteen releases at once. What that carries for an API-only appliance is mostly cost per run: an agent called as a tool returns its answer instead of its whole run, ReAct groups one response's tool calls into a single message, the Kimi models that had no price row have one, and the breakdown reports the input a provider served from its cache. Two releases are deliberately skipped forever: v0.31.0 and v0.32.0 cannot be built here, and v0.44.0 left `__init__.py` a version behind `pyproject.toml`, which would produce an image whose `/v1/health` reports the wrong version — something the boot gate, which only asserts a 200, would not catch.
+
+Two things are expected at boot and recorded in the pin: one packaged agent stays in `draft` because it needs the `glyph` extra this image does not install, and six of the ten packaged agents log a warning and run without conversational memory, because their backends need extras the image does not carry. Neither fails the boot.
 
 ## Astromesh OS vs Astromesh Node
 
