@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.0] - 2026-09-16
+
+### Added
+
+- **`praxis_presto`: la integración del vertical PRESTO, con `crear_presupuesto`.**
+  El vendedor armaba un presupuesto con tres escrituras genéricas de `praxis`
+  —el presupuesto, una línea por producto, el paso a `confirmado`— y cada una
+  costaba un viaje al LLM: medido en mvp, el turno tardaba 50 s. La acción
+  llama a `prs_crear_presupuesto` de PRAXIS, que hace todo en una transacción y
+  valida los productos antes de escribir. Las líneas viajan como lista de
+  objetos (`{lineas}` solo en el string conserva el tipo) y el modelo ve su
+  esquema por `items`.
+
 ## [0.55.0] - 2026-09-16
 
 ### Fixed
