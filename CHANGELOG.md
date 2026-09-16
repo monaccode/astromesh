@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.1] - 2026-09-16
+
+### Fixed
+
+- **`praxis_presto.crear_presupuesto` pide el sku del resumen, no el id de la búsqueda.**
+  La memoria del agente guarda el texto de la conversación y no los ids que devolvió
+  `buscar_records`, así que pedir "el id de rows[].id" lo mandaba a re-buscar cada
+  producto en el turno del «sí»: un viaje al LLM de más. Medido en replay contra
+  PRESTO: con la descripción vieja 3 de 6 corridas re-buscaban; con ésta, 0 de 6, y
+  el turno baja a 2 llamadas. Del otro lado, `prs_crear_presupuesto` acepta sku o id.
+
 ## [0.56.0] - 2026-09-16
 
 ### Added

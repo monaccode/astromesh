@@ -80,6 +80,18 @@ async def test_las_lineas_viajan_como_lista_de_objetos_y_los_opcionales_no_viaja
     assert enviado == {"args": {"canal": "webchat", "direccion": "webchat-abc", "lineas": lineas}}
 
 
+def test_las_lineas_se_arman_con_el_sku_del_resumen_sin_volver_a_buscar():
+    """La memoria del agente guarda el texto de la conversación, no los ids que
+    devolvió la búsqueda. Una descripción que pide "el id de rows[].id" lo
+    mandaba a re-buscar cada producto en el turno del «sí» (medido en replay:
+    3 de 6 corridas), aunque el prompt le dijera que usara el sku."""
+    accion = _presto().action("crear_presupuesto")
+    producto = accion.tool_parameters()["properties"]["lineas"]["items"]["properties"]["producto"]
+    assert "sku" in producto["description"]
+    assert "rows[].id" not in producto["description"]
+    assert "no hace falta volver a" in accion.description
+
+
 def test_la_descripcion_dice_que_hacer_si_no_se_creo():
     """Un `creado: false` leído como éxito es un "listo, te llega el PDF" sobre
     un presupuesto que no existe."""
