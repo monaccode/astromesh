@@ -210,15 +210,17 @@ class TestAgentToolTracing:
         assert call_kwargs is not None
 
     @pytest.mark.asyncio
-    async def test_agent_tool_result_includes_child_trace(self):
-        """Result from agent tool includes child trace for merging."""
-        child_trace = {
-            "trace_id": "child-abc",
-            "spans": [{"name": "agent.run", "span_id": "cs1"}],
-        }
+    async def test_agent_tool_result_solo_lleva_la_respuesta(self):
+        """La observación de una agent tool es la respuesta, no la corrida entera."""
         runtime_mock = AsyncMock()
         runtime_mock.run = AsyncMock(
-            return_value={"answer": "result", "steps": [], "trace": child_trace}
+            return_value={
+                "answer": "result",
+                "steps": [{"thought": "pense", "observation": "x" * 5_000}],
+                "trace": {"trace_id": "child-abc", "spans": [{"name": "agent.run"}]},
+                "data": {"score": 92},
+                "data_error": None,
+            }
         )
 
         registry = ToolRegistry()
@@ -234,8 +236,25 @@ class TestAgentToolTracing:
             {"query": "work"},
             context={"session": "s1"},
         )
-        assert "trace" in result
-        assert result["trace"]["trace_id"] == "child-abc"
+
+        # Lo que el modelo que preguntó necesita, y nada más.
+        assert result == {"answer": "result", "data": {"score": 92}, "data_error": None}
+        assert "steps" not in result
+        assert "trace" not in result
+
+    @pytest.mark.asyncio
+    async def test_agent_tool_sin_respuesta_lo_dice(self):
+        """Un hijo que no contesta deja un texto, no un string vacío."""
+        runtime_mock = AsyncMock()
+        runtime_mock.run = AsyncMock(return_value={"answer": "", "steps": [], "trace": {}})
+
+        registry = ToolRegistry()
+        registry.set_runtime(runtime_mock)
+        registry.register_agent_tool(name="sub-agent", agent_name="worker", description="Worker")
+
+        result = await registry.execute("sub-agent", {"query": "work"}, context={"session": "s1"})
+
+        assert result == {"answer": "(el sub-agente no devolvió respuesta)"}
 
 
 class TestCircularAgentDetection:
