@@ -110,12 +110,12 @@ export const CORE: Component = {
   name: 'Core Runtime',
   short: 'Core',
   group: 'runtime',
-  version: '0.50.0',
-  released: '2026-09-08',
+  version: '0.55.0',
+  released: '2026-09-16',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
   latest:
-    'Price rows for the three Kimi models that had none. `estimated_cost()` returns 0.0 for a model it does not know, so pointing an agent at `kimi-k3` ran perfectly and cost nothing anyone could see.',
+    'An agent called as a tool returns its answer, not its whole run. Its steps and trace used to come back and get stringified into the caller\'s history — about 13,000 extra input tokens per call, paid again on every later turn.',
   install: 'pip install astromesh',
   href: '/astromesh/getting-started/what-is-astromesh/',
 };
@@ -260,11 +260,11 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Nexus',
     short: 'Nexus',
     group: 'operate',
-    version: '0.19.0',
-    released: '2026-09-08',
+    version: '0.23.1',
+    released: '2026-09-16',
     tagline: 'Multi-tenant control plane: publishes agents, dispatches runs to a shared pool, meters and bills them.',
     latest:
-      'Tariffs for every Kimi the runtime can reach, not just the ones with traffic. An unpriced model is not free: it bills zero and says nothing.',
+      'Monthly period close: billing periods, charges, the operator summary and CSV, and a margin computed from closed months instead of a configured price. The runtime pool moves to core 0.55.0, which stops charging the caller for the sub-agent\'s own run.',
     install: 'kubectl apply -k deploy/overlays/mvp',
     href: '/astromesh/nexus/introduction/',
     repo: 'https://github.com/monaccode/astromesh-nexus',

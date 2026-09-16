@@ -349,25 +349,20 @@ After tool execution, the result is appended to the message history and the orch
 
 When a tool has `type: agent`, tool execution triggers a complete nested pipeline. The ToolRegistry calls `AgentRuntime.run()` for the target agent, which goes through steps 2--12 of this pipeline independently. The target agent has its own memory, guardrails, orchestration pattern, and tools.
 
-**Trace continuity:** The parent agent's `trace_id` is passed to the child agent via the `parent_trace_id` parameter. The child agent sets its tracing context to the same trace ID, so all spans from both agents appear in a single trace tree. This gives end-to-end visibility into multi-agent workflows:
+**What comes back:** the observation handed to the parent's model is the child's `answer` (plus `data` / `data_error` when the child declares an `output_schema`) — not its `steps` and not its `trace`. Before `0.55.0` the whole run dict came back and was stringified into the parent's message history, which meant every sub-agent call carried the child's prompts and tool results into every later turn of the parent's loop: around 13,000 extra input tokens per call, paid on each turn.
+
+**Trace continuity:** the child's run is traced in full and `Agent.run` emits that trace to the collector itself, so nothing about the child's execution is lost. But parent and child are **two separate traces today**: the runtime accepts a `parent_trace_id` and would adopt it as the child's `trace_id`, and the agent tool path reads it from the execution context — which never carries one. Correlate by session and timestamp; the parent's `tool.call` span records the arguments and a truncated string of the result.
 
 ```
-Trace: abc-123
-├── agent.run (parent-agent)
-│   ├── memory_build
-│   ├── prompt_render
-│   ├── orchestration
-│   │   ├── llm.complete
-│   │   ├── tool.call (child-tool)          ← agent tool
-│   │   │   └── agent.run (child-agent)     ← nested pipeline (steps 2-12)
-│   │   │       ├── memory_build
-│   │   │       ├── prompt_render
-│   │   │       ├── orchestration
-│   │   │       │   ├── llm.complete
-│   │   │       │   └── tool.call (regular-tool)
-│   │   │       └── memory_persist
-│   │   └── llm.complete                    ← parent continues with result
-│   └── memory_persist
+Trace: parent-abc                    Trace: child-def
+agent.run (parent-agent)             agent.run (child-agent)
+├── memory_build                     ├── memory_build
+├── prompt_render                    ├── prompt_render
+├── orchestration                    ├── orchestration
+│   ├── llm.complete                 │   ├── llm.complete
+│   ├── tool.call (child-tool)  ····▶│   └── tool.call (regular-tool)
+│   └── llm.complete                 └── memory_persist
+└── memory_persist
 ```
 
 **Context transforms:** If the agent tool has a `context_transform` defined, the ToolRegistry renders the Jinja2 template with the LLM's tool call arguments and passes the resulting JSON as the `context` parameter to the child agent. This context is available in the child agent's prompt template variables, allowing data to be reshaped between agent boundaries.

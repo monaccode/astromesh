@@ -184,37 +184,64 @@ When the sales manager's LLM calls `qualify-lead` with arguments `{"query": "Qua
 
 ---
 
-## Nested Tracing
+## What the parent gets back
 
-When an agent calls another agent as a tool, both agents share the same trace tree. This gives you end-to-end visibility into multi-agent workflows.
+When the parent's model calls an agent tool, the observation fed back into its
+history is the child's **answer** — not the child's whole run:
 
-### How It Works
-
-The parent agent's execution context includes a `trace_id`. When the ToolRegistry executes an agent tool, it passes the `parent_trace_id` to the child agent's `run()` method. The child agent sets its tracing context's `trace_id` to the parent's, so all spans appear in a single trace.
-
-```
-Trace: abc-123
-├── agent.run (sales-manager)
-│   ├── memory_build
-│   ├── prompt_render
-│   ├── orchestration (react)
-│   │   ├── llm.complete
-│   │   ├── tool.call (qualify-lead)        ← agent tool invocation
-│   │   │   └── agent.run (sales-qualifier) ← child agent's full pipeline
-│   │   │       ├── memory_build
-│   │   │       ├── prompt_render
-│   │   │       ├── orchestration (react)
-│   │   │       │   ├── llm.complete
-│   │   │       │   └── llm.complete
-│   │   │       └── memory_persist
-│   │   ├── llm.complete
-│   │   └── tool.call (draft-proposal)
-│   │       └── agent.run (proposal-writer)
-│   │           └── ...
-│   └── memory_persist
+```json
+{ "answer": "Lead is qualified: budget confirmed, timeline Q3." }
 ```
 
-Every span in the child agent's pipeline is nested under the parent's `tool.call` span, making it straightforward to trace latency, token usage, and errors across agent boundaries.
+If the child declares an `output_schema`, its `data` and `data_error` come back
+alongside the answer. A child that produces no answer at all returns a short
+notice saying so, rather than an empty string.
+
+The child's `steps` and `trace` do **not** come back. They used to, until
+`0.55.0`: the whole run dict was stringified into the calling model's message
+history, so every sub-agent call injected that child's prompts and tool results
+— measured at roughly 13,000 extra input tokens per call — into every later turn
+of the parent's own loop. The parent pays for those tokens on each turn, and it
+has no use for them: the answer is what it asked for.
+
+Nothing is lost by the trim. The child's full run is still recorded — see below.
+
+## Tracing across agents
+
+The child agent's run is traced in full: `agent.run`, memory, prompt render,
+orchestration, each `llm.complete`, each `tool.call`. `Agent.run` emits that
+trace to the collector itself, for every run, whether it was started by a person
+or by another agent's tool call. You query it at `GET /v1/traces/{trace_id}` and
+it is forwarded to OTLP when that is enabled.
+
+On the parent's side, the `tool.call` span for the agent tool records the call's
+arguments and a truncated string of what came back, so the parent's own trace
+still shows what it asked and what it got.
+
+```
+Trace: parent-abc              Trace: child-def
+agent.run (sales-manager)      agent.run (sales-qualifier)
+├── memory_build               ├── memory_build
+├── prompt_render              ├── prompt_render
+├── orchestration (react)      ├── orchestration (react)
+│   ├── llm.complete           │   ├── llm.complete
+│   ├── tool.call (qualify)    │   └── llm.complete
+│   └── llm.complete           └── memory_persist
+└── memory_persist
+```
+
+:::caution[The two traces are separate today]
+The runtime has the machinery to put both agents in one trace tree — `Agent.run`
+accepts a `parent_trace_id` and adopts it as its own `trace_id` — but the agent
+tool path does not currently supply it: the execution context the parent builds
+for a tool call carries the agent, session, connections and credentials, and no
+`trace_id`. So a child run gets a fresh trace of its own.
+
+In practice you correlate parent and child by **session and timestamp**, and the
+parent's `tool.call` span tells you which child ran and what it returned. The
+[workflow chain-step path](/astromesh/configuration/agent-chaining/) does thread
+`parent_trace_id` correctly and does produce a single tree.
+:::
 
 ---
 
