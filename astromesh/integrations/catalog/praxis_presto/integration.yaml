@@ -1,0 +1,77 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: praxis_presto
+  version: 0.1.0
+  description: >
+    Las FUNCIONES del vertical PRESTO (el vendedor de mostrador) de PRAXIS: hoy
+    una sola, la que arma un presupuesto con sus líneas. Aparte del manifest
+    `praxis` a propósito — aquel es genérico y sirve a cualquier cliente; éste
+    nombra un dominio. Comparte su conexión y su credencial: sin base_url, con
+    la API key de máquina.
+spec:
+  auth:
+    scheme: bearer
+    credential: api_key
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: crear_presupuesto
+      description: >
+        Arma el presupuesto ENTERO en una sola llamada: crea el presupuesto,
+        una línea por producto y lo deja confirmado para que el sistema lo
+        cotice y lo mande en PDF. Usala en vez de crear los registros a mano.
+        Pasá en `lineas` TODOS los productos del pedido, cada uno con el id
+        que devolvió la búsqueda. Pasa todo junto o no pasa nada.
+        Devuelve creado, presupuesto_id, lineas y motivo. Si `creado` viene en
+        falso, NO se escribió nada: leé el `motivo` (un producto que no
+        existe, uno que no está a la venta, una cantidad inválida), corregilo
+        y volvé a llamarla — no le digas al cliente que quedó armado.
+      writes: true
+      parameters:
+        canal:
+          type: string
+          description: "Por dónde escribe el cliente: whatsapp, telegram o webchat."
+          required: true
+        direccion:
+          type: string
+          description: "La dirección del cliente en ese canal (el sender)."
+          required: true
+        telefono:
+          type: string
+          description: "El teléfono del cliente, sólo si lo sabés."
+        nombre_cliente:
+          type: string
+          description: "El nombre del cliente, sólo si lo sabés."
+        pedido_textual:
+          type: string
+          description: "Lo que pidió, en sus palabras."
+        lineas:
+          type: array
+          description: >
+            LISTA con un elemento por producto, aunque sea uno solo.
+          required: true
+          items:
+            type: object
+            properties:
+              producto:
+                type: string
+                description: "El id del producto, tal como vino en rows[].id de buscar_records."
+              cantidad:
+                type: number
+                description: "Cuántos, mayor que 0."
+              pedido_textual:
+                type: string
+                description: "Cómo pidió ese producto."
+            required: [producto, cantidad]
+      request:
+        method: POST
+        path: "/api/functions/prs_crear_presupuesto"
+        body:
+          args:
+            canal: "{canal}"
+            direccion: "{direccion}"
+            telefono: "{telefono}"
+            nombre_cliente: "{nombre_cliente}"
+            pedido_textual: "{pedido_textual}"
+            lineas: "{lineas}"

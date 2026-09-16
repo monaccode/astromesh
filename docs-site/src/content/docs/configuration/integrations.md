@@ -54,6 +54,7 @@ Manifests are auto-discovered from `astromesh/integrations/catalog/`. What ships
 | `praxis_cobranzas` | `simular_planes`, `registrar_acuerdo` | Debt-collection vertical: offer payment plans, record the agreement. |
 | `praxis_mecanicos` | `saldo_cliente`, `disponibilidad` | Workshop vertical: what a customer owes, and free slots in the calendar. |
 | `praxis_inmobiliaria` | `informar_pago` | Rentals vertical: record a payment a tenant reports, in one idempotent call. |
+| `praxis_presto` | `crear_presupuesto` | Counter-sales vertical: a quote with all its lines, confirmed, in one transactional call. |
 | `praxis_alcaldia` | `mi_cuenta`, `consultar_clasificador`, `informar_pago` | Municipal-revenue vertical. `mi_cuenta` takes **no parameters** on purpose: the taxpayer's identity comes from the channel, never from the conversation, so there is no way to ask for somebody else's account. |
 
 The `praxis_*` manifests are deliberately separate from `praxis`: the generic one serves
