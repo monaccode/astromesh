@@ -246,7 +246,7 @@ class ToolRegistry:
                 except Exception as exc:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     return {"error": f"Context transform failed: {exc}"}
             parent_trace_id = (context or {}).get("trace_id")
-            return await self._runtime.run(
+            resultado = await self._runtime.run(
                 agent_name,
                 query,
                 session_id=session_id,
@@ -260,6 +260,28 @@ class ToolRegistry:
                 # prompt injection). Ver Agent.run.
                 desde_humano=False,
             )
+            # La observación vuelve al modelo que llamó esta tool y se `str()`-ifica
+            # ENTERA dentro de su historia (`ReActPattern`, orchestration/patterns.py).
+            # El resultado de un agente trae `steps` y `trace`, o sea el prompt y la
+            # respuesta de cada llamada del hijo: medido en ~13k tokens de entrada por
+            # llamada, que el que preguntó paga en cada vuelta siguiente de su propio
+            # loop. Al que pregunta sólo le sirve la respuesta.
+            #
+            # No se pierde nada observable: `Agent.run` emite la traza del hijo al
+            # collector por su cuenta (runtime/engine.py, el `finally` de `run`), y el
+            # span `tool.call` del padre ya guarda un `str()` del resultado truncado a
+            # 5.000 caracteres.
+            # `or` y no `get(..., default)`: un modelo que razona y no escribe
+            # nada deja `answer` en "" (providers/openai_compat.py), y el padre
+            # recibiría `{'answer': ''}`, que no le dice nada. Antes al menos
+            # veía los `steps` del hijo.
+            observacion = {
+                "answer": resultado.get("answer") or "(el sub-agente no devolvió respuesta)"
+            }
+            for clave in ("data", "data_error"):
+                if clave in resultado:
+                    observacion[clave] = resultado[clave]
+            return observacion
         if tool.tool_type == ToolType.INTEGRATION:
             from astromesh.integrations import errors as integration_errors
             from astromesh.integrations.executor import HttpActionExecutor

@@ -158,7 +158,7 @@ spec:
 
 ### Agent Tools
 
-Agent tools let one agent invoke another agent as a tool. The target agent runs its full execution pipeline (memory, guardrails, orchestration) and returns the result.
+Agent tools let one agent invoke another agent as a tool. The target agent runs its full execution pipeline (memory, guardrails, orchestration) and returns its answer (plus `data` / `data_error` when it declares an `output_schema`) — not its steps or its trace, which would otherwise land in the calling model's context.
 
 ```yaml
 spec:
