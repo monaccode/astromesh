@@ -290,6 +290,34 @@ async def test_una_respuesta_en_el_tope_pasa_entera(tmp_path, dns_publico, monke
     assert r["data"] == "x" * 10
 
 
+async def test_una_respuesta_gigante_se_corta_sin_bufferear_entera(tmp_path, dns_publico):
+    """El upstream de una tool `api` lo apunta el tenant, así que un cuerpo de
+    gigabytes es memoria del pod compartido si se buffea entero antes de
+    medirlo. `client.stream` + `_leer_acotado` cortan apenas se pasa el tope
+    real (5 MiB, sin monkeypatchear acá a propósito): el generador cuenta lo
+    que efectivamente yieldeó, y tiene que quedar MUY por debajo de los 100
+    MiB que produciría si alguien lo drenara entero."""
+    generado = {"bytes": 0}
+
+    async def cuerpo_gigante():
+        chunk = b"x" * (1024 * 1024)  # 1 MiB por chunk
+        for _ in range(100):  # 100 MiB si se drena entero
+            generado["bytes"] += len(chunk)
+            yield chunk
+
+    runtime = await _runtime(tmp_path, API)
+    with respx.mock:
+        respx.get(f"{PIN}/stock/A-1").mock(
+            return_value=httpx.Response(200, content=cuerpo_gigante())
+        )
+        r = await runtime._agents["demo-agent"]._tools.execute(
+            "erp_cliente_consultar_stock", {"sku": "A-1"}, _ctx({"credential": "K"})
+        )
+    assert r["success"] is False
+    assert "demasiado grande" in r["error"]
+    assert generado["bytes"] < 20 * 1024 * 1024
+
+
 async def test_sin_content_type_lo_que_no_es_utf8_es_binario(tmp_path, dns_publico):
     runtime = await _runtime(tmp_path, API)
     tools = runtime._agents["demo-agent"]._tools

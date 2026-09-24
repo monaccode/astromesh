@@ -268,3 +268,32 @@ async def test_sin_internos_descarta_un_host_que_traiga_el_manifest(monkeypatch)
     assert r["success"] is True
     peticion = ruta.calls.last.request
     assert peticion.headers.get_list("host") == ["api.cliente.com"]
+
+
+async def test_sin_internos_bloquea_si_la_primera_resolucion_falla_y_no_reintenta_sin_pin(
+    monkeypatch,
+):
+    """El camino guardado NUNCA manda por hostname: si la primera resolución
+    del pin falla, tiene que bloquear ahí mismo y no caerle a
+    `cliente_seguro` con la URL sin pinear — eso dispararía una SEGUNDA
+    resolución (la del hook `_chequear`), y una tercera al conectar de
+    verdad, reabriendo la ventana de rebinding que el pin existe para
+    cerrar. Acá la segunda resolución (si llegara a correr) trae una IP
+    privada, así que el NÚMERO de llamadas al resolver es lo que discrimina
+    el bug: una sola con el pin cerrado, dos si degradara a "sin pin"."""
+    llamadas: list[str] = []
+
+    async def resolver(host, port):
+        llamadas.append(host)
+        if len(llamadas) == 1:
+            raise OSError("temporary failure in name resolution")
+        return [(2, 1, 6, "", ("10.0.0.5", 443))]
+
+    monkeypatch.setattr("astromesh.tools.builtin._red._resolver", resolver)
+    with respx.mock:
+        ruta = respx.route().mock(return_value=httpx.Response(200, json={"secreto": 1}))
+        r = await _registro(False).execute("interna_leer", {}, _ctx("https://api.cliente.com"))
+    assert r["success"] is False
+    assert "Blocked" in r["error"]
+    assert not ruta.called
+    assert len(llamadas) == 1

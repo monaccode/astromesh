@@ -38,7 +38,7 @@ def _nombre_de_tool(slug: str, operacion: str) -> str:
 def manifiesto_de_api(tool_def: dict) -> tuple[IntegrationManifest, str]:
     """(manifest en memoria, nombre de la conexión). Levanta ValueError con el motivo.
 
-    Sin `base_url`: viene de la conexión (`integrations/executor.py:116`), que es de Nexus.
+    Sin `base_url`: viene de la conexión (`integrations/executor.py:124`), que es de Nexus.
     """
     slug = tool_def.get("name")
     if not isinstance(slug, str) or not _SLUG.match(slug):

@@ -94,6 +94,11 @@ async def pin_a_ip_publica(url: str) -> tuple[str, str, str] | None:
     (sólo) direcciones públicas: si UNA sola dirección no es global, se
     bloquea la resolución entera — no hay "usar la pública y descartar la
     otra", porque cuál devuelve el resolver primero no lo elige quien pregunta.
+    Y si el resolver FALLA (en vez de responder "no existe"), también se
+    bloquea: devolver `None` ahí mandaría el request sin pinear, por hostname
+    — el camino guardado NUNCA manda por hostname, porque eso reabre la
+    ventana de rebinding que esta función existe para cerrar (`_chequear`
+    resolvería nombre por su cuenta, y httpcore una tercera vez al conectar).
 
     `httpx.URL` hace el trabajo fino: `.raw_host` es el host ya IDNA-encodeado
     (lo mismo que httpx manda a conectar — un `Host`/SNI armado a mano con el
@@ -117,10 +122,15 @@ async def pin_a_ip_publica(url: str) -> tuple[str, str, str] | None:
         return None
     try:
         infos = await _resolver(host, u.port)
-    except OSError:
-        # No resuelve: destino_bloqueado tampoco lo bloquea (va a fallar solo)
-        # y no hay IP para fijar.
-        return None
+    except OSError as exc:
+        # `destino_bloqueado` deja pasar este mismo caso ("va a fallar solo",
+        # sin pin no hay a dónde llegar) porque ahí el request sigue sin
+        # resolver — nunca llega a la red. Acá SÍ hay un camino sin pin: el
+        # request seguiría por hostname, y un resolver que falla la primera
+        # vez y responde distinto la segunda (rebinding con una respuesta
+        # negativa) volvería a resolver dos veces más sin ningún chequeo de
+        # por medio. Por eso este caso se bloquea en vez de degradar a `None`.
+        raise httpx.RequestError(f"Blocked: {host} does not resolve") from exc
     direcciones = [str(info[4][0]) for info in infos]
     if not direcciones or any(_ip_no_global(ip) for ip in direcciones):
         raise httpx.RequestError(f"Blocked: {host} resolves to a non-public address")
