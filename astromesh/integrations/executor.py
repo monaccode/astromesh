@@ -22,7 +22,7 @@ from astromesh.integrations.interpolation import (
 from astromesh.integrations.manifest import ActionSpec, IntegrationManifest
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.tools.base import ToolResult
-from astromesh.tools.builtin._red import cliente_seguro
+from astromesh.tools.builtin._red import cliente_seguro, pin_a_ip_publica
 
 logger = logging.getLogger(__name__)
 
@@ -241,15 +241,31 @@ class HttpActionExecutor:
             {"integration.slug": manifest.slug, "integration.action": action.name},
         )
         try:
+            request_url = f"{base_url}{path}"
+            extensions: dict = {}
+            if not permitir_internos:
+                # Pinea la conexión a la IP ya chequeada — sin esto, httpcore
+                # vuelve a resolver el nombre al conectar y un DNS que cambia
+                # entre las dos resoluciones (rebinding) pasa igual. `None`
+                # cuando no hay nombre que fijar (URL con IP literal, o un
+                # caso que `cliente_seguro` bloquea sin resolver): el request
+                # sigue con la URL de siempre y el hook de abajo lo cubre.
+                pin = await pin_a_ip_publica(request_url)
+                if pin is not None:
+                    request_url, sni_hostname, host_header = pin
+                    request_headers = {**request_headers, "Host": host_header}
+                    if request_url.startswith("https:"):
+                        extensions = {"sni_hostname": sni_hostname}
             async with cliente_seguro(
                 permitir_internos=permitir_internos, timeout=timeout
             ) as client:
                 response = await client.request(
                     action.request.method,
-                    f"{base_url}{path}",
+                    request_url,
                     params=params,
                     headers=request_headers,
                     json=body,
+                    extensions=extensions,
                 )
         # Ídem: httpx puede levantar por red, DNS, TLS o timeout. `tool_fn`
         # re-lanza lo que reciba, así que nada puede salir de acá como excepción.

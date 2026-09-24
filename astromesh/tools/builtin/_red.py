@@ -12,14 +12,20 @@ global (privada, loopback, link-local, reservada). El chequeo corre en CADA
 request del cliente —redirects incluidos— con `cliente_seguro()`.
 
 ponytail: la IP se resuelve para chequear y httpx vuelve a resolver para
-conectar, así que un DNS que cambia entre las dos (rebinding) todavía pasa.
-Cerrarlo del todo es conectar a la IP ya chequeada; hasta entonces, la
-NetworkPolicy del pod es la otra mitad del cierre.
+conectar, así que un DNS que cambia entre las dos (rebinding) todavía pasa
+en `cliente_seguro()` — `http_request`, `graphql_query`, `web_scrape`,
+`send_webhook` (`astromesh/tools/builtin/utilities.py`). El camino
+`permitir_internos=False` del ejecutor de integraciones (tools `api`,
+`astromesh/integrations/executor.py::_run_request`) SÍ está pineado:
+`pin_a_ip_publica()` resuelve una vez y fija la conexión a esa IP, así que
+ahí no queda ventana de rebinding. Hasta que `cliente_seguro()` pinee
+también, la NetworkPolicy del pod es la otra mitad del cierre para esas
+cuatro tools.
 """
 
 import asyncio
 import ipaddress
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 
@@ -72,6 +78,53 @@ async def _chequear(request: httpx.Request) -> None:
     motivo = await destino_bloqueado(str(request.url))
     if motivo:
         raise httpx.RequestError(motivo, request=request)
+
+
+async def pin_a_ip_publica(url: str) -> tuple[str, str, str] | None:
+    """Resuelve el host de `url` UNA sola vez y devuelve la URL con ese host
+    reemplazado por la IP pública que se chequeó, para que quien conecte
+    (httpcore) no vuelva a resolver el nombre — cerrando la ventana de DNS
+    rebinding que describe el comentario de arriba del módulo.
+
+    Devuelve `(url_pineada, sni_hostname, host_header)`, o `None` si no hay
+    nombre que fijar: la URL ya usa una IP literal, o el host cae en un caso
+    que `destino_bloqueado` bloquea sin resolver (`.svc`, `localhost`, sin
+    punto) — ésos quedan para el chequeo de siempre, que ya los rechaza sin
+    tocar la red. Levanta `httpx.RequestError` si el nombre no resuelve a
+    (sólo) direcciones públicas: si UNA sola dirección no es global, se
+    bloquea la resolución entera — no hay "usar la pública y descartar la
+    otra", porque cuál devuelve el resolver primero no lo elige quien pregunta.
+    """
+    p = urlparse(url)
+    host = (p.hostname or "").rstrip(".").lower()
+    if not host:
+        return None
+    try:
+        ipaddress.ip_address(host)
+        return None
+    except ValueError:
+        pass
+    if host == "localhost" or "." not in host or host.endswith(_SUFIJOS_INTERNOS):
+        return None
+    try:
+        infos = await _resolver(host, p.port)
+    except OSError:
+        # No resuelve: destino_bloqueado tampoco lo bloquea (va a fallar solo)
+        # y no hay IP para fijar.
+        return None
+    direcciones = [str(info[4][0]) for info in infos]
+    if not direcciones or any(_ip_no_global(ip) for ip in direcciones):
+        raise httpx.RequestError(f"Blocked: {host} resolves to a non-public address")
+
+    ip = direcciones[0]
+    netloc_ip = f"[{ip}]" if ":" in ip else ip
+    if p.port:
+        netloc_ip = f"{netloc_ip}:{p.port}"
+    url_pineada = urlunparse(p._replace(netloc=netloc_ip))
+
+    default_port = 443 if p.scheme == "https" else 80
+    host_header = host if not p.port or p.port == default_port else f"{host}:{p.port}"
+    return url_pineada, host, host_header
 
 
 def cliente_seguro(permitir_internos: bool = False, **kwargs) -> httpx.AsyncClient:

@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `permitir_internos` (por defecto `True`, el catálogo no cambia): con `False` el request sale por
   `cliente_seguro` (`astromesh/tools/builtin/_red.py`) y un destino interno —IP privada, `*.svc`,
   `localhost`, o un nombre que resuelve a una IP no global— vuelve como error de la tool.
+- **Ese camino (`permitir_internos=False`) ya no tiene ventana de DNS rebinding.** El chequeo
+  resolvía el nombre para validarlo y httpx volvía a resolverlo al conectar; un nombre con TTL bajo
+  —el tenant controla el DNS de su propio `base_url`— podía responder distinto entre las dos.
+  `pin_a_ip_publica()` (`astromesh/tools/builtin/_red.py`) resuelve una sola vez, exige que TODAS
+  las direcciones sean públicas y fija la conexión a esa IP (`Host` y SNI quedan con el nombre
+  original, así que la verificación del certificado TLS sigue siendo contra el nombre real).
 
 ## [0.56.2] - 2026-09-23
 
