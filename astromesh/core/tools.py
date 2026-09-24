@@ -161,6 +161,7 @@ class ToolRegistry:
         action,
         connection: str,
         resolver=None,
+        permitir_internos: bool = True,
         **kwargs,
     ):
         """Registra una acción de integración como tool invocable.
@@ -187,6 +188,7 @@ class ToolRegistry:
                 "manifest": manifest,
                 "action_spec": action,
                 "resolver": resolver,
+                "permitir_internos": permitir_internos,
             },
             **kwargs,
         )
@@ -321,6 +323,7 @@ class ToolRegistry:
                     for k, v in ((context or {}).get("caller_context") or {}).items()
                     if not k.startswith("_")
                 },
+                permitir_internos=config.get("permitir_internos", True),
             )
             return result.to_dict()
         return {"error": f"Unsupported tool type: {tool.tool_type}"}

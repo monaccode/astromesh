@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.57.0] - 2026-09-24
+
+### Added
+
+- **Tool `api`: la ficha de una API del tenant, inline en el manifiesto.** Cada operación se registra
+  como `<slug con _>_<operación>` y reusa el ejecutor de integraciones entero (path, query, body,
+  auth `header`/`bearer`/`basic`/`query`); la credencial viene de la conexión, en la clave
+  `credential`. Sólo lectura: una operación sin `writes: false` o que no es GET/POST no carga el
+  agente, igual que una ficha inválida — a diferencia de `integration`, acá levanta. Corre con
+  `permitir_internos=False`; una respuesta que no es texto (sin `content-type`, la que no es UTF-8)
+  o que pasa 5 MB —JSON incluido, no se recorta— vuelve como error de la tool. El `path` tiene que
+  empezar con `/` y la ficha no puede declarar `request.headers` (`astromesh/integrations/api.py`).
+
+### Security
+
+- **El ejecutor de integraciones puede exigir host público.** `register_integration_tool` acepta
+  `permitir_internos` (por defecto `True`, el catálogo no cambia): con `False` el request sale por
+  `cliente_seguro` (`astromesh/tools/builtin/_red.py`) y un destino interno —IP privada, `*.svc`,
+  `localhost`, o un nombre que resuelve a una IP no global— vuelve como error de la tool.
+- **Ese camino (`permitir_internos=False`) pinea la conexión, sin ventana de DNS rebinding.**
+  `pin_a_ip_publica()` (`astromesh/tools/builtin/_red.py`, vía `httpx.URL`) resuelve el nombre UNA
+  sola vez, exige que TODAS las direcciones devueltas sean públicas y fija la conexión a esa IP en
+  vez de dejar que httpx vuelva a resolver al conectar — un nombre con TTL bajo, que el tenant
+  controla en su propio `base_url`, podía responder distinto entre el chequeo y la conexión real.
+  Si la resolución FALLA, también bloquea (en vez de seguir sin pin, por hostname): degradar ahí
+  reabriría la misma ventana. `Host` y SNI quedan con el nombre original —`.raw_host` ya lo trae
+  IDNA-encodeado, y `.copy_with(host=ip)` conserva puerto, path y query byte a byte, con el
+  corchete de una IPv6 puesto solo— así que la verificación del certificado TLS sigue siendo
+  contra el nombre real, y un `Host` que ya venga en los headers del manifest se descarta antes de
+  fijar el propio para que no salgan dos.
+
 ## [0.56.2] - 2026-09-23
 
 ### Security

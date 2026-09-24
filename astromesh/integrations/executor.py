@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -22,10 +23,42 @@ from astromesh.integrations.interpolation import (
 from astromesh.integrations.manifest import ActionSpec, IntegrationManifest
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.tools.base import ToolResult
+from astromesh.tools.builtin._red import cliente_seguro, pin_a_ip_publica
 
 logger = logging.getLogger(__name__)
 
 _PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+#: Tope del cuerpo de una respuesta de una tool `api`, JSON incluido: el
+#: `max_response_bytes` por defecto de `http_request` (`tools/builtin/http.py:35`).
+#: Pasarlo es un error y no un recorte: un JSON truncado deja de ser JSON.
+_TOPE_TEXTO = 5 * 1024 * 1024
+
+
+def _no_es_texto(response: httpx.Response, contenido: bytes) -> bool:
+    tipo = response.headers.get("content-type", "").split(";")[0].strip().lower()
+    if not tipo:
+        # Sin tipo declarado decide el cuerpo: lo que no es UTF-8 es binario.
+        try:
+            contenido.decode("utf-8")
+        except UnicodeDecodeError:
+            return True
+        return False
+    return not (tipo.startswith("text/") or "json" in tipo or "xml" in tipo)
+
+
+async def _leer_acotado(response: httpx.Response) -> tuple[bytes, bool]:
+    """Lee el cuerpo de una respuesta STREAMEADA de a pedazos y corta apenas
+    pasa `_TOPE_TEXTO` — nunca buffea una respuesta gigante entera para
+    recién ahí medirla y descartarla (eso es lo que hacía `client.request`,
+    que devuelve el cuerpo ya leído). Devuelve `(lo leído, si se pasó)`.
+    """
+    leido = bytearray()
+    async for chunk in response.aiter_bytes():
+        leido.extend(chunk)
+        if len(leido) > _TOPE_TEXTO:
+            return bytes(leido), True
+    return bytes(leido), False
 
 
 @dataclass
@@ -90,11 +123,18 @@ class HttpActionExecutor:
         agent_name: str = "",
         session_id: str = "",
         caller_context: dict | None = None,
+        permitir_internos: bool = True,
     ) -> ToolResult:
         """Nunca levanta. Todo fallo sale como ToolResult(success=False).
 
         `tool_fn` re-lanza lo que reciba y eso mata la corrida entera; un 404
         de un proveedor externo no puede tumbar al agente.
+
+        `permitir_internos=False` manda el request por `cliente_seguro`
+        (`tools/builtin/_red.py`): host público y re-chequeo en cada request del
+        cliente. Lo piden las tools `api`, cuyo `base_url` escribe el tenant; el
+        catálogo queda en `True` porque `conocimiento` y `praxis` apuntan a
+        servicios del cluster (`tests/test_integration_ssrf.py` fija las dos).
         """
         base_url = (resolved.base_url or manifest.base_url or "").rstrip("/")
         if not base_url:
@@ -126,7 +166,7 @@ class HttpActionExecutor:
                 caller_context or {},
             )
         return await self._run_request(
-            manifest, action, args, base_url, headers, auth_params, timeout
+            manifest, action, args, base_url, headers, auth_params, timeout, permitir_internos
         )
 
     @staticmethod
@@ -187,6 +227,7 @@ class HttpActionExecutor:
         headers,
         auth_params,
         timeout,  # noqa: ASYNC109
+        permitir_internos,
     ) -> ToolResult:
         allow_slash = set(action.allow_slash or [])
         try:
@@ -232,14 +273,67 @@ class HttpActionExecutor:
             {"integration.slug": manifest.slug, "integration.action": action.name},
         )
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.request(
-                    action.request.method,
-                    f"{base_url}{path}",
-                    params=params,
-                    headers=request_headers,
-                    json=body,
-                )
+            request_url = f"{base_url}{path}"
+            extensions: dict = {}
+            if not permitir_internos:
+                # Pinea la conexión a la IP ya chequeada — sin esto, httpcore
+                # vuelve a resolver el nombre al conectar y un DNS que cambia
+                # entre las dos resoluciones (rebinding) pasa igual. `None`
+                # SÓLO cuando no hay nombre que fijar (URL con IP literal, o
+                # un host interno que `cliente_seguro` bloquea sin resolver —
+                # `.svc`, `localhost`, sin punto): ahí el request sigue con la
+                # URL de siempre y el hook de abajo lo cubre. Un nombre que no
+                # resuelve NO cae acá: `pin_a_ip_publica` lo bloquea (levanta,
+                # no devuelve `None`) para que el camino guardado nunca mande
+                # por hostname.
+                pin = await pin_a_ip_publica(request_url)
+                if pin is not None:
+                    request_url, sni_hostname, host_header = pin
+                    # Un `Host` que ya venga en `request_headers` (el manifest,
+                    # o una acción con headers propios) no puede convivir con
+                    # el nuestro: httpx manda las dos y el servidor de destino
+                    # decide con cuál se queda — nunca dos "Host" en un
+                    # request pineado. `.lower()` porque HTTP no distingue
+                    # mayúsculas en el nombre del header.
+                    request_headers = {
+                        k: v for k, v in request_headers.items() if k.lower() != "host"
+                    }
+                    request_headers["Host"] = host_header
+                    if request_url.startswith("https:"):
+                        extensions = {"sni_hostname": sni_hostname}
+            contenido: bytes = b""
+            excedido = False
+            async with cliente_seguro(
+                permitir_internos=permitir_internos, timeout=timeout
+            ) as client:
+                if permitir_internos:
+                    # Catálogo: sin cambios — `client.request` (lee el cuerpo
+                    # entero) es lo que corría antes de la guarda.
+                    response = await client.request(
+                        action.request.method,
+                        request_url,
+                        params=params,
+                        headers=request_headers,
+                        json=body,
+                        extensions=extensions,
+                    )
+                else:
+                    # `api` (tenant): el upstream lo apunta quien administra
+                    # el tenant, así que un cuerpo de gigabytes es un vector
+                    # de memoria del pod compartido — `client.request` lo
+                    # bufferea ENTERO antes de que `_to_result` pueda medirlo.
+                    # `client.stream` + `_leer_acotado` cortan apenas se pasa
+                    # el tope, éxito o error (4xx/5xx incluidos: ahí también
+                    # hay upstream del lado del tenant).
+                    async with client.stream(
+                        action.request.method,
+                        request_url,
+                        params=params,
+                        headers=request_headers,
+                        json=body,
+                        extensions=extensions,
+                    ) as response:
+                        contenido, excedido = await _leer_acotado(response)
         # Ídem: httpx puede levantar por red, DNS, TLS o timeout. `tool_fn`
         # re-lanza lo que reciba, así que nada puede salir de acá como excepción.
         except Exception as exc:  # noqa: BLE001
@@ -254,7 +348,14 @@ class HttpActionExecutor:
             tracing.finish_span(span, status=SpanStatus.ERROR)
         else:
             tracing.finish_span(span)
-        return self._to_result(action, response, args)
+        return self._to_result(
+            action,
+            response,
+            args,
+            solo_texto=not permitir_internos,
+            contenido=contenido,
+            excedido=excedido,
+        )
 
     @staticmethod
     def _pagination_params(action: ActionSpec, args: dict) -> dict:
@@ -316,11 +417,37 @@ class HttpActionExecutor:
         return _PLACEHOLDER.sub(_replace, template)
 
     @staticmethod
-    def _to_result(action: ActionSpec, response: httpx.Response, args: dict) -> ToolResult:
-        try:
-            payload = response.json()
-        except ValueError:
-            payload = response.text
+    def _to_result(
+        action: ActionSpec,
+        response: httpx.Response,
+        args: dict,
+        *,
+        solo_texto: bool,
+        contenido: bytes = b"",
+        excedido: bool = False,
+    ) -> ToolResult:
+        if solo_texto:
+            # `api` (tenant): `contenido` ya viene leído con tope por
+            # `_leer_acotado`, ANTES de este método — parsear acá algo que ya
+            # se cortó sería el mismo problema que se está cerrando. Un
+            # cuerpo que pasó el tope ni se intenta parsear como JSON: pasa
+            # a error directo, éxito o 4xx/5xx por igual.
+            if excedido:
+                return _fail(
+                    errors.UPSTREAM_ERROR,
+                    f"respuesta demasiado grande (pasa los {_TOPE_TEXTO} bytes)",
+                    status_code=response.status_code,
+                )
+            try:
+                payload = json.loads(contenido)
+            except ValueError:
+                payload = contenido.decode(response.encoding or "utf-8", errors="replace")
+        else:
+            # Catálogo: sin cambios — el cuerpo ya lo leyó `client.request` entero.
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = response.text
 
         if response.status_code >= 400:
             kind = errors.classify_status(response.status_code)
@@ -332,6 +459,13 @@ class HttpActionExecutor:
                 data=None,
                 error=f"HTTP {response.status_code}: {str(payload)[:500]}",
                 metadata=metadata,
+            )
+
+        if solo_texto and isinstance(payload, str) and _no_es_texto(response, contenido):
+            return _fail(
+                errors.UPSTREAM_ERROR,
+                f"respuesta no es texto ({response.headers.get('content-type')})",
+                status_code=response.status_code,
             )
 
         metadata: dict = {"status_code": response.status_code}
