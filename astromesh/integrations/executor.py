@@ -28,6 +28,15 @@ logger = logging.getLogger(__name__)
 
 _PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
+#: Tope del texto de una respuesta de una tool `api`: el `max_response_bytes`
+#: por defecto de `http_request` (`tools/builtin/http.py:35`).
+_TOPE_TEXTO = 5 * 1024 * 1024
+
+
+def _no_es_texto(response: httpx.Response) -> bool:
+    tipo = response.headers.get("content-type", "").split(";")[0].strip().lower()
+    return bool(tipo) and not (tipo.startswith("text/") or "json" in tipo or "xml" in tipo)
+
 
 @dataclass
 class IntegrationContext:
@@ -290,7 +299,7 @@ class HttpActionExecutor:
             tracing.finish_span(span, status=SpanStatus.ERROR)
         else:
             tracing.finish_span(span)
-        return self._to_result(action, response, args)
+        return self._to_result(action, response, args, solo_texto=not permitir_internos)
 
     @staticmethod
     def _pagination_params(action: ActionSpec, args: dict) -> dict:
@@ -352,7 +361,9 @@ class HttpActionExecutor:
         return _PLACEHOLDER.sub(_replace, template)
 
     @staticmethod
-    def _to_result(action: ActionSpec, response: httpx.Response, args: dict) -> ToolResult:
+    def _to_result(
+        action: ActionSpec, response: httpx.Response, args: dict, *, solo_texto: bool
+    ) -> ToolResult:
         try:
             payload = response.json()
         except ValueError:
@@ -369,6 +380,15 @@ class HttpActionExecutor:
                 error=f"HTTP {response.status_code}: {str(payload)[:500]}",
                 metadata=metadata,
             )
+
+        if solo_texto and isinstance(payload, str):
+            if _no_es_texto(response):
+                return _fail(
+                    errors.UPSTREAM_ERROR,
+                    f"respuesta no es texto ({response.headers.get('content-type')})",
+                    status_code=response.status_code,
+                )
+            payload = payload[:_TOPE_TEXTO]
 
         metadata: dict = {"status_code": response.status_code}
         # `select` sólo navega mappings. Un payload de texto (o una lista suelta) se

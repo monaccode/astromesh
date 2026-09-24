@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tool `api`: la ficha de una API del tenant, inline en el manifiesto.** Cada operación se registra
+  como `<slug con _>_<operación>` y reusa el ejecutor de integraciones entero (path, query, body,
+  auth `header`/`bearer`/`basic`/`query`); la credencial viene de la conexión, en la clave
+  `credential`. Sólo lectura: una operación sin `writes: false` o que no es GET/POST no carga el
+  agente, igual que una ficha inválida — a diferencia de `integration`, acá levanta. Corre con
+  `permitir_internos=False` y una respuesta que no es texto vuelve como error de la tool
+  (`astromesh/integrations/api.py`).
+
 ### Security
 
 - **El ejecutor de integraciones puede exigir host público.** `register_integration_tool` acepta

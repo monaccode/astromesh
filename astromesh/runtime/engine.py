@@ -15,6 +15,7 @@ from astromesh.core.schema import InvalidToolParameters, normalize_tool_paramete
 from astromesh.core.tools import ToolRegistry
 from astromesh.errors import AgentConfigError
 from astromesh.integrations import default_catalog
+from astromesh.integrations.api import manifiesto_de_api
 from astromesh.integrations.credentials import CredentialResolver
 from astromesh.memory.factory import build_conversation_backend
 from astromesh.orchestration.patterns import (
@@ -148,6 +149,7 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     # `description` NO está: `register_integration_tool` usa la del manifiesto
     # de la integración (`core/tools.py:178`), no la del YAML.
     "integration": frozenset({"connection", "actions", "rate_limit"}),
+    "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
 }
 
 
@@ -871,6 +873,22 @@ class AgentRuntime:
                         ),
                         needs_confirmation=action.name in confirmables,
                     )
+            elif tool_type == "api":
+                # Levanta a propósito, a diferencia de `integration`: la ficha la
+                # escribe el tenant y una API que el admin cree habilitada y no
+                # existe es el mismo silencio que ya costó `confirm`.
+                manifest, conexion = manifiesto_de_api(tool_def)
+                resolver = self._credential_resolver()
+                for action in manifest.actions:
+                    tools.register_integration_tool(
+                        name=f"{manifest.slug}_{action.name}",
+                        manifest=manifest,
+                        action=action,
+                        connection=conexion,
+                        resolver=resolver,
+                        rate_limit=tool_def.get("rate_limit"),
+                        permitir_internos=False,
+                    )
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
                 # was never registered, never reached the model, and nothing said so —
@@ -880,7 +898,7 @@ class AgentRuntime:
                 # existing YAML that declares one. The error comes in 1.0.
                 logger.warning(
                     "agent %r declares tool %r with unsupported type %r — ignoring it. "
-                    "YAML supports: builtin, agent, client, integration.",
+                    "YAML supports: builtin, agent, client, integration, api.",
                     metadata["name"],
                     tool_def.get("name"),
                     tool_type,
