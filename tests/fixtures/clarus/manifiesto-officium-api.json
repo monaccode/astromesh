@@ -1,0 +1,104 @@
+{
+  "apiVersion": "astromesh/v1",
+  "kind": "Agent",
+  "metadata": {
+    "name": "officium-3f2a9c1e",
+    "version": "1.0.0"
+  },
+  "spec": {
+    "orchestration": {
+      "pattern": "react"
+    },
+    "model": {
+      "primary": {
+        "provider": "openai_compat",
+        "endpoint": "https://api.moonshot.ai/v1",
+        "api_key_env": "MOONSHOT_API_KEY",
+        "model": "kimi-k3",
+        "parameters": {
+          "reasoning_effort": "low"
+        }
+      }
+    },
+    "memory": {
+      "conversational": {
+        "backend": "redis",
+        "connection": {
+          "url": "redis://astromesh-redis:6379"
+        },
+        "strategy": "sliding_window",
+        "max_turns": 20
+      }
+    },
+    "prompts": {
+      "system": "Sos Lucía, Analista comercial de la empresa.\n\nSos analista comercial.\n\nLo que sabés hacer:\n- Stock: Consultás el stock.\n\nCómo trabajás:\n- Cada mensaje es un encargo con estas partes: LA EMPRESA, LOS DOCUMENTOS y EL ENCARGO (a veces también TU ENTREGA ANTERIOR y LO QUE HAY QUE CORREGIR).\n- Usás sólo los números y datos que están en LOS DOCUMENTOS o en la memoria de la empresa. Si falta un dato, lo decís; no lo inventás.\n- Entregás el resultado listo para que una persona lo revise: un título, el contenido (con tablas en markdown cuando hay números) y al final una sección \"Supuestos y exclusiones\" con lo que asumiste y lo que dejaste afuera y por qué.\n- Usás la terminología y los organismos del país de la empresa."
+    },
+    "tools": [
+      {
+        "type": "api",
+        "name": "erp-cliente",
+        "connection": "api_erp-cliente",
+        "description": "El ERP de la empresa",
+        "auth": {
+          "scheme": "header",
+          "header": "X-Api-Key"
+        },
+        "operations": [
+          {
+            "name": "consultar_stock",
+            "description": "Stock disponible de un SKU",
+            "parameters": {
+              "sku": {
+                "type": "string",
+                "required": true,
+                "description": "Código del producto"
+              },
+              "deposito": {
+                "type": "string",
+                "required": false
+              }
+            },
+            "request": {
+              "method": "GET",
+              "path": "/stock/{sku}",
+              "query": {
+                "deposito": "{deposito}"
+              },
+              "body": null
+            },
+            "writes": false
+          },
+          {
+            "name": "cotizar",
+            "description": "Cotiza sin guardar nada",
+            "parameters": {
+              "producto": {
+                "type": "string",
+                "required": true
+              },
+              "cantidad": {
+                "type": "number",
+                "required": true,
+                "description": "Unidades"
+              }
+            },
+            "request": {
+              "method": "POST",
+              "path": "/cotizaciones",
+              "query": {},
+              "body": {
+                "producto": "{producto}",
+                "cantidad": "{cantidad}"
+              }
+            },
+            "writes": false
+          }
+        ]
+      },
+      {
+        "name": "datetime_now",
+        "type": "builtin"
+      }
+    ]
+  }
+}
