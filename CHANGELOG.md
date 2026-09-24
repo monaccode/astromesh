@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `pin_a_ip_publica()` (`astromesh/tools/builtin/_red.py`) resuelve una sola vez, exige que TODAS
   las direcciones sean públicas y fija la conexión a esa IP (`Host` y SNI quedan con el nombre
   original, así que la verificación del certificado TLS sigue siendo contra el nombre real).
+- **Ese pin ahora usa `httpx.URL` para el nombre y la IP.** `.raw_host` es el host ya
+  IDNA-encodeado (un `base_url` no-ASCII fallaba con `UnicodeEncodeError` al armar el header
+  `Host` a mano) y `.copy_with(host=ip)` conserva puerto, path y query byte a byte, con el
+  corchete de una IPv6 puesto solo. Y un `Host` que ya venga en los headers del manifest se
+  descarta antes de fijar el propio, para que no salgan dos.
 
 ## [0.56.2] - 2026-09-23
 

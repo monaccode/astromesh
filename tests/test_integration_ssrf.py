@@ -186,3 +186,85 @@ async def test_sin_internos_bloquea_si_una_sola_direccion_de_la_resolucion_no_es
     assert r["success"] is False
     assert "Blocked" in r["error"]
     assert not ruta.called
+
+
+async def test_sin_internos_pinea_con_corchetes_a_una_ip_v6(monkeypatch):
+    _dns(monkeypatch, "2001:4860:4860::8888")
+    with respx.mock:
+        ruta = respx.get("https://[2001:4860:4860::8888]/datos").mock(
+            return_value=httpx.Response(200, json={"ok": 1})
+        )
+        r = await _registro(False).execute("interna_leer", {}, _ctx("https://api.cliente.com"))
+    assert r["success"] is True
+    assert ruta.called
+
+
+async def test_sin_internos_conserva_el_puerto_no_default_en_url_y_host(monkeypatch):
+    _dns(monkeypatch, "93.184.216.34")
+    with respx.mock:
+        ruta = respx.get("https://93.184.216.34:8443/datos").mock(
+            return_value=httpx.Response(200, json={"ok": 1})
+        )
+        r = await _registro(False).execute("interna_leer", {}, _ctx("https://api.cliente.com:8443"))
+    assert r["success"] is True
+    peticion = ruta.calls.last.request
+    assert str(peticion.url) == "https://93.184.216.34:8443/datos"
+    assert peticion.headers["host"] == "api.cliente.com:8443"
+
+
+async def test_permitir_internos_true_no_pinea_manda_al_nombre(monkeypatch):
+    # Con el DNS mockeado a una IP pública DISTINTA del host: si una mutación
+    # pineara igual con permitir_internos=True, el request cambiaría de
+    # destino y se notaría (la ruta mockeada es la del nombre, no la de la IP).
+    _dns(monkeypatch, "93.184.216.34")
+    with respx.mock:
+        ruta = respx.get("https://api.cliente.com/datos").mock(
+            return_value=httpx.Response(200, json={"stock": 1})
+        )
+        r = await _registro(True).execute("interna_leer", {}, _ctx("https://api.cliente.com"))
+    assert r["success"] is True
+    peticion = ruta.calls.last.request
+    assert peticion.url.host == "api.cliente.com"
+    assert "sni_hostname" not in peticion.extensions
+
+
+async def test_sin_internos_idna_encodea_un_host_no_ascii(monkeypatch):
+    _dns(monkeypatch, "93.184.216.34")
+    with respx.mock:
+        ruta = respx.get("https://93.184.216.34/datos").mock(
+            return_value=httpx.Response(200, json={"ok": 1})
+        )
+        r = await _registro(False).execute("interna_leer", {}, _ctx("https://bücher.example"))
+    assert r["success"] is True
+    peticion = ruta.calls.last.request
+    assert peticion.headers["host"] == "xn--bcher-kva.example"
+    assert peticion.extensions.get("sni_hostname") == "xn--bcher-kva.example"
+
+
+async def test_sin_internos_descarta_un_host_que_traiga_el_manifest(monkeypatch):
+    manifest_con_host = IntegrationManifest(
+        slug="interna",
+        auth={"scheme": "none"},
+        defaults={"headers": {"host": "evil.example"}},
+        actions=[
+            {"name": "leer", "description": "Lee", "request": {"method": "GET", "path": "/datos"}}
+        ],
+    )
+    reg = ToolRegistry()
+    reg.register_integration_tool(
+        name="interna_leer",
+        manifest=manifest_con_host,
+        action=manifest_con_host.action("leer"),
+        connection="c",
+        resolver=CredentialResolver(),
+        permitir_internos=False,
+    )
+    _dns(monkeypatch, "93.184.216.34")
+    with respx.mock:
+        ruta = respx.get("https://93.184.216.34/datos").mock(
+            return_value=httpx.Response(200, json={"ok": 1})
+        )
+        r = await reg.execute("interna_leer", {}, _ctx("https://api.cliente.com"))
+    assert r["success"] is True
+    peticion = ruta.calls.last.request
+    assert peticion.headers.get_list("host") == ["api.cliente.com"]

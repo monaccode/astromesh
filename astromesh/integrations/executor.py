@@ -253,7 +253,16 @@ class HttpActionExecutor:
                 pin = await pin_a_ip_publica(request_url)
                 if pin is not None:
                     request_url, sni_hostname, host_header = pin
-                    request_headers = {**request_headers, "Host": host_header}
+                    # Un `Host` que ya venga en `request_headers` (el manifest,
+                    # o una acción con headers propios) no puede convivir con
+                    # el nuestro: httpx manda las dos y el servidor de destino
+                    # decide con cuál se queda — nunca dos "Host" en un
+                    # request pineado. `.lower()` porque HTTP no distingue
+                    # mayúsculas en el nombre del header.
+                    request_headers = {
+                        k: v for k, v in request_headers.items() if k.lower() != "host"
+                    }
+                    request_headers["Host"] = host_header
                     if request_url.startswith("https:"):
                         extensions = {"sni_hostname": sni_hostname}
             async with cliente_seguro(

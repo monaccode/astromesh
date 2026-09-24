@@ -25,7 +25,7 @@ cuatro tools.
 
 import asyncio
 import ipaddress
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 import httpx
 
@@ -94,9 +94,18 @@ async def pin_a_ip_publica(url: str) -> tuple[str, str, str] | None:
     (sólo) direcciones públicas: si UNA sola dirección no es global, se
     bloquea la resolución entera — no hay "usar la pública y descartar la
     otra", porque cuál devuelve el resolver primero no lo elige quien pregunta.
+
+    `httpx.URL` hace el trabajo fino: `.raw_host` es el host ya IDNA-encodeado
+    (lo mismo que httpx manda a conectar — un `Host`/SNI armado a mano con el
+    `hostname` unicode de `urlparse` revienta con `UnicodeEncodeError` en un
+    header), y `.copy_with(host=ip)` deja el resto de la URL —puerto, path,
+    userinfo, query, fragment— byte a byte, con el corchete de un IPv6 puesto
+    solo. El userinfo de una URL con credenciales (`https://u:pw@host`) no lo
+    toca esta función a propósito: acá la auth la resuelve `apply_auth` sobre
+    `resolved.material`, nunca el userinfo de la URL (`executor.py::execute`).
     """
-    p = urlparse(url)
-    host = (p.hostname or "").rstrip(".").lower()
+    u = httpx.URL(url)
+    host = u.raw_host.decode("ascii") if u.raw_host else ""
     if not host:
         return None
     try:
@@ -107,7 +116,7 @@ async def pin_a_ip_publica(url: str) -> tuple[str, str, str] | None:
     if host == "localhost" or "." not in host or host.endswith(_SUFIJOS_INTERNOS):
         return None
     try:
-        infos = await _resolver(host, p.port)
+        infos = await _resolver(host, u.port)
     except OSError:
         # No resuelve: destino_bloqueado tampoco lo bloquea (va a fallar solo)
         # y no hay IP para fijar.
@@ -116,14 +125,10 @@ async def pin_a_ip_publica(url: str) -> tuple[str, str, str] | None:
     if not direcciones or any(_ip_no_global(ip) for ip in direcciones):
         raise httpx.RequestError(f"Blocked: {host} resolves to a non-public address")
 
-    ip = direcciones[0]
-    netloc_ip = f"[{ip}]" if ":" in ip else ip
-    if p.port:
-        netloc_ip = f"{netloc_ip}:{p.port}"
-    url_pineada = urlunparse(p._replace(netloc=netloc_ip))
+    url_pineada = str(u.copy_with(host=direcciones[0]))
 
-    default_port = 443 if p.scheme == "https" else 80
-    host_header = host if not p.port or p.port == default_port else f"{host}:{p.port}"
+    default_port = 443 if u.scheme == "https" else 80
+    host_header = host if not u.port or u.port == default_port else f"{host}:{u.port}"
     return url_pineada, host, host_header
 
 
