@@ -3,7 +3,9 @@ from datetime import UTC, datetime
 from typing import ClassVar
 from zoneinfo import ZoneInfo
 
-from jinja2 import BaseLoader, Environment, TemplateSyntaxError, UndefinedError
+from jinja2 import BaseLoader, TemplateSyntaxError, UndefinedError
+from jinja2.exceptions import SecurityError
+from jinja2.sandbox import ImmutableSandboxedEnvironment
 
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
 
@@ -62,12 +64,15 @@ class JsonTransformTool(BuiltinTool):
         data = arguments["data"]
         template_str = arguments["template"]
         try:
-            env = Environment(loader=BaseLoader())
+            # Sandbox: el template lo escribe el modelo, y con un `Environment`
+            # común `{{ lipsum.__globals__.os.popen(...) }}` ejecuta código en
+            # el runtime (tests/test_builtin_seguridad.py).
+            env = ImmutableSandboxedEnvironment(loader=BaseLoader())
             template = env.from_string(template_str)
             rendered = template.render(data=data)
             parsed = json.loads(rendered)
             return ToolResult(success=True, data=parsed, metadata={})
-        except (TemplateSyntaxError, UndefinedError, json.JSONDecodeError) as e:
+        except (TemplateSyntaxError, UndefinedError, SecurityError, json.JSONDecodeError) as e:
             return ToolResult(success=False, data=None, metadata={}, error=str(e))
 
 

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.2] - 2026-09-23
+
+### Security
+
+- **`json_transform` renderiza en un sandbox.** El template lo escribe el modelo y se renderizaba
+  con un `jinja2.Environment` común: `{{ lipsum.__globals__.os.popen(...) }}` ejecutaba código en el
+  runtime, que es compartido y tiene las claves de los proveedores. Un documento que el agente lee
+  alcanzaba para pedirlo. Ahora es `ImmutableSandboxedEnvironment` y un acceso prohibido devuelve
+  el error de la tool (`astromesh/tools/builtin/utilities.py`).
+- **Las tools de red no alcanzan destinos internos.** `http_request` bloqueaba sólo `localhost`, y
+  `graphql_query`, `web_scrape` (que además sigue redirects) y `send_webhook` no bloqueaban nada: el
+  modelo podía pedirle a Nexus, a Redis, a la base o a la metadata de la nube. Un chequeo común
+  (`astromesh/tools/builtin/_red.py`) acepta sólo `http`/`https` hacia hosts públicos: rechaza
+  nombres internos (sin punto, `*.svc`, `*.cluster.local`, `*.local`, `*.internal`) y nombres que
+  resuelven a IPs no globales, y corre en cada salto de un redirect. `allow_localhost` de
+  `http_request` sigue siendo la única salida, y es config del operador.
+- **`wikipedia` no cambia de host.** El idioma armaba el host de la URL y lo decidía el modelo;
+  ahora tiene que ser un código de idioma, y el tema viaja codificado.
+
 ## [0.56.1] - 2026-09-16
 
 ### Fixed

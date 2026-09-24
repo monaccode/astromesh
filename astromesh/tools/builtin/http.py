@@ -1,11 +1,7 @@
 from typing import ClassVar
-from urllib.parse import urlparse
-
-import httpx
 
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
-
-_BLOCKED_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"}
+from astromesh.tools.builtin._red import cliente_seguro, destino_bloqueado
 
 
 class HttpRequestTool(BuiltinTool):
@@ -32,17 +28,13 @@ class HttpRequestTool(BuiltinTool):
         body = arguments.get("body")
         allow_localhost = self.config.get("allow_localhost", False)
         if not allow_localhost:
-            parsed = urlparse(url)
-            if parsed.hostname in _BLOCKED_HOSTS:
-                return ToolResult(
-                    success=False,
-                    data=None,
-                    error="Blocked: requests to localhost are not allowed",
-                )
+            motivo = await destino_bloqueado(url)
+            if motivo:
+                return ToolResult(success=False, data=None, error=motivo)
         timeout = self.config.get("timeout_seconds", 30)
         max_size = self.config.get("max_response_bytes", 5 * 1024 * 1024)
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with cliente_seguro(permitir_internos=allow_localhost, timeout=timeout) as client:
                 kwargs: dict = {"headers": headers}
                 if body is not None and method in ("POST", "PUT", "PATCH"):
                     kwargs["json"] = body
@@ -84,8 +76,11 @@ class GraphQLQueryTool(BuiltinTool):
         variables = arguments.get("variables", {})
         headers = arguments.get("headers", {})
         timeout = self.config.get("timeout_seconds", 30)
+        motivo = await destino_bloqueado(endpoint)
+        if motivo:
+            return ToolResult(success=False, data=None, error=motivo)
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with cliente_seguro(timeout=timeout) as client:
                 resp = await client.post(
                     endpoint,
                     json={"query": query, "variables": variables},

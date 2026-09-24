@@ -2,10 +2,14 @@
 
 import re
 from typing import ClassVar
+from urllib.parse import quote
 
 import httpx
 
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
+from astromesh.tools.builtin._red import cliente_seguro, destino_bloqueado
+
+_IDIOMA = re.compile(r"[a-z]{2,3}(-[a-z]{2,8})?")
 
 
 class WebSearchTool(BuiltinTool):
@@ -63,8 +67,13 @@ class WebScrapeTool(BuiltinTool):
     async def execute(self, arguments: dict, context: ToolContext) -> ToolResult:
         url = arguments["url"]
         max_length = arguments.get("max_length", 10000)
+        motivo = await destino_bloqueado(url)
+        if motivo:
+            return ToolResult(success=False, data=None, error=motivo)
         try:
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            # El cliente chequea cada salto: un redirect a un destino interno
+            # también se corta (tests/test_builtin_seguridad.py).
+            async with cliente_seguro(timeout=30, follow_redirects=True) as client:
                 resp = await client.get(url)
                 html = resp.text
                 text = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL)
@@ -95,10 +104,13 @@ class WikipediaTool(BuiltinTool):
     async def execute(self, arguments: dict, context: ToolContext) -> ToolResult:
         topic = arguments["topic"]
         lang = arguments.get("language", "en")
+        # El idioma arma el HOST: sin validarlo, el modelo elegía a dónde ir.
+        if not isinstance(lang, str) or not _IDIOMA.fullmatch(lang):
+            return ToolResult(success=False, data=None, error=f"Invalid language code: {lang!r}")
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(
-                    f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{topic}"
+                    f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{quote(str(topic), safe='')}"
                 )
                 if resp.status_code == 404:
                     return ToolResult(success=False, data=None, error=f"Article not found: {topic}")
