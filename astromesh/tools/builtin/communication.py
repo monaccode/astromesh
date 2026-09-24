@@ -11,6 +11,7 @@ from typing import ClassVar
 import httpx
 
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
+from astromesh.tools.builtin._red import cliente_seguro, destino_bloqueado
 
 
 class SendWebhookTool(BuiltinTool):
@@ -27,8 +28,11 @@ class SendWebhookTool(BuiltinTool):
     }
 
     async def execute(self, arguments: dict, context: ToolContext) -> ToolResult:
+        motivo = await destino_bloqueado(arguments["url"])
+        if motivo:
+            return ToolResult(success=False, data=None, error=motivo)
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
+            async with cliente_seguro(timeout=30) as client:
                 resp = await client.post(
                     arguments["url"],
                     json=arguments["payload"],
