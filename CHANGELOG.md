@@ -24,17 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `permitir_internos` (por defecto `True`, el catálogo no cambia): con `False` el request sale por
   `cliente_seguro` (`astromesh/tools/builtin/_red.py`) y un destino interno —IP privada, `*.svc`,
   `localhost`, o un nombre que resuelve a una IP no global— vuelve como error de la tool.
-- **Ese camino (`permitir_internos=False`) ya no tiene ventana de DNS rebinding.** El chequeo
-  resolvía el nombre para validarlo y httpx volvía a resolverlo al conectar; un nombre con TTL bajo
-  —el tenant controla el DNS de su propio `base_url`— podía responder distinto entre las dos.
-  `pin_a_ip_publica()` (`astromesh/tools/builtin/_red.py`) resuelve una sola vez, exige que TODAS
-  las direcciones sean públicas y fija la conexión a esa IP (`Host` y SNI quedan con el nombre
-  original, así que la verificación del certificado TLS sigue siendo contra el nombre real).
-- **Ese pin ahora usa `httpx.URL` para el nombre y la IP.** `.raw_host` es el host ya
-  IDNA-encodeado (un `base_url` no-ASCII fallaba con `UnicodeEncodeError` al armar el header
-  `Host` a mano) y `.copy_with(host=ip)` conserva puerto, path y query byte a byte, con el
-  corchete de una IPv6 puesto solo. Y un `Host` que ya venga en los headers del manifest se
-  descarta antes de fijar el propio, para que no salgan dos.
+- **Ese camino (`permitir_internos=False`) pinea la conexión, sin ventana de DNS rebinding.**
+  `pin_a_ip_publica()` (`astromesh/tools/builtin/_red.py`, vía `httpx.URL`) resuelve el nombre UNA
+  sola vez, exige que TODAS las direcciones devueltas sean públicas y fija la conexión a esa IP en
+  vez de dejar que httpx vuelva a resolver al conectar — un nombre con TTL bajo, que el tenant
+  controla en su propio `base_url`, podía responder distinto entre el chequeo y la conexión real.
+  Si la resolución FALLA, también bloquea (en vez de seguir sin pin, por hostname): degradar ahí
+  reabriría la misma ventana. `Host` y SNI quedan con el nombre original —`.raw_host` ya lo trae
+  IDNA-encodeado, y `.copy_with(host=ip)` conserva puerto, path y query byte a byte, con el
+  corchete de una IPv6 puesto solo— así que la verificación del certificado TLS sigue siendo
+  contra el nombre real, y un `Host` que ya venga en los headers del manifest se descarta antes de
+  fijar el propio para que no salgan dos.
 
 ## [0.56.2] - 2026-09-23
 
