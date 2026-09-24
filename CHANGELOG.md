@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   auth `header`/`bearer`/`basic`/`query`); la credencial viene de la conexión, en la clave
   `credential`. Sólo lectura: una operación sin `writes: false` o que no es GET/POST no carga el
   agente, igual que una ficha inválida — a diferencia de `integration`, acá levanta. Corre con
-  `permitir_internos=False` y una respuesta que no es texto vuelve como error de la tool
-  (`astromesh/integrations/api.py`).
+  `permitir_internos=False`; una respuesta que no es texto (sin `content-type`, la que no es UTF-8)
+  o que pasa 5 MB —JSON incluido, no se recorta— vuelve como error de la tool. El `path` tiene que
+  empezar con `/` y la ficha no puede declarar `request.headers` (`astromesh/integrations/api.py`).
 
 ### Security
 

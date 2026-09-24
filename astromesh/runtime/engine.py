@@ -147,7 +147,7 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "agent": frozenset({"agent", "description", "parameters", "context_transform"}),
     "client": frozenset({"description", "parameters", "rate_limit"}),
     # `description` NO está: `register_integration_tool` usa la del manifiesto
-    # de la integración (`core/tools.py:178`), no la del YAML.
+    # de la integración (`core/tools.py:179`), no la del YAML.
     "integration": frozenset({"connection", "actions", "rate_limit"}),
     "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
 }

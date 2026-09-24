@@ -28,14 +28,22 @@ logger = logging.getLogger(__name__)
 
 _PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
-#: Tope del texto de una respuesta de una tool `api`: el `max_response_bytes`
-#: por defecto de `http_request` (`tools/builtin/http.py:35`).
+#: Tope del cuerpo de una respuesta de una tool `api`, JSON incluido: el
+#: `max_response_bytes` por defecto de `http_request` (`tools/builtin/http.py:35`).
+#: Pasarlo es un error y no un recorte: un JSON truncado deja de ser JSON.
 _TOPE_TEXTO = 5 * 1024 * 1024
 
 
 def _no_es_texto(response: httpx.Response) -> bool:
     tipo = response.headers.get("content-type", "").split(";")[0].strip().lower()
-    return bool(tipo) and not (tipo.startswith("text/") or "json" in tipo or "xml" in tipo)
+    if not tipo:
+        # Sin tipo declarado decide el cuerpo: lo que no es UTF-8 es binario.
+        try:
+            response.content.decode("utf-8")
+        except UnicodeDecodeError:
+            return True
+        return False
+    return not (tipo.startswith("text/") or "json" in tipo or "xml" in tipo)
 
 
 @dataclass
@@ -381,14 +389,20 @@ class HttpActionExecutor:
                 metadata=metadata,
             )
 
-        if solo_texto and isinstance(payload, str):
-            if _no_es_texto(response):
+        if solo_texto:
+            if len(response.content) > _TOPE_TEXTO:
+                return _fail(
+                    errors.UPSTREAM_ERROR,
+                    f"respuesta demasiado grande ({len(response.content)} bytes, "
+                    f"el tope es {_TOPE_TEXTO})",
+                    status_code=response.status_code,
+                )
+            if isinstance(payload, str) and _no_es_texto(response):
                 return _fail(
                     errors.UPSTREAM_ERROR,
                     f"respuesta no es texto ({response.headers.get('content-type')})",
                     status_code=response.status_code,
                 )
-            payload = payload[:_TOPE_TEXTO]
 
         metadata: dict = {"status_code": response.status_code}
         # `select` sólo navega mappings. Un payload de texto (o una lista suelta) se

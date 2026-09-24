@@ -211,6 +211,7 @@ async def test_sin_writes_declarado_tampoco_carga(tmp_path):
     del t["operations"][0]["writes"]
     runtime = await _runtime(tmp_path, t)
     assert "demo-agent" not in runtime._agents
+    assert "writes" in runtime._agent_errors["demo-agent"]
 
 
 @pytest.mark.parametrize(
@@ -225,6 +226,11 @@ async def test_sin_writes_declarado_tampoco_carga(tmp_path):
         (lambda t: t["operations"][0].update(description=" "), "description"),
         (lambda t: t["operations"][0].update(name="consultar_" + "x" * 60), "64"),
         (lambda t: t["operations"][1].update(name="consultar_stock"), "duplicada"),
+        (lambda t: t["operations"][0]["request"].update(path="@otro.com/x"), "empezar con '/'"),
+        (
+            lambda t: t["operations"][0]["request"].update(headers={"X-Otro": "1"}),
+            "request.headers",
+        ),
     ],
 )
 async def test_una_ficha_invalida_levanta_con_el_motivo(tmp_path, romper, motivo):
@@ -250,18 +256,54 @@ async def test_una_respuesta_binaria_es_un_error_de_la_tool(tmp_path, dns_public
     assert "no es texto" in r["error"]
 
 
-async def test_el_texto_se_trunca_al_tope(tmp_path, dns_publico, monkeypatch):
+@pytest.mark.parametrize(
+    ("contenido", "tipo"),
+    [(b'{"x": "' + b"a" * 20 + b'"}', "application/json"), (b"x" * 50, "text/plain")],
+)
+async def test_una_respuesta_mayor_al_tope_es_un_error_json_incluido(
+    tmp_path, dns_publico, monkeypatch, contenido, tipo
+):
     monkeypatch.setattr("astromesh.integrations.executor._TOPE_TEXTO", 10)
     runtime = await _runtime(tmp_path, API)
     with respx.mock:
         respx.get(f"{PIN}/stock/A-1").mock(
-            return_value=httpx.Response(200, text="x" * 50, headers={"content-type": "text/plain"})
+            return_value=httpx.Response(200, content=contenido, headers={"content-type": tipo})
+        )
+        r = await runtime._agents["demo-agent"]._tools.execute(
+            "erp_cliente_consultar_stock", {"sku": "A-1"}, _ctx({"credential": "K"})
+        )
+    assert r["success"] is False
+    assert "demasiado grande" in r["error"]
+
+
+async def test_una_respuesta_en_el_tope_pasa_entera(tmp_path, dns_publico, monkeypatch):
+    monkeypatch.setattr("astromesh.integrations.executor._TOPE_TEXTO", 10)
+    runtime = await _runtime(tmp_path, API)
+    with respx.mock:
+        respx.get(f"{PIN}/stock/A-1").mock(
+            return_value=httpx.Response(200, text="x" * 10, headers={"content-type": "text/plain"})
         )
         r = await runtime._agents["demo-agent"]._tools.execute(
             "erp_cliente_consultar_stock", {"sku": "A-1"}, _ctx({"credential": "K"})
         )
     assert r["success"] is True
     assert r["data"] == "x" * 10
+
+
+async def test_sin_content_type_lo_que_no_es_utf8_es_binario(tmp_path, dns_publico):
+    runtime = await _runtime(tmp_path, API)
+    tools = runtime._agents["demo-agent"]._tools
+    ctx = _ctx({"credential": "K"})
+    with respx.mock:
+        ruta = respx.get(f"{PIN}/stock/A-1")
+        ruta.mock(return_value=httpx.Response(200, content=b"\x89PNG\r\n\xff"))
+        binario = await tools.execute("erp_cliente_consultar_stock", {"sku": "A-1"}, ctx)
+        ruta.mock(return_value=httpx.Response(200, content="stock: 3 ñ".encode()))
+        texto = await tools.execute("erp_cliente_consultar_stock", {"sku": "A-1"}, ctx)
+    assert binario["success"] is False
+    assert "no es texto" in binario["error"]
+    assert texto["success"] is True
+    assert texto["data"] == "stock: 3 ñ"
 
 
 async def test_una_api_no_deja_claves_ignoradas(tmp_path, caplog):

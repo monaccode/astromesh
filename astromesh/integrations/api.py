@@ -74,11 +74,26 @@ def manifiesto_de_api(tool_def: dict) -> tuple[IntegrationManifest, str]:
                 f"tool api {slug!r}: la operación {nombre!r} no declara writes: false — "
                 "una API del tenant sólo lee"
             )
-        metodo = (op.get("request") or {}).get("method")
+        request = op.get("request") or {}
+        metodo = request.get("method")
         if metodo not in _METODOS:
             raise ValueError(
                 f"tool api {slug!r}: la operación {nombre!r} tiene que ser GET o POST, "
                 f"es {metodo!r}"
+            )
+        # El executor arma `f"{base_url}{path}"` (`integrations/executor.py`,
+        # `_render_path`): sin la barra, `@otro.com/x` manda la llamada —y la
+        # credencial— a otro host.
+        path = request.get("path")
+        if not isinstance(path, str) or not path.startswith("/"):
+            raise ValueError(
+                f"tool api {slug!r}: el path de {nombre!r} tiene que empezar con '/', es {path!r}"
+            )
+        # La autenticación va por `auth`; un header de la ficha la esquivaría.
+        if request.get("headers"):
+            raise ValueError(
+                f"tool api {slug!r}: la operación {nombre!r} declara request.headers — "
+                "la autenticación va en 'auth'"
             )
         accion = {k: op[k] for k in _CLAVES_DE_OPERACION if op.get(k) is not None}
         acciones.append({**accion, "writes": False})
