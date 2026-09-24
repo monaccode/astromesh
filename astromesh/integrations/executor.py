@@ -22,6 +22,7 @@ from astromesh.integrations.interpolation import (
 from astromesh.integrations.manifest import ActionSpec, IntegrationManifest
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.tools.base import ToolResult
+from astromesh.tools.builtin._red import cliente_seguro
 
 logger = logging.getLogger(__name__)
 
@@ -90,11 +91,18 @@ class HttpActionExecutor:
         agent_name: str = "",
         session_id: str = "",
         caller_context: dict | None = None,
+        permitir_internos: bool = True,
     ) -> ToolResult:
         """Nunca levanta. Todo fallo sale como ToolResult(success=False).
 
         `tool_fn` re-lanza lo que reciba y eso mata la corrida entera; un 404
         de un proveedor externo no puede tumbar al agente.
+
+        `permitir_internos=False` manda el request por `cliente_seguro`
+        (`tools/builtin/_red.py`): host público y re-chequeo en cada request del
+        cliente. Lo piden las tools `api`, cuyo `base_url` escribe el tenant; el
+        catálogo queda en `True` porque `conocimiento` y `praxis` apuntan a
+        servicios del cluster (`tests/test_integration_ssrf.py` fija las dos).
         """
         base_url = (resolved.base_url or manifest.base_url or "").rstrip("/")
         if not base_url:
@@ -126,7 +134,7 @@ class HttpActionExecutor:
                 caller_context or {},
             )
         return await self._run_request(
-            manifest, action, args, base_url, headers, auth_params, timeout
+            manifest, action, args, base_url, headers, auth_params, timeout, permitir_internos
         )
 
     @staticmethod
@@ -187,6 +195,7 @@ class HttpActionExecutor:
         headers,
         auth_params,
         timeout,  # noqa: ASYNC109
+        permitir_internos,
     ) -> ToolResult:
         allow_slash = set(action.allow_slash or [])
         try:
@@ -232,7 +241,9 @@ class HttpActionExecutor:
             {"integration.slug": manifest.slug, "integration.action": action.name},
         )
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with cliente_seguro(
+                permitir_internos=permitir_internos, timeout=timeout
+            ) as client:
                 response = await client.request(
                     action.request.method,
                     f"{base_url}{path}",
