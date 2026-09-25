@@ -16,13 +16,21 @@ cree habilitado y no existe es el mismo silencio que ya costó `confirm`.
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 from collections.abc import Callable
 from typing import Literal
 
 import anyio
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from astromesh.integrations.api import CLAVE_CREDENCIAL
 from astromesh.integrations.credentials import CredentialResolver
@@ -37,6 +45,41 @@ _NO_PERMITIDO = re.compile(r"[^a-z0-9_]")
 _LARGO_MAXIMO = 64
 #: Timeout de cada llamada: el de las integraciones (`manifest.py::Defaults`).
 TIMEOUT_LLAMADA = Defaults().timeout_seconds
+# Los topes de la instantánea que aplica CLARUS al listar
+# (`apps/backend/src/officium/mcp.ts`, `MAX_BYTES_SCHEMA` y `MAX_NIVELES_SCHEMA`).
+# El runtime no le cree: un manifiesto editado a mano llega igual.
+MAX_BYTES_SCHEMA = 16 * 1024
+MAX_NIVELES_SCHEMA = 8
+# Los que arma el transporte o el SDK: pisarlos con la credencial rompe la
+# llamada o el pineado. Comparados en minúsculas.
+_HEADERS_RESERVADOS = frozenset(
+    {
+        "host",
+        "content-type",
+        "content-length",
+        "accept",
+        "accept-encoding",
+        "connection",
+        "transfer-encoding",
+        "mcp-session-id",
+        "mcp-protocol-version",
+    }
+)
+
+
+def _pasa_de_niveles(v: object, tope: int) -> bool:
+    """Si `v` anida más de `tope` objetos o arrays, como `pasaDeNiveles` de
+    CLARUS. Iterativo: un schema de miles de niveles revienta una recursión (y
+    `json.dumps`), así que esto corre ANTES de medir los bytes."""
+    pila: list[tuple[object, int]] = [(v, 1)]
+    while pila:
+        x, nivel = pila.pop()
+        if not isinstance(x, (dict, list)):
+            continue
+        if nivel > tope:
+            return True
+        pila.extend((h, nivel + 1) for h in (x.values() if isinstance(x, dict) else x))
+    return False
 
 
 class _AuthMcp(BaseModel):
@@ -44,6 +87,13 @@ class _AuthMcp(BaseModel):
 
     scheme: Literal["bearer", "header"]
     header: str | None = Field(default=None, pattern=r"^[A-Za-z0-9-]{1,64}$")
+
+    @field_validator("header")
+    @classmethod
+    def _header_no_reservado(cls, v: str | None) -> str | None:
+        if v is not None and v.lower() in _HEADERS_RESERVADOS:
+            raise ValueError(f"auth.header {v!r} es un header reservado")
+        return v
 
     @model_validator(mode="after")
     def _header_con_nombre(self):
@@ -61,6 +111,18 @@ class _ToolMcp(BaseModel):
     #: Sin default a propósito: una entrada que no DECLARA `writes: false` no
     #: valida. Un servidor del tenant sólo lee (OFFICIUM R2c).
     writes: Literal[False]
+
+    @field_validator("input_schema")
+    @classmethod
+    def _schema_sano(cls, v: dict) -> dict:
+        if v.get("type") != "object":
+            raise ValueError("input_schema tiene que ser type: object")
+        if _pasa_de_niveles(v, MAX_NIVELES_SCHEMA):
+            raise ValueError(f"input_schema pasa los {MAX_NIVELES_SCHEMA} niveles")
+        crudo = json.dumps(v, separators=(",", ":"), ensure_ascii=False).encode()
+        if len(crudo) > MAX_BYTES_SCHEMA:
+            raise ValueError(f"input_schema pasa los {MAX_BYTES_SCHEMA // 1024} KB")
+        return v
 
 
 class _ServidorMcp(BaseModel):

@@ -43,7 +43,7 @@ CTX = {
 }
 
 
-def _agente(tool: dict) -> dict:
+def _agente(*tool: dict) -> dict:
     return {
         "apiVersion": "astromesh/v1",
         "kind": "Agent",
@@ -52,15 +52,15 @@ def _agente(tool: dict) -> dict:
             "identity": {"description": "demo"},
             "model": {"primary": {"source": "ollama", "model": "llama3"}},
             "prompts": {"system": "sos un agente"},
-            "tools": [tool],
+            "tools": list(tool),
         },
     }
 
 
-async def _runtime(tmp_path, tool: dict) -> AgentRuntime:
+async def _runtime(tmp_path, *tool: dict) -> AgentRuntime:
     config_dir = tmp_path / "config"
     (config_dir / "agents").mkdir(parents=True)
-    (config_dir / "agents" / "demo-agent.agent.yaml").write_text(yaml.safe_dump(_agente(tool)))
+    (config_dir / "agents" / "demo-agent.agent.yaml").write_text(yaml.safe_dump(_agente(*tool)))
     runtime = AgentRuntime(config_dir=str(config_dir))
     await runtime.bootstrap()
     return runtime
@@ -125,6 +125,14 @@ async def test_registra_cada_tool_normalizada_y_sin_abrir_una_conexion(tmp_path,
     assert tools["praxis_erp_query_records"].description == "Busca registros"
 
 
+def _anidado(niveles: int) -> dict:
+    """Un schema de exactamente `niveles` dicts anidados, contando la raíz."""
+    s: dict = {"type": "object"}
+    for _ in range(niveles - 1):
+        s = {"type": "object", "a": s}
+    return s
+
+
 @pytest.mark.parametrize(
     ("romper", "motivo"),
     [
@@ -139,6 +147,21 @@ async def test_registra_cada_tool_normalizada_y_sin_abrir_una_conexion(tmp_path,
         (lambda t: t["tools"][1].update(name="query-records"), "se registrarían"),
         (lambda t: t["tools"][0].update(name="x" * 60), "64"),
         (lambda t: t.update(url="https://otro"), "url"),
+        (lambda t: t["tools"][0].update(input_schema={"type": "string"}), "type: object"),
+        (lambda t: t["tools"][0].update(input_schema={"properties": {}}), "type: object"),
+        (lambda t: t["tools"][0].update(input_schema=_anidado(9)), "8 niveles"),
+        (
+            lambda t: t["tools"][0].update(
+                input_schema={
+                    "type": "object",
+                    "description": "x" * (16 * 1024 - 33),
+                }  # 16385 bytes: uno de más
+            ),
+            "16 KB",
+        ),
+        (lambda t: t.update(auth={"scheme": "header", "header": "Host"}), "reservado"),
+        (lambda t: t.update(auth={"scheme": "header", "header": "mcp-session-id"}), "reservado"),
+        (lambda t: t.update(auth={"scheme": "header", "header": "Content-Type"}), "reservado"),
     ],
 )
 async def test_una_ficha_invalida_no_carga_el_agente(tmp_path, romper, motivo):
@@ -198,3 +221,43 @@ async def test_sin_la_conexion_es_un_error_sin_llamar(tmp_path, dns_publico):
 async def test_un_mcp_no_deja_claves_ignoradas(tmp_path, caplog):
     await _runtime(tmp_path, SERVIDOR)
     assert "que este runtime no lee" not in caplog.text
+
+
+async def test_un_schema_en_el_tope_carga(tmp_path):
+    t = _copia()
+    t["tools"][0]["input_schema"] = _anidado(8)
+    t["tools"][1]["input_schema"] = {
+        "type": "object",
+        "description": "x" * (16 * 1024 - 34),
+    }  # 16384: justo
+    runtime = await _runtime(tmp_path, t)
+    assert "demo-agent" in runtime._agents
+
+
+OTRO = {
+    "type": "mcp",
+    "name": "praxis",
+    "connection": "mcp_praxis",
+    "path": "/mcp",
+    "auth": {"scheme": "bearer"},
+    "tools": [{"name": "erp_query_records", "input_schema": {"type": "object"}, "writes": False}],
+}
+
+
+@pytest.mark.parametrize(
+    "previa",
+    [
+        {"name": "text_summarize", "type": "builtin"},
+        {"name": "praxis_erp_query_records", "type": "client", "description": "x"},
+        OTRO,
+    ],
+    ids=["builtin", "client", "otro-mcp"],
+)
+async def test_un_nombre_que_el_agente_ya_tiene_no_carga(tmp_path, previa):
+    t = _copia()
+    if previa.get("type") == "builtin":
+        t["name"] = "text"
+        t["tools"] = [{"name": "summarize", "input_schema": {"type": "object"}, "writes": False}]
+    runtime = await _runtime(tmp_path, previa, t)
+    assert "demo-agent" not in runtime._agents
+    assert "que el agente ya tiene" in runtime._agent_errors["demo-agent"]

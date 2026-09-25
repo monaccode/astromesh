@@ -898,8 +898,18 @@ class AgentRuntime:
                 servidor = servidor_de_mcp(tool_def)
                 resolver = self._credential_resolver()
                 for t in servidor.tools:
+                    nombre = nombre_de_tool(servidor.name, t.name)
+                    # `register_internal` pisa sin avisar (`core/tools.py:91-92`):
+                    # un choque con una tool ya registrada (builtin, api,
+                    # integración u otro mcp) levanta. CLARUS lo chequea al
+                    # guardar, pero el manifiesto puede llegar de otro lado.
+                    if nombre in tools._tools:
+                        raise ValueError(
+                            f"tool mcp {servidor.name!r}: '{t.name}' se registraría como "
+                            f"'{nombre}', que el agente ya tiene"
+                        )
                     tools.register_internal(
-                        name=nombre_de_tool(servidor.name, t.name),
+                        name=nombre,
                         handler=handler_de_tool(servidor, t, resolver),
                         description=t.description,
                         parameters=t.input_schema,

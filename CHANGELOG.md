@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   una tool sin `writes: false` no carga el agente, igual que una ficha inválida, dos tools que
   normalizan al mismo nombre, un nombre de más de 64 o un runtime sin el extra `mcp`. Cada
   llamada es `llamar_tool_mcp` contra `base_url` de la conexión + `path`.
+  Tampoco carga si el nombre final ya lo tiene el agente (builtin, `api`, integración u otro
+  `mcp`: `register_internal` pisaría sin avisar), si un `input_schema` no es `type: object`,
+  pasa los 16 KB serializado o los 8 niveles, o si `auth.header` es un header reservado
+  (`Host`, `Content-Type`, `Accept`, `Mcp-Session-Id`, …). Son los topes de CLARUS; el
+  runtime no se los cree.
 
 - **`TransportePineado`: la guarda de red de las tools `api` como transporte de httpx**
   (`astromesh/tools/builtin/_red.py`), para un cliente que arma sus propios requests. Resuelve
