@@ -122,9 +122,21 @@ async def test_el_cuerpo_se_corta_en_el_tope(monkeypatch):
     assert t.motivo == "la respuesta pasa los 0 MB"
 
 
-async def test_nat64_no_es_publica():
+async def test_nat64_se_juzga_por_la_ipv4_de_adentro():
+    # 64:ff9b::a00:5 es 10.0.0.5; 64:ff9b::808:808 es 8.8.8.8 (DNS64 de un host público).
     assert await _red.destino_bloqueado("https://[64:ff9b::a00:5]/x") is not None
+    assert await _red.destino_bloqueado("https://[64:ff9b::808:808]/x") is None
     assert await _red.destino_bloqueado("https://[2606:4700::1111]/x") is None
+
+
+async def test_un_nombre_con_dns64_a_una_publica_sale(monkeypatch):
+    _dns(monkeypatch, "64:ff9b::808:808")
+    interno, vistos = _registrar()
+    t = TransportePineado(interno=interno)
+    async with httpx.AsyncClient(transport=t) as c:
+        await c.post("https://mcp.cliente.com/mcp", json={})
+    assert len(vistos) == 1
+    assert t.motivo is None
 
 
 async def test_una_bomba_gzip_no_se_descomprime(monkeypatch):

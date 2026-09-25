@@ -49,9 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **NAT64 (`64:ff9b::/96`) cuenta como dirección no pública** en `_red` (`_ip_no_global`):
-  `is_global` la da por global, y en un cluster con NAT64 `64:ff9b::a00:5` llega a `10.0.0.5`.
-  Cierra el mismo agujero en las tools `api` de 0.57.0 y en `cliente_seguro()`.
+- **NAT64 (`64:ff9b::/96`) se juzga por la IPv4 de adentro** en `_red` (`_ip_no_global`):
+  `is_global` daba por global todo el prefijo, y en un cluster con NAT64 `64:ff9b::a00:5` llega a
+  `10.0.0.5`. Ahora esa se bloquea y `64:ff9b::808:808` (8.8.8.8, lo que DNS64 le da a un host
+  público sólo-IPv4) sale. Cierra el mismo agujero en las tools `api` de 0.57.0 y en
+  `cliente_seguro()`.
 
 ## [0.57.0] - 2026-09-24
 

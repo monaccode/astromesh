@@ -38,7 +38,9 @@ async def _resolver(host: str, port: int | None) -> list:
 
 
 #: NAT64 well-known prefix (RFC 6052): `is_global` lo da por global, pero en un
-#: cluster con NAT64 `64:ff9b::a00:5` ES `10.0.0.5`. El local-use
+#: cluster con NAT64 `64:ff9b::a00:5` ES `10.0.0.5`. Se juzga la IPv4 de adentro
+#: y no el prefijo entero: con DNS64 todo host público sólo-IPv4 resuelve a
+#: `64:ff9b::<v4>`, y bloquear el prefijo los cortaría a todos. El local-use
 #: `64:ff9b:1::/48` (RFC 8215) Python ya lo da por no global.
 _NAT64 = ipaddress.ip_network("64:ff9b::/96")
 
@@ -48,7 +50,9 @@ def _ip_no_global(texto: str) -> bool:
         ip = ipaddress.ip_address(texto.split("%")[0])
     except ValueError:
         return False
-    return not ip.is_global or ip in _NAT64
+    if ip in _NAT64:
+        ip = ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    return not ip.is_global
 
 
 async def destino_bloqueado(url: str) -> str | None:
