@@ -1,5 +1,6 @@
 """`llamar_tool_mcp`: una sesión corta del SDK oficial por `TransportePineado`."""
 
+import asyncio
 import json
 
 import httpx
@@ -167,3 +168,41 @@ async def test_un_redirect_al_mismo_host_tampoco_se_sigue(dns_publico):
     assert r.success is False
     assert r.error == "el servidor contestó 302"
     assert not otra.called
+
+
+def servidor_lento(demora: float):
+    """`servidor_mcp` con `demora` segundos en `initialize` y en `tools/call`."""
+    responder, _ = servidor_mcp({"content": [{"type": "text", "text": "tarde"}]})
+
+    async def lento(request: httpx.Request) -> httpx.Response:
+        if json.loads(request.content).get("method") in ("initialize", "tools/call"):
+            await asyncio.sleep(demora)
+        return responder(request)
+
+    return lento
+
+
+async def test_el_timeout_es_de_la_llamada_entera(dns_publico):
+    # Cada request entra en el tope; las dos juntas no.
+    with respx.mock:
+        respx.post(PIN).mock(side_effect=servidor_lento(0.6))
+        r = await llamar_tool_mcp(URL, HEADERS, "query_records", {}, timeout=1)
+    assert r.success is False
+    assert r.error == "el servidor MCP no contestó en 1 s"
+
+
+async def test_un_servidor_que_no_contesta_es_un_timeout(dns_publico):
+    with respx.mock:
+        respx.post(PIN).mock(side_effect=servidor_lento(30))
+        r = await llamar_tool_mcp(URL, HEADERS, "query_records", {}, timeout=0.5)
+    assert r.success is False
+    assert r.error == "el servidor MCP no contestó en 0.5 s"
+
+
+@pytest.mark.parametrize("status", [401, 500])
+async def test_un_4xx_o_5xx_dice_el_status_sin_la_ip_pineada(dns_publico, status):
+    with respx.mock:
+        respx.post(PIN).mock(return_value=httpx.Response(status))
+        r = await llamar_tool_mcp(URL, HEADERS, "query_records", {})
+    assert r.success is False
+    assert r.error == f"el servidor MCP contestó {status}"

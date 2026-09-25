@@ -21,9 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tools/call` + cierre) con el SDK oficial y `TransportePineado` (`astromesh/integrations/mcp.py`).
   Usa `streamable_http_client` con el cliente armado (`streamablehttp_client` está deprecado en el
   SDK 1.28.1), no sigue redirects y manda el `CallToolRequest` sin el `tools/list` extra que haría
-  `ClientSession.call_tool`. Nunca levanta: `isError`, un error JSON-RPC, un host bloqueado, un 3xx
-  o un cuerpo de más de 5 MB vuelven como error de la tool, con el motivo que anotó el transporte
-  cuando el SDK se traga la falla.
+  `ClientSession.call_tool`. El timeout (30 s) es de la llamada entera, no de cada request. Nunca
+  levanta: `isError`, un error JSON-RPC, un host bloqueado, un 3xx, un 4xx/5xx («el servidor MCP
+  contestó 401», sin la IP pineada), el timeout o un cuerpo de más de 5 MB vuelven como error de la
+  tool, con el motivo que anotó el transporte cuando el SDK se traga la falla.
 
 ### Changed
 

@@ -7,8 +7,7 @@ pineada, sin redirects, cuerpo acotado.
 
 from __future__ import annotations
 
-from datetime import timedelta
-
+import anyio
 import httpx
 
 from astromesh.integrations.manifest import Defaults
@@ -77,27 +76,37 @@ async def llamar_tool_mcp(
         transport=t, headers=headers, timeout=timeout, follow_redirects=False
     )
     try:
-        async with (
-            cliente,
-            streamable_http_client(url, http_client=cliente) as (r, w, _),
-            ClientSession(r, w, read_timeout_seconds=timedelta(seconds=timeout)) as s,
-        ):
-            await s.initialize()
-            resultado = await s.send_request(
-                types.ClientRequest(
-                    types.CallToolRequest(
-                        params=types.CallToolRequestParams(name=nombre, arguments=argumentos)
-                    )
-                ),
-                types.CallToolResult,
-            )
+        # El tope es de la LLAMADA entera, no de cada request: con el de httpx
+        # solo, `initialize` + `tools/call` lentos llegaban a casi el doble.
+        with anyio.fail_after(timeout):
+            async with (
+                cliente,
+                streamable_http_client(url, http_client=cliente) as (r, w, _),
+                ClientSession(r, w) as s,
+            ):
+                await s.initialize()
+                resultado = await s.send_request(
+                    types.ClientRequest(
+                        types.CallToolRequest(
+                            params=types.CallToolRequestParams(name=nombre, arguments=argumentos)
+                        )
+                    ),
+                    types.CallToolResult,
+                )
     # Atrapar todo es el contrato: un servidor del tenant que falla degrada esta
     # llamada, nunca la corrida.
     except Exception as exc:  # noqa: BLE001
         causa = _primera(exc)
         if t.motivo:
             motivo = t.motivo
+        elif isinstance(causa, TimeoutError):
+            motivo = f"el servidor MCP no contestó en {timeout:g} s"
+        elif isinstance(causa, httpx.HTTPStatusError):
+            # Sin el mensaje de httpx: trae la URL con la IP pineada y un link a MDN.
+            motivo = f"el servidor MCP contestó {causa.response.status_code}"
         elif isinstance(causa, McpError):
+            # Sin `read_timeout_seconds` en la sesión, un McpError es un error
+            # JSON-RPC del servidor: ahí sí es un rechazo.
             motivo = f"el servidor MCP rechazó la llamada: {causa.error.message}"
         else:
             motivo = f"{type(causa).__name__}: {causa}"
