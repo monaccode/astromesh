@@ -18,6 +18,7 @@ from astromesh.integrations import default_catalog
 from astromesh.integrations.api import manifiesto_de_api
 from astromesh.integrations.credentials import CredentialResolver
 from astromesh.integrations.mcp import handler_de_tool, nombre_de_tool, servidor_de_mcp
+from astromesh.integrations.propuestas import CLAVE_PROPUESTAS, handler_de_propuesta
 from astromesh.memory.factory import build_conversation_backend
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
@@ -884,6 +885,23 @@ class AgentRuntime:
                 manifest, conexion = manifiesto_de_api(tool_def)
                 resolver = self._credential_resolver()
                 for action in manifest.actions:
+                    if action.mutates:
+                        # `manifiesto_de_api` sólo deja pasar `writes: true`
+                        # con `mode: propose`: propone, no llama a la API.
+                        tools.register_internal(
+                            name=f"{manifest.slug}_{action.name}",
+                            handler=handler_de_propuesta(
+                                f"{manifest.slug}_{action.name}",
+                                "api",
+                                tool_def["name"],
+                                action.name,
+                                action.tool_parameters(),
+                            ),
+                            description=action.description,
+                            parameters=action.tool_parameters(),
+                            rate_limit=tool_def.get("rate_limit"),
+                        )
+                        continue
                     tools.register_integration_tool(
                         name=f"{manifest.slug}_{action.name}",
                         manifest=manifest,
@@ -912,7 +930,13 @@ class AgentRuntime:
                         )
                     tools.register_internal(
                         name=nombre,
-                        handler=handler_de_tool(servidor, t, resolver),
+                        handler=(
+                            handler_de_propuesta(
+                                nombre, "mcp", servidor.name, t.name, t.input_schema
+                            )
+                            if t.writes
+                            else handler_de_tool(servidor, t, resolver)
+                        ),
                         description=t.description,
                         parameters=t.input_schema,
                         rate_limit=servidor.rate_limit,
@@ -1305,6 +1329,13 @@ class Agent:
             # quién escribe y no ve las credenciales de la corrida.
             caller_publico = _public_caller_context(context)
 
+            # Lo que propusieron las tools `mode: propose` en ESTA corrida
+            # (`integrations/propuestas.py`). Una lista por corrida, local a
+            # esta llamada: dos corridas simultáneas del mismo agente no se ven.
+            # Una corrida re-entrante no recibe lista: su respuesta no llega a
+            # la de `/run`, y proponer ahí se rechaza en vez de perderse.
+            propuestas: list[dict] | None = [] if desde_humano else None
+
             # Las búsquedas fijas del turno, antes del LLM: con las MISMAS
             # credenciales que `tool_fn` (connections + run_secrets). Ver
             # astromesh/runtime/prefetch.py.
@@ -1508,6 +1539,7 @@ class Agent:
                             "secrets": run_secrets,
                             # Ver `caller_publico` arriba.
                             "caller_context": caller_publico,
+                            CLAVE_PROPUESTAS: propuestas,
                         },
                     )
                     tool_span.set_attribute("tool_args", args)
@@ -1647,6 +1679,7 @@ class Agent:
                     root_span.set_attribute("output_data_error", data_error)
 
             result["trace"] = tracing.to_dict()
+            result["propuestas"] = propuestas or []
             logger.debug(
                 "agent.run %s finished answer_chars=%d steps=%d",
                 self.name,

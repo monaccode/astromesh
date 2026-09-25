@@ -464,3 +464,27 @@ async def test_run_task_is_retrieved_even_if_it_misbehaves_during_cancellation()
             await _run_and_stream(DyingSocket(), "demo", "s1", "hola")
     finally:
         set_ws_runtime(None)
+
+
+def test_done_event_carries_propuestas(client, mock_runtime):
+    """Una escritura propuesta en una corrida por WS sale en `done`: perderla
+    sería perder una escritura callado (OFFICIUM R3)."""
+    propuesta = {
+        "tool": "praxis_erp_create_record",
+        "tipo": "mcp",
+        "destino": "praxis-erp",
+        "operacion": "create_record",
+        "argumentos": {"entity": "x"},
+    }
+    mock_runtime.run = AsyncMock(
+        return_value={"answer": "listo", "steps": [], "trace": {}, "propuestas": [propuesta]}
+    )
+    with client.websocket_connect("/v1/ws/agent/demo") as ws:
+        ws.send_json({"query": "hola"})
+        con = _drain(ws)
+        mock_runtime.run = AsyncMock(return_value={"answer": "listo", "steps": [], "trace": {}})
+        ws.send_json({"query": "hola"})
+        sin = _drain(ws)
+
+    assert con[-1]["propuestas"] == [propuesta]
+    assert sin[-1]["propuestas"] == []

@@ -121,6 +121,7 @@ async def _run_and_stream(websocket: WebSocket, agent_name: str, session_id: str
             "answer": result.get("answer", ""),
             "session_id": session_id,
             "usage": usage_from_trace(result.get("trace")),
+            "propuestas": result.get("propuestas") or [],
         },
         websocket,
     )

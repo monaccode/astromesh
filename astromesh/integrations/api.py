@@ -69,10 +69,15 @@ def manifiesto_de_api(tool_def: dict) -> tuple[IntegrationManifest, str]:
                 f"tool api {slug!r}: '{_nombre_de_tool(slug, nombre)}' pasa los "
                 f"{_LARGO_MAXIMO} caracteres que aceptan los proveedores"
             )
-        if op.get("writes") is not False:
+        escribe, modo = op.get("writes"), op.get("mode")
+        # `is` y no `==`: `writes: 0` no es `false`.
+        lee = escribe is False and modo is None
+        propone = escribe is True and modo == "propose"
+        if not (lee or propone):
             raise ValueError(
-                f"tool api {slug!r}: la operación {nombre!r} no declara writes: false — "
-                "una API del tenant sólo lee"
+                f"tool api {slug!r}: la operación {nombre!r} declara writes: {escribe!r} y "
+                f"mode: {modo!r} — una API del tenant lee (writes: false) o propone "
+                "(writes: true con mode: propose), nunca escribe directo"
             )
         request = op.get("request") or {}
         metodo = request.get("method")
@@ -96,7 +101,9 @@ def manifiesto_de_api(tool_def: dict) -> tuple[IntegrationManifest, str]:
                 "la autenticación va en 'auth'"
             )
         accion = {k: op[k] for k in _CLAVES_DE_OPERACION if op.get(k) is not None}
-        acciones.append({**accion, "writes": False})
+        # `writes: true` sólo llega acá con `mode: propose`: el engine registra
+        # esa acción con `handler_de_propuesta`, nunca con el executor HTTP.
+        acciones.append({**accion, "writes": escribe})
 
     try:
         specs = [ActionSpec(**a) for a in acciones]

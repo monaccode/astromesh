@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`mode: propose`: una escritura de una API o de un servidor MCP del tenant que no se ejecuta**
+  (`astromesh/integrations/propuestas.py`). Una operación `api` o una tool `mcp` con
+  `writes: true` sólo carga con `mode: propose`; `writes: true` sin él (o `mode` en una de
+  lectura) sigue sin cargar el agente. Se registra con el mismo nombre y schema que una de
+  lectura, y su handler no llama a nadie: valida los argumentos contra el schema (el subconjunto
+  de `chain/validate.py`), los anota en la lista de la corrida y le contesta al modelo que quedó
+  para aprobación. Topes: 20 por corrida, argumentos ≤ 16 KB. `AgentRunResponse` y el `done` del
+  WebSocket suman `propuestas` (vacía si no hubo). Una corrida re-entrante —sub-agente, paso de
+  workflow o `spec.chain`, el servidor MCP de astromesh— no propone: se le rechaza al modelo en vez
+  de perderse.
+
 ## [0.58.0] - 2026-09-25
 
 ### Added
