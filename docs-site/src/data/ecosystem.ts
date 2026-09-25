@@ -110,8 +110,8 @@ export const CORE: Component = {
   name: 'Core Runtime',
   short: 'Core',
   group: 'runtime',
-  version: '0.57.0',
-  released: '2026-09-24',
+  version: '0.58.0',
+  released: '2026-09-25',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
   latest:
