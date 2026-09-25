@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decodificados: una bomba gzip no pasa), sirve a un solo host y anota en `motivo` la primera falla
   de la guarda (bloqueo, DNS, redirect, encoding, tope o timeout; un 4xx/5xx común no).
 
+- **`llamar_tool_mcp`: una tool de un servidor MCP en una sesión corta** (`initialize` +
+  `tools/call` + cierre) con el SDK oficial y `TransportePineado` (`astromesh/integrations/mcp.py`).
+  Usa `streamable_http_client` con el cliente armado (`streamablehttp_client` está deprecado en el
+  SDK 1.28.1), no sigue redirects y manda el `CallToolRequest` sin el `tools/list` extra que haría
+  `ClientSession.call_tool`. Nunca levanta: `isError`, un error JSON-RPC, un host bloqueado, un 3xx
+  o un cuerpo de más de 5 MB vuelven como error de la tool, con el motivo que anotó el transporte
+  cuando el SDK se traga la falla.
+
+### Changed
+
+- El extra `mcp` pide `mcp>=1.28.1` (antes `>=1.0.0`): la llamada usa `streamable_http_client`
+  con `http_client`.
+
 ### Fixed
 
 - **NAT64 (`64:ff9b::/96`) cuenta como dirección no pública** en `_red` (`_ip_no_global`):

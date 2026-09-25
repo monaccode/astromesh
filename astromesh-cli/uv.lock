@@ -60,7 +60,7 @@ requires-dist = [
     { name = "huggingface-hub", marker = "extra == 'centinela'", specifier = ">=0.24" },
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "litellm", marker = "extra == 'litellm'", specifier = ">=1.50.0" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.28.1" },
     { name = "onnxruntime", marker = "extra == 'onnx'", specifier = ">=1.19.0" },
     { name = "opentelemetry-api", marker = "extra == 'observability'", specifier = ">=1.27.0" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'observability'", specifier = ">=1.27.0" },
