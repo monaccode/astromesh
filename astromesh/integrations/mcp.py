@@ -1,21 +1,110 @@
-"""La llamada a una tool del servidor MCP de un tenant.
+"""El servidor MCP de un tenant, con su instantánea de tools inline en el manifiesto.
 
-Cada llamada es una sesión corta del SDK oficial (`initialize` + `tools/call`
-+ cierre) por `TransportePineado` (`tools/builtin/_red.py`): host público, IP
-pineada, sin redirects, cuerpo acotado.
+Lo registra quien administra el tenant (CLARUS, OFFICIUM R2c) y CLARUS guarda
+la lista de tools que descubrió: el runtime NO descubre. `_build_agent` corre al
+cargar el agente, sin red y sin la credencial del tenant, que llega por corrida
+en `context["connections"]` (`runtime/engine.py`, `tool_fn`). Así que cada tool
+de la instantánea se registra con su schema tal cual, sin abrir una conexión, y
+cada llamada es una sesión corta del SDK oficial (`initialize` + `tools/call`)
+por `TransportePineado` (`tools/builtin/_red.py`): host público, IP pineada,
+sin redirects, cuerpo acotado.
+
+La ficha LEVANTA si algo no cierra, como la de `api`: un servidor que el admin
+cree habilitado y no existe es el mismo silencio que ya costó `confirm`.
 """
 
 from __future__ import annotations
 
+import importlib.util
+import re
+from collections.abc import Callable
+from typing import Literal
+
 import anyio
 import httpx
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from astromesh.integrations.api import CLAVE_CREDENCIAL
+from astromesh.integrations.credentials import CredentialResolver
 from astromesh.integrations.manifest import Defaults
 from astromesh.tools.base import ToolResult
 from astromesh.tools.builtin._red import TransportePineado
 
+_SLUG = r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+_NO_PERMITIDO = re.compile(r"[^a-z0-9_]")
+# OpenAI y Anthropic validan los nombres de función contra
+# ^[a-zA-Z0-9_-]{1,64}$ (`core/tools.py:170-171`).
+_LARGO_MAXIMO = 64
 #: Timeout de cada llamada: el de las integraciones (`manifest.py::Defaults`).
 TIMEOUT_LLAMADA = Defaults().timeout_seconds
+
+
+class _AuthMcp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scheme: Literal["bearer", "header"]
+    header: str | None = Field(default=None, pattern=r"^[A-Za-z0-9-]{1,64}$")
+
+    @model_validator(mode="after")
+    def _header_con_nombre(self):
+        if self.scheme == "header" and not self.header:
+            raise ValueError("auth.scheme header requiere 'header'")
+        return self
+
+
+class _ToolMcp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=128)
+    description: str = ""
+    input_schema: dict
+    #: Sin default a propósito: una entrada que no DECLARA `writes: false` no
+    #: valida. Un servidor del tenant sólo lee (OFFICIUM R2c).
+    writes: Literal[False]
+
+
+class _ServidorMcp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["mcp"]
+    name: str = Field(pattern=_SLUG, max_length=30)
+    connection: str = Field(min_length=1)
+    path: str = Field(pattern=r"^/[^?#]*$")
+    auth: _AuthMcp
+    tools: list[_ToolMcp] = Field(min_length=1)
+    rate_limit: dict | None = None
+
+
+def nombre_de_tool(slug: str, nombre: str) -> str:
+    """`<slug con _>_<nombre en [a-z0-9_]>`; CLARUS arma el mismo
+    (`apps/backend/src/officium/mcp.ts`, `toolDeMcp`)."""
+    return f"{slug.replace('-', '_')}_{_NO_PERMITIDO.sub('_', nombre.lower())}"
+
+
+def servidor_de_mcp(tool_def: dict) -> _ServidorMcp:
+    """La ficha validada, o ValueError con el motivo (nombres incluidos)."""
+    try:
+        s = _ServidorMcp.model_validate(tool_def)
+    except ValidationError as exc:
+        raise ValueError(f"tool mcp {tool_def.get('name')!r}: ficha inválida: {exc}") from exc
+    vistos: dict[str, str] = {}
+    for t in s.tools:
+        n = nombre_de_tool(s.name, t.name)
+        if len(n) > _LARGO_MAXIMO:
+            raise ValueError(
+                f"tool mcp {s.name!r}: '{n}' pasa los {_LARGO_MAXIMO} caracteres "
+                "que aceptan los proveedores"
+            )
+        if n in vistos:
+            raise ValueError(
+                f"tool mcp {s.name!r}: '{t.name}' y '{vistos[n]}' se registrarían "
+                f"las dos como '{n}'"
+            )
+        vistos[n] = t.name
+    if importlib.util.find_spec("mcp") is None:
+        # Sin el extra, el agente cargaría en verde y cada llamada fallaría.
+        raise ValueError(f"tool mcp {s.name!r}: este runtime no tiene el extra 'mcp'")
+    return s
 
 
 def _texto(resultado) -> str:
@@ -115,3 +204,35 @@ async def llamar_tool_mcp(
     if resultado.isError:
         return ToolResult(success=False, data=None, error=texto or "la tool devolvió un error")
     return ToolResult(success=True, data=texto)
+
+
+def handler_de_tool(
+    servidor: _ServidorMcp,
+    tool: _ToolMcp,
+    resolver: CredentialResolver,
+) -> Callable:
+    """El handler que registra `_build_agent`. La conexión se resuelve en cada
+    llamada desde el bundle de la corrida, como en `ToolRegistry.execute` para
+    las integraciones: el registro es por agente y el bundle por corrida."""
+
+    async def _handler(_run_context=None, **argumentos):
+        bundle = (_run_context or {}).get("connections") or {}
+        conexion = resolver.resolve(servidor.connection, bundle)
+        credencial = (conexion.material.get(CLAVE_CREDENCIAL) if conexion else None) or None
+        if conexion is None or not conexion.base_url or not isinstance(credencial, str):
+            return ToolResult(
+                success=False,
+                data=None,
+                error=f"la conexión '{servidor.connection}' no está configurada",
+            ).to_dict()
+        if servidor.auth.scheme == "bearer":
+            headers = {"Authorization": f"Bearer {credencial}"}
+        else:
+            headers = {servidor.auth.header or "": credencial}
+        url = conexion.base_url.rstrip("/") + servidor.path
+        return (await llamar_tool_mcp(url, headers, tool.name, argumentos)).to_dict()
+
+    # Marca de opt-in de `ToolRegistry.execute` (`core/tools.py`): recibe el
+    # context de la corrida al lado de los argumentos, nunca dentro.
+    _handler.wants_run_context = True
+    return _handler

@@ -17,6 +17,7 @@ from astromesh.errors import AgentConfigError
 from astromesh.integrations import default_catalog
 from astromesh.integrations.api import manifiesto_de_api
 from astromesh.integrations.credentials import CredentialResolver
+from astromesh.integrations.mcp import handler_de_tool, nombre_de_tool, servidor_de_mcp
 from astromesh.memory.factory import build_conversation_backend
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
@@ -150,6 +151,7 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     # de la integración (`core/tools.py:179`), no la del YAML.
     "integration": frozenset({"connection", "actions", "rate_limit"}),
     "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
+    "mcp": frozenset({"connection", "path", "auth", "tools", "rate_limit"}),
 }
 
 
@@ -889,6 +891,20 @@ class AgentRuntime:
                         rate_limit=tool_def.get("rate_limit"),
                         permitir_internos=False,
                     )
+            elif tool_type == "mcp":
+                # Sin red a propósito: la instantánea de tools la trae el
+                # manifiesto (CLARUS la descubrió) y la credencial llega recién
+                # por corrida. Levanta como `api` si la ficha no cierra.
+                servidor = servidor_de_mcp(tool_def)
+                resolver = self._credential_resolver()
+                for t in servidor.tools:
+                    tools.register_internal(
+                        name=nombre_de_tool(servidor.name, t.name),
+                        handler=handler_de_tool(servidor, t, resolver),
+                        description=t.description,
+                        parameters=t.input_schema,
+                        rate_limit=servidor.rate_limit,
+                    )
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
                 # was never registered, never reached the model, and nothing said so —
@@ -898,7 +914,7 @@ class AgentRuntime:
                 # existing YAML that declares one. The error comes in 1.0.
                 logger.warning(
                     "agent %r declares tool %r with unsupported type %r — ignoring it. "
-                    "YAML supports: builtin, agent, client, integration, api.",
+                    "YAML supports: builtin, agent, client, integration, api, mcp.",
                     metadata["name"],
                     tool_def.get("name"),
                     tool_type,

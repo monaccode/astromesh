@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tool `mcp`: el servidor MCP de un tenant, con su instantánea de tools inline en el
+  manifiesto** (`astromesh/integrations/mcp.py`). `_build_agent` registra cada tool como
+  `<slug con _>_<nombre en [a-z0-9_]>` con el `input_schema` de la instantánea, SIN abrir una
+  conexión (la credencial llega por corrida, en la conexión, clave `credential`). Sólo lectura:
+  una tool sin `writes: false` no carga el agente, igual que una ficha inválida, dos tools que
+  normalizan al mismo nombre, un nombre de más de 64 o un runtime sin el extra `mcp`. Cada
+  llamada es `llamar_tool_mcp` contra `base_url` de la conexión + `path`.
+
 - **`TransportePineado`: la guarda de red de las tools `api` como transporte de httpx**
   (`astromesh/tools/builtin/_red.py`), para un cliente que arma sus propios requests. Resuelve
   cada host una vez por transporte y exige que todas sus IPs sean globales, conecta a la IP
