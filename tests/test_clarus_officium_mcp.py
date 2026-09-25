@@ -40,7 +40,9 @@ async def test_el_manifiesto_de_clarus_carga_y_llama_al_servidor(tmp_path, monke
     assert {"praxis_erp_query_records", "praxis_erp_get_record", "datetime_now"} <= set(
         tools._tools
     )
-    assert "praxis_erp_create_record" not in tools._tools
+    # La que no está marcada de lectura llega como propuesta: registrada, sin
+    # abrir una sesión con el servidor.
+    assert "praxis_erp_create_record" in tools._tools
     assert tools._tools["praxis_erp_query_records"].parameters["required"] == ["entity"]
 
     metodos: list[str] = []
@@ -75,9 +77,24 @@ async def test_el_manifiesto_de_clarus_carga_y_llama_al_servidor(tmp_path, monke
         ruta = respx.post("https://93.184.216.34/mcp").mock(side_effect=servidor)
         r = await tools.execute("praxis_erp_get_record", {"entity": "x", "id": "7"}, ctx)
 
+        llamadas_de_lectura = len(ruta.calls)
+        propuestas: list[dict] = []
+        r2 = await tools.execute("praxis_erp_create_record", {}, {**ctx, "propuestas": propuestas})
+
     assert r["success"] is True
     assert r["data"] == '{"ok":true,"value":[]}'
     assert metodos == ["initialize", "notifications/initialized", "tools/call"]
     llamada = json.loads(ruta.calls.last.request.content)
     assert llamada["params"]["name"] == "Get-Record"
     assert ruta.calls.last.request.headers["Authorization"] == "Bearer praxis_K"
+    assert r2["success"] is True
+    assert len(ruta.calls) == llamadas_de_lectura
+    assert propuestas == [
+        {
+            "tool": "praxis_erp_create_record",
+            "tipo": "mcp",
+            "destino": "praxis-erp",
+            "operacion": "create_record",
+            "argumentos": {},
+        }
+    ]

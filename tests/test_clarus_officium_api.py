@@ -46,7 +46,8 @@ async def test_el_manifiesto_de_clarus_carga_y_llama_a_la_api(tmp_path, monkeypa
     assert {"erp_cliente_consultar_stock", "erp_cliente_cotizar", "datetime_now"} <= set(
         tools._tools
     )
-    assert "erp_cliente_crear_pedido" not in tools._tools
+    # La que escribe llega como propuesta: registrada, pero no llama a la API.
+    assert "erp_cliente_crear_pedido" in tools._tools
 
     ctx = {
         "connections": {
@@ -63,9 +64,23 @@ async def test_el_manifiesto_de_clarus_carga_y_llama_a_la_api(tmp_path, monkeypa
         r1 = await tools.execute("erp_cliente_consultar_stock", {"sku": "A-1"}, ctx)
         r2 = await tools.execute("erp_cliente_cotizar", {"producto": "A-1", "cantidad": 2}, ctx)
 
+        propuestas: list[dict] = []
+        # Dentro de `respx.mock`: un request sin ruta mockeada levantaría.
+        r3 = await tools.execute("erp_cliente_crear_pedido", {}, {**ctx, "propuestas": propuestas})
+
     assert r1["success"] is True
     assert r1["data"] == {"disponible": 3}
     assert r2["success"] is True
     assert stock.calls.last.request.headers["X-Api-Key"] == "K"
     assert stock.calls.last.request.headers["Host"] == "api.cliente.com"
     assert json.loads(cot.calls.last.request.content) == {"producto": "A-1", "cantidad": 2}
+    assert r3["success"] is True
+    assert propuestas == [
+        {
+            "tool": "erp_cliente_crear_pedido",
+            "tipo": "api",
+            "destino": "erp-cliente",
+            "operacion": "crear_pedido",
+            "argumentos": {},
+        }
+    ]

@@ -92,6 +92,19 @@
               }
             },
             "writes": false
+          },
+          {
+            "name": "crear_pedido",
+            "description": "Crea un pedido",
+            "parameters": {},
+            "request": {
+              "method": "POST",
+              "path": "/pedidos",
+              "query": {},
+              "body": null
+            },
+            "writes": true,
+            "mode": "propose"
           }
         ]
       },
