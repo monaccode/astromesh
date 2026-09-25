@@ -27,6 +27,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     ValidationError,
     field_validator,
     model_validator,
@@ -108,9 +109,21 @@ class _ToolMcp(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     description: str = ""
     input_schema: dict
-    #: Sin default a propósito: una entrada que no DECLARA `writes: false` no
-    #: valida. Un servidor del tenant sólo lee (OFFICIUM R2c).
-    writes: Literal[False]
+    #: Sin default a propósito: una entrada que no DECLARA `writes` no valida.
+    #: `true` sólo con `mode: propose` (OFFICIUM R3): la tool no llama al
+    #: servidor, propone (`integrations/propuestas.py`).
+    writes: StrictBool
+    mode: Literal["propose"] | None = None
+
+    @model_validator(mode="after")
+    def _escribe_solo_proponiendo(self):
+        if self.writes != (self.mode == "propose"):
+            raise ValueError(
+                f"tool {self.name!r}: writes: {self.writes} con mode: {self.mode!r} — "
+                "una tool del servidor lee (writes: false) o propone (writes: true "
+                "con mode: propose), nunca escribe directo"
+            )
+        return self
 
     @field_validator("input_schema")
     @classmethod

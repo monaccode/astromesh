@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.59.0] - 2026-09-25
+
+### Added
+
+- **`mode: propose`: una escritura de una API o de un servidor MCP del tenant que no se ejecuta**
+  (`astromesh/integrations/propuestas.py`). Una operación `api` o una tool `mcp` con
+  `writes: true` sólo carga con `mode: propose`; `writes: true` sin él sigue sin cargar el
+  agente. Se registra con el mismo nombre y schema que una de lectura, y su handler no llama a
+  nadie: valida los argumentos contra el schema (el subconjunto de `chain/validate.py`), los
+  anota en la lista de la corrida y le contesta al modelo que quedó para aprobación. Topes: 20
+  por corrida, argumentos ≤ 16 KB. `AgentRunResponse` y el `done` del WebSocket suman
+  `propuestas` (vacía si no hubo). Una corrida re-entrante —sub-agente, paso de workflow o
+  `spec.chain`, el servidor MCP de astromesh— no propone: se le rechaza al modelo en vez de
+  perderse. Tampoco las rutas de canal que no devuelven `propuestas` (`api/routes/whatsapp.py`,
+  `api/routes/agent_channels.py`, que corren con `admite_propuestas=False`): ahí el modelo recibe
+  «este canal no admite escrituras con aprobación». Un error al validar los argumentos vuelve al
+  modelo como error de la tool y nunca tumba la corrida (se perderían las ya anotadas).
+  Un `mode` en una operación `api` de lectura ahora también rechaza el agente al construirlo —en
+  `mcp` ya rechazaba antes, por el `extra="forbid"` de su modelo pydantic, pero `api.py` en
+  0.58.0 ni siquiera leía `mode`: lo ignoraba sin más. Es un cambio de compatibilidad chico, que
+  hoy nadie emite (ninguna ficha declara `mode` en una operación de lectura).
+- **Toda tool `api` choca como una `mcp`**: si su nombre final coincide con cualquier otra tool del
+  agente, antes o después en la lista, el agente no carga. Pisar una que propone la cambiaba por
+  una llamada de verdad.
+
+### Fixed
+
+- **`chain/validate.py` acepta `type` como lista** (`["string", "null"]`, lo que emite zod
+  `.nullable()`): vale si calza con cualquiera. Antes levantaba `TypeError: unhashable type`. Un
+  `type` escalar se valida igual que antes.
+- **`pydantic` acotado a `<3`** (`pyproject.toml`): la imagen Docker instala sin el lockfile
+  (`uv pip install .`), así que un mayor no fijado se resuelve solo al buildear — ya pasó una vez
+  con `mcp` 2.2.0. Relockeado sin subir ninguna versión resuelta (`pydantic` sigue en 2.13.4 en
+  los tres lockfiles).
+
 ## [0.58.0] - 2026-09-25
 
 ### Added

@@ -88,6 +88,16 @@
               ]
             },
             "writes": false
+          },
+          {
+            "name": "create_record",
+            "description": "Crea un registro",
+            "input_schema": {
+              "type": "object",
+              "properties": {}
+            },
+            "writes": true,
+            "mode": "propose"
           }
         ]
       },

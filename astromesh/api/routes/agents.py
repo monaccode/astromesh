@@ -84,6 +84,9 @@ class AgentRunResponse(BaseModel):
     trace: dict | None = None
     data: dict | None = None
     chain: dict | None = None
+    #: Las escrituras que propusieron las tools `mode: propose`, sin ejecutar
+    #: (`integrations/propuestas.py`). Vacía si no hubo.
+    propuestas: list[dict] = []
 
 
 @router.get("/agents")
@@ -319,6 +322,7 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             trace=trace or None,
             data=result.get("data"),
             chain=chain_block,
+            propuestas=result.get("propuestas") or [],
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
