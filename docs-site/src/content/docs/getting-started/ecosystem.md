@@ -13,7 +13,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 
 | Component | What it does | Package / Repo | Version |
 |-----------|-------------|----------------|---------|
-| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 16 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.58.0 |
+| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 16 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.59.0 |
 | **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.2 |
 | **ADK** | Python-first agent SDK with decorators, CLI, and hot reload | `astromesh-adk` | v0.3.0 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.3.0 |
