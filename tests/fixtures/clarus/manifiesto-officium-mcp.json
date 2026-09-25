@@ -1,0 +1,100 @@
+{
+  "apiVersion": "astromesh/v1",
+  "kind": "Agent",
+  "metadata": {
+    "name": "officium-3f2a9c1e",
+    "version": "1.0.0"
+  },
+  "spec": {
+    "orchestration": {
+      "pattern": "react"
+    },
+    "model": {
+      "primary": {
+        "provider": "openai_compat",
+        "endpoint": "https://api.moonshot.ai/v1",
+        "api_key_env": "MOONSHOT_API_KEY",
+        "model": "kimi-k3",
+        "parameters": {
+          "reasoning_effort": "low"
+        }
+      }
+    },
+    "memory": {
+      "conversational": {
+        "backend": "redis",
+        "connection": {
+          "url": "redis://astromesh-redis:6379"
+        },
+        "strategy": "sliding_window",
+        "max_turns": 20
+      }
+    },
+    "prompts": {
+      "system": "Sos Lucía, Analista comercial de la empresa.\n\nSos analista comercial.\n\nLo que sabés hacer:\n- ERP: Consultás el ERP.\n\nCómo trabajás:\n- Cada mensaje es un encargo con estas partes: LA EMPRESA, LOS DOCUMENTOS y EL ENCARGO (a veces también TU ENTREGA ANTERIOR y LO QUE HAY QUE CORREGIR).\n- Usás sólo los números y datos que están en LOS DOCUMENTOS o en la memoria de la empresa. Si falta un dato, lo decís; no lo inventás.\n- Entregás el resultado listo para que una persona lo revise: un título, el contenido (con tablas en markdown cuando hay números) y al final una sección \"Supuestos y exclusiones\" con lo que asumiste y lo que dejaste afuera y por qué.\n- Usás la terminología y los organismos del país de la empresa."
+    },
+    "tools": [
+      {
+        "type": "mcp",
+        "name": "praxis-erp",
+        "connection": "mcp_praxis-erp",
+        "path": "/mcp",
+        "auth": {
+          "scheme": "bearer"
+        },
+        "tools": [
+          {
+            "name": "query_records",
+            "description": "Busca registros de una entidad",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "type": "string"
+                },
+                "filters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "limit": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "entity"
+              ],
+              "additionalProperties": false
+            },
+            "writes": false
+          },
+          {
+            "name": "Get-Record",
+            "description": "Trae un registro por id",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "entity",
+                "id"
+              ]
+            },
+            "writes": false
+          }
+        ]
+      },
+      {
+        "name": "datetime_now",
+        "type": "builtin"
+      }
+    ]
+  }
+}
