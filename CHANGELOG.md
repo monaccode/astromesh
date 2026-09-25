@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`TransportePineado`: la guarda de red de las tools `api` como transporte de httpx**
+  (`astromesh/tools/builtin/_red.py`), para un cliente que arma sus propios requests. Resuelve
+  cada host una vez por transporte y exige que todas sus IPs sean globales, conecta a la IP
+  chequeada con el `Host` y el SNI originales, falla cerrado si el nombre no resuelve, corta el
+  cuerpo en 5 MB y anota en `motivo` la primera falla que vio (bloqueo, status ≥ 300 o tope).
+
 ## [0.57.0] - 2026-09-24
 
 ### Added
