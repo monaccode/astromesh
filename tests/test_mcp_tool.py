@@ -261,3 +261,21 @@ async def test_un_nombre_que_el_agente_ya_tiene_no_carga(tmp_path, previa):
     runtime = await _runtime(tmp_path, previa, t)
     assert "demo-agent" not in runtime._agents
     assert "que el agente ya tiene" in runtime._agent_errors["demo-agent"]
+
+
+@pytest.mark.parametrize(
+    "despues",
+    [
+        {"name": "text_summarize", "type": "builtin"},
+        {"name": "praxis_erp_query_records", "type": "client", "description": "x"},
+    ],
+    ids=["builtin", "client"],
+)
+async def test_un_nombre_declarado_despues_tampoco_carga(tmp_path, despues):
+    t = _copia()
+    if despues["type"] == "builtin":
+        t["name"] = "text"
+        t["tools"] = [{"name": "summarize", "input_schema": {"type": "object"}, "writes": False}]
+    runtime = await _runtime(tmp_path, t, despues)
+    assert "demo-agent" not in runtime._agents
+    assert "que el agente ya tiene" in runtime._agent_errors["demo-agent"]

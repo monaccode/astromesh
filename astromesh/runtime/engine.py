@@ -716,6 +716,8 @@ class AgentRuntime:
 
         loader = ToolLoader()
         loader.auto_discover()
+        # Las tools `mcp` registradas, para el repaso del final del loop.
+        de_mcp: dict[str, tuple[str, object]] = {}
         for tool_def in spec.get("tools", []):
             tool_type = tool_def.get("type", "internal")
             if sobrantes := claves_ignoradas(tool_def):
@@ -915,6 +917,10 @@ class AgentRuntime:
                         parameters=t.input_schema,
                         rate_limit=servidor.rate_limit,
                     )
+                    de_mcp[nombre] = (
+                        f"tool mcp {servidor.name!r}: '{t.name}'",
+                        tools._tools[nombre],
+                    )
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
                 # was never registered, never reached the model, and nothing said so —
@@ -929,6 +935,12 @@ class AgentRuntime:
                     tool_def.get("name"),
                     tool_type,
                 )
+        # El chequeo de adentro sólo ve lo registrado ANTES de la `mcp`; una
+        # tool declarada DESPUÉS con el mismo nombre la pisa sin avisar
+        # (`core/tools.py:91-92`). Este repaso cubre ese orden.
+        for nombre, (quien, definicion) in de_mcp.items():
+            if tools._tools.get(nombre) is not definicion:
+                raise ValueError(f"{quien} se registraría como '{nombre}', que el agente ya tiene")
         pattern = self._build_pattern(
             spec, tools.get_tool_schemas(spec.get("permissions", {}).get("allowed_actions"))
         )
