@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.58.0] - 2026-09-25
+
+### Added
+
+- **Tool `mcp`: el servidor MCP de un tenant, con su instantánea de tools inline en el
+  manifiesto** (`astromesh/integrations/mcp.py`). `_build_agent` registra cada tool como
+  `<slug con _>_<nombre en [a-z0-9_]>` con el `input_schema` de la instantánea, SIN abrir una
+  conexión (la credencial llega por corrida, en la conexión, clave `credential`). Sólo lectura:
+  una tool sin `writes: false` no carga el agente, igual que una ficha inválida, dos tools que
+  normalizan al mismo nombre, un nombre de más de 64 o un runtime sin el extra `mcp`. Cada
+  llamada es `llamar_tool_mcp` contra `base_url` de la conexión + `path`.
+  Tampoco carga si el nombre final choca con otra tool del agente (builtin, `api`, integración
+  u otro `mcp`), sin importar el orden de declaración: un repaso final atrapa el choque aunque la
+  otra tool se declare DESPUÉS, que si no la pisaría sin avisar (`register_internal`). Tampoco si
+  un `input_schema` no es `type: object`,
+  pasa los 16 KB serializado o los 8 niveles, o si `auth.header` es un header reservado
+  (`Host`, `Content-Type`, `Accept`, `Mcp-Session-Id`, …). Son los topes de CLARUS; el
+  runtime no se los cree.
+
+- **`TransportePineado`: la guarda de red de las tools `api` como transporte de httpx**
+  (`astromesh/tools/builtin/_red.py`), para un cliente que arma sus propios requests. Resuelve
+  cada host una vez por transporte y exige que todas sus IPs sean globales, conecta a la IP
+  chequeada con el `Host` y el SNI originales, falla cerrado si el nombre no resuelve, pide
+  `Accept-Encoding: identity` y rechaza otro `content-encoding` (el tope de 5 MB cuenta bytes
+  decodificados: una bomba gzip no pasa), sirve a un solo host y anota en `motivo` la primera falla
+  de la guarda (bloqueo, DNS, redirect, encoding, tope o timeout; un 4xx/5xx común no).
+
+- **`llamar_tool_mcp`: una tool de un servidor MCP en una sesión corta** (`initialize` +
+  `tools/call` + cierre) con el SDK oficial y `TransportePineado` (`astromesh/integrations/mcp.py`).
+  Usa `streamable_http_client` con el cliente armado (`streamablehttp_client` está deprecado en el
+  SDK 1.28.1), no sigue redirects y manda el `CallToolRequest` sin el `tools/list` extra que haría
+  `ClientSession.call_tool`. El timeout (30 s) es de la llamada entera, no de cada request. Nunca
+  levanta: `isError`, un error JSON-RPC, un host bloqueado, un 3xx, un 4xx/5xx («el servidor MCP
+  contestó 401», sin la IP pineada), el timeout o un cuerpo de más de 5 MB vuelven como error de la
+  tool, con el motivo que anotó el transporte cuando el SDK se traga la falla.
+
+### Changed
+
+- El extra `mcp` pide `mcp>=1.28.1,<2` (antes `>=1.0.0`): la llamada usa `streamable_http_client`
+  con `http_client`, y mcp 2.x renombra `McpError` y pide otro cliente http. El `Dockerfile` raíz
+  instala el extra sin lock (`uv pip install ".[…,mcp,…]"`), así que el techo es lo que le impide
+  traer 2.x; los pods de 0.57.0 tienen mcp 2.2.0. Si igual llega un SDK incompatible, la llamada
+  vuelve como error de la tool y no levanta.
+
+### Fixed
+
+- **NAT64 (`64:ff9b::/96`) se juzga por la IPv4 de adentro** en `_red` (`_ip_no_global`):
+  `is_global` daba por global todo el prefijo, y en un cluster con NAT64 `64:ff9b::a00:5` llega a
+  `10.0.0.5`. Ahora esa se bloquea y `64:ff9b::808:808` (8.8.8.8, lo que DNS64 le da a un host
+  público sólo-IPv4) sale. Cierra el mismo agujero en las tools `api` de 0.57.0 y en
+  `cliente_seguro()`.
+
 ## [0.57.0] - 2026-09-24
 
 ### Added

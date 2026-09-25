@@ -17,6 +17,7 @@ from astromesh.errors import AgentConfigError
 from astromesh.integrations import default_catalog
 from astromesh.integrations.api import manifiesto_de_api
 from astromesh.integrations.credentials import CredentialResolver
+from astromesh.integrations.mcp import handler_de_tool, nombre_de_tool, servidor_de_mcp
 from astromesh.memory.factory import build_conversation_backend
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
@@ -150,6 +151,7 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     # de la integración (`core/tools.py:179`), no la del YAML.
     "integration": frozenset({"connection", "actions", "rate_limit"}),
     "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
+    "mcp": frozenset({"connection", "path", "auth", "tools", "rate_limit"}),
 }
 
 
@@ -714,6 +716,8 @@ class AgentRuntime:
 
         loader = ToolLoader()
         loader.auto_discover()
+        # Las tools `mcp` registradas, para el repaso del final del loop.
+        de_mcp: dict[str, tuple[str, object]] = {}
         for tool_def in spec.get("tools", []):
             tool_type = tool_def.get("type", "internal")
             if sobrantes := claves_ignoradas(tool_def):
@@ -889,6 +893,34 @@ class AgentRuntime:
                         rate_limit=tool_def.get("rate_limit"),
                         permitir_internos=False,
                     )
+            elif tool_type == "mcp":
+                # Sin red a propósito: la instantánea de tools la trae el
+                # manifiesto (CLARUS la descubrió) y la credencial llega recién
+                # por corrida. Levanta como `api` si la ficha no cierra.
+                servidor = servidor_de_mcp(tool_def)
+                resolver = self._credential_resolver()
+                for t in servidor.tools:
+                    nombre = nombre_de_tool(servidor.name, t.name)
+                    # `register_internal` pisa sin avisar (`core/tools.py:91-92`):
+                    # un choque con una tool ya registrada (builtin, api,
+                    # integración u otro mcp) levanta. CLARUS lo chequea al
+                    # guardar, pero el manifiesto puede llegar de otro lado.
+                    if nombre in tools._tools:
+                        raise ValueError(
+                            f"tool mcp {servidor.name!r}: '{t.name}' se registraría como "
+                            f"'{nombre}', que el agente ya tiene"
+                        )
+                    tools.register_internal(
+                        name=nombre,
+                        handler=handler_de_tool(servidor, t, resolver),
+                        description=t.description,
+                        parameters=t.input_schema,
+                        rate_limit=servidor.rate_limit,
+                    )
+                    de_mcp[nombre] = (
+                        f"tool mcp {servidor.name!r}: '{t.name}'",
+                        tools._tools[nombre],
+                    )
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
                 # was never registered, never reached the model, and nothing said so —
@@ -898,11 +930,17 @@ class AgentRuntime:
                 # existing YAML that declares one. The error comes in 1.0.
                 logger.warning(
                     "agent %r declares tool %r with unsupported type %r — ignoring it. "
-                    "YAML supports: builtin, agent, client, integration, api.",
+                    "YAML supports: builtin, agent, client, integration, api, mcp.",
                     metadata["name"],
                     tool_def.get("name"),
                     tool_type,
                 )
+        # El chequeo de adentro sólo ve lo registrado ANTES de la `mcp`; una
+        # tool declarada DESPUÉS con el mismo nombre la pisa sin avisar
+        # (`core/tools.py:91-92`). Este repaso cubre ese orden.
+        for nombre, (quien, definicion) in de_mcp.items():
+            if tools._tools.get(nombre) is not definicion:
+                raise ValueError(f"{quien} se registraría como '{nombre}', que el agente ya tiene")
         pattern = self._build_pattern(
             spec, tools.get_tool_schemas(spec.get("permissions", {}).get("allowed_actions"))
         )

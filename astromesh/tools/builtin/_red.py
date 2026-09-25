@@ -37,11 +37,22 @@ async def _resolver(host: str, port: int | None) -> list:
     return await loop.getaddrinfo(host, port)
 
 
+#: NAT64 well-known prefix (RFC 6052): `is_global` lo da por global, pero en un
+#: cluster con NAT64 `64:ff9b::a00:5` ES `10.0.0.5`. Se juzga la IPv4 de adentro
+#: y no el prefijo entero: con DNS64 todo host público sólo-IPv4 resuelve a
+#: `64:ff9b::<v4>`, y bloquear el prefijo los cortaría a todos. El local-use
+#: `64:ff9b:1::/48` (RFC 8215) Python ya lo da por no global.
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
 def _ip_no_global(texto: str) -> bool:
     try:
-        return not ipaddress.ip_address(texto.split("%")[0]).is_global
+        ip = ipaddress.ip_address(texto.split("%")[0])
     except ValueError:
         return False
+    if ip in _NAT64:
+        ip = ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    return not ip.is_global
 
 
 async def destino_bloqueado(url: str) -> str | None:
@@ -58,7 +69,7 @@ async def destino_bloqueado(url: str) -> str | None:
     except ValueError:
         ip = None
     if ip is not None:
-        return None if ip.is_global else f"Blocked: {host} is not a public address"
+        return f"Blocked: {host} is not a public address" if _ip_no_global(host) else None
 
     if host == "localhost" or "." not in host or host.endswith(_SUFIJOS_INTERNOS):
         return f"Blocked: {host} is an internal host"
@@ -149,3 +160,121 @@ def cliente_seguro(permitir_internos: bool = False, **kwargs) -> httpx.AsyncClie
     if permitir_internos:
         return httpx.AsyncClient(**kwargs)
     return httpx.AsyncClient(event_hooks={"request": [_chequear]}, **kwargs)
+
+
+#: Tope del cuerpo de una respuesta en `TransportePineado`: el mismo de las
+#: tools `api` (`integrations/executor.py::_TOPE_TEXTO`).
+TOPE_CUERPO = 5 * 1024 * 1024
+
+
+class _CuerpoAcotado(httpx.AsyncByteStream):
+    """El stream de la respuesta, cortado apenas pasa el tope: nunca se
+    bufferea entero para medirlo después."""
+
+    def __init__(self, stream, tope: int, transporte: "TransportePineado"):
+        self._stream = stream
+        self._tope = tope
+        self._transporte = transporte
+
+    async def __aiter__(self):
+        total = 0
+        async for chunk in self._stream:
+            total += len(chunk)
+            if total > self._tope:
+                self._transporte.anotar(f"la respuesta pasa los {self._tope // (1024 * 1024)} MB")
+                raise httpx.ReadError(self._transporte.motivo or "")
+            yield chunk
+
+    async def aclose(self) -> None:
+        await self._stream.aclose()
+
+
+class TransportePineado(httpx.AsyncBaseTransport):
+    """La guarda de `pin_a_ip_publica` como transporte de httpx, para un
+    cliente que no arma sus requests (el SDK de MCP, `integrations/mcp.py`).
+
+    Resuelve cada host UNA vez por transporte —una sesión— y exige que TODAS
+    sus IPs sean globales; conecta a la IP chequeada con el `Host` y el SNI
+    originales; falla cerrado si el nombre no resuelve (`pin_a_ip_publica`);
+    corta el cuerpo en `tope` bytes DECODIFICADOS: pide `Accept-Encoding:
+    identity` y rechaza una respuesta con otro `content-encoding`, así lo que
+    se cuenta es lo que el cliente lee (una bomba gzip no pasa). No sigue
+    redirects: eso lo decide el cliente (`follow_redirects=False`), y un 3xx
+    queda anotado en `motivo`.
+
+    Un transporte sirve a UN host: el pool de httpcore reusa la conexión por
+    (esquema, IP, puerto) sin mirar el SNI, así que dos nombres pineados a la
+    misma IP compartirían un TLS verificado para el primero. Un segundo host
+    distinto se rechaza; el camino de MCP usa un cliente por llamada.
+
+    `motivo` guarda la PRIMERA falla de la GUARDA (bloqueo, DNS, redirect,
+    encoding, tope, timeout), nunca un 4xx/5xx común: el SDK de MCP recibe
+    405 por diseño en el GET de SSE y el DELETE, y tapar con eso la falla
+    real sería mentir. `motivo` guarda la primera que vio: el SDK de MCP se traga algunas
+    (`mcp/client/streamable_http.py:393-395` y `:429-430`) y la llamada sólo
+    termina por timeout; quien llama la lee para decir qué pasó de verdad.
+    """
+
+    def __init__(
+        self,
+        tope: int | None = None,
+        interno: httpx.AsyncBaseTransport | None = None,
+    ):
+        self._interno = interno or httpx.AsyncHTTPTransport()
+        self._tope = tope if tope is not None else TOPE_CUERPO
+        self._pines: dict[tuple, tuple[str, str, str] | None] = {}
+        self.motivo: str | None = None
+
+    def anotar(self, motivo: str) -> None:
+        if self.motivo is None:
+            self.motivo = motivo
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        clave = (request.url.scheme, request.url.raw_host, request.url.port)
+        if self._pines and clave not in self._pines:
+            self.anotar(f"Blocked: this transport serves only one host, not {request.url.host}")
+            raise httpx.RequestError(self.motivo or "", request=request)
+        if clave not in self._pines:
+            try:
+                # `pin_a_ip_publica` primero: es la ÚNICA resolución. Si no hay
+                # nombre que fijar (IP literal, o un nombre interno) devuelve
+                # None, y `destino_bloqueado` decide sin resolver nada.
+                pin = await pin_a_ip_publica(str(request.url))
+                if pin is None:
+                    bloqueo = await destino_bloqueado(str(request.url))
+                    if bloqueo:
+                        raise httpx.RequestError(bloqueo, request=request)
+                self._pines[clave] = pin
+            except httpx.RequestError as exc:
+                self.anotar(str(exc))
+                raise
+        pin = self._pines[clave]
+        if pin is not None:
+            url_pineada, sni, host_header = pin
+            request.url = request.url.copy_with(host=httpx.URL(url_pineada).host)
+            request.headers["Host"] = host_header
+            if request.url.scheme == "https":
+                request.extensions = {**request.extensions, "sni_hostname": sni}
+        request.headers["Accept-Encoding"] = "identity"
+        try:
+            response = await self._interno.handle_async_request(request)
+        except httpx.TimeoutException as exc:
+            self.anotar(f"timeout: {exc}")
+            raise
+        encoding = response.headers.get("content-encoding", "identity").strip().lower()
+        if encoding != "identity":
+            await response.aclose()
+            self.anotar(f"Blocked: la respuesta viene con content-encoding {encoding}")
+            raise httpx.RequestError(self.motivo or "", request=request)
+        if 300 <= response.status_code < 400:
+            self.anotar(f"el servidor contestó {response.status_code}")
+        return httpx.Response(
+            response.status_code,
+            headers=response.headers,
+            stream=_CuerpoAcotado(response.stream, self._tope, self),
+            extensions=response.extensions,
+            request=request,
+        )
+
+    async def aclose(self) -> None:
+        await self._interno.aclose()
