@@ -1,6 +1,8 @@
 """`TransportePineado`: la guarda de red de las tools `api`, como transporte de
 httpx para un cliente que arma sus propios requests (el SDK de MCP)."""
 
+import gzip
+
 import httpx
 import pytest
 
@@ -66,6 +68,8 @@ async def test_resuelve_una_sola_vez_por_transporte(monkeypatch):
         ("https://localhost/mcp", ()),
         ("https://mcp.cliente.com/mcp", ("10.1.2.3",)),
         ("https://mcp.cliente.com/mcp", ("93.184.216.34", "10.1.2.3")),
+        ("https://[64:ff9b::a00:5]/mcp", ()),
+        ("https://mcp.cliente.com/mcp", ("64:ff9b::a00:5",)),
     ],
 )
 async def test_un_destino_interno_no_sale_y_queda_anotado(monkeypatch, url, ips):
@@ -116,3 +120,60 @@ async def test_el_cuerpo_se_corta_en_el_tope(monkeypatch):
         with pytest.raises(httpx.ReadError):
             await c.post("https://mcp.cliente.com/mcp", json={})
     assert t.motivo == "la respuesta pasa los 0 MB"
+
+
+async def test_nat64_no_es_publica():
+    assert await _red.destino_bloqueado("https://[64:ff9b::a00:5]/x") is not None
+    assert await _red.destino_bloqueado("https://[2606:4700::1111]/x") is None
+
+
+async def test_una_bomba_gzip_no_se_descomprime(monkeypatch):
+    """El tope cuenta bytes decodificados: ~50 KB de gzip que inflan a 6 MB."""
+    _dns(monkeypatch, "93.184.216.34")
+    bomba = gzip.compress(b"x" * (6 * 1024 * 1024))
+    assert len(bomba) < 64 * 1024
+    vistos: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        vistos.append(request)
+        return httpx.Response(200, content=bomba, headers={"content-encoding": "gzip"})
+
+    t = TransportePineado(interno=httpx.MockTransport(handler))
+    async with httpx.AsyncClient(transport=t) as c:
+        with pytest.raises(httpx.RequestError, match="content-encoding gzip"):
+            await c.post("https://mcp.cliente.com/mcp", json={})
+    assert vistos[0].headers["Accept-Encoding"] == "identity"
+    assert t.motivo is not None
+    assert "gzip" in t.motivo
+
+
+async def test_un_405_no_tapa_la_falla_real(monkeypatch):
+    """El SDK de MCP recibe 405 en el GET de SSE por diseño: no es la guarda."""
+    _dns(monkeypatch, "93.184.216.34")
+    monkeypatch.setattr(_red, "TOPE_CUERPO", 10)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(405)
+        return httpx.Response(200, text="x" * 50)
+
+    t = TransportePineado(interno=httpx.MockTransport(handler))
+    async with httpx.AsyncClient(transport=t) as c:
+        assert (await c.get("https://mcp.cliente.com/mcp")).status_code == 405
+        assert t.motivo is None
+        with pytest.raises(httpx.ReadError):
+            await c.post("https://mcp.cliente.com/mcp", json={})
+    assert t.motivo == "la respuesta pasa los 0 MB"
+
+
+async def test_un_transporte_sirve_a_un_solo_host(monkeypatch):
+    _dns(monkeypatch, "93.184.216.34")
+    interno, vistos = _registrar()
+    t = TransportePineado(interno=interno)
+    async with httpx.AsyncClient(transport=t) as c:
+        await c.post("https://mcp.cliente.com/mcp", json={})
+        with pytest.raises(httpx.RequestError, match="only one host"):
+            await c.post("https://otro.cliente.com/mcp", json={})
+    assert len(vistos) == 1
+    assert t.motivo is not None
+    assert "only one host" in t.motivo

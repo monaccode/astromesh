@@ -12,8 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`TransportePineado`: la guarda de red de las tools `api` como transporte de httpx**
   (`astromesh/tools/builtin/_red.py`), para un cliente que arma sus propios requests. Resuelve
   cada host una vez por transporte y exige que todas sus IPs sean globales, conecta a la IP
-  chequeada con el `Host` y el SNI originales, falla cerrado si el nombre no resuelve, corta el
-  cuerpo en 5 MB y anota en `motivo` la primera falla que vio (bloqueo, status ≥ 300 o tope).
+  chequeada con el `Host` y el SNI originales, falla cerrado si el nombre no resuelve, pide
+  `Accept-Encoding: identity` y rechaza otro `content-encoding` (el tope de 5 MB cuenta bytes
+  decodificados: una bomba gzip no pasa), sirve a un solo host y anota en `motivo` la primera falla
+  de la guarda (bloqueo, DNS, redirect, encoding, tope o timeout; un 4xx/5xx común no).
+
+### Fixed
+
+- **NAT64 (`64:ff9b::/96`) cuenta como dirección no pública** en `_red` (`_ip_no_global`):
+  `is_global` la da por global, y en un cluster con NAT64 `64:ff9b::a00:5` llega a `10.0.0.5`.
+  Cierra el mismo agujero en las tools `api` de 0.57.0 y en `cliente_seguro()`.
 
 ## [0.57.0] - 2026-09-24
 
