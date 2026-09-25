@@ -252,7 +252,12 @@ async def llamar_tool_mcp(
     # llamada, nunca la corrida.
     except Exception as exc:  # noqa: BLE001
         causa = _primera(exc)
-        if t.motivo:
+        if rechazo is not None and isinstance(causa, rechazo):
+            # Es lo que terminó la llamada: gana a una falla anterior que el SDK
+            # se tragó (un 3xx en el GET de SSE). Un bloqueo de la guarda no
+            # llega como McpError: sale del task group como la excepción de httpx.
+            motivo = f"el servidor MCP rechazó la llamada: {causa.error.message}"
+        elif t.motivo:
             motivo = t.motivo
         elif isinstance(causa, TimeoutError):
             motivo = f"el servidor MCP no contestó en {timeout:g} s"
@@ -261,10 +266,6 @@ async def llamar_tool_mcp(
             motivo = f"el servidor MCP contestó {causa.response.status_code}"
         elif isinstance(causa, ImportError):
             motivo = f"este runtime no tiene un SDK de MCP compatible (mcp 1.x): {causa}"
-        elif rechazo is not None and isinstance(causa, rechazo):
-            # Sin `read_timeout_seconds` en la sesión, un McpError es un error
-            # JSON-RPC del servidor: ahí sí es un rechazo.
-            motivo = f"el servidor MCP rechazó la llamada: {causa.error.message}"
         else:
             motivo = f"{type(causa).__name__}: {causa}"
         return ToolResult(success=False, data=None, error=motivo)

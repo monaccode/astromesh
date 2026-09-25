@@ -216,3 +216,28 @@ async def test_un_sdk_de_mcp_incompatible_es_un_error_de_la_tool(dns_publico, mo
     r = await llamar_tool_mcp(URL, HEADERS, "query_records", {})
     assert r.success is False
     assert r.error.startswith("este runtime no tiene un SDK de MCP compatible (mcp 1.x)")
+
+
+async def test_el_rechazo_json_rpc_gana_a_un_3xx_tragado(dns_publico):
+    # Con sesión, el SDK abre un GET de SSE; su 302 se lo traga
+    # (`mcp/client/streamable_http.py:247-275`) pero queda anotado en el
+    # transporte. Lo que terminó la llamada es el rechazo del `tools/call`.
+    responder, _ = servidor_mcp(error={"code": -32602, "message": "Tool nope not found"})
+
+    async def con_sesion(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(302, headers={"location": "https://praxis.cliente.com/otra"})
+        if request.method == "DELETE":
+            return httpx.Response(200)
+        if json.loads(request.content).get("method") == "tools/call":
+            await asyncio.sleep(0.2)  # el GET llega antes
+        r = responder(request)
+        r.headers["mcp-session-id"] = "s1"
+        return r
+
+    with respx.mock:
+        get = respx.route(url=PIN).mock(side_effect=con_sesion)
+        r = await llamar_tool_mcp(URL, HEADERS, "nope", {})
+    assert any(c.request.method == "GET" for c in get.calls)
+    assert r.success is False
+    assert r.error == "el servidor MCP rechazó la llamada: Tool nope not found"
