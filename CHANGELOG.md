@@ -41,8 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- El extra `mcp` pide `mcp>=1.28.1` (antes `>=1.0.0`): la llamada usa `streamable_http_client`
-  con `http_client`.
+- El extra `mcp` pide `mcp>=1.28.1,<2` (antes `>=1.0.0`): la llamada usa `streamable_http_client`
+  con `http_client`, y mcp 2.x renombra `McpError` y pide otro cliente http. El `Dockerfile` raíz
+  instala el extra sin lock (`uv pip install ".[…,mcp,…]"`), así que el techo es lo que le impide
+  traer 2.x; los pods de 0.57.0 tienen mcp 2.2.0. Si igual llega un SDK incompatible, la llamada
+  vuelve como error de la tool y no levanta.
 
 ### Fixed
 

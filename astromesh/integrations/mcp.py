@@ -215,9 +215,6 @@ async def llamar_tool_mcp(
       más por llamada, y un servidor con `outputSchema` rechazaría un
       resultado sin él. Se manda el `CallToolRequest` con `send_request`.
     """
-    from mcp import ClientSession, McpError, types
-    from mcp.client.streamable_http import streamable_http_client
-
     # Leído acá y no como default del parámetro: un default se evalúa una vez,
     # al importar, y el test del tope no podría achicarlo.
     timeout = timeout if timeout is not None else TIMEOUT_LLAMADA
@@ -226,7 +223,14 @@ async def llamar_tool_mcp(
     cliente = httpx.AsyncClient(
         transport=t, headers=headers, timeout=timeout, follow_redirects=False
     )
+    rechazo: type[Exception] | None = None
     try:
+        # Adentro del `try`: un runtime con otro SDK (mcp 2.x renombra
+        # `McpError` y pide otro cliente http) degrada la llamada, no la corrida.
+        from mcp import ClientSession, McpError, types
+        from mcp.client.streamable_http import streamable_http_client
+
+        rechazo = McpError
         # El tope es de la LLAMADA entera, no de cada request: con el de httpx
         # solo, `initialize` + `tools/call` lentos llegaban a casi el doble.
         with anyio.fail_after(timeout):
@@ -255,7 +259,9 @@ async def llamar_tool_mcp(
         elif isinstance(causa, httpx.HTTPStatusError):
             # Sin el mensaje de httpx: trae la URL con la IP pineada y un link a MDN.
             motivo = f"el servidor MCP contestó {causa.response.status_code}"
-        elif isinstance(causa, McpError):
+        elif isinstance(causa, ImportError):
+            motivo = f"este runtime no tiene un SDK de MCP compatible (mcp 1.x): {causa}"
+        elif rechazo is not None and isinstance(causa, rechazo):
             # Sin `read_timeout_seconds` en la sesión, un McpError es un error
             # JSON-RPC del servidor: ahí sí es un rechazo.
             motivo = f"el servidor MCP rechazó la llamada: {causa.error.message}"

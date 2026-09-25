@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import sys
+import types
 
 import httpx
 import pytest
@@ -206,3 +208,11 @@ async def test_un_4xx_o_5xx_dice_el_status_sin_la_ip_pineada(dns_publico, status
         r = await llamar_tool_mcp(URL, HEADERS, "query_records", {})
     assert r.success is False
     assert r.error == f"el servidor MCP contestó {status}"
+
+
+async def test_un_sdk_de_mcp_incompatible_es_un_error_de_la_tool(dns_publico, monkeypatch):
+    # mcp 2.x no tiene `McpError` (es `MCPError`): la llamada degrada, no levanta.
+    monkeypatch.setitem(sys.modules, "mcp", types.ModuleType("mcp"))
+    r = await llamar_tool_mcp(URL, HEADERS, "query_records", {})
+    assert r.success is False
+    assert r.error.startswith("este runtime no tiene un SDK de MCP compatible (mcp 1.x)")
