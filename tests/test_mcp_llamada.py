@@ -148,3 +148,22 @@ async def test_un_redirect_no_se_sigue(dns_publico):
     assert r.success is False
     assert r.error == "el servidor contestó 302"
     assert not interna.called
+
+
+async def test_un_redirect_al_mismo_host_tampoco_se_sigue(dns_publico):
+    # El transporte ya corta un redirect a OTRO host (un host por transporte);
+    # a otra ruta del MISMO host sólo lo frena `follow_redirects=False`.
+    responder, _ = servidor_mcp({"content": [{"type": "text", "text": "no debería"}]})
+
+    def tools_call_redirige(request: httpx.Request) -> httpx.Response:
+        if json.loads(request.content).get("method") == "tools/call":
+            return httpx.Response(302, headers={"location": "https://praxis.cliente.com/otra"})
+        return responder(request)
+
+    with respx.mock:
+        respx.post(PIN).mock(side_effect=tools_call_redirige)
+        otra = respx.route(url__startswith="https://93.184.216.34/otra").mock(side_effect=responder)
+        r = await llamar_tool_mcp(URL, HEADERS, "query_records", {})
+    assert r.success is False
+    assert r.error == "el servidor contestó 302"
+    assert not otra.called
