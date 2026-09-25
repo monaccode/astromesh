@@ -6,7 +6,8 @@ y agregaría una dependencia al arranque de la imagen de astromesh-os (que se
 construye con pip, no con uv). El subconjunto de abajo cubre lo que un
 `output_schema` de agente usa de verdad.
 
-Soporta: type (object, string, integer, number, boolean, array, null),
+Soporta: type (object, string, integer, number, boolean, array, null; o una
+lista de ellos),
 properties, required, enum, items.
 
 Ignora, a propósito y sin avisar: allOf, anyOf, oneOf, not, $ref,
@@ -48,20 +49,22 @@ def _validate(value: Any, schema: dict, path: str) -> list[str]:
     label = path or "(raíz)"
 
     expected = schema.get("type")
-    if expected:
-        check = _CHECKS.get(expected)
-        # Un `type` que no conocemos no se valida: mismo criterio que el resto de
-        # las keywords fuera del subconjunto.
-        if check is not None and not check(value):
-            return [f"{label}: se esperaba {expected}, llegó {type(value).__name__}"]
+    # `type` puede ser una lista (`["string", "null"]`, lo que emite zod
+    # `.nullable()`): vale si calza con CUALQUIERA de los tipos.
+    tipos = expected if isinstance(expected, list) else [expected] if expected else []
+    checks = [_CHECKS.get(t) if isinstance(t, str) else None for t in tipos]
+    # Un `type` que no conocemos no se valida: mismo criterio que el resto de
+    # las keywords fuera del subconjunto.
+    if tipos and None not in checks and not any(c(value) for c in checks):
+        return [f"{label}: se esperaba {expected}, llegó {type(value).__name__}"]
 
     enum = schema.get("enum")
     if enum is not None and value not in enum:
         errors.append(f"{label}: {value!r} no está en enum {enum}")
 
-    if expected == "object" or (expected is None and isinstance(value, dict)):
+    if isinstance(value, dict) and (not tipos or "object" in tipos):
         errors.extend(_validate_object(value, schema, path))
-    elif expected == "array" or (expected is None and isinstance(value, list)):
+    elif isinstance(value, list) and (not tipos or "array" in tipos):
         errors.extend(_validate_array(value, schema, path))
 
     return errors

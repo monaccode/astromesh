@@ -355,6 +355,7 @@ async def test_process_message_calls_runtime_and_sends_reply():
             agent_name="whatsapp-assistant",
             query="Hello",
             session_id="wa_5511999999999",
+            admite_propuestas=False,
         )
         mock_send.assert_called_once_with("5511999999999", "Hola!")
     finally:

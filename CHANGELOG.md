@@ -18,7 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   para aprobación. Topes: 20 por corrida, argumentos ≤ 16 KB. `AgentRunResponse` y el `done` del
   WebSocket suman `propuestas` (vacía si no hubo). Una corrida re-entrante —sub-agente, paso de
   workflow o `spec.chain`, el servidor MCP de astromesh— no propone: se le rechaza al modelo en vez
-  de perderse.
+  de perderse. Tampoco las rutas de canal que no devuelven `propuestas` (`api/routes/whatsapp.py`,
+  `api/routes/agent_channels.py`, que corren con `admite_propuestas=False`): ahí el modelo recibe
+  «este canal no admite escrituras con aprobación». Un error al validar los argumentos vuelve al
+  modelo como error de la tool y nunca tumba la corrida (se perderían las ya anotadas).
+- **Toda tool `api` choca como una `mcp`**: si su nombre final coincide con cualquier otra tool del
+  agente, antes o después en la lista, el agente no carga. Pisar una que propone la cambiaba por
+  una llamada de verdad.
+
+### Fixed
+
+- **`chain/validate.py` acepta `type` como lista** (`["string", "null"]`, lo que emite zod
+  `.nullable()`): vale si calza con cualquiera. Antes levantaba `TypeError: unhashable type`. Un
+  `type` escalar se valida igual que antes.
 
 ## [0.58.0] - 2026-09-25
 

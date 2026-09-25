@@ -9,7 +9,7 @@ import pytest
 import respx
 import yaml
 
-from astromesh.integrations.propuestas import AVISO, MAX_PROPUESTAS
+from astromesh.integrations.propuestas import AVISO, MAX_PROPUESTAS, SIN_CANAL
 from astromesh.runtime.engine import AgentRuntime
 
 API = {
@@ -316,3 +316,166 @@ async def test_run_devuelve_propuestas_y_vacia_si_no_hubo(client, monkeypatch):
 
     assert con.json()["propuestas"] == [propuesta]
     assert sin.json()["propuestas"] == []
+
+
+def test_el_aviso_dice_que_no_se_ejecuto_y_no_invita_a_seguir():
+    assert "NO se ejecutó" in AVISO
+    assert "No asumas que se hizo" in AVISO
+    assert "como si se fuera a aprobar" not in AVISO
+
+
+def _mcp_con_nullable() -> dict:
+    t = _copia(MCP)
+    t["tools"][1]["input_schema"]["properties"]["nota"] = {"type": ["string", "null"]}
+    return t
+
+
+@pytest.mark.parametrize(
+    ("nota", "valida"),
+    [(None, True), ("urgente", True), (7, False)],
+    ids=["null", "string", "tipo-equivocado"],
+)
+async def test_un_campo_nullable_de_zod_valida_contra_cualquiera_de_sus_tipos(
+    tmp_path, ningun_host, nota, valida
+):
+    """`["string", "null"]` es lo que emite zod `.nullable()` (el MCP de PRAXIS)."""
+    runtime = await _runtime(tmp_path, _mcp_con_nullable())
+    args = {"entity": "x", "data": {}, "nota": nota}
+    r, obs = await _correr(runtime, [("praxis_erp_create_record", args)])
+    assert obs[0]["success"] is valida
+    if valida:
+        assert r["propuestas"][0]["argumentos"] == args
+    else:
+        assert "nota: se esperaba ['string', 'null']" in obs[0]["error"]
+        assert r["propuestas"] == []
+
+
+async def test_un_validador_que_revienta_vuelve_al_modelo_y_no_pierde_lo_anotado(
+    tmp_path, ningun_host, monkeypatch
+):
+    import astromesh.integrations.propuestas as propuestas_module
+
+    real = propuestas_module.validate
+    llamadas = iter([real, None, real])
+
+    def validar(datos, schema):
+        f = next(llamadas)
+        if f is None:
+            raise TypeError("unhashable type: 'list'")
+        return f(datos, schema)
+
+    monkeypatch.setattr(propuestas_module, "validate", validar)
+    runtime = await _runtime(tmp_path, API)
+    llamada = ("erp_cliente_crear_pedido", {"sku": "A-1", "cantidad": 1})
+    r, obs = await _correr(runtime, [llamada] * 3)
+    assert [o["success"] for o in obs] == [True, False, True]
+    assert "no se pudieron validar" in obs[1]["error"]
+    assert len(r["propuestas"]) == 2
+
+
+API_LECTURA_QUE_CHOCA = {
+    "type": "api",
+    "name": "erp",
+    "connection": "api_erp",
+    "auth": {"scheme": "bearer"},
+    "operations": [
+        {
+            "name": "cliente_crear_pedido",
+            "description": "Lee",
+            "parameters": {},
+            "request": {"method": "GET", "path": "/x", "query": {}, "body": None},
+            "writes": False,
+        }
+    ],
+}
+
+INTEGRACION_QUE_CHOCA = """
+apiVersion: astromesh/v1
+kind: Integration
+metadata: {name: erp, version: 0.1.0, description: erp}
+spec:
+  base_url: "https://api.erp.test"
+  auth: {scheme: bearer, credential: access_token}
+  actions:
+    - name: cliente_crear_pedido
+      description: "Escribe directo"
+      writes: true
+      request: {method: POST, path: "/pedidos"}
+"""
+
+
+def _catalogo_que_choca(tmp_path):
+    from astromesh.integrations import IntegrationCatalog
+
+    root = tmp_path / "catalog"
+    (root / "erp").mkdir(parents=True)
+    (root / "erp" / "integration.yaml").write_text(INTEGRACION_QUE_CHOCA)
+    catalogo = IntegrationCatalog()
+    catalogo.discover(root)
+    return catalogo
+
+
+@pytest.mark.parametrize("orden", ["propuesta-primero", "propuesta-despues"])
+@pytest.mark.parametrize("otra", ["api-de-lectura", "integracion"])
+async def test_una_tool_que_propone_no_puede_ser_pisada_por_otra_del_mismo_nombre(
+    tmp_path, monkeypatch, orden, otra
+):
+    """`erp-cliente` + `crear_pedido` y `erp` + `cliente_crear_pedido` dan el mismo
+    nombre: pisar la propuesta la cambiaría por una llamada de verdad."""
+    import astromesh.runtime.engine as engine_module
+
+    monkeypatch.setattr(engine_module, "default_catalog", lambda: _catalogo_que_choca(tmp_path))
+    if otra == "api-de-lectura":
+        segunda = API_LECTURA_QUE_CHOCA
+    else:
+        segunda = {
+            "type": "integration",
+            "name": "erp",
+            "connection": "erp_conn",
+            "actions": ["cliente_crear_pedido"],
+        }
+    tools = (API, segunda) if orden == "propuesta-primero" else (segunda, API)
+    runtime = await _runtime(tmp_path, *tools)
+    assert "demo-agent" not in runtime._agents
+    assert "que el agente ya tiene" in runtime._agent_errors["demo-agent"]
+
+
+async def test_un_canal_que_no_devuelve_propuestas_las_rechaza_al_modelo(tmp_path, ningun_host):
+    runtime = await _runtime(tmp_path, API)
+    agente = runtime._agents["demo-agent"]
+    patron = _PideLaTool([("erp_cliente_crear_pedido", {"sku": "A-1", "cantidad": 1})])
+    agente._pattern = patron
+    r = await runtime.run("demo-agent", "x", "s1", connections=CONEXIONES, admite_propuestas=False)
+    assert patron.observaciones[0] == {
+        "success": False,
+        "data": None,
+        "metadata": {},
+        "error": SIN_CANAL,
+    }
+    assert "este canal no admite escrituras con aprobación" in SIN_CANAL
+    assert r["propuestas"] == []
+
+
+async def test_las_rutas_de_canal_corren_sin_admitir_propuestas(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from astromesh.api.routes import agent_channels
+    from astromesh.channels.base import ChannelMessage
+
+    runtime = MagicMock()
+    runtime.run = AsyncMock(return_value={"answer": "ok"})
+    adapter = MagicMock()
+    adapter.send_text = AsyncMock()
+    monkeypatch.setattr(agent_channels, "_runtime", runtime)
+    monkeypatch.setattr(agent_channels, "get_agent_channel", lambda *_: (adapter, None))
+    monkeypatch.setattr(agent_channels, "build_multimodal_query", AsyncMock(return_value="hola"))
+    msg = ChannelMessage(
+        sender_id="1",
+        text="hola",
+        media=[],
+        message_id="m",
+        timestamp="0",
+        channel="whatsapp",
+    )
+    await agent_channels._process_agent_message("demo-agent", "whatsapp", msg)
+    assert runtime.run.call_args.kwargs["admite_propuestas"] is False

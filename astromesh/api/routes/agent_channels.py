@@ -65,10 +65,13 @@ async def _process_agent_message(agent_name: str, channel_type: str, message) ->
 
         query = await build_multimodal_query(message, adapter)
         context = {"contact_name": message.contact_name} if message.contact_name else None
+        # Esta ruta no devuelve `propuestas`: una escritura con aprobación se
+        # le rechaza al modelo en vez de perderse (`integrations/propuestas.py`).
         result = await _runtime.run(
             agent_name=agent_name,
             query=query,
             session_id=f"{channel_type}_{message.sender_id}",
+            admite_propuestas=False,
             context=context,
         )
         answer = result.get("answer", "Sorry, I couldn't process your message.")

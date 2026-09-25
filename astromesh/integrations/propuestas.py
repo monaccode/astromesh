@@ -31,9 +31,13 @@ CLAVE_PROPUESTAS = "propuestas"
 MAX_PROPUESTAS = 20
 MAX_BYTES_ARGUMENTOS = 16 * 1024
 AVISO = (
-    "Quedó registrado para aprobación; no se ejecutó. Seguí como si se fuera "
-    "a aprobar y decí qué propusiste."
+    "Quedó registrado para aprobación; NO se ejecutó. No asumas que se hizo ni "
+    "hagas pasos que dependan de su resultado; decí qué propusiste."
 )
+#: Lo que viaja bajo `CLAVE_PROPUESTAS` cuando la corrida NO puede devolver
+#: propuestas: en vez de la lista, el motivo que el handler le contesta al modelo.
+SOLO_PRINCIPAL = "esta herramienta sólo propone desde la corrida principal: no se registró nada"
+SIN_CANAL = "este canal no admite escrituras con aprobación: no se registró nada"
 
 
 def handler_de_propuesta(
@@ -50,24 +54,28 @@ def handler_de_propuesta(
     async def _handler(_run_context=None, **argumentos):
         lista = (_run_context or {}).get(CLAVE_PROPUESTAS)
         if not isinstance(lista, list):
+            motivo = lista if isinstance(lista, str) else SOLO_PRINCIPAL
+            return ToolResult(success=False, data=None, error=motivo).to_dict()
+        # `chain/validate.py` y no `jsonschema`: ése es dependencia de dev
+        # (`pyproject.toml:61`). Valida `type` (también en lista), `properties`,
+        # `required`, `enum` e `items`; lo demás no lo mira.
+        try:
+            errores = validate(argumentos, schema)
+            crudo = json.dumps(argumentos, ensure_ascii=False, separators=(",", ":"))
+        except Exception as exc:  # noqa: BLE001
+            # Un error acá vuelve al modelo y no sube: si subiera, `Agent.run`
+            # fallaría y se perderían las propuestas ya anotadas de la corrida.
             return ToolResult(
                 success=False,
                 data=None,
-                error=(
-                    "esta herramienta sólo propone desde la corrida principal: no se registró nada"
-                ),
+                error=f"no se pudieron validar los argumentos, no se registró: {exc}",
             ).to_dict()
-        # `chain/validate.py` y no `jsonschema`: ése es dependencia de dev
-        # (`pyproject.toml:61`). Valida `type`, `properties`, `required`,
-        # `enum` e `items`; lo demás no lo mira.
-        errores = validate(argumentos, schema)
         if errores:
             return ToolResult(
                 success=False,
                 data=None,
                 error="argumentos inválidos, no se registró: " + "; ".join(errores[:5]),
             ).to_dict()
-        crudo = json.dumps(argumentos, ensure_ascii=False, separators=(",", ":"))
         if len(crudo.encode()) > MAX_BYTES_ARGUMENTOS:
             return ToolResult(
                 success=False,

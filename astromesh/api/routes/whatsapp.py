@@ -41,10 +41,13 @@ async def _process_message(message):
     try:
         # Download media and build the query (str or multimodal list).
         query = await build_multimodal_query(message, _whatsapp)
+        # Esta ruta no devuelve `propuestas`: una escritura con aprobación se
+        # le rechaza al modelo en vez de perderse (`integrations/propuestas.py`).
         result = await _runtime.run(
             agent_name=_default_agent,
             query=query,
             session_id=f"wa_{message.sender_id}",
+            admite_propuestas=False,
         )
         answer = result.get("answer", "Lo siento, no pude procesar tu mensaje.")
         await _whatsapp.send_text(message.sender_id, answer)

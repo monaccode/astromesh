@@ -18,7 +18,12 @@ from astromesh.integrations import default_catalog
 from astromesh.integrations.api import manifiesto_de_api
 from astromesh.integrations.credentials import CredentialResolver
 from astromesh.integrations.mcp import handler_de_tool, nombre_de_tool, servidor_de_mcp
-from astromesh.integrations.propuestas import CLAVE_PROPUESTAS, handler_de_propuesta
+from astromesh.integrations.propuestas import (
+    CLAVE_PROPUESTAS,
+    SIN_CANAL,
+    SOLO_PRINCIPAL,
+    handler_de_propuesta,
+)
 from astromesh.memory.factory import build_conversation_backend
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
@@ -717,8 +722,8 @@ class AgentRuntime:
 
         loader = ToolLoader()
         loader.auto_discover()
-        # Las tools `mcp` registradas, para el repaso del final del loop.
-        de_mcp: dict[str, tuple[str, object]] = {}
+        # Las tools `api` y `mcp` registradas, para el repaso del final del loop.
+        vigiladas: dict[str, tuple[str, object]] = {}
         for tool_def in spec.get("tools", []):
             tool_type = tool_def.get("type", "internal")
             if sobrantes := claves_ignoradas(tool_def):
@@ -885,6 +890,15 @@ class AgentRuntime:
                 manifest, conexion = manifiesto_de_api(tool_def)
                 resolver = self._credential_resolver()
                 for action in manifest.actions:
+                    nombre = f"{manifest.slug}_{action.name}"
+                    quien = f"tool api {tool_def['name']!r}: '{action.name}'"
+                    # Como en `mcp` (abajo): un choque con lo ya registrado
+                    # levanta, y el repaso del final cubre lo que viene después.
+                    # En una que propone, pisarla la cambiaría por una llamada.
+                    if nombre in tools._tools:
+                        raise ValueError(
+                            f"{quien} se registraría como '{nombre}', que el agente ya tiene"
+                        )
                     if action.mutates:
                         # `manifiesto_de_api` sólo deja pasar `writes: true`
                         # con `mode: propose`: propone, no llama a la API.
@@ -901,16 +915,17 @@ class AgentRuntime:
                             parameters=action.tool_parameters(),
                             rate_limit=tool_def.get("rate_limit"),
                         )
-                        continue
-                    tools.register_integration_tool(
-                        name=f"{manifest.slug}_{action.name}",
-                        manifest=manifest,
-                        action=action,
-                        connection=conexion,
-                        resolver=resolver,
-                        rate_limit=tool_def.get("rate_limit"),
-                        permitir_internos=False,
-                    )
+                    else:
+                        tools.register_integration_tool(
+                            name=nombre,
+                            manifest=manifest,
+                            action=action,
+                            connection=conexion,
+                            resolver=resolver,
+                            rate_limit=tool_def.get("rate_limit"),
+                            permitir_internos=False,
+                        )
+                    vigiladas[nombre] = (quien, tools._tools[nombre])
             elif tool_type == "mcp":
                 # Sin red a propósito: la instantánea de tools la trae el
                 # manifiesto (CLARUS la descubrió) y la credencial llega recién
@@ -941,7 +956,7 @@ class AgentRuntime:
                         parameters=t.input_schema,
                         rate_limit=servidor.rate_limit,
                     )
-                    de_mcp[nombre] = (
+                    vigiladas[nombre] = (
                         f"tool mcp {servidor.name!r}: '{t.name}'",
                         tools._tools[nombre],
                     )
@@ -959,10 +974,10 @@ class AgentRuntime:
                     tool_def.get("name"),
                     tool_type,
                 )
-        # El chequeo de adentro sólo ve lo registrado ANTES de la `mcp`; una
-        # tool declarada DESPUÉS con el mismo nombre la pisa sin avisar
+        # El chequeo de adentro sólo ve lo registrado ANTES de la `api`/`mcp`;
+        # una tool declarada DESPUÉS con el mismo nombre la pisa sin avisar
         # (`core/tools.py:91-92`). Este repaso cubre ese orden.
-        for nombre, (quien, definicion) in de_mcp.items():
+        for nombre, (quien, definicion) in vigiladas.items():
             if tools._tools.get(nombre) is not definicion:
                 raise ValueError(f"{quien} se registraría como '{nombre}', que el agente ya tiene")
         pattern = self._build_pattern(
@@ -1075,6 +1090,7 @@ class AgentRuntime:
         on_event=None,
         connections=None,
         desde_humano: bool = True,
+        admite_propuestas: bool = True,
     ):
         agent = self._agents.get(agent_name)
         if not agent:
@@ -1087,6 +1103,7 @@ class AgentRuntime:
             on_event=on_event,
             connections=connections,
             desde_humano=desde_humano,
+            admite_propuestas=admite_propuestas,
         )
 
     def agent_error(self, name: str) -> str | None:
@@ -1260,6 +1277,7 @@ class Agent:
         on_event=None,
         connections=None,
         desde_humano: bool = True,
+        admite_propuestas: bool = True,
     ):
         from datetime import UTC, datetime
 
@@ -1332,9 +1350,13 @@ class Agent:
             # Lo que propusieron las tools `mode: propose` en ESTA corrida
             # (`integrations/propuestas.py`). Una lista por corrida, local a
             # esta llamada: dos corridas simultáneas del mismo agente no se ven.
-            # Una corrida re-entrante no recibe lista: su respuesta no llega a
-            # la de `/run`, y proponer ahí se rechaza en vez de perderse.
-            propuestas: list[dict] | None = [] if desde_humano else None
+            # Una corrida re-entrante, o la de un canal que no devuelve
+            # `propuestas` (`admite_propuestas=False`: WhatsApp,
+            # `agent_channels`), no recibe lista sino el motivo: su respuesta no
+            # las llevaría, y proponer ahí se rechaza en vez de perderse.
+            propuestas: list[dict] | str = (
+                SOLO_PRINCIPAL if not desde_humano else [] if admite_propuestas else SIN_CANAL
+            )
 
             # Las búsquedas fijas del turno, antes del LLM: con las MISMAS
             # credenciales que `tool_fn` (connections + run_secrets). Ver
@@ -1679,7 +1701,7 @@ class Agent:
                     root_span.set_attribute("output_data_error", data_error)
 
             result["trace"] = tracing.to_dict()
-            result["propuestas"] = propuestas or []
+            result["propuestas"] = propuestas if isinstance(propuestas, list) else []
             logger.debug(
                 "agent.run %s finished answer_chars=%d steps=%d",
                 self.name,
