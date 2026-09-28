@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-09-28
+
+### Changed
+- Bumped the `astromesh` core dependency floor to `>=0.60.0` (`AgentRuntime.reload()`).
+
 ### Added
 - **SIGHUP / `systemctl reload` recarga los agentes** vía `runtime.reload()` (core ≥ 0.60.0), entre `RELOADING=1` y `READY=1`; un fallo se loguea y el daemon sigue. `runtime.yaml` requiere reinicio y se avisa si cambió.
 
