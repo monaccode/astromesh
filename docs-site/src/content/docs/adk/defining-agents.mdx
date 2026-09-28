@@ -14,7 +14,7 @@ async def assistant(ctx):
     return None  # Use default orchestration
 ```
 
-The docstring becomes the system prompt. Return `None` to use the default orchestration pipeline, or use `ctx.run_default()` for pre/post processing.
+The docstring becomes the system prompt. Return `None` to run the agent's orchestration pattern, or return a string to answer directly without calling the model. (`ctx.run_default()` is not wired by the runner and raises.)
 
 ## Class-Based Agents
 
@@ -22,22 +22,20 @@ The docstring becomes the system prompt. Return `None` to use the default orches
 from astromesh_adk import Agent, RunContext
 
 class MyAgent(Agent):
+    """You are a planning assistant."""
+
     name = "custom"
     model = "ollama/llama3"
     pattern = "plan_and_execute"
-
-    def system_prompt_fn(self, ctx: RunContext) -> str:
-        return f"You help {ctx.user_id}"
 
     async def on_before_run(self, ctx: RunContext):
         """Called before execution."""
 
     async def on_after_run(self, ctx: RunContext, result):
         """Called after execution."""
-
-    async def on_tool_call(self, ctx: RunContext, tool_name: str, args: dict):
-        """Called before each tool call."""
 ```
+
+The class docstring is the system prompt. `on_before_run` and `on_after_run` are called by the runner; `system_prompt_fn` and `on_tool_call` exist on the base class but the runner does not call them yet.
 
 ## Configuration Options
 
@@ -45,9 +43,12 @@ class MyAgent(Agent):
 |-----------|------|-------------|
 | `name` | `str` | Agent identifier |
 | `model` | `str` | Provider/model (e.g., `"openai/gpt-4o"`) |
+| `description` | `str` | Shown when the agent is used as a tool. Defaults to `name` |
 | `tools` | `list` | Tools available to the agent |
-| `pattern` | `str` | Orchestration: `react`, `plan_and_execute`, `parallel`, `pipeline`, `supervisor`, `swarm` |
-| `memory` | `str \| dict` | Memory config (e.g., `"sqlite"`) |
+| `pattern` | `str` | Orchestration: `react` (default), `plan_and_execute`, `parallel_fan_out`, `pipeline`. An unknown value falls back to `react`. `supervisor`, `swarm` and `parallel` are [team](/astromesh/adk/multi-agent/) patterns |
+| `max_iterations` | `int` | Orchestration iteration cap. Default `10` |
+| `memory` | `str \| dict` | Conversational memory, built by the core factory — only `redis` is supported, with its URL: `{"conversational": {"backend": "redis", "connection": {"url": "redis://..."}}}` and the core `redis` extra. Any other backend makes the run raise |
 | `guardrails` | `dict` | Input/output guardrails |
 | `fallback_model` | `str` | Fallback provider/model |
-| `routing` | `str` | Routing strategy |
+| `routing` | `str` | Routing strategy. Default `cost_optimized` |
+| `model_config` | `dict` | Extra model parameters |

@@ -5,19 +5,21 @@ description: All Orbit commands with flags, examples, and expected output
 
 import { Aside } from '@astrojs/starlight/components';
 
-Orbit registers as a plugin for the `astromeshctl` CLI. All commands are available under the `orbit` subcommand.
+Orbit registers as a plugin for the `astromeshctl` CLI (the `astromeshctl.plugins` entry point), so installing `astromesh-orbit` next to `astromesh-cli` adds the `orbit` subcommand.
 
 ```bash
 astromeshctl orbit <command> [options]
 ```
 
 <Aside type="note">
-  Orbit requires Terraform to be installed and available on your `PATH`. If Terraform is not found, `orbit init` will show installation instructions.
+  `plan`, `apply`, `destroy` and `status` shell out to Terraform, which must be installed and on your `PATH`. If it is not found, the command prints installation instructions and exits with code 1.
 </Aside>
+
+Every command that reads a config exits with code 1 and `orbit.yaml not found. Run 'astromeshctl orbit init' first.` when the file is missing.
 
 ## orbit init
 
-Initialize a new `orbit.yaml` configuration file using an interactive wizard.
+Generate `orbit.yaml` with an interactive wizard.
 
 ```
 astromeshctl orbit init [--provider <name>] [--preset <tier>]
@@ -27,60 +29,51 @@ astromeshctl orbit init [--provider <name>] [--preset <tier>]
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--provider` | string | *(wizard prompt)* | Cloud provider. Currently only `gcp`. |
-| `--preset` | string | *(wizard prompt)* | Skip the wizard and use a preset: `starter` or `pro`. |
+| `--provider` | string | `gcp` | Accepted but not used yet: the wizard always asks. |
+| `--preset` | string | — | Accepted but not used yet: the wizard always asks (`starter` or `pro`). |
 
-**Example — interactive wizard:**
+<Aside type="caution">
+  `init` always runs the interactive wizard; there is no non-interactive mode today. For CI, commit an `orbit.yaml` written by hand (see [Configuration](/astromesh/orbit/configuration/)).
+</Aside>
+
+**Example:**
 
 ```bash
 astromeshctl orbit init
 ```
 
 ```
-╭─ Astromesh Orbit ─────────────────────────────────╮
-│                                                    │
-│  Welcome! Let's configure your deployment.         │
-│                                                    │
-╰────────────────────────────────────────────────────╯
+  🛰️  Astromesh Orbit — Cloud Deployment Setup
 
-? Cloud provider: gcp
-? GCP Project ID: my-project-123
-? Region: us-central1
-? Deployment preset:
-  ❯ Starter (~$30/mo)
-    Pro (~$150/mo)
-    Custom
-? Deployment name: my-astromesh
-? Environment: production
+  Cloud provider [gcp] (gcp): gcp
+  GCP Project ID: my-project-123
+  Region [us-central1/us-east1/us-west1/europe-west1/europe-west4/asia-east1/asia-southeast1/southamerica-east1] (us-central1):
+  Deployment name (my-astromesh):
+  Environment [dev/staging/production] (dev): production
 
-✓ Generated orbit.yaml
-✓ Added .orbit/ to .gitignore
+    starter (~$15/mo) — no HA, 1GB cache
+    pro (~$80/mo) — HA, 4GB cache
+
+  Preset [starter/pro] (starter):
+
+  OK orbit.yaml written
+
+  OK .orbit/ added to .gitignore
 ```
 
-**Example — non-interactive with preset:**
-
-```bash
-astromeshctl orbit init --provider gcp --preset starter
-```
-
-```
-✓ Generated orbit.yaml (Starter preset)
-✓ Added .orbit/ to .gitignore
-
-Edit orbit.yaml to set your GCP project ID and region, then run:
-  astromeshctl orbit plan
-```
+<Aside type="caution">
+  The wizard offers `dev` as an environment, but the `orbit.yaml` schema accepts `develop`, `staging` or `production`. If you pick `dev`, change it to `develop` in the generated file before running `plan`, or the config fails validation.
+</Aside>
 
 **Side effects:**
-- Creates `orbit.yaml` in the current directory
-- Appends `.orbit/` to `.gitignore` if not already present
-- Validates that Terraform is installed (shows installation instructions if missing)
+- Writes `orbit.yaml` in the current directory
+- Appends `.orbit/` to `.gitignore` (creating it if missing)
 
 ---
 
 ## orbit plan
 
-Validate configuration, generate Terraform files, and preview infrastructure changes.
+Validate the GCP project, render the Terraform files, and run `terraform plan`.
 
 ```
 astromeshctl orbit plan [--config <path>]
@@ -99,61 +92,40 @@ astromeshctl orbit plan
 ```
 
 ```
-Validating configuration...
-✓ GCP project 'my-project-123' exists
-✓ User has roles/editor
-✓ API run.googleapis.com enabled
-✓ API sqladmin.googleapis.com enabled
-✓ API redis.googleapis.com enabled
-✓ API secretmanager.googleapis.com enabled
-✓ API vpcaccess.googleapis.com enabled
+  Orbit Deployment Plan
 
-Generating Terraform files...
-✓ Generated 10 files in .orbit/generated/
+  Validating... OK
+  OK State bucket exists: gs://my-project-123-astromesh-orbit-state
 
-Running terraform plan...
-
-Terraform Plan:
-──────────────────────────────────────────────
-
-+ google_cloud_run_v2_service.runtime
-+ google_sql_database_instance.main
-+ google_sql_database.astromesh
-+ google_redis_instance.cache
-+ google_secret_manager_secret.jwt_secret
-+ google_vpc_access_connector.main
-+ google_service_account.orbit
-+ google_project_iam_member.orbit (4 bindings)
-
-Plan: 10 to add, 0 to change, 0 to destroy.
-Estimated monthly cost: ~$15 (Starter preset)
+  Resources to create: 19
+  Resources to update: 0
+  Resources to destroy: 0
 ```
 
-**Failure example — missing API:**
+**Failure example — API not enabled:**
 
 ```
-Validating configuration...
-✓ GCP project 'my-project-123' exists
-✓ User has roles/editor
-✓ API run.googleapis.com enabled
-✗ API sqladmin.googleapis.com is NOT enabled
+  Validating... FAILED
 
-  Enable it now? [y/N]: y
-  ✓ Enabled sqladmin.googleapis.com
-
-Continuing validation...
+    OK Authenticated as you@example.com
+    OK Project my-project-123 found
+    FAIL sqladmin.googleapis.com not enabled
+      -> gcloud services enable sqladmin.googleapis.com --project=my-project-123
 ```
+
+Validation failures exit with code 1; Orbit prints the remediation command but does not enable anything for you.
 
 **Side effects:**
-- Creates/overwrites `.orbit/generated/*.tf` files
-- Initializes Terraform in `.orbit/` (downloads provider plugins)
-- Does NOT modify any cloud resources
+- Creates/overwrites `.orbit/generated/*.tf`
+- Runs `terraform init` in `.orbit/generated/`
+- Creates the Terraform state bucket if it does not exist yet (and, when authenticating with a service-account key, the VPC peering Cloud SQL needs)
+- Does not create any stack resources
 
 ---
 
 ## orbit apply
 
-Provision the full Astromesh stack by running `terraform apply`.
+Validate, render and run `terraform apply` for the full stack.
 
 ```
 astromeshctl orbit apply [--config <path>] [--auto-approve]
@@ -164,57 +136,46 @@ astromeshctl orbit apply [--config <path>] [--auto-approve]
 | Flag | Type | Default | Description |
 |---|---|---|---|
 | `--config` | path | `orbit.yaml` | Path to the Orbit configuration file. |
-| `--auto-approve` | bool | false | Skip the confirmation prompt. Useful for CI/CD. |
+| `--auto-approve` | bool | false | Accepted for CI scripts; `apply` does not prompt either way. |
+
+<Aside type="caution">
+  `apply` does not ask for confirmation: it runs `terraform apply -auto-approve`. Run `orbit plan` first to see what will change.
+</Aside>
 
 **Example:**
 
 ```bash
-astromeshctl orbit apply
+astromeshctl orbit apply --config orbit.prod.yaml
 ```
 
 ```
-Validating and planning...
-✓ Validation passed (5 checks)
-✓ Plan: 10 to add, 0 to change, 0 to destroy
+  Astromesh Orbit -- Deploying
 
-Do you want to apply this plan? [y/N]: y
+  OK State bucket exists: gs://my-project-123-astromesh-orbit-state
 
-Applying...
-✓ google_service_account.orbit                  (3s)
-✓ google_vpc_access_connector.main              (45s)
-✓ google_sql_database_instance.main             (8m 12s)
-✓ google_redis_instance.cache                   (5m 30s)
-✓ google_secret_manager_secret.jwt_secret       (2s)
-✓ google_cloud_run_v2_service.runtime           (12s)
+  OK Deployment complete!
 
-Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
+         Endpoints
+┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Service ┃ URL                                        ┃
+┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ runtime │ https://astromesh-runtime-abc123.run.app   │
+└─────────┴────────────────────────────────────────────┘
 
-╭─ Deployment Complete ─────────────────────────────╮
-│                                                    │
-│  Runtime:   https://astromesh-runtime-abc123.run.app
-│                                                    │
-│  Connection details saved to .orbit/orbit.env      │
-│                                                    │
-╰────────────────────────────────────────────────────╯
-```
-
-**Example — CI/CD (non-interactive):**
-
-```bash
-astromeshctl orbit apply --auto-approve --config orbit.prod.yaml
+  Environment file: .orbit/orbit.env
 ```
 
 **Side effects:**
-- Creates cloud resources (Cloud Run, Cloud SQL, Memorystore, etc.)
-- Creates/updates the Terraform state bucket
-- Writes `.orbit/orbit.env` with connection strings and endpoints
+- Creates or updates cloud resources (Cloud Run, Cloud SQL, Memorystore, etc.)
+- Creates the Terraform state bucket if needed
+- Writes `.orbit/orbit.env` with the Terraform outputs
 - Idempotent — safe to re-run after a partial failure
 
 ---
 
 ## orbit status
 
-Show the current status of all deployed resources by reading the Terraform state.
+Show the runtime service's status from the Terraform outputs.
 
 ```
 astromeshctl orbit status [--config <path>]
@@ -233,29 +194,26 @@ astromeshctl orbit status
 ```
 
 ```
-Deployment: my-astromesh (production)
-Provider:   gcp / my-project-123 / us-central1
-State:      gs://my-project-123-astromesh-orbit-state
-Last applied: 2026-03-18T14:32:00Z
+                                 Deployment Status
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Resource          ┃ Type                 ┃ Status  ┃ URL                                        ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ astromesh-runtime │ cloud_run_v2_service │ running │ https://astromesh-runtime-abc123.run.app   │
+└───────────────────┴──────────────────────┴─────────┴────────────────────────────────────────────┘
 
-RESOURCE                  TYPE                    STATUS    URL
-astromesh-runtime         cloud_run_v2_service    running   https://astromesh-runtime-abc123.run.app
-main                      sql_database_instance   running   —
-cache                     redis_instance          running   —
-orbit                     service_account         active    —
-main-connector            vpc_access_connector    ready     —
-jwt-secret                secret_manager_secret   active    —
+  State bucket: my-project-123-astromesh-orbit-state
 ```
 
+The status is `running` when the `runtime_url` output exists and `not_found` otherwise; it does not query each cloud resource.
+
 **Side effects:**
-- Reads Terraform state from the remote bucket (read-only)
-- Does NOT modify any cloud resources
+- Reads Terraform outputs (read-only)
 
 ---
 
 ## orbit destroy
 
-Tear down all provisioned resources by running `terraform destroy`.
+Tear down all provisioned resources with `terraform destroy`.
 
 ```
 astromeshctl orbit destroy [--config <path>] [--auto-approve]
@@ -275,31 +233,11 @@ astromeshctl orbit destroy
 ```
 
 ```
-Reading current state...
+This will destroy ALL infrastructure. Continue? [y/N]: y
 
-Resources to destroy:
-  - google_cloud_run_v2_service.runtime
-  - google_sql_database_instance.main
-  - google_redis_instance.cache
-  - google_secret_manager_secret.jwt_secret
-  - google_vpc_access_connector.main
-  - google_service_account.orbit
-  - google_project_iam_member.orbit (4 bindings)
+  Destroying infrastructure...
 
-⚠ This will permanently destroy 10 resources.
-  The state bucket will NOT be deleted.
-
-Do you want to proceed? [y/N]: y
-
-Destroying...
-✓ google_cloud_run_v2_service.runtime           (5s)
-✓ google_redis_instance.cache                   (2m 15s)
-✓ google_sql_database_instance.main             (3m 45s)
-✓ google_secret_manager_secret.jwt_secret       (2s)
-✓ google_vpc_access_connector.main              (30s)
-✓ google_service_account.orbit                  (3s)
-
-Destroy complete! Resources: 10 destroyed.
+  OK All resources destroyed.
 ```
 
 <Aside type="caution">
@@ -308,15 +246,13 @@ Destroy complete! Resources: 10 destroyed.
 
 **Side effects:**
 - Destroys all cloud resources managed by Orbit
-- Updates the Terraform state
-- Does NOT delete the state bucket
-- Does NOT delete `orbit.yaml` or `.orbit/`
+- Does NOT delete the state bucket, `orbit.yaml` or `.orbit/`
 
 ---
 
 ## orbit eject
 
-Generate standalone Terraform files with no Orbit dependency. The ejected files can be managed directly with the `terraform` CLI.
+Write standalone Terraform files with no Orbit dependency, to manage directly with the `terraform` CLI.
 
 ```
 astromeshctl orbit eject [--output-dir <path>]
@@ -328,6 +264,8 @@ astromeshctl orbit eject [--output-dir <path>]
 |---|---|---|---|
 | `--output-dir` | path | `./orbit-terraform` | Directory where standalone Terraform files are written. |
 
+`eject` always reads `./orbit.yaml`; it has no `--config` flag.
+
 **Example:**
 
 ```bash
@@ -335,57 +273,42 @@ astromeshctl orbit eject --output-dir ./my-terraform
 ```
 
 ```
-Generating standalone Terraform files...
+  OK Terraform files exported to my-terraform/
+  These are standalone -- no Orbit dependency.
 
-Written to ./my-terraform/:
-  backend.tf        — Remote state configuration (points to existing bucket)
-  main.tf           — Provider configuration and locals
-  cloud_run.tf      — Cloud Run service (runtime)
-  cloud_sql.tf      — Cloud SQL for PostgreSQL
-  memorystore.tf    — Memorystore for Redis
-  secrets.tf        — Secret Manager entries
-  networking.tf     — VPC Connector
-  iam.tf            — Service account and IAM bindings
-  variables.tf      — Input variables
-  outputs.tf        — Output values (URLs, connection strings)
-  terraform.tfvars  — All values from orbit.yaml
-
-✓ Ejected 11 files to ./my-terraform/
-
-To take over Terraform management:
-  cd ./my-terraform
-  terraform init
-  terraform plan
+  Next steps:
+    cd ./my-terraform
+    terraform plan
+    terraform apply
 ```
 
 **Key details:**
+- One `.tf` file per Orbit template (`backend.tf`, `main.tf`, `cloud_run.tf`, `cloud_sql.tf`, `memorystore.tf`, `secrets.tf`, `networking.tf`, `iam.tf`, `storage.tf`, `artifact_registry.tf`, `monitoring.tf`, `variables.tf`, `outputs.tf`), each with a header comment
+- `terraform.tfvars` with `project_id`, `region` and `deployment_name`
 - `backend.tf` points to the existing state bucket — no state migration needed
-- `terraform.tfvars` contains all resolved values from `orbit.yaml` (no inlined values in `.tf` files)
-- Ejected files include explanatory comments (e.g., `# Cloud SQL instance for Astromesh runtime database`)
-- Ejecting is non-destructive — `orbit apply` still works after ejecting
-- If you modify ejected files and apply them directly with `terraform apply`, state will diverge from what Orbit expects
+- Ejecting is non-destructive — `orbit apply` still works after ejecting. If you change the ejected files and apply them directly, state diverges from what Orbit renders
 
 **Side effects:**
 - Writes files to the output directory
-- Does NOT modify any cloud resources
-- Does NOT affect `.orbit/` or `orbit.yaml`
+- Does NOT modify any cloud resources, `.orbit/` or `orbit.yaml`
 
 ---
 
 ## orbit logs
 
-Read the runtime service's Cloud Run logs from Cloud Logging.
+Read the runtime service's logs (`astromesh-runtime`) from Cloud Logging.
 
 ```
-astromeshctl orbit logs [--limit <n>] [--since <duration>]
+astromeshctl orbit logs [--config <path>] [--limit <n>] [--since <duration>]
 ```
 
 **Flags:**
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
+| `--config` | path | `orbit.yaml` | Path to the Orbit configuration file (for the project ID). |
 | `--limit` | int | 50 | Maximum number of log entries to fetch. |
-| `--since` | string | `1h` | Time window to query, e.g. `30m`, `1h`, `24h`. |
+| `--since` | string | `1h` | Freshness window, e.g. `10m`, `1h`, `2d`. |
 
 **Example:**
 
@@ -393,30 +316,27 @@ astromeshctl orbit logs [--limit <n>] [--since <duration>]
 astromeshctl orbit logs --limit 20 --since 30m
 ```
 
-```
-2026-07-14T10:02:11Z  INFO  Agent run started (agent=support, session=abc123)
-2026-07-14T10:02:12Z  INFO  Tool call: web_search
-2026-07-14T10:02:14Z  INFO  Agent run completed (200 OK, 1.8s)
-```
+Prints a table of timestamp, severity and message. With no entries it prints `No log entries in the last 30m.`; if `gcloud` is not authenticated it exits with code 1 and suggests `gcloud auth login`.
 
 **Side effects:**
-- Read-only — queries Cloud Logging, does not modify any cloud resources
+- Read-only — queries Cloud Logging
 
 ---
 
 ## orbit upgrade
 
-Re-render the Terraform templates after an `astromesh-orbit` package update and show a diff against the currently generated files.
+Re-render the Terraform templates after an `astromesh-orbit` package update and show a diff against `.orbit/generated/`.
 
 ```
-astromeshctl orbit upgrade [--apply]
+astromeshctl orbit upgrade [--config <path>] [--apply]
 ```
 
 **Flags:**
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--apply` | bool | false | Write the re-rendered templates to `.orbit/generated/`. Without this flag, only a diff is shown. |
+| `--config` | path | `orbit.yaml` | Path to the Orbit configuration file. |
+| `--apply` | bool | false | Write the re-rendered templates to `.orbit/generated/` (templates the package dropped are removed). Without it, only the diff is shown. |
 
 **Example:**
 
@@ -425,18 +345,15 @@ astromeshctl orbit upgrade
 ```
 
 ```
-Re-rendering Terraform templates from installed astromesh-orbit v0.4.0...
+--- current/monitoring.tf
++++ new/monitoring.tf
+...
 
---- .orbit/generated/monitoring.tf
-+++ .orbit/generated/monitoring.tf (new)
-+ resource "google_monitoring_dashboard" "runtime" {
-+   ...
-+ }
-
-1 file added, 0 changed, 0 removed.
-Run with --apply to write these changes.
+Re-run with --apply to write these changes.
 ```
+
+When nothing changed it prints `Up to date — generated templates match this package.`
 
 **Side effects:**
 - Without `--apply`: read-only, prints a diff
-- With `--apply`: overwrites `.orbit/generated/*.tf` (does not run `terraform apply`)
+- With `--apply`: overwrites `.orbit/generated/*.tf` (does not run `terraform apply`; run `orbit plan` next)

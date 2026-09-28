@@ -5,6 +5,8 @@ description: astromesh-adk command line interface
 
 ## Commands
 
+An agent reference is `file.py:agent_name`; without `:agent_name`, `run` and `chat` use the first agent found in the file. `--session` / `-s` defaults to `default`.
+
 ### `run` — Execute an agent
 
 ```bash
@@ -40,15 +42,17 @@ Output:
 astromesh-adk check agents.py
 ```
 
-Validates: provider env vars, tool schemas, MCP commands, memory backends.
+Checks, per agent: the provider's API-key env var is set, `Tool` classes declare a `name`, and an MCP toolset's `command` is on `PATH`. Issues are printed; the exit code stays `0`.
 
 ### `dev` — Development server
 
 ```bash
-astromesh-adk dev agents.py --port 8000 --reload
+astromesh-adk dev agents.py --port 8000
 ```
+
+`--port` / `-p` defaults to `8000`. `--reload` / `-r` is accepted but the server does not start with it: the app is built in-process, and uvicorn only reloads an app given as an import string.
 
 Starts a FastAPI server with:
 - `GET /v1/health` — Health check
 - `GET /v1/agents` — List agents
-- `POST /v1/agents/{name}/run` — Execute agent
+- `POST /v1/agents/{name}/run` — Execute agent (body `{query, session_id?, context?}`, returns `{answer, steps}`)

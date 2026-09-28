@@ -124,7 +124,7 @@ spec:
   # --- Tools ---
   tools:
     - name: lookup_company
-      type: builtin                 # builtin | agent | client | integration
+      type: builtin                 # builtin | agent | client | integration | api | mcp
       description: "Look up company information from CRM"
       parameters:
         company_name:
@@ -146,6 +146,9 @@ spec:
 > executed by whoever is listening — the call arrives live via `on_event` and
 > afterwards in `steps`; with nobody listening it is a no-op), and `integration`
 > (actions from a catalog manifest — see [Integrations](/astromesh/configuration/integrations/)).
+> `api` and `mcp` (since v0.57.0 / v0.58.0) are a tenant's own API or MCP server declared
+> inline — see [Tenant APIs & MCP Servers](/astromesh/configuration/tenant-apis-and-mcp/).
+> Unlike the other types, an invalid `api` or `mcp` entry **does not load the agent**.
 >
 > `webhook` and `rag` appear in `ToolType` but are **not** declarable from YAML.
 > `internal` is deprecated: a YAML cannot supply a Python handler, so what it meant
@@ -327,9 +330,58 @@ Each tool is an object in the `tools` array:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | Yes | Tool name. Must be unique within the agent. |
-| `type` | Yes | Tool type loadable from YAML: `builtin` (a tool shipped with the runtime), `agent` (another agent, callable as a tool), or `client` (announced to the model, executed by whoever is listening). `mcp_stdio`/`mcp_sse`/`mcp_http`, `webhook` and `rag` exist in the runtime's `ToolType` but are not declarable from an agent YAML file. |
+| `type` | Yes | Tool type loadable from YAML: `builtin` (a tool shipped with the runtime), `agent` (another agent, callable as a tool), `client` (announced to the model, executed by whoever is listening), `integration` (catalog actions), `api` or `mcp` (a tenant's API or MCP server, declared inline). `mcp_stdio`/`mcp_sse`/`mcp_http`, `webhook` and `rag` exist in the runtime's `ToolType` but are not declarable from an agent YAML file. |
 | `description` | Yes | Description of what the tool does. Sent to the LLM for function calling. |
 | `parameters` | No | JSON Schema-like parameter definitions. Each parameter has a `type` and `description`. |
+
+### `spec.prefetch`
+
+Read-only lookups that run **before the model**, so a turn that always starts by looking up
+the same thing does not spend an LLM round trip deciding to do it. Available since
+astromesh **v0.51.0**.
+
+```yaml
+spec:
+  tools:
+    - name: praxis
+      type: integration
+      connection: praxis_main
+      actions: [buscar_records]
+  prefetch:
+    - name: cliente
+      tool: praxis_buscar_records          # the registered tool name, <slug>_<action>
+      arguments:
+        entidad: cliente
+        filter: "telefono:eq:{{ sender_phone }}"
+      when: "sender_phone is defined"      # optional; an expression, not a template
+  prompts:
+    system: |
+      {% if prefetch is defined and prefetch.cliente.success %}
+      Customer: {{ prefetch.cliente.data }}
+      {% endif %}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Key under `prefetch` in the prompt. Unique within the block. |
+| `tool` | Yes | A registered integration action (catalog `integration`, or an `api` read operation) whose request method is `GET` and that is not in `confirm`. |
+| `arguments` | No | Object. String values are Jinja2 templates rendered with the run context (the caller's keys such as `sender_phone`) and the results of earlier entries (`prefetch.<name>`). |
+| `when` | No | Jinja2 **expression**, evaluated rather than rendered — a rendered `{{ rows }}` of an empty list is the string `"[]"`, which is not empty. False skips the entry. |
+
+Entries run in order, after RAG and before the prompt is rendered, through
+`ToolRegistry.execute` with the run's own credentials. Each result lands in
+`prefetch.<name>` as `{success, data, metadata, error}`, and each call emits a
+`tool.prefetch` span.
+
+- **An invalid declaration does not load the agent** — an unregistered tool, a tool that is
+  not an integration action, a non-`GET` action, an action in `confirm`, a repeated `name`,
+  and (since **v0.51.1**) a `when` or an `arguments` template that does not compile. Unlike
+  the rest of the spec, skipping it silently would leave the model without the data.
+- **A lookup that fails at run time does not fail the turn.** The entry gets
+  `success: false` and the model keeps its tools. A `when` that compiles but raises while
+  evaluating degrades the same way.
+- A prompt that reads `prefetch` and may run on an older runtime must guard with
+  `prefetch is defined`: reading an attribute of an undefined variable is not silenced.
 
 ### `spec.memory`
 

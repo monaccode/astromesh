@@ -11,51 +11,26 @@ This guide covers installing Astromesh Node on Debian-based Linux distributions 
 |-------------|---------|-------|
 | Debian / Ubuntu | Debian 12+ / Ubuntu 22.04+ | `lsb_release -a` |
 | systemd | 250+ | `systemctl --version` |
-| Python | 3.12+ (bundled by the package) | `python3 --version` |
-| Architecture | amd64 or arm64 | `dpkg --print-architecture` |
+| Python | 3.12+ as the system `python3` (package dependency) | `python3 --version` |
+| Architecture | amd64 only | `dpkg --print-architecture` |
 | Network | Outbound to LLM provider or local Ollama | — |
 
 ## Download the Package
 
-Download the latest `.deb` package from GitHub Releases:
+Node packages are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```bash
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_amd64.deb
-```
-
-For ARM64 (e.g., Raspberry Pi, AWS Graviton):
-
-```bash
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_arm64.deb
-```
-
-To download a specific version, replace `latest` with the version tag (e.g., `v0.1.1`):
-
-```bash
-curl -LO https://github.com/monaccode/astromesh/releases/download/v0.1.1/astromesh_0.1.1_amd64.deb
+VERSION=0.1.3
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
 ```
 
 ## Install
 
 ```bash
-sudo apt install ./astromesh_latest_amd64.deb
+sudo apt install ./astromesh-node_${VERSION}_amd64.deb
 ```
 
-Expected output:
-
-```
-Reading package lists... Done
-Setting up astromesh (0.1.1) ...
-Creating system user 'astromesh'...
-Creating directories...
-  /etc/astromesh/
-  /var/lib/astromesh/
-  /var/log/astromesh/
-  /opt/astromesh/
-Installing Python virtual environment...
-Installing systemd service...
-astromesh installed successfully.
-```
+The package creates the `astromesh` system user, installs the virtualenv in `/opt/astromesh/venv/`, the config in `/etc/astromesh/` and the systemd unit, and enables the unit without starting it.
 
 Verify the installation:
 
@@ -66,11 +41,8 @@ astromeshctl version
 Expected output:
 
 ```
-Astromesh Node v0.1.1
-Daemon:   /opt/astromesh/bin/astromeshd
-CLI:      /opt/astromesh/bin/astromeshctl
-Python:   3.12.x
-Platform: linux/amd64
+astromesh-cli 0.3.1
+astromesh core 0.59.0
 ```
 
 ## Configure
@@ -81,26 +53,29 @@ Run the interactive wizard to generate your configuration:
 sudo astromeshctl init
 ```
 
-This creates:
+This creates, in `/etc/astromesh/`:
 
-- `/etc/astromesh/runtime.yaml` — daemon configuration (services, API, log level)
-- `/etc/astromesh/providers.yaml` — LLM provider connections
-- `/etc/astromesh/agents/default.agent.yaml` — default agent definition
+- `runtime.yaml` — daemon configuration (services, API, peers/mesh)
+- `providers.yaml` — LLM provider connections
+- `.env` — the provider API key, if you entered one (loaded by the systemd unit)
 
-To reinitialize with a specific profile non-interactively:
+The package already installs sample agents in `/etc/astromesh/agents/`. For a non-interactive setup:
 
 ```bash
-sudo astromeshctl init --profile full --provider ollama --model llama3.1:8b --non-interactive
+sudo astromeshctl init --role full --non-interactive
 ```
 
-See [Configuration](/astromesh/node/configuration/) for the full `runtime.yaml` schema and all 7 profiles.
+:::caution[The wizard does not find its role profile in a packaged install]
+It prints `Profile not found` and writes an empty `runtime.yaml`. Copy the profile the package ships instead: `sudo cp /etc/astromesh/profiles/full.yaml /etc/astromesh/runtime.yaml` (or `gateway`, `worker`, `inference`, `mesh-*`).
+:::
+
+See [Configuration](/astromesh/node/configuration/) for the full `runtime.yaml` schema and the roles.
 
 ## Start the Service
 
-Enable and start the daemon with systemd:
+The package enables the unit but does not start it:
 
 ```bash
-sudo systemctl enable astromeshd
 sudo systemctl start astromeshd
 ```
 
@@ -114,10 +89,9 @@ Expected output:
 
 ```
 ● astromeshd.service - Astromesh Agent Runtime Daemon
-     Loaded: loaded (/etc/systemd/system/astromeshd.service; enabled)
+     Loaded: loaded (/lib/systemd/system/astromeshd.service; enabled)
      Active: active (running) since Mon 2026-03-20 10:00:00 UTC; 5s ago
    Main PID: 4521 (astromeshd)
-     Status: "Ready — 1 agent(s) loaded"
      Memory: 128.0M
 ```
 
@@ -150,20 +124,22 @@ sudo journalctl -u astromeshd -p err
 |------|---------|
 | `/etc/astromesh/` | Configuration files |
 | `/var/lib/astromesh/` | Persistent state (memory, models) |
-| `/var/log/astromesh/` | Log files |
-| `/opt/astromesh/bin/` | `astromeshd` and `astromeshctl` binaries |
-| `/etc/systemd/system/astromeshd.service` | systemd unit file |
+| `/var/log/astromesh/` | Audit logs (daemon logs go to journald) |
+| `/opt/astromesh/venv/` | Virtualenv; `astromeshd` and `astromeshctl` are symlinked into `/usr/bin/` |
+| `/lib/systemd/system/astromeshd.service` | systemd unit file |
 
 ## Upgrade
 
 ```bash
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_amd64.deb
-sudo apt install ./astromesh_latest_amd64.deb
+VERSION=0.1.3
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
+sudo apt install ./astromesh-node_${VERSION}_amd64.deb
 ```
 
-The package restarts the service automatically. Verify:
+Upgrading stops the service (the old package's pre-remove script) and does not start it again. Start it and verify:
 
 ```bash
+sudo systemctl start astromeshd
 astromeshctl version
 astromeshctl status
 ```
@@ -171,17 +147,13 @@ astromeshctl status
 ## Uninstall
 
 ```bash
-sudo systemctl stop astromeshd
-sudo systemctl disable astromeshd
-sudo apt remove astromesh
+sudo apt remove astromesh-node
 ```
 
-To remove all configuration and data:
+Removing stops and disables the service. To also remove configuration, data, logs, the virtualenv and the `astromesh` user:
 
 ```bash
-sudo apt purge astromesh
-sudo rm -rf /etc/astromesh /var/lib/astromesh /var/log/astromesh
-sudo userdel astromesh
+sudo apt purge astromesh-node
 ```
 
 ## Next Steps

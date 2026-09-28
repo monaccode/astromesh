@@ -74,8 +74,9 @@ looking at, and their yes would authorize something they never read.
 ## Re-entrant runs cannot confirm
 
 `Agent.run` and `AgentRuntime.run` take `desde_humano` (default `True`). It is forced to
-`False` on the two entry points whose `query` was written by a model rather than a person:
-an agent invoked as a tool (`type: agent`) and a chain step.
+`False` on the entry points whose `query` was written by a model rather than a person:
+an agent invoked as a tool (`type: agent`), a workflow or chain step, and a call through
+astromesh's own MCP server.
 
 A re-entrant run can therefore **use** a permission a human already granted in the same
 session, but it can neither grant one nor close one. Without that rule, self-confirmation
@@ -89,7 +90,10 @@ loader raises at boot rather than leaving an agent whose proposal nothing can ev
 Stated plainly, because a security feature that overstates itself is worse than none:
 
 - `confirm:` is read **only** on `type: integration` tools. On any other type it is a
-  permission that gates nothing; the runtime warns and ignores it.
+  permission that gates nothing; the runtime warns and ignores it. A tenant's own API or MCP
+  server (`type: api` / `type: mcp`) gates its writes differently: with `mode: propose` the
+  write is never executed by the runtime, only returned to the caller for approval — see
+  [Tenant APIs & MCP Servers](/astromesh/configuration/tenant-apis-and-mcp/#mode-propose--writes-that-wait-for-approval).
 - Naming an action that is not in `actions` **raises** at boot. A mistyped permission is
   the one case here worth refusing to start for.
 - The notice guarantees *"it was written"*, not *"it was delivered"*. If the channel send
@@ -113,4 +117,6 @@ untouched.
 ## See also
 
 - [Integrations](/astromesh/configuration/integrations/) — where `confirm:` is declared
+- [Tenant APIs & MCP Servers](/astromesh/configuration/tenant-apis-and-mcp/) — `mode: propose`,
+  approval outside the conversation
 - [Agent YAML Schema](/astromesh/configuration/agent-yaml/)

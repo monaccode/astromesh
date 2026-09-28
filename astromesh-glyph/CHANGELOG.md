@@ -4,6 +4,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-27
+
+### Changed
+- Liberación alineada con la ronda de astromesh 0.59.0; sin cambios de código ni dependencias de runtime.
+
 ## [0.1.1] - 2026-08-10
 
 ### Added

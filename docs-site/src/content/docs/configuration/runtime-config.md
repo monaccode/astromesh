@@ -91,7 +91,7 @@ Eight boolean toggles that control which subsystems are active on this node. Dis
 | `api` | The FastAPI HTTP/WebSocket server. Almost always `true` — disable only for headless worker nodes that receive work via mesh. |
 | `agents` | The agent runtime engine. Loads agent YAML definitions and executes agent queries. Disable on gateway-only or inference-only nodes. |
 | `inference` | LLM provider connections and model routing. Disable on nodes that delegate inference to dedicated inference peers. |
-| `memory` | Memory backends (Redis, PostgreSQL, SQLite) for conversational, semantic, and episodic memory. Disable on nodes that do not manage state. |
+| `memory` | Memory backends for conversational (Redis), semantic, and episodic memory. Disable on nodes that do not manage state. |
 | `tools` | The tool registry for internal, MCP, webhook, and RAG-as-tool execution. Disable on nodes that do not run tools. |
 | `channels` | Channel adapters for external messaging platforms (WhatsApp, etc.). Enable on gateway or standalone nodes that receive external messages. |
 | `rag` | RAG pipeline execution — document chunking, embedding, vector search, and reranking. Disable on nodes that do not serve RAG queries. |

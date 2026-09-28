@@ -254,6 +254,8 @@ Iteration 2:
 └─────────────────────────────────────────────────┘
 ```
 
+When one LLM response asks for several tools, ReAct appends **one** assistant message carrying the full `tool_calls` list, followed by one `tool` message per call, paired by `tool_call_id` — the shape the OpenAI protocol defines. Before `0.48.0` it appended an assistant message per tool call, each repeating the response's `content` and `reasoning_content`; since the transcript is re-sent on every later iteration, a thinking model's reasoning was paid once per tool, on every turn.
+
 ### Other patterns
 
 **PlanAndExecute** first asks the LLM to create a numbered plan, then executes each step sequentially, calling tools as needed at each step.
@@ -411,7 +413,7 @@ After output guardrails pass, the Memory Manager persists the conversation turn.
 1. **`persist_turn(user_message)`** -- Stores the user's original query (after input guardrail redaction, if any) as a conversation turn.
 2. **`persist_turn(assistant_message)`** -- Stores the agent's final response as a conversation turn.
 
-Both turns are written to the configured conversational memory backend (Redis, PostgreSQL, or SQLite) and associated with the session ID.
+Both turns are written to the configured conversational memory backend (Redis — the only one the factory builds) and associated with the session ID.
 
 If **episodic memory** is configured, significant events from the execution are also recorded:
 - Tool calls made (tool name, arguments, result summary)

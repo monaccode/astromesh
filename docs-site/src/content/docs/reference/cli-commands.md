@@ -13,11 +13,11 @@ The daemon process. Bootstraps the runtime, starts the API server, and manages t
 |---------|-------------|
 | `astromeshd` | Start the daemon with auto-detected configuration |
 | `astromeshd --config PATH` | Start with an explicit configuration directory |
-| `astromeshd --port PORT` | Override the API server port (default: `8000`) |
-| `astromeshd --host HOST` | Override the bind address (default: `0.0.0.0`) |
+| `astromeshd --port PORT` | Override the API server port (default: `runtime.yaml`, else `8000`) |
+| `astromeshd --host HOST` | Override the bind address (default: `runtime.yaml`, else `0.0.0.0`) |
 | `astromeshd --log-level LEVEL` | Set logging level: `debug`, `info`, `warning`, `error` (default: `info`) |
-| `astromeshd --pid-file PATH` | Custom PID file location (default: `/var/run/astromesh/astromeshd.pid`) |
-| `astromeshd --workers N` | Number of Uvicorn worker processes (default: `1`) |
+| `astromeshd --pid-file PATH` | Custom PID file location (default: `astromeshd.pid` in the platform data dir, `/var/lib/astromesh/` on Linux) |
+| `astromeshd --foreground` | Run in foreground mode, without init-system integration |
 
 ### Examples
 
@@ -28,8 +28,8 @@ astromeshd --log-level debug
 # Production: explicit config, custom port
 astromeshd --config /etc/astromesh --port 9000
 
-# Multiple workers behind a load balancer
-astromeshd --workers 4 --port 8000
+# Foreground, no init-system integration
+astromeshd --foreground
 ```
 
 For detailed daemon documentation, see [Daemon (astromeshd)](/astromesh/reference/os/daemon/).
@@ -38,48 +38,49 @@ For detailed daemon documentation, see [Daemon (astromeshd)](/astromesh/referenc
 
 The CLI client. Communicates with a running daemon via the REST API.
 
-### Global Flags
+### Connecting to the daemon
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--host URL` | `http://localhost:8000` | Address of the Astromesh daemon to connect to |
-| `--json` | `false` | Output in machine-readable JSON format |
-| `--help` | -- | Show help for any command or subcommand |
+There are no global flags besides `--help` (and shell completion). The daemon address comes from the `ASTROMESH_DAEMON_URL` environment variable (default `http://localhost:8000`). JSON output is a per-command `--json` flag.
+
+`init`, `validate`, `config` and `centinela` are not part of `astromesh-cli` itself: they are registered by the `astromesh-node` plugin (`astromeshctl.plugins` entry point), and `orbit` by `astromesh-orbit`. Install those packages to get them. `astromeshctl version` prints the CLI and core versions.
 
 ### Status & Health
 
 | Command | Flags | Description |
 |---------|-------|-------------|
-| `astromeshctl status` | -- | Show daemon version, uptime, mode, PID, and agent count |
-| `astromeshctl doctor` | -- | Run health checks on runtime, providers, and backends |
+| `astromeshctl status` | `--json` | Show daemon version, uptime, mode, PID, and agent count |
+| `astromeshctl doctor` | `--json` | Run health checks on runtime, providers, and backends |
+| `astromeshctl version` | -- | Show the `astromesh-cli` and `astromesh` core versions |
 
 ### Agent Management
 
 | Command | Flags | Description |
 |---------|-------|-------------|
-| `astromeshctl agents list` | -- | List all loaded agents with model, orchestration pattern, and status |
+| `astromeshctl agents list` | `--json` | List all loaded agents with model, orchestration pattern, and status |
 
 ### Provider Management
 
 | Command | Flags | Description |
 |---------|-------|-------------|
-| `astromeshctl providers list` | -- | List configured providers with health status, latency, and circuit breaker state |
+| `astromeshctl providers list` | `--json` | List configured providers with health status, latency, and circuit breaker state |
 
 ### Configuration & Validation
 
+Provided by the `astromesh-node` plugin.
+
 | Command | Flags | Description |
 |---------|-------|-------------|
-| `astromeshctl config validate` | `--config PATH` | Validate runtime.yaml and agent YAML files without starting the daemon |
-| `astromeshctl init` | `--dev`, `--non-interactive`, `--output PATH` | Interactive configuration wizard to generate runtime.yaml and agent templates |
+| `astromeshctl config validate` | `--path PATH` | Validate runtime.yaml and agent YAML files without starting the daemon |
+| `astromeshctl init` | `--role`, `--dev`, `--non-interactive` | Interactive configuration wizard to generate runtime.yaml and agent templates |
 | `astromeshctl validate` | `--path PATH` | Validate all project YAML configs (checks syntax, required fields, kind matching) |
 
 **`init` flags:**
 
 | Flag | Description |
 |------|-------------|
-| `--dev` | Generate development defaults (in-memory backends, debug logging, Ollama) |
-| `--non-interactive` | Use all defaults without prompting (for CI/scripts) |
-| `--output PATH` | Directory to write config files (default: `./config/`) |
+| `--role` | Node role: `full`, `gateway`, `worker`, `inference` |
+| `--dev` | Force dev mode (writes to local `./config/`) |
+| `--non-interactive` | Accept all defaults without prompting (for CI/scripts) |
 
 **`validate` flags:**
 
@@ -189,7 +190,7 @@ The CLI client. Communicates with a running daemon via the REST API.
 
 | Command | Flags | Description |
 |---------|-------|-------------|
-| `astromeshctl services` | -- | List services enabled on this node and their status |
+| `astromeshctl services` | `--json` | List services enabled on this node and their status |
 
 ### Mesh (Cluster) Commands
 
@@ -197,16 +198,10 @@ These commands require mesh mode to be enabled.
 
 | Command | Flags | Description |
 |---------|-------|-------------|
-| `astromeshctl peers list` | -- | List known peer nodes with address, status, and last seen time |
-| `astromeshctl mesh status` | -- | Show cluster overview: node count, leader, alive/suspect/dead breakdown |
-| `astromeshctl mesh nodes` | -- | Detailed node table with agent assignments, active requests, CPU, and memory |
-| `astromeshctl mesh leave` | `--force` | Gracefully leave the cluster (drain requests, notify peers) |
-
-**`mesh leave` flags:**
-
-| Flag | Description |
-|------|-------------|
-| `--force` | Leave immediately without draining active requests |
+| `astromeshctl peers list` | `--json` | List known peer nodes with address, status, and last seen time |
+| `astromeshctl mesh status` | `--json` | Show cluster overview: node count, leader, alive/suspect/dead breakdown |
+| `astromeshctl mesh nodes` | `--json` | Detailed node table with agent assignments, active requests, CPU, and memory |
+| `astromeshctl mesh leave` | -- | Gracefully leave the cluster (notify peers) |
 
 ### Usage Examples
 
@@ -258,10 +253,10 @@ astromeshctl ask "Is this config valid?" --context config/agents/my-bot.agent.ya
 astromeshctl agents list --json
 
 # Validate config before deploying
-astromeshctl config validate --config /etc/astromesh
+astromeshctl config validate --path /etc/astromesh
 
 # Connect to a remote daemon
-astromeshctl --host http://10.0.1.10:8000 status
+ASTROMESH_DAEMON_URL=http://10.0.1.10:8000 astromeshctl status
 
 # Check mesh cluster health
 astromeshctl mesh status
@@ -277,8 +272,8 @@ astromeshctl mesh nodes --json
 
 | Code | Meaning |
 |------|---------|
-| `0` | Success |
-| `1` | General error (daemon unreachable, invalid arguments) |
-| `2` | Configuration validation failed |
-| `3` | Agent not found |
-| `4` | Mesh operation failed (not in mesh mode, node not found) |
+| `0` | Success — and also when the daemon is unreachable for the read-only commands (`status`, `doctor`, `agents list`, `providers list`, `services`, `peers list`, `mesh …`) and when `new` refuses to overwrite a file: they print the error and exit `0` |
+| `1` | Error in `run`, `traces list`, `trace`, `metrics`, `cost`, `tools`, `ask` |
+| `2` | Invalid arguments (Typer usage error); also `centinela` failures |
+
+`validate` and `config validate` print the errors they find but exit `0`: don't rely on their exit code as a CI gate.

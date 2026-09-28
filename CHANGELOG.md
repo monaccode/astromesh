@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added (Docs site)
+
+- **`configuration/tenant-apis-and-mcp`**: tools `api` y `mcp` del tenant, la guarda de host
+  público, las colisiones de nombre y `mode: propose` con la forma de `propuestas`.
+- **`spec.prefetch`** en `agent-yaml`, `praxis_lca` en el catálogo de integraciones, y qué recibe
+  un handler (`caller_context`, sin las credenciales de la corrida).
+
+### Changed (Docs site)
+
+- La doc se alineó con el código de v0.59.0: el ejemplo de respuesta de `/run` y los eventos del
+  WebSocket (`usage.by_model[].tokens_cached`, `propuestas`), la seguridad de los builtins de red y
+  de `json_transform`, `cached_tokens` en el span `llm.complete`, las env vars que el runtime lee
+  de verdad, los extras de instalación, y la sección MCP de `tool-registry` (describía un
+  `transport` stdio/sse que el loader no tiene).
+- Las páginas de CLI, Node, Orbit, ADK y Glyph dejan de documentar comandos y flags que no existen.
+
+### Changed (Release coordination)
+
+- **astromesh-adk 0.3.1**, **astromesh-cli 0.3.1**: suben el piso de `astromesh` a `>=0.59.0`.
+- **astromesh-node 0.1.3**: `astromesh>=0.59.0` y `astromesh-cli>=0.3.1`.
+- **astromesh-orbit 0.4.2**, **astromesh-glyph 0.1.3**: liberación alineada, sin cambios.
+
 ## [0.59.0] - 2026-09-25
 
 ### Added

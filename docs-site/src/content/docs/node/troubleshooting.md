@@ -11,7 +11,7 @@ Start with the built-in health check:
 astromeshctl doctor
 ```
 
-This checks: daemon status, API responsiveness, all provider connections, memory backends, and configuration validity.
+It asks the daemon (`GET /v1/system/doctor`) for its checks: runtime initialized, each provider's health, and each configured peer.
 
 For a quick status overview:
 
@@ -28,13 +28,13 @@ astromeshctl status
 **Step 1:** Check the daemon logs for errors.
 
 - Linux: `sudo journalctl -u astromeshd -n 50`
-- macOS: `tail -n 50 /var/log/astromesh/astromeshd.log`
-- Windows: `Get-Content "C:\ProgramData\Astromesh\logs\astromeshd.log" -Tail 50`
+- macOS: `tail -n 50 /Library/Logs/Astromesh/astromeshd.err.log`
+- Windows: run `astromeshd --foreground` in a terminal to see the output (the service writes no log file)
 
 **Step 2:** Validate your configuration:
 
 ```bash
-astromeshctl config validate
+astromeshctl config validate --path /etc/astromesh
 ```
 
 **Step 3:** Check for port conflicts. Another process may be using port 8000:
@@ -70,7 +70,7 @@ ERROR: Failed to parse /etc/astromesh/runtime.yaml: expected ':', line 5
 Fix YAML syntax issues, then validate:
 
 ```bash
-astromeshctl config validate
+astromeshctl config validate --path /etc/astromesh
 sudo systemctl restart astromeshd  # Linux
 ```
 
@@ -94,7 +94,7 @@ The model router circuit breaker opens after 3 consecutive failures (60-second c
 
 ```bash
 astromeshctl providers list
-astromeshctl providers health
+astromeshctl doctor
 ```
 
 ### Agent not found
@@ -110,22 +110,22 @@ ls /etc/astromesh/agents/           # Linux/macOS
 ls "C:\ProgramData\Astromesh\config\agents\"  # Windows
 
 astromeshctl agents list
-astromeshctl config validate
+astromeshctl config validate --path /etc/astromesh
 ```
 
-Reload agents without restarting:
+Agents load at startup; restart the daemon after adding one:
 
 ```bash
-sudo astromeshctl reload
+sudo systemctl restart astromeshd   # Linux
 ```
 
 ### Permission errors
 
 ```
-PermissionError: [Errno 13] Permission denied: '/var/lib/astromesh/memory/conversations.db'
+PermissionError: [Errno 13] Permission denied: '/var/lib/astromesh/data/...'
 ```
 
-Fix ownership (Linux/macOS):
+Fix ownership (Linux; on macOS the user is `_astromesh`):
 
 ```bash
 sudo chown -R astromesh:astromesh /var/lib/astromesh
@@ -141,7 +141,7 @@ ERROR: PID file exists but process is not running
 The daemon did not shut down cleanly. Remove the stale PID file:
 
 ```bash
-sudo rm /var/lib/astromesh/data/astromeshd.pid
+sudo rm /var/lib/astromesh/astromeshd.pid
 sudo systemctl restart astromeshd   # Linux
 ```
 
@@ -203,10 +203,10 @@ sudo semodule -i astromesh_local.pp
 sudo launchctl list | grep astromesh
 
 # View plist errors
-sudo launchctl print system/com.astromesh.astromeshd
+sudo launchctl print system/com.astromesh.daemon
 
 # Check logs
-tail -n 100 /var/log/astromesh/astromeshd.log
+tail -n 100 /Library/Logs/Astromesh/astromeshd.err.log
 ```
 
 ### Gatekeeper blocks the binary
@@ -223,11 +223,11 @@ Or: System Settings > Privacy & Security > click "Allow Anyway".
 Verify the plist is in the system LaunchDaemons directory (not user LaunchAgents):
 
 ```bash
-ls /Library/LaunchDaemons/com.astromesh.astromeshd.plist
+ls /Library/LaunchDaemons/com.astromesh.daemon.plist
 
 # Reload
-sudo launchctl unload /Library/LaunchDaemons/com.astromesh.astromeshd.plist
-sudo launchctl load /Library/LaunchDaemons/com.astromesh.astromeshd.plist
+sudo launchctl unload /Library/LaunchDaemons/com.astromesh.daemon.plist
+sudo launchctl load /Library/LaunchDaemons/com.astromesh.daemon.plist
 ```
 
 ---
@@ -237,14 +237,10 @@ sudo launchctl load /Library/LaunchDaemons/com.astromesh.astromeshd.plist
 ### Service fails to start
 
 ```powershell
-# Check service status
-Get-Service AstromeshDaemon
+# Check service status (the service is named astromeshd)
+Get-Service astromeshd
 
-# View Event Log
-Get-EventLog -LogName Application -Source AstromeshDaemon -Newest 20
-
-# View log file
-Get-Content "C:\ProgramData\Astromesh\logs\astromeshd.log" -Tail 50
+# Not listed? install.ps1 does not register it — see the Windows install guide
 ```
 
 ### PowerShell execution policy blocks install
@@ -266,11 +262,11 @@ Or change the port in `C:\ProgramData\Astromesh\config\runtime.yaml`.
 
 ### astromeshctl not found after install
 
-The installer adds `C:\Program Files\Astromesh\bin\` to the system PATH. Open a new terminal (the PATH update takes effect in new sessions):
+The installer adds `C:\Program Files\Astromesh\venv\Scripts\` to the system PATH. Open a new terminal (the PATH update takes effect in new sessions):
 
 ```powershell
 # Or add manually to current session:
-$env:Path += ";C:\Program Files\Astromesh\bin"
+$env:Path += ";C:\Program Files\Astromesh\venv\Scripts"
 ```
 
 ---
@@ -279,9 +275,9 @@ $env:Path += ";C:\Program Files\Astromesh\bin"
 
 | Platform | Log Path |
 |----------|----------|
-| Linux | `/var/log/astromesh/astromeshd.log` + `journalctl -u astromeshd` |
-| macOS | `/var/log/astromesh/astromeshd.log` |
-| Windows | `C:\ProgramData\Astromesh\logs\astromeshd.log` + Windows Event Log |
+| Linux | `journalctl -u astromeshd` |
+| macOS | `/Library/Logs/Astromesh/astromeshd.out.log`, `astromeshd.err.log` |
+| Windows | none — run `astromeshd --foreground` to see output |
 
 ---
 

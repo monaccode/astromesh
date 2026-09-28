@@ -194,7 +194,7 @@ Kimi models are **thinking models**: when reasoning is enabled they return a `re
 Astromesh handles this transparently:
 
 - `CompletionResponse` carries a `reasoning_content` field, populated by `OpenAICompatProvider.complete()` from the response.
-- The `ReActPattern` echoes `reasoning_content` back on the assistant message when it is present, so multi-turn tool calls against a thinking model work out of the box.
+- The `ReActPattern` echoes `reasoning_content` back on the assistant message when it is present, so multi-turn tool calls against a thinking model work out of the box. When one response calls several tools, the reasoning travels once: all the calls share a single assistant message (since astromesh **v0.48.0**).
 - For non-thinking models the field is absent and is simply omitted, so their behaviour is unchanged.
 
 No configuration is required — this is automatic for any model that returns `reasoning_content`.

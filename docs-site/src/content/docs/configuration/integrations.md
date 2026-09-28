@@ -51,10 +51,11 @@ Manifests are auto-discovered from `astromesh/integrations/catalog/`. What ships
 | `tiktok` | `get_user_info`, `list_videos`, `publish_video`, `get_publish_status` | Paginates over POST bodies (`cursor_in: body`). |
 | `praxis` | `buscar_records`, `obtener_record`, `crear_record`, `actualizar_record` | Generic CRUD over any entity of the PRAXIS ERP. `obtener_record` reads one row by id — `buscar_records` cannot, because its filter resolves against *declared* fields and `id` is a system column, so `id:eq:<uuid>` comes back `422`. |
 | `conocimiento` | `buscar_en_documentos` | Semantic search over the documents a tenant uploaded (read-only). `base_url` and the `X-Api-Key` come from the connection. |
+| `praxis_lca` | `mi_ficha`, `corregir_producto`, `agregar_producto`, `completar_alta`, `mi_stock`, `mi_resumen`, `mis_envios_abiertos`, `mis_liquidaciones`, `confirmar_envio`, `rechazar_envio`, `pedir_reposicion`, `escalar`, `responder_oferta_membresia` | Producer-facing vertical over WhatsApp/Telegram. PRAXIS isolates by tenant but **not by row**, so these handlers are the only barrier between one producer and another: every action resolves the producer from the channel's `sender_phone`, none takes a parameter that names a producer, and the four that take an id check ownership before calling PRAXIS. |
 | `praxis_cobranzas` | `simular_planes`, `registrar_acuerdo` | Debt-collection vertical: offer payment plans, record the agreement. |
 | `praxis_mecanicos` | `saldo_cliente`, `disponibilidad` | Workshop vertical: what a customer owes, and free slots in the calendar. |
 | `praxis_inmobiliaria` | `informar_pago` | Rentals vertical: record a payment a tenant reports, in one idempotent call. |
-| `praxis_presto` | `crear_presupuesto` | Counter-sales vertical: a quote with all its lines, confirmed, in one transactional call. |
+| `praxis_presto` | `crear_presupuesto` | Counter-sales vertical: a quote with all its lines, confirmed, in one transactional call. Each line names the product by the **sku shown in the summary** (an id is also accepted) — the agent's memory keeps the conversation text, not the ids a search returned, so asking for the id sent it back to search on the "yes" turn. |
 | `praxis_alcaldia` | `mi_cuenta`, `consultar_clasificador`, `informar_pago` | Municipal-revenue vertical. `mi_cuenta` takes **no parameters** on purpose: the taxpayer's identity comes from the channel, never from the conversation, so there is no way to ask for somebody else's account. |
 
 The `praxis_*` manifests are deliberately separate from `praxis`: the generic one serves
@@ -196,6 +197,15 @@ Rules worth knowing before you write one:
   say which it is rather than being forced to lie. Consumers read `ActionSpec.mutates`,
   which collapses undeclared to `false`.
 - **`description` cannot be empty.** It is the only thing the model reads.
+- **A handler knows who writes, and nothing else of the run.** It receives an
+  `IntegrationContext` whose `caller_context` carries what the channel put there before any
+  model ran — `channel`, `sender`, `sender_phone`, `contact_name`, `fecha` — minus every key
+  starting with `_`. It does **not** receive the run's `connections` or `secrets`: its own
+  credential already arrives as `material`. Identity read from `caller_context` is the one
+  fact the model cannot write, which is why `praxis_alcaldia.mi_cuenta` takes no parameters.
+  It is empty on a run that did not come from a channel, and a handler must fail closed on
+  that. (Since **v0.47.0**; the context only actually reached handlers from **v0.52.1**,
+  which also stopped passing them the run's credentials.)
 - Unknown keys are rejected at load time. A misspelled field fails the manifest with a
   readable message instead of being ignored.
 
@@ -227,5 +237,8 @@ and an `error_kind` — the classified failure (`credential_missing`, `rate_limi
 
 - [Confirmation Gate](/astromesh/configuration/confirmation-gate/) — how `confirm:` stops a
   write until a person says yes
-- [Agent YAML Schema](/astromesh/configuration/agent-yaml/) — the other tool types
+- [Tenant APIs & MCP Servers](/astromesh/configuration/tenant-apis-and-mcp/) — `type: api`
+  and `type: mcp`, the tenant's own endpoints declared inline and reusing this executor
+- [Agent YAML Schema](/astromesh/configuration/agent-yaml/) — the other tool types, and
+  `spec.prefetch` for running a read action before the model
 - [API Endpoints](/astromesh/reference/api-endpoints/) — `/v1/integrations`

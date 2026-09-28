@@ -24,7 +24,7 @@ return {oem, alt, eta}
 `oem` and `alt` do not depend on each other, so they run concurrently.
 
 <Aside type="note">
-**v0.1.0.** Apache-2.0. Glyph depends on no agent framework: Astromesh consumes it through
+Apache-2.0. Glyph depends on no agent framework: Astromesh consumes it through
 `pattern: glyph`, but any host can implement the protocol. See
 [Embedding Glyph](/astromesh/glyph/embedding/).
 </Aside>
@@ -83,7 +83,7 @@ A `map` that calls a capability fires one call per item, also concurrent, capped
 flight (`max_fanout`) — a `map` over a thousand rows must not become a thousand simultaneous
 requests.
 
-## Scope of v0.1.0
+## Scope
 
 Deliberately out: loops, user functions, imports, recursion, arithmetic. The absence of loops
 gets revisited when the benchmark shows they are needed, not before — every construct added is

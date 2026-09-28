@@ -46,7 +46,7 @@ The following optional extras are available:
 |-------|-------------|
 | `redis` | Redis memory backend (conversational memory, caching) |
 | `postgres` | PostgreSQL backend (episodic memory, pgvector) |
-| `sqlite` | SQLite backend (lightweight local memory) |
+| `sqlite` | SQLite (`aiosqlite`) for the local workflow store |
 | `chromadb` | ChromaDB vector store for semantic memory |
 | `qdrant` | Qdrant vector store for semantic memory |
 | `faiss` | FAISS vector store for local semantic memory |
@@ -54,8 +54,12 @@ The following optional extras are available:
 | `onnx` | ONNX Runtime provider for model inference |
 | `ml` | ML training and fine-tuning utilities |
 | `observability` | OpenTelemetry SDK, Prometheus exporter |
-| `mcp` | Model Context Protocol client and server support |
-| `all` | All of the above |
+| `mcp` | Model Context Protocol SDK (`mcp>=1.28.1,<2`) — the MCP server and `type: mcp` tools |
+| `mesh` | `psutil`, for node load reporting in Maia mesh mode |
+| `litellm` | LiteLLM-backed provider for cloud models |
+| `centinela` | `huggingface_hub`, for the Centinela provider |
+| `glyph` | `astromesh-glyph`, for the Glyph orchestration pattern |
+| `all` | All of the above except `ml` |
 
 You can combine extras as needed:
 

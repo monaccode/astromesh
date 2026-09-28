@@ -1,6 +1,6 @@
 """Astromesh Agent Development Kit."""
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from astromesh_adk.agent import Agent, AgentWrapper, agent
 from astromesh_adk.callbacks import Callbacks

@@ -11,62 +11,28 @@ This guide covers installing Astromesh Node on RPM-based Linux distributions: RH
 |-------------|---------|-------|
 | RHEL / Fedora / CentOS | RHEL 9+ / Fedora 38+ | `cat /etc/os-release` |
 | systemd | 250+ | `systemctl --version` |
-| Python | 3.12+ (bundled by the package) | `python3 --version` |
-| Architecture | x86_64 or aarch64 | `uname -m` |
+| Python | 3.12+ as the system `python3` (package dependency) | `python3 --version` |
+| Architecture | x86_64 only | `uname -m` |
 | Network | Outbound to LLM provider or local Ollama | — |
 
 ## Download the Package
 
-Download the latest `.rpm` package from GitHub Releases:
+Node packages are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```bash
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_x86_64.rpm
-```
-
-For ARM64 / aarch64 (e.g., AWS Graviton):
-
-```bash
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_aarch64.rpm
-```
-
-To download a specific version:
-
-```bash
-curl -LO https://github.com/monaccode/astromesh/releases/download/v0.1.1/astromesh_0.1.1_x86_64.rpm
+VERSION=0.1.3
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-1.x86_64.rpm
 ```
 
 ## Install
 
-**RHEL 9 / CentOS Stream / AlmaLinux / Rocky Linux:**
-
 ```bash
-sudo dnf install ./astromesh_latest_x86_64.rpm
+sudo dnf install ./astromesh-node-${VERSION}-1.x86_64.rpm
 ```
 
-**Fedora:**
-
-```bash
-sudo dnf install ./astromesh_latest_x86_64.rpm
-```
-
-**Legacy (rpm directly):**
-
-```bash
-sudo rpm -i astromesh_latest_x86_64.rpm
-```
-
-Expected output:
-
-```
-Preparing...                          ################################# [100%]
-Updating / installing...
-   1:astromesh-0.1.1                 ################################# [100%]
-Creating system user 'astromesh'...
-Creating directories...
-Installing Python virtual environment...
-Installing systemd service...
-astromesh installed successfully.
-```
+:::caution[Declared dependencies]
+The package is built from the same nfpm manifest as the `.deb` and declares `python3 >= 3.12` and `python3-venv`. RHEL 9's default `python3` is 3.9 and no RPM repository names a `python3-venv` package, so `dnf` may refuse the install until the dependency is provided.
+:::
 
 Verify the installation:
 
@@ -77,11 +43,8 @@ astromeshctl version
 Expected output:
 
 ```
-Astromesh Node v0.1.1
-Daemon:   /opt/astromesh/bin/astromeshd
-CLI:      /opt/astromesh/bin/astromeshctl
-Python:   3.12.x
-Platform: linux/x86_64
+astromesh-cli 0.3.1
+astromesh core 0.59.0
 ```
 
 ## Configure
@@ -92,23 +55,23 @@ Run the interactive wizard to generate your configuration:
 sudo astromeshctl init
 ```
 
-For a non-interactive setup with a specific profile:
+For a non-interactive setup:
 
 ```bash
-sudo astromeshctl init --profile full --provider ollama --model llama3.1:8b --non-interactive
+sudo astromeshctl init --role full --non-interactive
 ```
 
-This creates:
+This creates `/etc/astromesh/runtime.yaml`, `providers.yaml` and, if you entered a provider API key, `.env` (loaded by the systemd unit). The package already installs sample agents in `/etc/astromesh/agents/`.
 
-- `/etc/astromesh/runtime.yaml` — daemon configuration
-- `/etc/astromesh/providers.yaml` — LLM provider connections
-- `/etc/astromesh/agents/default.agent.yaml` — default agent definition
+:::caution[The wizard does not find its role profile in a packaged install]
+It prints `Profile not found` and writes an empty `runtime.yaml`. Copy the profile the package ships instead: `sudo cp /etc/astromesh/profiles/full.yaml /etc/astromesh/runtime.yaml` (or `gateway`, `worker`, `inference`, `mesh-*`).
+:::
 
-See [Configuration](/astromesh/node/configuration/) for the full `runtime.yaml` schema and all 7 profiles.
+See [Configuration](/astromesh/node/configuration/) for the full `runtime.yaml` schema and the roles.
 
 ## SELinux Considerations
 
-On RHEL/CentOS systems with SELinux enforcing, the package installs the appropriate SELinux policy module. If you encounter denials:
+The package ships no SELinux policy module. On systems with SELinux enforcing, if you encounter denials:
 
 ```bash
 # Check for SELinux denials
@@ -130,8 +93,9 @@ sudo firewall-cmd --reload
 
 ## Start the Service
 
+The package enables the unit but does not start it:
+
 ```bash
-sudo systemctl enable astromeshd
 sudo systemctl start astromeshd
 ```
 
@@ -145,10 +109,9 @@ Expected output:
 
 ```
 ● astromeshd.service - Astromesh Agent Runtime Daemon
-     Loaded: loaded (/usr/lib/systemd/system/astromeshd.service; enabled)
+     Loaded: loaded (/lib/systemd/system/astromeshd.service; enabled)
      Active: active (running) since Fri 2026-03-20 10:00:00 UTC; 5s ago
    Main PID: 4521 (astromeshd)
-     Status: "Ready — 1 agent(s) loaded"
      Memory: 128.0M
 ```
 
@@ -181,20 +144,22 @@ sudo journalctl -u astromeshd -p err
 |------|---------|
 | `/etc/astromesh/` | Configuration files |
 | `/var/lib/astromesh/` | Persistent state (memory, models) |
-| `/var/log/astromesh/` | Log files |
-| `/opt/astromesh/bin/` | `astromeshd` and `astromeshctl` binaries |
-| `/usr/lib/systemd/system/astromeshd.service` | systemd unit file |
+| `/var/log/astromesh/` | Audit logs (daemon logs go to journald) |
+| `/opt/astromesh/venv/` | Virtualenv; `astromeshd` and `astromeshctl` are symlinked into `/usr/bin/` |
+| `/lib/systemd/system/astromeshd.service` | systemd unit file |
 
 ## Upgrade
 
 ```bash
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_x86_64.rpm
-sudo dnf upgrade ./astromesh_latest_x86_64.rpm
+VERSION=0.1.3
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-1.x86_64.rpm
+sudo dnf upgrade ./astromesh-node-${VERSION}-1.x86_64.rpm
 ```
 
-The package restarts the service automatically. Verify:
+The old package's pre-remove script runs after the new one is installed, so the upgrade leaves the service stopped **and disabled**. Re-enable and start it, then verify:
 
 ```bash
+sudo systemctl enable --now astromeshd
 astromeshctl version
 astromeshctl status
 ```
@@ -202,15 +167,15 @@ astromeshctl status
 ## Uninstall
 
 ```bash
-sudo systemctl stop astromeshd
-sudo systemctl disable astromeshd
-sudo dnf remove astromesh
+sudo dnf remove astromesh-node
 ```
+
+Removing stops and disables the service.
 
 To remove all configuration and data:
 
 ```bash
-sudo rm -rf /etc/astromesh /var/lib/astromesh /var/log/astromesh
+sudo rm -rf /etc/astromesh /var/lib/astromesh /var/log/astromesh /opt/astromesh
 sudo userdel astromesh
 ```
 

@@ -330,7 +330,7 @@ dev = [
 
 [[package]]
 name = "astromesh-adk"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "astromesh-adk" }
 dependencies = [
     { name = "astromesh" },
@@ -356,7 +356,7 @@ provides-extras = ["dev", "test", "all"]
 
 [[package]]
 name = "astromesh-glyph"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "astromesh-glyph" }
 
 [package.metadata]
