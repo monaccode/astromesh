@@ -21,7 +21,7 @@ def validate(
 
     if not config_dir.exists():
         print_error(f"Config directory not found: {path}")
-        raise typer.Exit(code=0)
+        raise typer.Exit(code=1)
 
     # Check runtime.yaml
     runtime_file = config_dir / "runtime.yaml"
@@ -81,5 +81,6 @@ def validate(
         console.print(f"\n[red]Validation failed[/red] ({len(errors)} error(s)):\n")
         for err in errors:
             console.print(f"  [red]x[/red] {err}")
+        raise typer.Exit(code=1)
     else:
         console.print(f"\n[green]Configuration valid[/green] ({files_checked} file(s) checked).")

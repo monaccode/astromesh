@@ -132,5 +132,6 @@ def validate_command(
         console.print(
             f"\n[red]Validation failed:[/red] {error_count} error(s), {valid_count} valid"
         )
+        raise typer.Exit(code=1)
     else:
         console.print(f"\n[green]All files valid:[/green] {valid_count} file(s) checked")

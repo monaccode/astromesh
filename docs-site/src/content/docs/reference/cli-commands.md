@@ -273,7 +273,6 @@ astromeshctl mesh nodes --json
 | Code | Meaning |
 |------|---------|
 | `0` | Success — and also when the daemon is unreachable for the read-only commands (`status`, `doctor`, `agents list`, `providers list`, `services`, `peers list`, `mesh …`) and when `new` refuses to overwrite a file: they print the error and exit `0` |
-| `1` | Error in `run`, `traces list`, `trace`, `metrics`, `cost`, `tools`, `ask` |
+| `1` | Error in `run`, `traces list`, `trace`, `metrics`, `cost`, `tools`, `ask`; `validate` and `config validate` when they find an error or the config directory doesn't exist (astromesh-node **v0.1.6**+, so they work as a CI gate) |
 | `2` | Invalid arguments (Typer usage error); also `centinela` failures |
 
-`validate` and `config validate` print the errors they find but exit `0`: don't rely on their exit code as a CI gate.

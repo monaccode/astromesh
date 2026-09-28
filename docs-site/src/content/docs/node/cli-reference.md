@@ -81,8 +81,8 @@ astromeshctl config validate [--path ./config]
 |------|---------|-------------|
 | `--path` | `./config` | Config directory to validate |
 
-:::caution[Exit code]
-`validate` and `config validate` print the errors they find but exit `0` either way. Don't use their exit code as a CI gate.
+:::note[Exit code]
+`validate` and `config validate` exit `1` when they find an error, and `config validate` also when the directory doesn't exist — so they can gate a CI pipeline. Since astromesh-node **v0.1.6**; earlier versions exit `0` either way.
 :::
 
 ## `astromeshctl centinela`

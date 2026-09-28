@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Astromesh Node)
+
+- **`validate` y `config validate` salen con `1` cuando encuentran errores.** Imprimían los
+  errores y salían con `0`, así que no servían de gate en CI; `config validate` salía con `0`
+  incluso sin directorio de config (`astromesh-node/src/astromesh_node/cli/commands/`).
+
 ## [0.60.0] - 2026-09-28
 
 ### Added (Backend)
