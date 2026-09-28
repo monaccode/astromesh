@@ -187,7 +187,9 @@ sudo systemctl restart astromeshd        # Linux
 Restart-Service astromeshd               # Windows
 ```
 
-On macOS, unload and load the plist. `systemctl reload` (and `SIGHUP`) is accepted but the daemon only logs it — agents and providers are not reloaded.
+On macOS, unload and load the plist.
+
+`systemctl reload astromeshd` (or `SIGHUP`, on Linux and macOS) reloads **agents and RAG pipelines** from `agents/` and `rag/` without restarting — available since astromesh-node **v0.1.5** (core **v0.60.0**). Everything is rebuilt aside and swapped at once: a cycle between agents or a chain that doesn't compile leaves the running agents untouched; an agent that fails to build goes `draft` with its error (see `astromeshctl agents list`) without taking the others down; a paused agent stays paused. In-flight runs finish on the old agent. `runtime.yaml` (host, port, services, mesh, peers) and `providers.yaml` are **not** reloaded — restart for those; the daemon logs a warning if `runtime.yaml` changed. With `ASTROMESH_PERSIST_AGENTS=0` the reload is refused, because the disk is not where the agents live.
 
 ## Validate Configuration
 

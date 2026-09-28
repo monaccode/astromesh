@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import signal
+import time
 from typing import Any, Callable
 
 logger = logging.getLogger("astromesh_node.platform.systemd")
@@ -42,6 +43,8 @@ class SystemdManager:
         Without it systemd kills the unit every WatchdogSec. The ping runs on the
         event loop on purpose: a loop that hangs stops pinging, and systemd restarts it.
         """
+        if self._watchdog_task and not self._watchdog_task.done():
+            return  # READY=1 again after a reload: the pinger is already running
         usec = os.environ.get("WATCHDOG_USEC")
         pid = os.environ.get("WATCHDOG_PID")
         if not usec or (pid and pid != str(os.getpid())):
@@ -59,7 +62,8 @@ class SystemdManager:
     async def notify_reload(self) -> None:
         notifier = self._get_notifier()
         if notifier:
-            notifier.notify("RELOADING=1")
+            # MONOTONIC_USEC: systemd ≥ 253 lo exige para asociar el RELOADING al reload.
+            notifier.notify(f"RELOADING=1\nMONOTONIC_USEC={time.monotonic_ns() // 1000}")
 
     async def notify_stopping(self) -> None:
         if self._watchdog_task:

@@ -111,11 +111,10 @@ export const CORE: Component = {
   short: 'Core',
   group: 'runtime',
   version: '0.59.0',
-  released: '2026-09-25',
+  released: '2026-09-28',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
-  latest:
-    'An agent called as a tool returns its answer, not its whole run. Its steps and trace used to come back and get stringified into the caller\'s history — about 13,000 extra input tokens per call, paid again on every later turn.',
+  latest: 'Agents and RAG reload from disk without a restart (`AgentRuntime.reload()`, wired to `systemctl reload` in Node 0.1.5).',
   install: 'pip install astromesh',
   href: '/astromesh/getting-started/what-is-astromesh/',
 };
@@ -128,9 +127,9 @@ export const COMPONENTS: Component[] = [
     short: 'ADK',
     group: 'author',
     version: '0.3.1',
-    released: '2026-09-27',
+    released: '2026-09-28',
     tagline: 'Write agents as Python decorators, with hot reload and a project CLI.',
-    latest: 'Bumped minimum `astromesh` dependency to `>=0.59.0` so the ADK stays in sync with the latest runtime.',
+    latest: 'Agents and RAG reload from disk without a restart (`AgentRuntime.reload()`, wired to `systemctl reload` in Node 0.1.5).',
     install: 'pip install astromesh-adk',
     href: '/astromesh/adk/introduction/',
   },

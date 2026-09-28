@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-09-28
+
+### Added (Backend)
+
+- **`AgentRuntime.reload()`: recargar agentes y RAG del disco sin reiniciar.** Relee
+  `config/rag/` y `config/agents/`, construye todo aparte y reemplaza el estado de una vez: un
+  ciclo entre agentes o una cadena que no compila levanta y deja el runtime como estaba; un
+  agente que no construye queda en `draft` con su error sin arrastrar a los demás; un agente
+  pausado sigue pausado. Devuelve `{added, updated, removed, failed}`. Con
+  `ASTROMESH_PERSIST_AGENTS=0` se rechaza: el disco no es la fuente y releerlo borraría los
+  agentes registrados por API (`astromesh/runtime/engine.py`).
+
+### Fixed (Backend)
+
+- **Un sub-agente sin `agent:` tiraba abajo el arranque entero.** `_detect_circular_refs`
+  leía `t["agent"]` y el `KeyError` salía de `bootstrap()` antes del try por agente. Ahora ese
+  agente queda en `draft` con su error y los demás arrancan. Era la forma que generaba el
+  editor visual de Cortex hasta 0.20.0.
+
 ### Added (Docs site)
 
 - **`configuration/tenant-apis-and-mcp`**: tools `api` y `mcp` del tenant, la guarda de host
@@ -22,6 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de verdad, los extras de instalación, y la sección MCP de `tool-registry` (describía un
   `transport` stdio/sse que el loader no tiene).
 - Las páginas de CLI, Node, Orbit, ADK y Glyph dejan de documentar comandos y flags que no existen.
+
+### Added (Astromesh Node)
+
+- **`systemctl reload astromeshd` (SIGHUP) recarga los agentes de verdad.** Antes sólo
+  escribía una línea en el log. Ahora avisa `RELOADING=1` (con `MONOTONIC_USEC`), corre
+  `runtime.reload()`, actualiza los agentes en el mesh y avisa `READY=1`; una recarga rota se
+  loguea y el daemon sigue. Los cambios en `runtime.yaml` requieren reinicio y se avisan.
 
 ### Fixed (Astromesh Node)
 

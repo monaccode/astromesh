@@ -39,7 +39,10 @@ async def test_notify_reload_calls_sdnotify(manager):
     mock_notifier = MagicMock()
     with patch.object(manager, "_get_notifier", return_value=mock_notifier):
         await manager.notify_reload()
-        mock_notifier.notify.assert_called_once_with("RELOADING=1")
+        (msg,) = mock_notifier.notify.call_args.args
+        lines = msg.split("\n")
+        assert lines[0] == "RELOADING=1"
+        assert lines[1].startswith("MONOTONIC_USEC=") and int(lines[1].split("=")[1]) > 0
 
 
 async def test_service_status_parses_systemctl(manager):
@@ -107,3 +110,18 @@ async def test_no_watchdog_when_meant_for_another_pid(manager, monkeypatch):
         await manager.notify_ready()
         await asyncio.sleep(0.12)
         notifier.notify.assert_called_once_with("READY=1")
+
+
+async def test_ready_again_after_reload_does_not_start_a_second_pinger(manager, monkeypatch):
+    import asyncio
+
+    monkeypatch.setenv("WATCHDOG_USEC", "100000")
+    monkeypatch.delenv("WATCHDOG_PID", raising=False)
+    notifier = MagicMock()
+    with patch.object(manager, "_get_notifier", return_value=notifier):
+        await manager.notify_ready()
+        first = manager._watchdog_task
+        await manager.notify_ready()
+        assert manager._watchdog_task is first
+        await manager.notify_stopping()
+        await asyncio.sleep(0)

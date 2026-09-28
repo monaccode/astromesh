@@ -68,6 +68,49 @@ def remove_pid_file(pid_file: str) -> None:
         path.unlink()
 
 
+async def reload_agents(
+    runtime,
+    service_mgr,
+    mesh_manager,
+    *,
+    runtime_yaml: Path | None = None,
+    runtime_yaml_mtime: int | None = None,
+) -> None:
+    """Recarga agentes y RAG del disco (SIGHUP / `systemctl reload`) sin reiniciar.
+
+    Nunca levanta: una recarga rota se loguea y el daemon sigue con los agentes que tenía.
+    `runtime.yaml` (host, puerto, servicios, mesh, peers) no se recarga; si cambió, se avisa.
+    """
+    await service_mgr.notify_reload()
+    try:
+        result = await runtime.reload()
+        logger.info(
+            "Reload: added=%s updated=%s removed=%s failed=%s",
+            result["added"],
+            result["updated"],
+            result["removed"],
+            sorted(result["failed"]),
+        )
+        for name, error in result["failed"].items():
+            logger.warning("Reload: agent %s not loaded: %s", name, error)
+        if mesh_manager:
+            mesh_manager.update_agents([a["name"] for a in runtime.list_agents()])
+    except Exception:
+        logger.exception("Config reload failed; keeping the running agents")
+    finally:
+        await service_mgr.notify_ready()
+    changed = (
+        runtime_yaml is not None
+        and runtime_yaml.exists()
+        and runtime_yaml.stat().st_mtime_ns != runtime_yaml_mtime
+    )
+    if changed:
+        logger.warning(
+            "%s cambió: host, puerto, servicios, mesh y peers requieren reiniciar astromeshd",
+            runtime_yaml,
+        )
+
+
 async def run_daemon(args: argparse.Namespace) -> None:
     import uvicorn
 
@@ -182,8 +225,23 @@ async def run_daemon(args: argparse.Namespace) -> None:
         signal.signal(signal.SIGTERM, handle_shutdown)
         signal.signal(signal.SIGINT, handle_shutdown)
 
+    runtime_yaml = Path(config_dir) / "runtime.yaml"
+    runtime_yaml_mtime = runtime_yaml.stat().st_mtime_ns if runtime_yaml.exists() else None
+
     def _reload_config():
+        # Llamado desde un handler de señal: la recarga es async y corre en el loop.
         logger.info("Config reload triggered")
+        loop.call_soon_threadsafe(
+            lambda: asyncio.ensure_future(
+                reload_agents(
+                    runtime,
+                    service_mgr,
+                    mesh_manager,
+                    runtime_yaml=runtime_yaml,
+                    runtime_yaml_mtime=runtime_yaml_mtime,
+                )
+            )
+        )
 
     service_mgr.register_reload_handler(_reload_config)
 
