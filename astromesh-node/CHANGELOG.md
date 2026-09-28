@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`--foreground` ya no muere con SIGHUP.** `ForegroundManager` guardaba el handler de recarga
+  pero no registraba la señal, y la acción por defecto de SIGHUP es terminar el proceso: en
+  Docker o en dev, `kill -HUP` mataba el daemon en vez de recargar los agentes
+  (`astromesh-node/src/astromesh_node/platform/foreground.py`).
+
 ## [0.1.6] - 2026-09-28
 
 ### Fixed

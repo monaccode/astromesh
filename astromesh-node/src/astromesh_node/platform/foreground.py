@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import signal
 from typing import Any, Callable
 
 
@@ -37,3 +38,7 @@ class ForegroundManager:
 
     def register_reload_handler(self, callback: Callable[[], Any]) -> None:
         self._reload_handler = callback
+        # Sin handler, la acción por defecto de SIGHUP es terminar el proceso: en foreground
+        # (Docker, dev) un `kill -HUP` mataba el daemon en vez de recargar los agentes.
+        if hasattr(signal, "SIGHUP"):
+            signal.signal(signal.SIGHUP, lambda signum, frame: callback())
