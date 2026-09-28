@@ -194,3 +194,18 @@ class TestTimeout:
         result = await executor.execute_step(step, ctx)
         assert result.status == StepStatus.ERROR
         assert "timeout" in result.error.lower() or "timed out" in result.error.lower()
+
+
+def test_render_y_when_del_workflow_en_sandbox(executor):
+    """`when` y argumentos vienen del YAML del workflow: corren en sandbox."""
+    from jinja2.exceptions import SecurityError
+
+    payload = "{{ cycler.__init__.__globals__.os.getcwd() }}"
+    with pytest.raises(SecurityError):
+        executor._render(payload, {})
+    for strict in (False, True):
+        with pytest.raises(SecurityError):
+            executor._eval_condition(payload, {}, strict)
+    assert (
+        executor._render("{{ steps.a.output | upper }}", {"steps": {"a": {"output": "x"}}}) == "X"
+    )

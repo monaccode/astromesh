@@ -232,9 +232,11 @@ class ToolRegistry:
                 try:
                     import json as json_mod
 
-                    from jinja2 import BaseLoader, Environment
+                    from jinja2 import BaseLoader
+                    from jinja2.sandbox import ImmutableSandboxedEnvironment
 
-                    env = Environment(loader=BaseLoader())
+                    # Sandbox: `context_transform` viene del manifiesto (SSTI).
+                    env = ImmutableSandboxedEnvironment(loader=BaseLoader())
                     # Quote bare dict keys: {score: ...} -> {'score': ...}
                     fixed_transform = re.sub(
                         r"(?<=[{,])\s*(\w+)\s*:",

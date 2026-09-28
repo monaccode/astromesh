@@ -123,3 +123,17 @@ class TestContextTransform:
             connections={},
             desde_humano=False,
         )
+
+
+@pytest.mark.asyncio
+async def test_transform_ssti_se_bloquea(registry, runtime_mock):
+    """`context_transform` viene del manifiesto: corre en sandbox."""
+    registry.register_agent_tool(
+        name="agent-b",
+        agent_name="my-agent",
+        description="Agent B",
+        context_transform="{x: cycler.__init__.__globals__.os.getcwd()}",
+    )
+    res = await registry.execute("agent-b", {"query": "q"}, context={"session": "s"})
+    assert "unsafe" in res["error"]
+    runtime_mock.run.assert_not_called()
