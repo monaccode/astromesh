@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **astromeshd ya no muere cada 30 segundos bajo systemd.** La unidad declara
+  `WatchdogSec=30` y el daemon mandaba `READY=1` pero nunca `WATCHDOG=1`, así que systemd
+  lo mataba y `Restart=on-failure` lo levantaba de nuevo, en loop. astromesh-os lo esquivaba
+  con un drop-in `WatchdogSec=0`. Ahora `SystemdManager` hace ping a la mitad de
+  `WATCHDOG_USEC` desde el event loop (si el loop se cuelga, el ping para y systemd lo
+  reinicia, que es para lo que está el watchdog), respeta `WATCHDOG_PID` y deja de hacer
+  ping en `notify_stopping` (`astromesh-node/src/astromesh_node/platform/systemd.py`).
+
 ## [0.1.3] - 2026-09-27
 
 ### Changed

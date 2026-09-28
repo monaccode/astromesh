@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import signal
 from typing import Any, Callable
 
@@ -17,6 +18,7 @@ class SystemdManager:
 
     def __init__(self) -> None:
         self._reload_handler: Callable[[], Any] | None = None
+        self._watchdog_task: asyncio.Task | None = None
 
     def _get_notifier(self):
         """Return sdnotify notifier, or None if unavailable."""
@@ -32,6 +34,27 @@ class SystemdManager:
         if notifier:
             notifier.notify("READY=1")
             logger.info("Notified systemd: READY")
+            self._start_watchdog(notifier)
+
+    def _start_watchdog(self, notifier) -> None:
+        """Ping WATCHDOG=1 at half of WatchdogSec, as sd_watchdog_enabled(3) says.
+
+        Without it systemd kills the unit every WatchdogSec. The ping runs on the
+        event loop on purpose: a loop that hangs stops pinging, and systemd restarts it.
+        """
+        usec = os.environ.get("WATCHDOG_USEC")
+        pid = os.environ.get("WATCHDOG_PID")
+        if not usec or (pid and pid != str(os.getpid())):
+            return
+        interval = int(usec) / 1_000_000 / 2
+
+        async def _ping() -> None:
+            while True:
+                notifier.notify("WATCHDOG=1")
+                await asyncio.sleep(interval)
+
+        self._watchdog_task = asyncio.create_task(_ping())
+        logger.info("systemd watchdog: ping every %.1fs", interval)
 
     async def notify_reload(self) -> None:
         notifier = self._get_notifier()
@@ -39,6 +62,9 @@ class SystemdManager:
             notifier.notify("RELOADING=1")
 
     async def notify_stopping(self) -> None:
+        if self._watchdog_task:
+            self._watchdog_task.cancel()
+            self._watchdog_task = None
         notifier = self._get_notifier()
         if notifier:
             notifier.notify("STOPPING=1")

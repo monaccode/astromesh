@@ -23,6 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `transport` stdio/sse que el loader no tiene).
 - Las páginas de CLI, Node, Orbit, ADK y Glyph dejan de documentar comandos y flags que no existen.
 
+### Fixed (Astromesh Node)
+
+- **astromeshd ya no muere cada 30 segundos bajo systemd.** La unidad declara
+  `WatchdogSec=30` y el daemon mandaba `READY=1` pero nunca `WATCHDOG=1`, así que systemd
+  lo mataba y `Restart=on-failure` lo levantaba de nuevo, en loop. astromesh-os lo esquivaba
+  con un drop-in `WatchdogSec=0`. Ahora `SystemdManager` hace ping a la mitad de
+  `WATCHDOG_USEC` desde el event loop (si el loop se cuelga, el ping para y systemd lo
+  reinicia, que es para lo que está el watchdog), respeta `WATCHDOG_PID` y deja de hacer
+  ping en `notify_stopping` (`astromesh-node/src/astromesh_node/platform/systemd.py`).
+
 ### Fixed (Astromesh Forge)
 
 - **Forge generaba tools que el runtime descarta.** Emitía `type: internal`, `rag`, `webhook` y un
