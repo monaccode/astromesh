@@ -13,12 +13,18 @@ for dir in "$CONFIG_DIR" "$DATA_DIR/models" "$DATA_DIR/memory" "$DATA_DIR/data" 
     mkdir -p "$dir"
 done
 
-# Copy venv
-if [ -d "venv" ]; then
-    mkdir -p "$INSTALL_DIR"
-    cp -R venv "$INSTALL_DIR/venv"
-    echo "Installed venv to $INSTALL_DIR/venv"
-fi
+# Copy the bundled CPython and the venv built on it. Both were built at exactly these paths,
+# so they must land there. Remove the old ones first: `cp -R venv <existing dir>` nests the
+# new venv inside the old one.
+mkdir -p "$INSTALL_DIR"
+for part in python venv; do
+    if [ ! -d "$part" ]; then
+        echo "Missing $part/ — run install.sh from the extracted tarball"; exit 1
+    fi
+    rm -rf "${INSTALL_DIR:?}/$part"
+    cp -R "$part" "$INSTALL_DIR/$part"
+done
+echo "Installed runtime to $INSTALL_DIR"
 
 # Symlink binaries
 ln -sf "$INSTALL_DIR/venv/bin/astromeshd" /usr/local/bin/astromeshd

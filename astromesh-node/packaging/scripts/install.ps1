@@ -17,10 +17,17 @@ foreach ($d in $dirs) {
     New-Item -ItemType Directory -Path $d -Force | Out-Null
 }
 
-$destVenv = "$programFiles\Astromesh\venv"
-if (Test-Path "venv") {
-    Copy-Item -Recurse -Force "venv" $destVenv
+# The bundled CPython and the venv built on it were built at exactly these paths, so they
+# must land there. Replace old copies: Copy-Item into an existing dir nests the new one.
+$installDir = "$programFiles\Astromesh"
+New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+foreach ($part in "python", "venv") {
+    if (-not (Test-Path $part)) { throw "Missing $part\ - run install.ps1 from the extracted zip" }
+    $dest = Join-Path $installDir $part
+    if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+    Copy-Item -Recurse -Force $part $dest
 }
+$destVenv = Join-Path $installDir "venv"
 
 $binPath = "$destVenv\Scripts"
 $currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")

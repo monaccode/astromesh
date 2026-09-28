@@ -15,7 +15,7 @@ Node releases are published on GitHub under `node-v*` tags (the repository's "la
 <TabItem label="Debian / Ubuntu">
 
 ```bash
-VERSION=0.1.8
+VERSION=0.1.9
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
 sudo apt install ./astromesh-node_${VERSION}_amd64.deb
 ```
@@ -24,7 +24,7 @@ sudo apt install ./astromesh-node_${VERSION}_amd64.deb
 <TabItem label="RHEL / Fedora">
 
 ```bash
-VERSION=0.1.8
+VERSION=0.1.9
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-1.x86_64.rpm
 sudo dnf install ./astromesh-node-${VERSION}-1.x86_64.rpm
 ```
@@ -33,7 +33,7 @@ sudo dnf install ./astromesh-node-${VERSION}-1.x86_64.rpm
 <TabItem label="macOS">
 
 ```bash
-VERSION=0.1.8
+VERSION=0.1.9
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-macos.tar.gz
 mkdir astromesh-node && tar -xzf astromesh-node-${VERSION}-macos.tar.gz -C astromesh-node
 cd astromesh-node
@@ -44,7 +44,7 @@ sudo ./install.sh
 <TabItem label="Windows">
 
 ```powershell
-$Version = "0.1.8"
+$Version = "0.1.9"
 Invoke-WebRequest -Uri "https://github.com/monaccode/astromesh/releases/download/node-v$Version/astromesh-node-$Version-windows.zip" -OutFile astromesh-node.zip
 Expand-Archive -Path astromesh-node.zip -DestinationPath astromesh-node
 

@@ -12,7 +12,7 @@ This guide covers installing Astromesh Node as a Windows Service on Windows 10/1
 | Windows | 10 21H2+ / 11 / Server 2019+ | `winver` |
 | PowerShell | 5.1+ (included in Windows) | `$PSVersionTable.PSVersion` |
 | Architecture | x64 | `echo %PROCESSOR_ARCHITECTURE%` |
-| Python | 3.12+ | `python --version` |
+| Python | None — the archive carries its own CPython 3.12 in `C:\Program Files\Astromesh\python` (since **v0.1.9**) | — |
 | Network | Outbound to LLM provider or local Ollama | — |
 
 Administrator privileges are required for installation.
@@ -22,7 +22,7 @@ Administrator privileges are required for installation.
 Node archives are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```powershell
-$Version = "0.1.8"
+$Version = "0.1.9"
 Invoke-WebRequest `
   -Uri "https://github.com/monaccode/astromesh/releases/download/node-v$Version/astromesh-node-$Version-windows.zip" `
   -OutFile astromesh-node.zip
@@ -48,7 +48,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 The installer:
 
 1. Creates `C:\ProgramData\Astromesh\config\`, `data\` and `logs\`
-2. Copies the virtualenv to `C:\Program Files\Astromesh\venv\`
+2. Copies the bundled CPython and the virtualenv to `C:\Program Files\Astromesh\{python,venv}\`, replacing any previous copy
 3. Adds `C:\Program Files\Astromesh\venv\Scripts\` to the system `PATH`
 
 It does **not** register the Windows Service — see [Register and start the service](#register-and-start-the-service).
@@ -139,13 +139,16 @@ astromeshd --foreground
 | `C:\ProgramData\Astromesh\data\` | Persistent state |
 | `C:\Program Files\Astromesh\venv\` | Virtualenv (`Scripts\astromeshd.exe`, `Scripts\astromeshctl.exe`) |
 
+:::caution[Archives up to v0.1.8]
+They packaged a virtualenv whose launchers pointed at the CI runner's `D:\a\...` path, so no command ran on a real machine. Use **v0.1.9** or later.
+:::
+
 ## Upgrade
 
-`install.ps1` does not stop the service, and copying over an existing venv nests the new one inside it. Stop the service and remove the old venv first:
+`install.ps1` does not stop the service. Stop it first; since **v0.1.9** the installer replaces the old `python\` and `venv\` itself:
 
 ```powershell
 Stop-Service astromeshd
-Remove-Item "C:\Program Files\Astromesh\venv" -Recurse -Force
 # download + Expand-Archive + .\install.ps1 as above
 Start-Service astromeshd
 ```

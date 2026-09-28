@@ -56,9 +56,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+      # No setup-python: the tarball carries its own CPython, built in place.
+      - name: Prepare /usr/local/opt/astromesh (the runtime is built at its final path)
+        run: sudo mkdir -p /usr/local/opt/astromesh && sudo chown "$USER" /usr/local/opt/astromesh
       - name: Build tarball
         working-directory: astromesh-node
         run: bash packaging/build-macos.sh
@@ -72,9 +72,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+      # No setup-python: the zip carries its own CPython, built in place under Program Files.
       - name: Build zip
         working-directory: astromesh-node
         run: powershell packaging/build-windows.ps1
@@ -114,8 +112,50 @@ jobs:
             astromeshd --help >/dev/null && echo "astromeshd runs"
           '
 
+  # Same idea as verify-linux, on a clean runner that never built anything.
+  verify-macos:
+    needs: build-macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: astromesh-node-macos
+          path: pkg/
+      - name: Install and run
+        run: |
+          mkdir x && tar -xzf pkg/*.tar.gz -C x && cd x
+          sudo bash install.sh
+          astromeshctl version
+          /usr/local/opt/astromesh/venv/bin/python -c "import astromesh.api.main, astromesh_node; print('runtime imports OK', astromesh_node.__version__)"
+          astromeshd --help >/dev/null && echo "astromeshd runs"
+
+  verify-windows:
+    needs: build-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: astromesh-node-windows
+          path: pkg/
+      - name: Install and run
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory x | Out-Null
+          tar -xf (Get-ChildItem pkg\*.zip).FullName -C x
+          Set-Location x
+          & .\install.ps1
+          $scripts = Join-Path $env:ProgramFiles "Astromesh\venv\Scripts"
+          & (Join-Path $scripts "astromeshctl.exe") version
+          if ($LASTEXITCODE -ne 0) { throw "astromeshctl failed" }
+          & (Join-Path $scripts "python.exe") -c "import astromesh.api.main, astromesh_node; print('runtime imports OK', astromesh_node.__version__)"
+          if ($LASTEXITCODE -ne 0) { throw "runtime import failed" }
+          & (Join-Path $scripts "astromeshd.exe") --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "astromeshd failed" }
+          Write-Host "astromeshd runs"
+
   release:
-    needs: [validate-tag, build-linux, verify-linux, build-macos, build-windows]
+    needs: [validate-tag, build-linux, verify-linux, build-macos, verify-macos, build-windows, verify-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
