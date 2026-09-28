@@ -305,7 +305,7 @@ export function CanvasEditor() {
         label: t.name,
         config: {
           name: t.name,
-          type: "internal",
+          type: "builtin",
           description: t.description,
           parameters: {},
         },

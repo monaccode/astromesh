@@ -14,10 +14,7 @@ const PROVIDERS = [
 ];
 
 const TOOL_TYPES: { value: ToolConfig["type"]; label: string }[] = [
-  { value: "internal", label: "Internal / built-in" },
-  { value: "rag", label: "RAG / knowledge" },
-  { value: "mcp", label: "MCP" },
-  { value: "webhook", label: "Webhook (HTTP)" },
+  { value: "builtin", label: "Built-in" },
   { value: "agent", label: "Sub-agent" },
 ];
 
@@ -241,7 +238,8 @@ function ToolFields({
   const c = d.config as unknown as ToolConfig;
   const [local, setLocal] = useState({
     name: c.name ?? "",
-    type: c.type ?? "internal",
+    type: c.type ?? "builtin",
+    agent: c.agent ?? "",
     description: c.description ?? "",
   });
 
@@ -253,7 +251,8 @@ function ToolFields({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
       name: nc.name ?? "",
-      type: nc.type ?? "internal",
+      type: nc.type ?? "builtin",
+      agent: nc.agent ?? "",
       description: nc.description ?? "",
     });
   }, [nodeId, d.config]);
@@ -262,6 +261,7 @@ function ToolFields({
     const next: ToolConfig = {
       name: local.name,
       type: local.type,
+      ...(local.type === "agent" ? { agent: local.agent || local.name } : {}),
       description: local.description,
       parameters: c.parameters,
     };
@@ -289,6 +289,15 @@ function ToolFields({
           setLocal((s) => ({ ...s, type: e.target.value as ToolConfig["type"] }))
         }
       />
+      {local.type === "agent" && (
+        <Input
+          label="Agent to invoke"
+          id="t-agent"
+          value={local.agent}
+          placeholder={local.name}
+          onChange={(e) => setLocal((s) => ({ ...s, agent: e.target.value }))}
+        />
+      )}
       <div className="flex flex-col gap-1">
         <label className="text-xs text-gray-500">Description</label>
         <textarea

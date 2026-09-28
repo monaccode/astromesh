@@ -15,7 +15,7 @@ const SAMPLE: AgentConfig = {
     },
     prompts: { system: "You are a test agent." },
     orchestration: { pattern: "react", max_iterations: 5 },
-    tools: [{ name: "search", type: "internal", description: "Search" }],
+    tools: [{ name: "search", type: "builtin", description: "Search" }],
     guardrails: {
       input: [{ type: "pii_detection", action: "redact" }],
       output: [{ type: "cost_limit" }],

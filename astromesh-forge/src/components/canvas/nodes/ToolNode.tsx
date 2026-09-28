@@ -11,7 +11,7 @@ type ToolNodeData = {
 type ToolNode = Node<ToolNodeData, "tool">;
 
 export function ToolNode({ data }: NodeProps<ToolNode>) {
-  const toolType = (data.config.type as string) || "internal";
+  const toolType = (data.config.type as string) || "builtin";
 
   return (
     <div className="bg-gray-800 border-l-4 border-green-500 rounded-lg p-3 min-w-[200px] shadow-md">

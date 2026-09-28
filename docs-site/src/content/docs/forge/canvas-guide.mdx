@@ -39,7 +39,7 @@ Click the **Back** button or zoom out to return to macro view.
 The toolbox provides draggable items organized by category:
 
 - **Agents** — Existing agents deployed on the connected node.
-- **Tools** — Registered tools (internal, MCP, webhook, RAG).
+- **Tools** — Registered tools (`builtin` or `agent`).
 - **Models** — Available providers and models.
 - **Guardrails** — Input and output guardrail types.
 - **Memory** — Configured memory backends.
@@ -53,7 +53,7 @@ Selecting any node on the canvas opens a contextual properties panel on the righ
 | Node Type | Properties |
 |-----------|------------|
 | **Agent** | Name, model, orchestration pattern, status |
-| **Tool** | Name, type (internal/mcp/webhook/rag), parameters, permissions |
+| **Tool** | Name, type (`builtin`/`agent`), target agent for `agent`, description |
 | **Model** | Provider, model name, endpoint, parameters (temperature, top_p, max_tokens) |
 | **Guardrail** | Type, action (block/redact), specific configuration |
 | **Memory** | Backend, strategy, max_turns, TTL |

@@ -176,7 +176,7 @@ export function StepTools() {
       if (tool && !agentToolNames.has(toolName)) {
         const newTool: ToolConfig = {
           name: tool.name,
-          type: "internal",
+          type: "builtin",
           description: tool.description,
         };
         updateSpec("tools", [...agentTools, newTool]);

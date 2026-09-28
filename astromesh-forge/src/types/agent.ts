@@ -20,7 +20,9 @@ export interface ModelConfig {
 
 export interface ToolConfig {
   name: string;
-  type: "internal" | "mcp" | "webhook" | "rag" | "agent";
+  type: "builtin" | "agent";
+  /** Target agent name; required by the runtime when `type` is "agent". */
+  agent?: string;
   description: string;
   parameters?: Record<string, { type: string; description: string }>;
 }
