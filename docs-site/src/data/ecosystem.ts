@@ -110,11 +110,11 @@ export const CORE: Component = {
   name: 'Core Runtime',
   short: 'Core',
   group: 'runtime',
-  version: '0.59.0',
+  version: '0.61.0',
   released: '2026-09-28',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
-  latest: 'Agents and RAG reload from disk without a restart (`AgentRuntime.reload()`, wired to `systemctl reload` in Node 0.1.5).',
+  latest: 'A sub-agent proposes `mode: propose` writes on its caller\'s list, tagged with `via`; agents and RAG reload from disk without a restart (0.60.0).',
   install: 'pip install astromesh',
   href: '/astromesh/getting-started/what-is-astromesh/',
 };

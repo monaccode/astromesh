@@ -175,12 +175,29 @@ the WebSocket `done` event — and executes whatever a person approves:
 ```
 
 `propuestas` is always present, empty when nothing was proposed. Limits: 20 proposals per
-run, arguments at most 16 KB. A validation failure goes back to the model as a tool error and
+run (sub-agents included), arguments at most 16 KB per proposal. A validation failure goes back to the model as a tool error and
 never fails the run — that would lose the proposals already recorded.
+
+### Sub-agents propose on their caller's list
+
+Since **v0.61.0**, an agent invoked as a tool (`type: agent`) proposes on the list of the run
+that called it. What the child proposes comes out in the **parent's** `propuestas`, with
+`via` set to the child's `metadata.name` (the parent's own proposals carry no `via`):
+
+```json
+{ "tool": "erp_cliente_crear_pedido", "via": "especialista-pedidos", "argumentos": { … } }
+```
+
+The child's own answer does not repeat them, and the 20-proposal cap is shared by the whole
+run, grandchildren included. If a sub-agent fails **after** proposing, its proposals stay on
+the parent's list, and a retry can propose them again — every proposal is approved by a
+person, and `via` shows where it came from. Before v0.61.0 these runs refused the proposal.
+
+### Where a proposal is refused
 
 Where a proposal could not reach anyone, it is **refused to the model** instead of being lost:
 
-- **Re-entrant runs** — an agent invoked as a tool, a workflow or `spec.chain` step, a call
+- **Re-entrant runs without a caller's list** — a workflow or `spec.chain` step, a call
   through astromesh's own MCP server. Their answer is not the `/run` response.
 - **Channel routes that do not return `propuestas`** — WhatsApp and agent channels. The model
   is told this channel does not accept writes with approval.
