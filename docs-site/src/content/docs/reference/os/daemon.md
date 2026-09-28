@@ -117,10 +117,10 @@ WantedBy=multi-user.target
 
 | systemd Feature | Support |
 |-----------------|---------|
-| `Type=notify` | Yes -- daemon sends `READY=1` after API server is listening |
-| `ExecReload` | SIGHUP triggers config reload (re-scan agents, reload YAML) |
+| `Type=notify` | Yes -- daemon sends `READY=1` once agents are loaded, just before the API server starts listening |
+| `ExecReload` | SIGHUP reloads agents and RAG from disk between `RELOADING=1` and `READY=1` (node v0.1.5+); `runtime.yaml` and providers need a restart |
 | `Restart=on-failure` | Automatic restart on non-zero exit |
-| Watchdog | Not currently supported |
+| `WatchdogSec` | Yes -- the daemon pings `WATCHDOG=1` every half of `WatchdogSec` from its event loop (node v0.1.4+); a hung loop stops pinging and systemd restarts it |
 
 ## Filesystem Layout
 

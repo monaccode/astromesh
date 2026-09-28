@@ -105,5 +105,6 @@ Exit codes: `reconcile` exits `1` on a reconcile error; `plan-promotion` exits `
 | Stop | `sudo systemctl stop astromeshd` | `sudo launchctl unload /Library/LaunchDaemons/com.astromesh.daemon.plist` | `Stop-Service astromeshd` |
 | Restart | `sudo systemctl restart astromeshd` | unload + load | `Restart-Service astromeshd` |
 | Logs | `journalctl -u astromeshd -f` | `/Library/Logs/Astromesh/astromeshd.{out,err}.log` | — |
+| Reload agents | `sudo systemctl reload astromeshd` | `sudo launchctl kill HUP system/com.astromesh.daemon` | — (restart) |
 
-Configuration changes take effect on restart. `systemctl reload` sends `SIGHUP`, which the daemon only logs — it does not reload agents or providers.
+`systemctl reload astromeshd` (or `SIGHUP`, on Linux and macOS) reloads **agents and RAG pipelines** from `agents/` and `rag/` without restarting — available since astromesh-node **v0.1.5** (core **v0.60.0**). Everything is rebuilt aside and swapped at once: a cycle between agents or a chain that doesn't compile leaves the running agents untouched; an agent that fails to build goes `draft` with its error (see `astromeshctl agents list`) without taking the others down; a paused agent stays paused. In-flight runs finish on the old agent. `runtime.yaml` (host, port, services, mesh, peers) and `providers.yaml` are **not** reloaded — restart for those; the daemon logs a warning if `runtime.yaml` changed. With `ASTROMESH_PERSIST_AGENTS=0` the reload is refused, because the disk is not where the agents live.
