@@ -11,7 +11,7 @@ This guide covers installing Astromesh Node on RPM-based Linux distributions: RH
 |-------------|---------|-------|
 | RHEL / Fedora / CentOS | RHEL 9+ / Fedora 38+ | `cat /etc/os-release` |
 | systemd | 250+ | `systemctl --version` |
-| Python | 3.12+ as the system `python3` (package dependency) | `python3 --version` |
+| Python | None — the package carries its own CPython 3.12 in `/opt/astromesh/python` (since **v0.1.8**) | — |
 | Architecture | x86_64 only | `uname -m` |
 | Network | Outbound to LLM provider or local Ollama | — |
 
@@ -20,7 +20,7 @@ This guide covers installing Astromesh Node on RPM-based Linux distributions: RH
 Node packages are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```bash
-VERSION=0.1.7
+VERSION=0.1.8
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-1.x86_64.rpm
 ```
 
@@ -30,8 +30,8 @@ curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSIO
 sudo dnf install ./astromesh-node-${VERSION}-1.x86_64.rpm
 ```
 
-:::caution[Declared dependencies]
-The package is built from the same nfpm manifest as the `.deb` and declares `python3 >= 3.12` and `python3-venv`. RHEL 9's default `python3` is 3.9 and no RPM repository names a `python3-venv` package, so `dnf` may refuse the install until the dependency is provided.
+:::note[No system Python needed]
+Since **v0.1.8** the package ships its own CPython (python-build-standalone, `/opt/astromesh/python`) and declares no Python dependency, so it installs on RHEL 9's stock `python3` 3.9 unchanged. Packages up to **v0.1.7** don't work outside CI: they declared a `python3-venv` no RPM repository provides, and their venv pointed at the build machine's interpreter — upgrade instead of working around them.
 :::
 
 Verify the installation:
@@ -151,7 +151,7 @@ sudo journalctl -u astromeshd -p err
 ## Upgrade
 
 ```bash
-VERSION=0.1.7
+VERSION=0.1.8
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-1.x86_64.rpm
 sudo dnf upgrade ./astromesh-node-${VERSION}-1.x86_64.rpm
 ```

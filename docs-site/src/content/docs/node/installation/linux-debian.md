@@ -11,7 +11,7 @@ This guide covers installing Astromesh Node on Debian-based Linux distributions 
 |-------------|---------|-------|
 | Debian / Ubuntu | Debian 12+ / Ubuntu 22.04+ | `lsb_release -a` |
 | systemd | 250+ | `systemctl --version` |
-| Python | 3.12+ as the system `python3` (package dependency) | `python3 --version` |
+| Python | None — the package carries its own CPython 3.12 in `/opt/astromesh/python` (since **v0.1.8**) | — |
 | Architecture | amd64 only | `dpkg --print-architecture` |
 | Network | Outbound to LLM provider or local Ollama | — |
 
@@ -20,7 +20,7 @@ This guide covers installing Astromesh Node on Debian-based Linux distributions 
 Node packages are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```bash
-VERSION=0.1.7
+VERSION=0.1.8
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
 ```
 
@@ -131,7 +131,7 @@ sudo journalctl -u astromeshd -p err
 ## Upgrade
 
 ```bash
-VERSION=0.1.7
+VERSION=0.1.8
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
 sudo apt install ./astromesh-node_${VERSION}_amd64.deb
 ```

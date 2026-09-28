@@ -15,9 +15,34 @@ from rich.table import Table
 from astromesh import __version__
 from astromesh_node.cli.output import console, print_error
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
-PROFILES_DIR = PROJECT_ROOT / "config" / "profiles"
-AGENTS_SRC_DIR = PROJECT_ROOT / "config" / "agents"
+from astromesh_node.installer.detect import get_installer
+
+
+def bundled_config_dir() -> Path | None:
+    """The config tree the core ships: profiles and sample agents.
+
+    A path relative to this file only worked in a repo checkout — installed, it pointed
+    inside the venv and `init` wrote an empty runtime.yaml. Same probe as
+    `astromesh.api.main`: wheel install (.deb/.rpm/macOS/Windows) first, then editable.
+    """
+    import astromesh
+
+    pkg = Path(astromesh.__file__).resolve().parent
+    for candidate in (pkg / "_bundled" / "config", pkg.parent / "config"):
+        if (candidate / "profiles").is_dir():
+            return candidate
+    return None
+
+
+def _is_admin() -> bool:
+    if hasattr(os, "geteuid"):
+        return os.geteuid() == 0
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError):
+        return False
 
 ROLES = {
     "full": {
@@ -48,8 +73,9 @@ def _detect_config_dir(dev: bool) -> tuple[Path, str]:
     """
     if dev:
         return Path("./config"), "dev"
-    if os.geteuid() == 0 if hasattr(os, "geteuid") else False:
-        return Path("/etc/astromesh"), "system"
+    if _is_admin():
+        # Not /etc/astromesh everywhere: macOS and Windows keep config elsewhere.
+        return get_installer().config_dir(), "system"
     return Path("./config"), "dev"
 
 
@@ -234,17 +260,19 @@ def _write_configs(
     """Step 5: Write all configuration files. Returns list of written file paths."""
     console.print("\n[bold]Step 4:[/bold] Writing Configuration\n")
 
+    bundled = bundled_config_dir()
+    profile_file = (bundled / "profiles" / f"{role}.yaml") if bundled else None
+    if profile_file is None or not profile_file.is_file():
+        # An empty runtime.yaml boots a node with nothing configured; stop instead.
+        print_error(f"Profile '{role}' not found in the installed astromesh ({profile_file})")
+        raise typer.Exit(code=1)
+
     config_dir.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
 
     # --- runtime.yaml from profile ---
-    profile_file = PROFILES_DIR / f"{role}.yaml"
     runtime_dest = config_dir / "runtime.yaml"
-    if profile_file.exists():
-        runtime_data = yaml.safe_load(profile_file.read_text())
-    else:
-        print_error(f"Profile not found: {profile_file}")
-        runtime_data = {}
+    runtime_data = yaml.safe_load(profile_file.read_text())
 
     # Merge mesh config if provided
     if mesh_config and runtime_data.get("spec"):
@@ -292,8 +320,9 @@ def _write_configs(
     # --- agents/ directory + sample agents ---
     agents_dest = config_dir / "agents"
     agents_dest.mkdir(parents=True, exist_ok=True)
-    if AGENTS_SRC_DIR.exists():
-        for agent_file in AGENTS_SRC_DIR.glob("*.agent.yaml"):
+    agents_src = bundled / "agents"
+    if agents_src.is_dir():
+        for agent_file in agents_src.glob("*.agent.yaml"):
             dest = agents_dest / agent_file.name
             if not dest.exists():
                 shutil.copy2(agent_file, dest)

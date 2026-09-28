@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed (Astromesh Node)
 
+- **Los paquetes `.deb` y `.rpm` funcionan fuera de CI.** Hasta 0.1.7 el venv se armaba en un
+  directorio de staging con el Python del toolcache del runner de GitHub: cada paquete publicado
+  tenía shebangs a `/home/runner/...` e intérprete en `/opt/hostedtoolcache/...`, y fallaba con
+  `bad interpreter` en cualquier máquina real (medido en Ubuntu 24.04 y Rocky 9). El `.rpm` además
+  pedía `python3-venv`, que no existe en RHEL. Ahora el paquete trae su propio CPython 3.12
+  (python-build-standalone, stripped, sha256 fijado) en `/opt/astromesh/python` y el venv se
+  arma en su ruta final (`packaging/build-venv.sh`, compartido por deb y rpm); no depende del
+  Python del sistema. `release-node.yml` instala el `.deb` en ubuntu:24.04 y debian:trixie y el
+  `.rpm` en rockylinux:9 y los corre antes de publicar. Los scripts del paquete ya no fallan
+  donde no hay `systemctl` (contenedores, chroots).
+- **Actualizar el paquete ya no deja el servicio parado ni deshabilitado.** `preremove.sh` hacía
+  stop + disable siempre, también en un upgrade: en rpm el `%preun` del paquete viejo corre
+  después del `%post` del nuevo y dejaba el nodo parado y deshabilitado; en deb `prerm upgrade`
+  lo paraba y nadie lo volvía a arrancar. Ahora sólo lo hace en una desinstalación real, y
+  `postinstall.sh` distingue instalación nueva (`enable`, sin arrancar) de upgrade
+  (`try-restart`, respetando si el admin lo había deshabilitado).
+- **`astromeshctl init` encuentra sus perfiles en una instalación empaquetada.** Los buscaba
+  relativos a su propio archivo, lo que sólo existía en un checkout: instalado apuntaba adentro
+  del venv, escribía un `runtime.yaml` vacío y seguía. Ahora los lee del config que el core ya
+  empaqueta (`astromesh/_bundled/config`, o `config/` en editable) y, si falta el perfil, corta
+  con código 1. Como admin usa el config dir de cada plataforma (en macOS y Windows no es
+  `/etc/astromesh`). La copia duplicada `astromesh-node/config/profiles` se va; el `.deb`/`.rpm`
+  toma los perfiles de `config/profiles`.
+
+### Fixed (Astromesh Node)
+
 - **`--foreground` ya no muere con SIGHUP.** `ForegroundManager` guardaba el handler de recarga
   pero no registraba la señal, y la acción por defecto de SIGHUP es terminar el proceso: en
   Docker o en dev, `kill -HUP` mataba el daemon en vez de recargar los agentes

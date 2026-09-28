@@ -34,13 +34,15 @@ jobs:
         format: [deb, rpm]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+      # No setup-python: the package carries its own CPython (build-venv.sh). The runner's
+      # toolcache Python is exactly what leaked /opt/hostedtoolcache paths into every
+      # package up to 0.1.7.
       - name: Install nfpm
         run: |
           echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
           sudo apt update && sudo apt install -y nfpm
+      - name: Prepare /opt/astromesh (the runtime is built at its final path)
+        run: sudo mkdir -p /opt/astromesh && sudo chown "$USER" /opt/astromesh
       - name: Build package
         working-directory: astromesh-node
         run: bash packaging/build-${{ matrix.format }}.sh
@@ -81,8 +83,39 @@ jobs:
           name: astromesh-node-windows
           path: astromesh-node/dist/*.zip
 
+  # Installs each Linux package on a clean distro and runs it. Up to 0.1.7 every .deb/.rpm
+  # built green here and failed with "bad interpreter" on any real machine; nothing had ever
+  # installed one outside CI. A package that doesn't run is not published.
+  verify-linux:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "ubuntu:24.04", format: deb }
+          - { image: "debian:trixie", format: deb }
+          - { image: "rockylinux:9", format: rpm }
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: astromesh-node-amd64.${{ matrix.format }}
+          path: pkg/
+      - name: Install and run on ${{ matrix.image }}
+        run: |
+          docker run --rm -v "$PWD/pkg:/pkg" "${{ matrix.image }}" bash -euo pipefail -c '
+            if command -v apt-get >/dev/null; then
+              apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /pkg/*.deb
+            else
+              dnf install -y -q /pkg/*.rpm
+            fi
+            astromeshctl version
+            /opt/astromesh/venv/bin/python -c "import astromesh.api.main, astromesh_node; print(\"runtime imports OK\", astromesh_node.__version__)"
+            astromeshd --help >/dev/null && echo "astromeshd runs"
+          '
+
   release:
-    needs: [validate-tag, build-linux, build-macos, build-windows]
+    needs: [validate-tag, build-linux, verify-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

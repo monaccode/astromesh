@@ -1,37 +1,17 @@
 #!/bin/bash
+# Builds dist/astromesh-node_<version>_amd64.deb. Needs a writable /opt/astromesh — see
+# build-venv.sh. Run from anywhere; it cds to astromesh-node/.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$PROJECT_ROOT"
+cd "$SCRIPT_DIR/.."
 
-# Extract version from pyproject.toml
 VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
 export VERSION
-
 echo "==> Building astromesh-node ${VERSION} .deb package"
 
-# Create staging area
-rm -rf staging
-mkdir -p staging
+[ -x /opt/astromesh/venv/bin/astromeshd ] && [ "${REUSE_VENV:-0}" = "1" ] || bash packaging/build-venv.sh
 
-# Create venv with project installed
-echo "==> Creating virtual environment..."
-python3 -m venv staging/venv
-staging/venv/bin/pip install --upgrade pip --quiet
-# Fase 4.3: install the core `observability` extra so the OpenTelemetry SDK + OTLP exporter ship in the
-# image venv — the runtime's OTLP trace export needs them at runtime (otherwise setup() ImportErrors
-# and export silently no-ops).
-staging/venv/bin/pip install "../[observability]" ".[systemd]" --quiet
-
-# Strip unnecessary files to reduce package size
-echo "==> Stripping __pycache__ and .dist-info test dirs..."
-find staging/venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-find staging/venv -type d -name "tests" -path "*/site-packages/*/tests" -exec rm -rf {} + 2>/dev/null || true
-find staging/venv -type d -name "test" -path "*/site-packages/*/test" -exec rm -rf {} + 2>/dev/null || true
-
-# Build .deb with nfpm
-echo "==> Running nfpm..."
 mkdir -p dist
 VERSION="${VERSION}" nfpm package --config packaging/nfpm.yaml --packager deb --target dist/
 

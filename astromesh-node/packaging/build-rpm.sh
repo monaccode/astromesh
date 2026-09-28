@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
+# Builds dist/astromesh-node-<version>-1.x86_64.rpm from the same /opt/astromesh runtime as
+# the .deb (see build-venv.sh). Run from anywhere; it cds to astromesh-node/.
 set -euo pipefail
 
-VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-echo "Building astromesh-node ${VERSION} RPM..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
 
-# Reuse the same staging as deb (or create if not exists)
-if [ ! -d "staging/venv" ]; then
-    python3 -m venv staging/venv
-    staging/venv/bin/pip install --quiet ../  .[systemd]
-    find staging/venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-    find staging/venv -type d -name tests -exec rm -rf {} + 2>/dev/null || true
-fi
+VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+echo "==> Building astromesh-node ${VERSION} .rpm package"
+
+[ -x /opt/astromesh/venv/bin/astromeshd ] && [ "${REUSE_VENV:-0}" = "1" ] || bash packaging/build-venv.sh
 
 mkdir -p dist
 VERSION="${VERSION}" nfpm package --config packaging/nfpm.yaml --packager rpm --target dist/
-echo "Built dist/astromesh-node-${VERSION}.x86_64.rpm"
+echo "==> Built $(ls dist/*.rpm)"

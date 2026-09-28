@@ -11,13 +11,16 @@ replaces:
 conflicts:
   - astromesh
 
-depends:
-  - python3 (>= 3.12)
-  - python3-venv
+# No dependency on the system Python: the package carries its own interpreter
+# (python-build-standalone, /opt/astromesh/python) and a venv built on it at its final path
+# (build-venv.sh). One .deb and one .rpm for Debian, Ubuntu and RHEL alike.
 
 contents:
-  # Venv with all dependencies
-  - src: staging/venv
+  # Standalone CPython and the venv built on it — built in place, see build-venv.sh
+  - src: /opt/astromesh/python
+    dst: /opt/astromesh/python
+    type: tree
+  - src: /opt/astromesh/venv
     dst: /opt/astromesh/venv
     type: tree
 
@@ -46,7 +49,7 @@ contents:
   - src: ../config/agents/*
     dst: /etc/astromesh/agents/
     type: config
-  - src: config/profiles/*
+  - src: ../config/profiles/*
     dst: /etc/astromesh/profiles/
     type: config
 
