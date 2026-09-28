@@ -55,8 +55,8 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
 
    The wizard asks for the project, region, deployment name, environment and preset (`starter` ~$15/mo or `pro` ~$80/mo), then writes `orbit.yaml` and adds `.orbit/` to `.gitignore`.
 
-   <Aside type="caution">
-     Pick `staging` or `production` as the environment, or edit a `dev` answer to `develop` afterwards: the schema accepts `develop`, not `dev`.
+   <Aside type="note">
+     The environment is `develop`, `staging` or `production`. Orbit before **v0.4.3** offered `dev`, which the schema rejects — change it to `develop` in a file written by an older wizard.
    </Aside>
 
 3. ## Preview Changes

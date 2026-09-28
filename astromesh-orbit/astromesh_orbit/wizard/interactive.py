@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import get_args
 
 import yaml
 from rich.console import Console
 from rich.prompt import Prompt
 
+from astromesh_orbit.config import OrbitMetadata
 from astromesh_orbit.wizard.defaults import PRESETS, build_orbit_yaml
 
 console = Console()
@@ -41,8 +43,10 @@ def run_wizard(output_path: Path = Path("orbit.yaml")) -> Path:
 
     # Name and environment
     name = Prompt.ask("  Deployment name", default="my-astromesh")
+    # Choices come from the model: a hand-kept list offered `dev`, which it rejects.
+    env_field = OrbitMetadata.model_fields["environment"]
     environment = Prompt.ask(
-        "  Environment", choices=["dev", "staging", "production"], default="dev"
+        "  Environment", choices=list(get_args(env_field.annotation)), default=env_field.default
     )
 
     # Preset
