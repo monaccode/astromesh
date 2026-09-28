@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`orbit init --provider/--preset` responden las preguntas del wizard.** Se aceptaban y se
   ignoraban; ahora un preset o provider desconocido falla antes de empezar.
 
+## [0.61.0] - 2026-09-28
+
 ### Added (Backend)
 
 - **Un sub-agente propone sobre la lista de quien lo llamó.** La tool `type: agent` le pasa al
