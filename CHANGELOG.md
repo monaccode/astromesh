@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Astromesh Orbit)
+
+- **`orbit apply` pide confirmación antes de crear recursos pagos**, como `destroy` y
+  `terraform apply`. Antes no preguntaba nunca y `--auto-approve` no tenía nada que saltear. Un
+  script que corra `orbit apply` sin la terminal tiene que agregar `--auto-approve`.
+
+### Fixed (Astromesh Orbit)
+
+- **`orbit init --provider/--preset` responden las preguntas del wizard.** Se aceptaban y se
+  ignoraban; ahora un preset o provider desconocido falla antes de empezar.
+
 ### Fixed (Astromesh Node)
 
 - **El tarball de macOS y el zip de Windows funcionan fuera de CI.** Tenían el mismo defecto que
