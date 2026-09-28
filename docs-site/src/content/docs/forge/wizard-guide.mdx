@@ -39,7 +39,7 @@ Configure the LLM provider and parameters.
 Select and configure the tools your agent can use.
 
 - Drag tools from the **available tools** panel on the left into the agent's tool list.
-- Tool types: `internal` (Python functions), `mcp` (Model Context Protocol servers), `webhook` (external HTTP endpoints), `rag` (retrieval-augmented generation).
+- Forge emits two tool types: `builtin` (a tool that ships in the node) and `agent` (a sub-agent, with the target in `agent:`). Tenant APIs, MCP servers and catalog integrations (`api`, `mcp`, `integration`) are edited in YAML — see [Tenant APIs and MCP](/astromesh/configuration/tenant-apis-and-mcp/) and [Integrations](/astromesh/configuration/integrations/).
 - For each tool, configure permissions and rate limits as needed.
 - Reorder tools by dragging them within the list.
 

@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `transport` stdio/sse que el loader no tiene).
 - Las páginas de CLI, Node, Orbit, ADK y Glyph dejan de documentar comandos y flags que no existen.
 
+### Fixed (Astromesh Forge)
+
+- **Forge generaba tools que el runtime descarta.** Emitía `type: internal`, `rag`, `webhook` y un
+  `mcp` con `server_url`, y el loader sólo acepta `builtin`, `agent`, `client`, `integration`,
+  `api` y `mcp` (con otra forma); el agente cargaba sin esas tools y sin avisar. Ahora emite
+  `builtin`, y un sub-agente lleva su `agent:` (antes faltaba y el build del agente fallaba con
+  `KeyError`). Se sacan los presets de «Connections», que no podían cargar. Forge → 0.24.1.
+
 ### Changed (Release coordination)
 
 - **astromesh-adk 0.3.1**, **astromesh-cli 0.3.1**: suben el piso de `astromesh` a `>=0.59.0`.

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Wrench,
-  Link2,
   Database,
   Shield,
   Cpu,
@@ -39,7 +38,6 @@ interface ToolboxProps {
 
 const SECTION_LABEL: Record<PresetSection, { label: string; icon: typeof Wrench }> = {
   builtin: { label: "From your node", icon: Wrench },
-  integrations: { label: "Connections", icon: Link2 },
   memory: { label: "Memory & data", icon: Database },
   safety: { label: "Safety", icon: Shield },
 };
@@ -87,7 +85,6 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     builtin: true,
-    integrations: true,
     memory: true,
     safety: true,
     agents: true,
@@ -176,7 +173,7 @@ export function Toolbox({ onAddAgent, micro }: ToolboxProps) {
             )}
           </div>
 
-          {(["integrations", "memory", "safety"] as const).map((section) => (
+          {(["memory", "safety"] as const).map((section) => (
             <div key={section} className="border-b border-gray-800">
               <SectionHeader
                 title={SECTION_LABEL[section].label}

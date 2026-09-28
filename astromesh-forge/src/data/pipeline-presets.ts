@@ -1,6 +1,6 @@
-import type { GuardrailConfig, MemoryConfig, ToolConfig } from "../types/agent";
+import type { GuardrailConfig, MemoryConfig } from "../types/agent";
 
-export type PresetSection = "builtin" | "integrations" | "memory" | "safety";
+export type PresetSection = "builtin" | "memory" | "safety";
 
 export interface PipelinePreset {
   id: string;
@@ -14,27 +14,6 @@ export interface PipelinePreset {
     category: "tool" | "memory" | "guardrail";
     label: string;
     config: Record<string, unknown>;
-  };
-}
-
-function toolPreset(
-  id: string,
-  section: PresetSection,
-  title: string,
-  hint: string,
-  cfg: ToolConfig,
-): PipelinePreset {
-  return {
-    id,
-    section,
-    title,
-    hint,
-    build: () => ({
-      id: `tool-${cfg.name}-${Date.now()}`,
-      category: "tool",
-      label: cfg.name,
-      config: { ...cfg } as unknown as Record<string, unknown>,
-    }),
   };
 }
 
@@ -90,58 +69,6 @@ function guardPreset(
 
 /** Curated blocks — user can refine fields in the properties panel. */
 export const PIPELINE_PRESETS: PipelinePreset[] = [
-  toolPreset(
-    "int-rag",
-    "integrations",
-    "Knowledge search (RAG)",
-    "Query an indexed document collection",
-    {
-      name: "knowledge_search",
-      type: "rag",
-      description: "Semantic search over your knowledge base",
-      parameters: {},
-    },
-  ),
-  toolPreset(
-    "int-mcp",
-    "integrations",
-    "MCP connector",
-    "Call tools exposed by an MCP server",
-    {
-      name: "mcp_tools",
-      type: "mcp",
-      description: "Model Context Protocol — configure server URL in parameters",
-      parameters: {
-        server_url: { type: "string", description: "MCP server URL" },
-      },
-    },
-  ),
-  toolPreset(
-    "int-webhook",
-    "integrations",
-    "HTTP webhook",
-    "POST JSON to your API",
-    {
-      name: "http_callback",
-      type: "webhook",
-      description: "Call an external HTTP endpoint",
-      parameters: {
-        url: { type: "string", description: "HTTPS URL" },
-      },
-    },
-  ),
-  toolPreset(
-    "int-sql",
-    "integrations",
-    "Database (read)",
-    "Structured queries via a safe internal tool (configure in runtime)",
-    {
-      name: "database_query",
-      type: "internal",
-      description: "Run read-only queries against your database tool",
-      parameters: {},
-    },
-  ),
   memoryPreset(
     "mem-chat",
     "Chat memory",
