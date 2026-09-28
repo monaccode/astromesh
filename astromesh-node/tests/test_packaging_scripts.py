@@ -6,11 +6,16 @@ rpm %preun/%post reciben la cantidad de instancias que quedan (0 = borrado, 1+ =
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "packaging" / "scripts"
+
+# deb/rpm maintainer scripts are bash for Linux packages; the Windows runner has no bash
+# semantics to exercise them with.
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Linux package scripts")
 
 
 @pytest.fixture
@@ -81,11 +86,17 @@ def test_scripts_succeed_without_systemctl(script, args, tmp_path):
         (bin_dir / name).chmod(0o755)
     # A PATH with the shims and the shell basics, but no systemctl.
     for tool in ("bash", "sh", "echo", "cat", "getent", "rm"):
-        real = subprocess.run(["which", tool], capture_output=True, text=True).stdout.strip()
+        real = subprocess.run(
+            ["which", tool], capture_output=True, text=True, check=False
+        ).stdout.strip()
         if real:
             (bin_dir / tool).symlink_to(real)
     env = {"PATH": str(bin_dir), "HOME": str(tmp_path)}
     result = subprocess.run(
-        [str(bin_dir / "bash"), str(SCRIPTS / script), *args], env=env, capture_output=True, text=True
+        [str(bin_dir / "bash"), str(SCRIPTS / script), *args],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
