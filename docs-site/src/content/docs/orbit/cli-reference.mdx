@@ -49,7 +49,7 @@ astromeshctl orbit init
   GCP Project ID: my-project-123
   Region [us-central1/us-east1/us-west1/europe-west1/europe-west4/asia-east1/asia-southeast1/southamerica-east1] (us-central1):
   Deployment name (my-astromesh):
-  Environment [dev/staging/production] (dev): production
+  Environment [develop/staging/production] (develop): production
 
     starter (~$15/mo) — no HA, 1GB cache
     pro (~$80/mo) — HA, 4GB cache
@@ -61,8 +61,8 @@ astromeshctl orbit init
   OK .orbit/ added to .gitignore
 ```
 
-<Aside type="caution">
-  The wizard offers `dev` as an environment, but the `orbit.yaml` schema accepts `develop`, `staging` or `production`. If you pick `dev`, change it to `develop` in the generated file before running `plan`, or the config fails validation.
+<Aside type="note">
+  Orbit before **v0.4.3** offered `dev`, which the `orbit.yaml` schema rejects; if an older wizard wrote `environment: dev`, change it to `develop`.
 </Aside>
 
 **Side effects:**

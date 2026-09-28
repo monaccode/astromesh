@@ -36,7 +36,7 @@ def test_pro_preset_values():
 def test_build_orbit_yaml_starter():
     data = build_orbit_yaml(
         name="my-deploy",
-        environment="dev",
+        environment="develop",
         provider="gcp",
         project="my-project",
         region="us-central1",
@@ -122,3 +122,32 @@ def test_build_orbit_yaml_includes_observability():
     )
     assert data["spec"]["observability"]["dashboard"] is True
     assert data["spec"]["observability"]["tracing"]["enabled"] is False
+
+
+def test_every_wizard_environment_choice_validates(monkeypatch, tmp_path):
+    """The wizard offered `dev`, which OrbitMetadata rejects: its own default failed validation."""
+    from astromesh_orbit.config import OrbitConfig
+    from astromesh_orbit.wizard import interactive
+
+    asked = {}
+
+    def fake_ask(prompt, choices=None, default=None, **kw):
+        if "Environment" in prompt:
+            asked["choices"], asked["default"] = choices, default
+        return default if default is not None else (choices[0] if choices else "p")
+
+    monkeypatch.setattr(interactive.Prompt, "ask", staticmethod(fake_ask))
+    monkeypatch.chdir(tmp_path)
+    interactive.run_wizard(tmp_path / "orbit.yaml")
+
+    assert asked["default"] in asked["choices"]
+    for env in asked["choices"]:
+        data = build_orbit_yaml(
+            name="x",
+            environment=env,
+            provider="gcp",
+            project="p",
+            region="us-central1",
+            preset="starter",
+        )
+        OrbitConfig(**data)  # raises on an environment the model rejects
