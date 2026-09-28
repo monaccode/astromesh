@@ -7,16 +7,22 @@ The Tool Registry manages tool discovery, registration, schema generation, and e
 
 ## Tool Types
 
-Astromesh supports six tool types, each with a different execution model:
+The registry knows these tool types, each with a different execution model:
 
 | Type | Source | Execution | Use Case |
 |------|--------|-----------|----------|
-| **builtin** | Astromesh's 17 built-in Python tools | ToolLoader auto-discovery + async execute | Common tasks (HTTP, files, search, DB, email) |
+| **builtin** | Astromesh's 18 built-in Python tools | ToolLoader auto-discovery + async execute | Common tasks (HTTP, files, search, DB, email) |
 | **internal** | Custom Python functions in the codebase | Direct async function call | Custom capabilities specific to your application |
-| **MCP** | External MCP servers (stdio/SSE/HTTP) | Client connects to MCP server, proxies tool calls | Third-party integrations, IDE tools, database access |
+| **integration** | A catalog manifest (`integration.yaml`) | Declarative HTTP executor, credential from the run's connection | SaaS and ERP APIs — see [Integrations](/astromesh/configuration/integrations/) |
+| **api** | A tenant's API spec, inline in the agent YAML | Same executor as `integration`, public hosts only, IP-pinned | The tenant's own REST API |
+| **mcp** | A tenant's MCP server, with an inline snapshot of its tools | One short MCP session per call over a pinned transport | The tenant's own MCP server |
 | **webhook** | External HTTP endpoints | HTTP POST to configured URL | Legacy APIs, microservices, serverless functions |
 | **RAG** | RAG pipeline exposed as a tool | Runs ingest/query pipeline internally | Knowledge retrieval, document Q&A |
 | **agent** | Another Astromesh agent | Invokes target agent's full pipeline via `AgentRuntime.run()` | Multi-agent composition, delegation, specialist agents |
+
+From an agent YAML the declarable types are `builtin`, `agent`, `client`, `integration`,
+`api` and `mcp`. `internal`, `webhook` and `rag` are registry types a YAML cannot declare —
+the loader warns and skips them (the sections below describe the registry side).
 
 ## Registration
 
@@ -24,7 +30,7 @@ Tools are registered in the agent YAML under `spec.tools`:
 
 ### Built-in Tools
 
-Astromesh ships with 17 ready-to-use tools. Use `type: builtin` and the tool resolves automatically via `ToolLoader`:
+Astromesh ships with 18 ready-to-use tools. Use `type: builtin` and the tool resolves automatically via `ToolLoader`:
 
 ```yaml
 spec:
@@ -69,39 +75,39 @@ spec:
           default: 5
 ```
 
-### MCP Tools
+### API and MCP Tools
+
+`type: api` (since **v0.57.0**) registers each operation of a tenant's API spec as
+`<slug>_<operation>`, reusing the integration executor with `permitir_internos=False`: the
+destination must resolve to public addresses only, and the connection is pinned to the
+checked IP.
+
+`type: mcp` (since **v0.58.0**) registers each tool of an **inline snapshot** of a tenant's
+MCP server as `<slug>_<tool>`, with the snapshot's `input_schema`, without connecting at
+build time — the runtime does not call `tools/list`. Each call is a short session
+(`initialize` + `tools/call` + close) through `llamar_tool_mcp`, which never raises: every
+failure comes back as the tool's error. Requires the `mcp` extra (`mcp>=1.28.1,<2`).
 
 ```yaml
 spec:
   tools:
-    - name: mcp_filesystem
+    - name: soporte
       type: mcp
-      description: "File system operations via MCP"
-      mcp:
-        transport: stdio
-        command: "npx"
-        args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
+      connection: soporte_mcp        # base_url + credential, resolved per run
+      path: /mcp
+      auth: { scheme: bearer }
+      tools:
+        - name: buscar_ticket
+          description: Find a support ticket by number.
+          writes: false
+          input_schema: { type: object, properties: { numero: { type: string } } }
 ```
 
-```yaml
-spec:
-  tools:
-    - name: mcp_database
-      type: mcp
-      description: "Database access via MCP"
-      mcp:
-        transport: sse
-        url: "http://localhost:3001/sse"
-```
-
-| MCP Field | Required | Description |
-|-----------|----------|-------------|
-| `transport` | Yes | Connection type: `stdio`, `sse`, or `http` |
-| `command` | stdio only | Command to spawn the MCP server process |
-| `args` | stdio only | Arguments passed to the command |
-| `url` | sse/http only | URL of the remote MCP server |
-
-**MCP Discovery:** When an MCP tool is configured, the ToolRegistry connects to the MCP server at bootstrap, calls `tools/list` to discover available tools, and registers each discovered tool individually. The agent can then call any tool exposed by that server.
+Both are read-only unless an operation declares `writes: true` with `mode: propose`
+(since **v0.59.0**): that tool is registered with a handler that validates and records the
+arguments for approval, and never calls the tenant. An `api` or `mcp` tool whose name
+collides with any other tool of the agent fails the load. Full reference:
+[Tenant APIs & MCP Servers](/astromesh/configuration/tenant-apis-and-mcp/).
 
 ### Webhook Tools
 
@@ -284,7 +290,8 @@ flowchart TB
     rl -- "Exceeded?" --> re["Return rate limit error to LLM"]
     rl -- Within limits --> ex["`**Execute Tool**
     internal: call Python function
-    mcp: proxy to MCP server
+    integration / api: declarative HTTP executor
+    mcp: short session to the tenant's MCP server
     webhook: HTTP POST to URL
     rag: run vector query
     agent: invoke target agent pipeline`"]

@@ -65,6 +65,7 @@ export default defineConfig({
             { label: 'Multi-agent Composition', slug: 'configuration/multi-agent' },
             { label: 'Agent Chaining', slug: 'configuration/agent-chaining' },
             { label: 'Integrations', slug: 'configuration/integrations' },
+            { label: 'Tenant APIs & MCP Servers', slug: 'configuration/tenant-apis-and-mcp' },
             { label: 'Confirmation Gate', slug: 'configuration/confirmation-gate' },
             { label: 'Glyph — Action Language', slug: 'configuration/glyph' },
             { label: 'Channels', slug: 'configuration/channels' },

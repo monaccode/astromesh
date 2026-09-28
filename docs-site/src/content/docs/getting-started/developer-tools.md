@@ -40,7 +40,7 @@ Executes the agent against your local runtime. Output streams to the terminal.
 ### Step 3: Debug
 
 ```bash
-astromeshctl traces customer-support --last 5
+astromeshctl traces list customer-support --last 5
 ```
 
 Full execution trees — guardrails, memory lookups, LLM calls, tool usage, and timings. Every step visible.
@@ -48,8 +48,8 @@ Full execution trees — guardrails, memory lookups, LLM calls, tool usage, and 
 ### Step 4: Monitor
 
 ```bash
-astromeshctl metrics customer-support
-astromeshctl cost --window 24h
+astromeshctl metrics --agent customer-support
+astromeshctl cost
 ```
 
 Token usage, latency histograms, and cost tracking. Catch expensive patterns before they hit production.

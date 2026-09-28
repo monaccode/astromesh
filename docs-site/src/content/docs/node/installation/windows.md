@@ -11,36 +11,30 @@ This guide covers installing Astromesh Node as a Windows Service on Windows 10/1
 |-------------|---------|-------|
 | Windows | 10 21H2+ / 11 / Server 2019+ | `winver` |
 | PowerShell | 5.1+ (included in Windows) | `$PSVersionTable.PSVersion` |
-| Architecture | x64 or arm64 | `echo %PROCESSOR_ARCHITECTURE%` |
-| Python | 3.12+ (bundled by the installer) | — |
+| Architecture | x64 | `echo %PROCESSOR_ARCHITECTURE%` |
+| Python | 3.12+ | `python --version` |
 | Network | Outbound to LLM provider or local Ollama | — |
 
 Administrator privileges are required for installation.
 
 ## Download
 
-Download the latest `.zip` package from GitHub Releases.
-
-**PowerShell:**
+Node archives are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```powershell
+$Version = "0.1.3"
 Invoke-WebRequest `
-  -Uri https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_windows_amd64.zip `
-  -OutFile astromesh.zip
+  -Uri "https://github.com/monaccode/astromesh/releases/download/node-v$Version/astromesh-node-$Version-windows.zip" `
+  -OutFile astromesh-node.zip
 ```
-
-**Or download via browser:** visit the [GitHub Releases page](https://github.com/monaccode/astromesh/releases/latest) and download `astromesh_latest_windows_amd64.zip`.
 
 ## Install
 
 Extract the archive and run the installer script as Administrator:
 
 ```powershell
-# Extract
-Expand-Archive -Path astromesh.zip -DestinationPath .\astromesh
-
-# Open an Administrator PowerShell and run the installer
-cd .\astromesh
+Expand-Archive -Path astromesh-node.zip -DestinationPath .\astromesh-node
+cd .\astromesh-node
 .\install.ps1
 ```
 
@@ -53,26 +47,11 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 The installer:
 
-1. Copies `astromeshd.exe` and `astromeshctl.exe` to `C:\Program Files\Astromesh\bin\`
-2. Creates configuration and data directories
-3. Registers the `AstromeshDaemon` Windows Service
-4. Adds `C:\Program Files\Astromesh\bin\` to the system `PATH`
+1. Creates `C:\ProgramData\Astromesh\config\`, `data\` and `logs\`
+2. Copies the virtualenv to `C:\Program Files\Astromesh\venv\`
+3. Adds `C:\Program Files\Astromesh\venv\Scripts\` to the system `PATH`
 
-Expected output:
-
-```
-Installing Astromesh Node v0.1.1...
-Creating directories...
-  C:\ProgramData\Astromesh\config\
-  C:\ProgramData\Astromesh\data\
-  C:\ProgramData\Astromesh\logs\
-Installing binaries...
-Installing Python environment...
-Registering Windows Service 'AstromeshDaemon'...
-astromesh installed successfully.
-
-Run 'astromeshctl init' to configure.
-```
+It does **not** register the Windows Service — see [Register and start the service](#register-and-start-the-service).
 
 Open a new terminal (to pick up the PATH update) and verify:
 
@@ -83,51 +62,42 @@ astromeshctl version
 Expected output:
 
 ```
-Astromesh Node v0.1.1
-Daemon:   C:\Program Files\Astromesh\bin\astromeshd.exe
-CLI:      C:\Program Files\Astromesh\bin\astromeshctl.exe
-Python:   3.12.x
-Platform: windows/amd64
+astromesh-cli 0.3.1
+astromesh core 0.59.0
 ```
 
 ## Configure
 
-Run the interactive wizard (from an Administrator terminal):
+`astromeshctl init` only writes to the system directory on Unix when run as root; on Windows it always writes to `.\config`. Run it from `C:\ProgramData\Astromesh` so that lands in the directory the daemon reads:
 
 ```powershell
-astromeshctl init
+cd C:\ProgramData\Astromesh
+astromeshctl init --dev
 ```
 
 For a non-interactive setup:
 
 ```powershell
-astromeshctl init --profile full --provider ollama --model llama3.1:8b --non-interactive
+astromeshctl init --dev --role full --non-interactive
 ```
 
-This creates:
-
-- `C:\ProgramData\Astromesh\config\runtime.yaml`
-- `C:\ProgramData\Astromesh\config\providers.yaml`
-- `C:\ProgramData\Astromesh\config\agents\default.agent.yaml`
+This creates `config\runtime.yaml` and `config\providers.yaml`. The Windows archive ships neither role profiles nor sample agents, so `runtime.yaml` is empty (all services on, port 8000 — the `full` defaults) and `config\agents\` starts empty: add your `*.agent.yaml` files there. An API key you enter goes to `C:\ProgramData\Astromesh\.env`, which the service does not read — set it as a system environment variable instead.
 
 See [Configuration](/astromesh/node/configuration/) for the full schema.
 
-## Start the Service
+## Register and start the service
+
+The service wrapper `astromeshd-service.py` ships in the archive (not in the installed venv). From the extracted folder, as Administrator:
 
 ```powershell
-# Start the service
-Start-Service AstromeshDaemon
-
-# Set to start automatically on boot
-Set-Service AstromeshDaemon -StartupType Automatic
+& "$env:ProgramFiles\Astromesh\venv\Scripts\python.exe" .\astromeshd-service.py --startup auto install
+Start-Service astromeshd
 ```
 
-Or use the Services console (`services.msc`) — find `Astromesh Daemon` and start it.
-
-To stop:
+The service is named `astromeshd` (display name "Astromesh Agent Runtime Daemon"). To stop it:
 
 ```powershell
-Stop-Service AstromeshDaemon
+Stop-Service astromeshd
 ```
 
 ## Verify
@@ -155,17 +125,10 @@ New-NetFirewallRule `
 
 ## Log Access
 
-Logs are written to `C:\ProgramData\Astromesh\logs\`:
+The service writes no log file. To see the daemon's output, stop the service and run it in a terminal:
 
 ```powershell
-# Follow live logs
-Get-Content "C:\ProgramData\Astromesh\logs\astromeshd.log" -Wait -Tail 50
-
-# View errors
-Select-String -Path "C:\ProgramData\Astromesh\logs\astromeshd.log" -Pattern "ERROR"
-
-# Windows Event Log
-Get-EventLog -LogName Application -Source AstromeshDaemon -Newest 50
+astromeshd --foreground
 ```
 
 ## Filesystem Paths
@@ -173,37 +136,32 @@ Get-EventLog -LogName Application -Source AstromeshDaemon -Newest 50
 | Path | Purpose |
 |------|---------|
 | `C:\ProgramData\Astromesh\config\` | Configuration files |
-| `C:\ProgramData\Astromesh\data\` | Persistent state (memory, models) |
-| `C:\ProgramData\Astromesh\logs\` | Log files |
-| `C:\Program Files\Astromesh\bin\` | `astromeshd.exe` and `astromeshctl.exe` |
+| `C:\ProgramData\Astromesh\data\` | Persistent state |
+| `C:\Program Files\Astromesh\venv\` | Virtualenv (`Scripts\astromeshd.exe`, `Scripts\astromeshctl.exe`) |
 
 ## Upgrade
 
+`install.ps1` does not stop the service, and copying over an existing venv nests the new one inside it. Stop the service and remove the old venv first:
+
 ```powershell
-# Download new version
-Invoke-WebRequest `
-  -Uri https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_windows_amd64.zip `
-  -OutFile astromesh.zip
-
-Expand-Archive -Path astromesh.zip -DestinationPath .\astromesh -Force
-cd .\astromesh
-.\install.ps1
+Stop-Service astromeshd
+Remove-Item "C:\Program Files\Astromesh\venv" -Recurse -Force
+# download + Expand-Archive + .\install.ps1 as above
+Start-Service astromeshd
 ```
-
-The installer stops the service, upgrades binaries, and restarts the service.
 
 ## Uninstall
 
 ```powershell
 # Stop and remove the service
-Stop-Service AstromeshDaemon
-sc.exe delete AstromeshDaemon
+Stop-Service astromeshd
+sc.exe delete astromeshd
 
-# Remove binaries
+# Remove the virtualenv
 Remove-Item "C:\Program Files\Astromesh" -Recurse -Force
 ```
 
-To remove all configuration and data:
+Also remove `C:\Program Files\Astromesh\venv\Scripts` from the system `PATH`. To remove all configuration and data:
 
 ```powershell
 Remove-Item "C:\ProgramData\Astromesh" -Recurse -Force

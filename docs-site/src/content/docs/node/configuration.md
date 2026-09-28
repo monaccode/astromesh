@@ -3,7 +3,7 @@ title: "Configuration"
 description: "runtime.yaml reference, profiles, filesystem paths, and environment variables for Astromesh Node"
 ---
 
-Astromesh Node is configured through `runtime.yaml` and an optional `.env` file. The `astromeshctl init` wizard generates both. This page documents all configuration options.
+Astromesh Node is configured through `runtime.yaml` and an optional `.env` file. The `astromeshctl init` wizard generates both (the `.env` only when you enter a provider API key). This page documents all configuration options.
 
 ## runtime.yaml Schema
 
@@ -17,8 +17,7 @@ spec:
   # API server settings
   api:
     host: "0.0.0.0"         # Bind address (use 127.0.0.1 for local-only)
-    port: 8000              # HTTP port
-    log_level: info         # debug | info | warning | error
+    port: 8000              # HTTP port (log level is the astromeshd --log-level flag)
 
   # Services to activate on this node
   services:
@@ -35,9 +34,9 @@ spec:
   peers: []
 ```
 
-## The 7 Profiles
+## Roles and Profiles
 
-Profiles are pre-configured `runtime.yaml` templates. Select one during `astromeshctl init --profile <name>`.
+Profiles are pre-configured `runtime.yaml` templates. `astromeshctl init --role <name>` offers four of them — `full`, `gateway`, `worker`, `inference`. The packages also ship `mesh-gateway`, `mesh-worker` and `mesh-inference` (the same services with a `spec.mesh` block instead of static `peers`) in `/etc/astromesh/profiles/` on Linux; the wizard does not offer those, so copy them by hand.
 
 ### `full` — All Services on One Node
 
@@ -107,66 +106,15 @@ spec:
 
 **Use when:** GPU-accelerated inference node dedicated to running local models.
 
-### `minimal` — Lightweight Single Agent
-
-```yaml
-spec:
-  services:
-    api: true
-    agents: true
-    inference: false
-    memory: false
-    tools: false
-    channels: false
-    rag: false
-    observability: false
-```
-
-**Use when:** Small-footprint deployments, IoT, or edge devices with constrained resources.
-
-### `rag` — Document Retrieval
-
-```yaml
-spec:
-  services:
-    api: true
-    agents: true
-    inference: false
-    memory: true
-    tools: false
-    channels: false
-    rag: true
-    observability: true
-```
-
-**Use when:** Dedicated document Q&A or knowledge-base node.
-
-### `edge` — Offline / Air-Gapped
-
-```yaml
-spec:
-  services:
-    api: true
-    agents: true
-    inference: true
-    memory: false
-    tools: false
-    channels: false
-    rag: false
-    observability: false
-```
-
-**Use when:** Isolated environments with no outbound internet access, using bundled local models.
-
 ## Filesystem Paths by Platform
 
 | Resource | Linux | macOS | Windows |
 |----------|-------|-------|---------|
-| Configuration | `/etc/astromesh/` | `/etc/astromesh/` | `C:\ProgramData\Astromesh\config\` |
-| State / Data | `/var/lib/astromesh/` | `/var/lib/astromesh/` | `C:\ProgramData\Astromesh\data\` |
-| Logs | `/var/log/astromesh/` | `/var/log/astromesh/` | `C:\ProgramData\Astromesh\logs\` |
-| Binaries | `/opt/astromesh/bin/` | `/usr/local/bin/` | `C:\Program Files\Astromesh\bin\` |
-| Service unit | `/etc/systemd/system/astromeshd.service` | `/Library/LaunchDaemons/com.astromesh.astromeshd.plist` | Windows Service Registry |
+| Configuration | `/etc/astromesh/` | `/Library/Application Support/Astromesh/config/` | `C:\ProgramData\Astromesh\config\` |
+| State / Data | `/var/lib/astromesh/` | `/Library/Application Support/Astromesh/data/` | `C:\ProgramData\Astromesh\data\` |
+| Logs | journald (`/var/log/astromesh/` for audit) | `/Library/Logs/Astromesh/` | — |
+| Virtualenv | `/opt/astromesh/venv/` (symlinked into `/usr/bin/`) | `/usr/local/opt/astromesh/venv/` (symlinked into `/usr/local/bin/`) | `C:\Program Files\Astromesh\venv\` (`Scripts\` added to PATH) |
+| Service | `/lib/systemd/system/astromeshd.service` | `/Library/LaunchDaemons/com.astromesh.daemon.plist` | Windows service `astromeshd` |
 
 ### Configuration Directory Layout
 
@@ -183,42 +131,28 @@ spec:
 
 ## Environment Variables
 
-Secrets and overrides can be set in `<config-dir>/.env`. The daemon loads this file automatically at startup.
+The daemon does not read a `.env` file itself. On Linux the systemd unit loads `/etc/astromesh/.env` (`EnvironmentFile=-/etc/astromesh/.env`), which is where `astromeshctl init` stores a provider API key. On macOS and Windows, set variables in the launchd plist or the service's environment.
 
 ```bash
-# LLM Provider API Keys
+# /etc/astromesh/.env
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-GROQ_API_KEY=gsk_...
-
-# Memory Backends
-REDIS_URL=redis://localhost:6379
-POSTGRES_URL=postgresql://user:pass@localhost:5432/astromesh
-
-# Channel Adapters
-WHATSAPP_TOKEN=...
-WHATSAPP_PHONE_NUMBER_ID=...
-
-# Runtime Overrides
-ASTROMESH_LOG_LEVEL=debug           # Override log level from runtime.yaml
-ASTROMESH_PORT=9000                 # Override API port
 ASTROMESH_FORCE_PYTHON=1            # Disable Rust native extensions
 ```
 
-Environment variables take precedence over values in `runtime.yaml`.
+Host and port come from `runtime.yaml` or the `astromeshd` flags, not from environment variables. See [Environment Variables](/astromesh/reference/env-vars/) for everything the runtime reads.
 
-### Referencing Environment Variables in YAML
-
-Any YAML value can reference an environment variable using `${VAR_NAME}` syntax:
+Providers name the variable that holds their key with `api_key_env`, which is what the wizard writes:
 
 ```yaml
 # providers.yaml
-providers:
-  - name: openai
-    type: openai
-    api_key: "${OPENAI_API_KEY}"
-    model: gpt-4o
+spec:
+  providers:
+    openai:
+      type: openai_compat
+      endpoint: https://api.openai.com/v1
+      api_key_env: OPENAI_API_KEY
+      models: [gpt-4o, gpt-4o-mini]
 ```
 
 ## Multi-Node Configuration
@@ -240,42 +174,33 @@ spec:
       services: [inference]
 ```
 
-See the [Deployment: Astromesh Node](/astromesh/node/introduction/) reference for a full 3-node example.
 
-## Reload Configuration
+## Applying Changes
 
-On Linux and macOS, you can reload configuration without restarting the daemon:
+Restart the daemon after changing configuration:
 
 ```bash
-# Linux
-sudo systemctl reload astromeshd
-
-# macOS
-sudo kill -HUP $(pgrep astromeshd)
+sudo systemctl restart astromeshd        # Linux
 ```
-
-This sends `SIGHUP` to the daemon, which reloads agent definitions and provider config without dropping active connections.
-
-On Windows, restart the service:
 
 ```powershell
-Restart-Service AstromeshDaemon
+Restart-Service astromeshd               # Windows
 ```
+
+On macOS, unload and load the plist. `systemctl reload` (and `SIGHUP`) is accepted but the daemon only logs it — agents and providers are not reloaded.
 
 ## Validate Configuration
 
-Before starting or after making changes:
+Before starting or after making changes (`--path` defaults to `./config`):
 
 ```bash
-astromeshctl config validate
+astromeshctl config validate --path /etc/astromesh
 ```
 
 Expected output:
 
 ```
-Validating /etc/astromesh/runtime.yaml ... OK
-Validating /etc/astromesh/providers.yaml ... OK
-Validating /etc/astromesh/agents/default.agent.yaml ... OK
-
-All configuration files are valid.
+Configuration valid (12 file(s) checked).
 ```
+
+It exits `0` even when it reports errors.

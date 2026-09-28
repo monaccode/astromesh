@@ -87,6 +87,8 @@ Transforms a JSON value using a Jinja2 template.
 
 **Returns:** Parsed JSON from the rendered template output.
 
+The template is written by the model, so it renders in Jinja2's `ImmutableSandboxedEnvironment`: an access the sandbox forbids (e.g. `{{ lipsum.__globals__ }}`) comes back as the tool's error instead of running code in the runtime. Available since astromesh **v0.56.2**.
+
 ### cache_store
 
 Key-value cache shared across tool calls within a session. Uses the `ToolContext.cache` dict.
@@ -114,7 +116,7 @@ Makes HTTP requests to external services.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `allow_localhost` | bool | `false` | Whether to permit requests to `localhost`, `127.0.0.1`, `0.0.0.0`, and `::1` |
+| `allow_localhost` | bool | `false` | Disables the [internal-destination check](#security-considerations) entirely — not only `localhost`, but every private or cluster-internal host. Operator config; the model cannot set it |
 | `timeout_seconds` | int | `30` | Request timeout |
 | `max_response_bytes` | int | `5242880` | Maximum response size (5 MB) |
 
@@ -174,6 +176,8 @@ Fetches Wikipedia article summaries via the Wikipedia REST API.
 |-----------|------|----------|-------------|
 | `topic` | string | Yes | Article topic to look up |
 | `language` | string | No | Wikipedia language code. Default: `en` |
+
+`language` builds the host (`{language}.wikipedia.org`), so it must look like a language code (`en`, `pt`, `zh-min-nan`); anything else is rejected, and `topic` is URL-encoded into the path. The model cannot point the tool at another host. Available since astromesh **v0.56.2**.
 
 ## File Tools
 
@@ -340,7 +344,9 @@ Ingests a document into the RAG pipeline attached to the agent's context. Requir
 
 ## Security Considerations
 
-- **`http_request`** blocks requests to localhost (`127.0.0.1`, `0.0.0.0`, `::1`) by default. Set `allow_localhost: true` in config to override.
+- **Network tools cannot reach internal destinations** (since astromesh **v0.56.2**). `http_request`, `graphql_query`, `web_scrape` and `send_webhook` accept only `http`/`https` URLs to public hosts. They reject internal names without resolving them (`localhost`, names without a dot, `*.local`, `*.internal`, `*.svc`, `*.cluster.local`), IP literals that are not global, and names that resolve to a non-global IP (private, loopback, link-local, reserved; a NAT64 `64:ff9b::/96` address is judged by its embedded IPv4). The check runs on every request, redirect hops included (`web_scrape` follows redirects). A blocked destination is returned as the tool's error. `allow_localhost: true` on `http_request` is the only way out, and it is operator config.
+- The check resolves the name and httpx resolves it again to connect, so a DNS answer that changes in between (rebinding) is not caught by these four tools. Pair them with a pod NetworkPolicy.
+- **`json_transform`** renders in a Jinja2 sandbox; **`wikipedia`** cannot change host through `language` (both since **v0.56.2**).
 - **`read_file` / `write_file`** support `allowed_paths` restrictions to limit filesystem access to specific directories.
 - **`sql_query`** defaults to `read_only: true`, blocking all write and DDL statements.
 - **`send_email`** uses `asyncio.to_thread()` for non-blocking SMTP operations.

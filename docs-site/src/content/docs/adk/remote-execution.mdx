@@ -3,13 +3,17 @@ title: Remote Execution
 description: Connect agents to a remote Astromesh cluster
 ---
 
+:::caution[Not wired yet]
+`connect()`, `remote()` and `agent.bind()` record the connection (in a `contextvars` variable, or on the agent), but the ADK runner does not read it: every `run()` executes in-process, on the local runtime. The API below is what exists today; nothing is sent to the remote URL.
+:::
+
 ## Connect Globally
 
 ```python
 from astromesh_adk import connect, disconnect
 
 connect(url="https://my-cluster.astromesh.io", api_key="ask-xxx")
-result = await my_agent.run("query")  # Runs on remote
+result = await my_agent.run("query")
 disconnect()
 ```
 
@@ -19,21 +23,17 @@ disconnect()
 from astromesh_adk import remote
 
 async with remote("https://cluster.io", api_key="..."):
-    result = await agent.run("Runs on Astromesh")
-
-result = await agent.run("Runs locally")
+    result = await agent.run("query")
 ```
 
 ## Per-Agent Binding
 
 ```python
 my_agent.bind(remote="https://cluster.io", api_key="...")
-result = await my_agent.run("Always remote")
-
-other_agent.run("Still local")
+result = await my_agent.run("query")
 ```
 
-## Resolution Priority
+## Intended Resolution Priority
 
 1. `agent.bind()` (per-agent)
 2. `remote()` context manager

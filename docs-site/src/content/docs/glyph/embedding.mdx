@@ -110,7 +110,7 @@ try:
     result = await execute(graph, provider)
 except GlyphExecutionError as exc:
     # Tells the model which effects already happened, so it does not repeat them.
-    repair_prompt = exc.partial_state.to_prompt()
+    repair_prompt = exc.partial.to_prompt()
 ```
 
 | Exception | Raised when |

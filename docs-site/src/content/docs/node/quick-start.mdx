@@ -9,40 +9,34 @@ This guide gets Astromesh Node installed and running on your system. Pick your p
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
+Node releases are published on GitHub under `node-v*` tags (the repository's "latest" release is the core, so `releases/latest/download/...` URLs do not find the Node packages). Set `VERSION` to the Node release you want:
+
 <Tabs>
 <TabItem label="Debian / Ubuntu">
 
 ```bash
-# Download the latest release
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_amd64.deb
-
-# Install
-sudo apt install ./astromesh_latest_amd64.deb
+VERSION=0.1.3
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
+sudo apt install ./astromesh-node_${VERSION}_amd64.deb
 ```
 
 </TabItem>
 <TabItem label="RHEL / Fedora">
 
 ```bash
-# Download the latest release
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_x86_64.rpm
-
-# Install
-sudo rpm -i astromesh_latest_x86_64.rpm
-# or on Fedora/RHEL 8+:
-sudo dnf install ./astromesh_latest_x86_64.rpm
+VERSION=0.1.3
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-1.x86_64.rpm
+sudo dnf install ./astromesh-node-${VERSION}-1.x86_64.rpm
 ```
 
 </TabItem>
 <TabItem label="macOS">
 
 ```bash
-# Download and extract
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_darwin.tar.gz
-tar -xzf astromesh_latest_darwin.tar.gz
-
-# Run the installer
-cd astromesh_latest_darwin
+VERSION=0.1.3
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-macos.tar.gz
+mkdir astromesh-node && tar -xzf astromesh-node-${VERSION}-macos.tar.gz -C astromesh-node
+cd astromesh-node
 sudo ./install.sh
 ```
 
@@ -50,12 +44,12 @@ sudo ./install.sh
 <TabItem label="Windows">
 
 ```powershell
-# Download and extract
-Invoke-WebRequest -Uri https://github.com/monaccode/astromesh/releases/latest/download/astromesh_latest_windows.zip -OutFile astromesh.zip
-Expand-Archive -Path astromesh.zip -DestinationPath astromesh
+$Version = "0.1.3"
+Invoke-WebRequest -Uri "https://github.com/monaccode/astromesh/releases/download/node-v$Version/astromesh-node-$Version-windows.zip" -OutFile astromesh-node.zip
+Expand-Archive -Path astromesh-node.zip -DestinationPath astromesh-node
 
 # Run the installer (as Administrator)
-cd astromesh
+cd astromesh-node
 .\install.ps1
 ```
 
@@ -71,48 +65,38 @@ astromeshctl version
 Expected output:
 
 ```
-Astromesh Node v0.1.1
-Daemon:  /opt/astromesh/bin/astromeshd
-CLI:     /opt/astromesh/bin/astromeshctl
-Python:  3.12.x
-Platform: linux/amd64
+astromesh-cli 0.3.1
+astromesh core 0.59.0
 ```
 
 ## Step 2: Initialize
 
-Run the interactive configuration wizard. This generates your `runtime.yaml`, `providers.yaml`, and a default agent:
+Run the interactive configuration wizard. Run as root, it writes `/etc/astromesh/runtime.yaml` and `providers.yaml` (on macOS and Windows the daemon reads a different directory — follow the [macOS](/astromesh/node/installation/macos/#configure) or [Windows](/astromesh/node/installation/windows/#configure) guide for this step):
 
 ```bash
-sudo astromeshctl init --profile full
+sudo astromeshctl init
 ```
 
-The wizard prompts for your LLM provider (Ollama, OpenAI, Anthropic, etc.) and memory backend. For a quick start with a local model:
+The wizard asks for a node role (`full`, `gateway`, `worker`, `inference`) and a provider (`ollama`, `openai`, `anthropic`, or `skip`). With Ollama it checks `http://localhost:11434` and writes the config even if Ollama is not running yet; with OpenAI or Anthropic it asks for the API key and stores it in `/etc/astromesh/.env`, which the systemd unit loads.
 
-```
-? Select deployment profile: full
-? Select provider: Ollama (local)
-? Ollama endpoint: http://localhost:11434
-? Select model: llama3.1:8b
-? Enable memory? Yes
-? Memory backend: SQLite (local)
-? Enable observability? No
-
-Configuration written to /etc/astromesh/
-```
-
-To use a specific profile without the interactive wizard, pass `--profile` and provider flags:
+To accept all defaults (role `full`, provider `ollama`) without prompts:
 
 ```bash
-sudo astromeshctl init --profile full --provider ollama --model llama3.1:8b --non-interactive
+sudo astromeshctl init --non-interactive
 ```
+
+:::caution[Packaged installs: the role profile is not found]
+In the packaged builds the wizard looks for its role profiles next to its own source tree, does not find them, prints `Profile not found` and writes an empty `runtime.yaml`. On Debian/RHEL the package ships the profiles in `/etc/astromesh/profiles/`: copy the one for your role over it (`sudo cp /etc/astromesh/profiles/full.yaml /etc/astromesh/runtime.yaml`).
+:::
 
 ## Step 3: Start the Service
 
 <Tabs>
 <TabItem label="Linux (systemd)">
 
+The package already enables the unit; it does not start it.
+
 ```bash
-sudo systemctl enable astromeshd
 sudo systemctl start astromeshd
 ```
 
@@ -120,15 +104,17 @@ sudo systemctl start astromeshd
 <TabItem label="macOS (launchd)">
 
 ```bash
-sudo launchctl load /Library/LaunchDaemons/com.astromesh.astromeshd.plist
+sudo launchctl load /Library/LaunchDaemons/com.astromesh.daemon.plist
 ```
 
 </TabItem>
 <TabItem label="Windows">
 
+`install.ps1` does not register the service. From the extracted folder, register it with the bundled wrapper, then start it:
+
 ```powershell
-Start-Service AstromeshDaemon
-Set-Service AstromeshDaemon -StartupType Automatic
+& "$env:ProgramFiles\Astromesh\venv\Scripts\python.exe" .\astromeshd-service.py --startup auto install
+Start-Service astromeshd
 ```
 
 </TabItem>
@@ -142,21 +128,19 @@ Check that the daemon is running and agents are loaded:
 astromeshctl status
 ```
 
-Expected output:
+Expected output (values vary):
 
 ```
-┌──────────────────────────────────────┐
-│         Astromesh Status             │
-├──────────────┬───────────────────────┤
-│ Status       │ ● Running             │
-│ Version      │ 0.1.1                 │
-│ Uptime       │ 0h 0m 12s             │
-│ Profile      │ full                  │
-│ PID          │ 4521                  │
-│ Agents       │ 1 loaded              │
-│ Providers    │ 1 healthy, 0 degraded │
-│ Memory       │ 128.0 MB              │
-└──────────────┴───────────────────────┘
+   Astromesh Daemon Status
+┏━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+┃ Property      ┃ Value   ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+│ Version       │ 0.59.0  │
+│ PID           │ 4521    │
+│ Mode          │ system  │
+│ Uptime        │ 12.4s   │
+│ Agents Loaded │ 10      │
+└───────────────┴─────────┘
 ```
 
 Run a full diagnostics check:
@@ -167,24 +151,15 @@ astromeshctl doctor
 
 ## Step 5: Run Your First Agent
 
-With the service running, call the API:
+With the service running, pick an agent from `astromeshctl agents list` and call the API:
 
 ```bash
-curl -s http://localhost:8000/v1/agents/default/run \
+curl -s http://localhost:8000/v1/agents/support-agent/run \
   -H "Content-Type: application/json" \
-  -d '{"query": "Hello! What can you do?"}' | jq .
+  -d '{"query": "Hello! What can you do?"}' | jq .answer
 ```
 
-Expected response:
-
-```json
-{
-  "agent": "default",
-  "response": "Hello! I'm your Astromesh assistant. I can answer questions, help with research...",
-  "session_id": "sess_abc123",
-  "tokens_used": 42
-}
-```
+The response carries `answer`, `steps` and `usage`; see [`POST /v1/agents/{name}/run`](/astromesh/reference/api-endpoints/).
 
 ## Next Steps
 

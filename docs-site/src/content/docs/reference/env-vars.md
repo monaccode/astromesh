@@ -28,31 +28,34 @@ These variables affect runtime behavior regardless of deployment method.
 | `ASTROMESH_PERSIST_AGENTS` | `1` (enabled) | When `1` (default), agents created or updated via the HTTP API are written to `agents/<name>.agent.yaml` under `ASTROMESH_CONFIG_DIR`. Set to `0`, `false`, or `no` to keep agents in memory only (typical for tests). See [Forge, API & on-disk agents](/astromesh/configuration/forge-api-storage/) |
 | `ASTROMESH_TEMPLATES_DIR` | (unset) | Optional extra directory of `*.template.yaml` files for Forge (`GET /v1/templates`). Merged with bundled and config paths; overrides earlier sources when template names match. See [Forge, API & on-disk agents](/astromesh/configuration/forge-api-storage/) |
 | `ASTROMESH_FORCE_PYTHON` | (unset) | Set to `1` to disable Rust native extensions and use pure-Python fallbacks. Useful for debugging or environments where Rust extensions cannot be compiled |
-| `ASTROMESH_LOG_LEVEL` | `info` | Logging level: `debug`, `info`, `warning`, `error` |
-| `ASTROMESH_LOG_FORMAT` | `text` | Log format: `text` (human-readable) or `json` (structured) |
+| `ASTROMESH_SKIP_RUNTIME` | (unset) | `1`/`true`/`yes` skips bootstrapping `AgentRuntime` in the API lifespan (tests) |
+| `ASTROMESH_CORS_ORIGINS` | `*` | Comma-separated list of allowed CORS origins for the API |
+| `ASTROMESH_NEXUS_URL` | (unset) | Where Nexus lives. Required by the [`send_message`](/astromesh/reference/core/builtin-tools/) builtin tool |
+| `ASTROMESH_SSE_POLL_INTERVAL` | `1.0` | Seconds between event-queue polls on the agent-channel SSE stream |
+| `ASTROMESH_SSE_KEEPALIVE_EVERY` | `15` | Seconds between SSE keepalive comments |
+| `ASTROMESH_SSE_IDLE_EXIT_AFTER` | `30` | Seconds of idle before the SSE stream closes |
+
+## Logging
+
+`astromesh.logging_config.setup_logging()` runs when the API module is imported.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ASTROMESH_LOG_LEVEL` | `DEBUG` | Level for the `astromesh` logger tree: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
+| `ASTROMESH_LOG_THIRDPARTY_LEVEL` | `WARNING` | Level cap for noisy libraries (`httpx`, `httpcore`, `openai`, …) |
+| `ASTROMESH_LOG_FORMAT` | `%(asctime)s \| %(levelname)-8s \| %(name)s \| %(message)s` | Python `logging` format string |
+| `ASTROMESH_LOG_DATEFMT` | `%Y-%m-%dT%H:%M:%S` | `strftime` format for `%(asctime)s` |
+| `ASTROMESH_LOG_CONFIGURE` | (unset) | `0`/`false`/`no` skips the setup entirely (custom handlers, tests) |
+
+Uvicorn's own access/error logs are still controlled by `uvicorn --log-level`.
 
 ## Provider API Keys
 
-API keys and endpoints for LLM providers. Only configure the providers you intend to use.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENAI_API_KEY` | (required for OpenAI) | OpenAI API key. Starts with `sk-` |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible API base URL. Override for Azure OpenAI or local proxies |
-| `ANTHROPIC_API_KEY` | (required for Anthropic) | Anthropic API key |
-| `OLLAMA_HOST` | `http://localhost:11434` | Ollama server endpoint. Change when Ollama runs on a different host or port |
-| `GOOGLE_API_KEY` | (required for Google) | Google AI (Gemini) API key |
+The runtime reads no provider key by a fixed name. Each provider block names the variable that holds its key with `api_key_env`; for `openai_compat` (and `openai`, `azure_openai`) it defaults to `OPENAI_API_KEY`. The LiteLLM provider also reads `api_key_env`, and LiteLLM itself picks up its usual per-vendor variables (`ANTHROPIC_API_KEY`, …). See [Providers](/astromesh/configuration/providers/).
 
 ## Memory Backends
 
-Connection strings for memory storage backends.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL for conversational memory and caching |
-| `DATABASE_URL` | (none) | PostgreSQL connection string for episodic memory and durable storage (e.g., `postgresql://user:pass@localhost:5432/astromesh`) |
-| `CHROMA_HOST` | `localhost` | ChromaDB server host for semantic memory |
-| `CHROMA_PORT` | `8000` | ChromaDB server port |
+Memory connection strings are not read from the environment by name: they go in the agent YAML (for example `memory.conversational.connection.url`, which has no default), where `${VAR}` references are substituted from the environment.
 
 ## WhatsApp Channel
 
@@ -65,24 +68,14 @@ Required when using the WhatsApp channel adapter. All four variables must be set
 | `WHATSAPP_PHONE_NUMBER_ID` | (required) | Phone number ID associated with your WhatsApp Business account |
 | `WHATSAPP_APP_SECRET` | (required) | App secret used to validate incoming webhook request signatures (X-Hub-Signature-256 header) |
 
-## Mesh (Maia)
-
-Configuration for mesh networking when `ASTROMESH_MESH_ENABLED=true`.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ASTROMESH_MESH_BIND_PORT` | `8001` | Port for inter-node gossip communication |
-| `ASTROMESH_MESH_GOSSIP_INTERVAL` | `2000` | Gossip interval in milliseconds |
-| `ASTROMESH_MESH_HEARTBEAT_INTERVAL` | `5000` | Heartbeat interval in milliseconds |
-| `ASTROMESH_MESH_SUSPECT_THRESHOLD` | `15000` | Milliseconds without heartbeat before marking node suspect |
-| `ASTROMESH_MESH_DEAD_THRESHOLD` | `30000` | Milliseconds without heartbeat before marking node dead |
-
 ## Observability
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | (none) | OpenTelemetry collector endpoint for traces and metrics |
-| `OTEL_SERVICE_NAME` | `astromesh` | Service name reported in traces |
+| `ASTROMESH_OTLP_ENABLED` | (unset) | `1`/`true`/`yes` turns on OTLP export. An explicit `observability.otlp.enabled` in config takes precedence |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP collector endpoint. Sets only the endpoint — never enables export on its own |
+
+Mesh (Maia) timing is configured in `runtime.yaml`, not through environment variables; see [Maia internals](/astromesh/advanced/maia-internals/).
 
 ## Precedence
 

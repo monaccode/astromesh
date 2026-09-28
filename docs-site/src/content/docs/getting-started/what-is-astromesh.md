@@ -76,7 +76,7 @@ Each pattern is selected per-agent in YAML and can be tuned with `max_iterations
 
 Astromesh manages three types of memory, each suited to different recall needs:
 
-- **Conversational** — chat history for maintaining context within a session. Backends: Redis, PostgreSQL, SQLite. Strategies: `sliding_window`, `summary`, `token_budget`.
+- **Conversational** — chat history for maintaining context within a session. Backend: Redis. Strategies: `sliding_window`, `summary`, `token_budget`.
 - **Semantic** — vector embeddings for similarity search over documents and past interactions. Backends: pgvector, ChromaDB, Qdrant, FAISS.
 - **Episodic** — structured event logs for tracking what happened and when. Backend: PostgreSQL.
 

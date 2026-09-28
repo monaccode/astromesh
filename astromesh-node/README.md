@@ -15,8 +15,8 @@ Supports Linux (Debian/Ubuntu, RHEL/Fedora), macOS, and Windows.
 
 ```bash
 # Install from GitHub Release
-sudo dpkg -i astromesh-node-0.1.2-amd64.deb    # Debian/Ubuntu
-sudo rpm -i astromesh-node-0.1.2-amd64.rpm      # RHEL/Fedora
+sudo dpkg -i astromesh-node-0.1.3-amd64.deb    # Debian/Ubuntu
+sudo rpm -i astromesh-node-0.1.3-amd64.rpm      # RHEL/Fedora
 
 # Configure and start
 sudo astromeshctl init --profile full

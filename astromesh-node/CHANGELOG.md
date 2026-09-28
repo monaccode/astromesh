@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-27
+
+### Changed
+- Bumped the `astromesh` core dependency floor to `>=0.59.0` and `astromesh-cli` to `>=0.3.1` (`pyproject.toml`).
+
 ## [0.1.2] - 2026-08-10
 
 ### Changed

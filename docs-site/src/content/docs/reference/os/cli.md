@@ -5,15 +5,11 @@ description: Command-line interface reference
 
 `astromeshctl` is the command-line interface for inspecting and managing a running Astromesh daemon. It communicates with `astromeshd` via the REST API.
 
-## Global Flags
+## Connecting to the daemon
 
-These flags apply to all commands:
+There are no global flags besides `--help`. The daemon address comes from `ASTROMESH_DAEMON_URL` (default `http://localhost:8000`); JSON output is a per-command `--json` flag (on `status`, `doctor`, `agents list`, `providers list`, `services`, `peers list`, `mesh status`, `mesh nodes`, and the execution/observability/tool commands).
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--host URL` | `http://localhost:8000` | Address of the Astromesh daemon |
-| `--json` | `false` | Output in machine-readable JSON instead of human-friendly tables |
-| `--help` | -- | Show help for any command |
+`init`, `validate` and `config validate` are registered by the `astromesh-node` plugin; see the [CLI command reference](/astromesh/reference/cli-commands/).
 
 ## Commands
 
@@ -96,9 +92,11 @@ Validating agents/broken.agent.yaml ... FAILED
 1 error(s) found.
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--config PATH` | Path to configuration directory (uses same auto-detection as `astromeshd` if omitted) |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path PATH` | `./config` | Configuration directory to validate |
+
+It prints the errors it finds but exits `0` either way.
 
 ### `astromeshctl services`
 
@@ -153,18 +151,12 @@ node-gamma      worker    assistant            0             8%     0.6G
 
 ### `astromeshctl mesh leave`
 
-Gracefully leave the cluster. Drains active requests and notifies peers before departing.
+Leave the cluster (`POST /v1/mesh/leave`). Takes no flags.
 
 ```
 $ astromeshctl mesh leave
-Draining 3 active requests...
-Notifying peers...
-Left cluster successfully.
+Left mesh successfully.
 ```
-
-| Flag | Description |
-|------|-------------|
-| `--force` | Leave immediately without draining requests |
 
 ### `astromeshctl init`
 
@@ -191,9 +183,9 @@ Run 'astromeshd' to start.
 
 | Flag | Description |
 |------|-------------|
-| `--dev` | Generate development-friendly defaults (in-memory backends, debug logging, Ollama provider) |
-| `--non-interactive` | Use all defaults without prompting. Suitable for CI/scripts |
-| `--output PATH` | Directory to write config files. Default: `./config/` |
+| `--role` | Node role: `full`, `gateway`, `worker`, `inference` |
+| `--dev` | Force dev mode (writes to local `./config/`) |
+| `--non-interactive` | Accept all defaults without prompting. Suitable for CI/scripts |
 
 ---
 

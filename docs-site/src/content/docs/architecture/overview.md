@@ -74,7 +74,7 @@ Astromesh ships with a broad set of capabilities out of the box:
 | **LLM Providers** | 6 providers -- Ollama, OpenAI-compatible, vLLM, llama.cpp, HuggingFace TGI, ONNX Runtime |
 | **Model Routing** | 5 strategies -- cost-optimized, latency-optimized, quality-first, round-robin, capability-match. Automatic circuit breaker with fallback chains. |
 | **Orchestration** | 6 patterns -- ReAct, Plan & Execute, Parallel Fan-Out, Pipeline, Supervisor, Swarm |
-| **Memory** | 3 types -- Conversational (Redis/PostgreSQL/SQLite), Semantic (pgvector/ChromaDB/Qdrant/FAISS), Episodic (PostgreSQL). 3 strategies -- sliding window, summary, token budget. |
+| **Memory** | 3 types -- Conversational (Redis), Semantic (pgvector/ChromaDB/Qdrant/FAISS), Episodic (PostgreSQL). 3 strategies -- sliding window, summary, token budget. |
 | **RAG Pipeline** | 4 chunking strategies, 3 embedding providers, 4 vector stores, 2 rerankers |
 | **Tool System** | Internal Python tools, MCP tools (stdio/SSE/HTTP), webhook tools, RAG-as-tool |
 | **MCP Integration** | Client (connect to external MCP servers) and Server (expose agents as MCP tools) |

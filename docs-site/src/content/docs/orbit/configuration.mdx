@@ -14,7 +14,7 @@ apiVersion: astromesh/v1
 kind: OrbitDeployment
 metadata:
   name: my-astromesh              # Deployment name (used in resource naming)
-  environment: production          # dev | staging | production
+  environment: production          # develop | staging | production
 
 spec:
   provider:
@@ -45,6 +45,9 @@ spec:
 
   images:
     runtime: fulfarodev/astromesh:latest
+
+  env:                             # Extra env vars for the runtime container
+    ASTROMESH_LOG_LEVEL: INFO
 ```
 
 ## Field Reference
@@ -53,8 +56,8 @@ spec:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `name` | string | Yes | Deployment name. Used as a prefix for all cloud resources. Must be lowercase alphanumeric with hyphens. |
-| `environment` | string | Yes | One of `dev`, `staging`, `production`. Affects naming and default behaviors. |
+| `name` | string | Yes | Deployment name. Prefix for most cloud resources and the Terraform state. Use lowercase alphanumerics and hyphens (GCP naming rules; Orbit does not check). |
+| `environment` | string | No | One of `develop` (default), `staging`, `production`. Recorded in the config; resource names do not depend on it. |
 
 ### `spec.provider`
 
@@ -66,12 +69,12 @@ spec:
 
 ### `spec.compute`
 
-The `runtime` compute service accepts:
+The `runtime` compute service accepts the fields below. With no `compute.runtime` block at all, the runtime gets `cpu: "2"`, `memory: "2Gi"`, `max_instances: 5`; the table's defaults apply to fields left out of a block you do declare.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `min_instances` | int | 1 | Minimum running instances. Set to `0` to enable scale-to-zero. |
-| `max_instances` | int | 5 | Maximum instances Cloud Run will scale to under load. |
+| `max_instances` | int | 3 | Maximum instances Cloud Run will scale to under load. |
 | `cpu` | string | `"1"` | vCPUs per instance. Valid values: `"1"`, `"2"`, `"4"`. |
 | `memory` | string | `"1Gi"` | Memory per instance. Examples: `"512Mi"`, `"1Gi"`, `"2Gi"`, `"4Gi"`. |
 
@@ -147,11 +150,17 @@ spec:
 | `tracing.enabled` | bool | false | Add an OpenTelemetry Collector sidecar to the runtime Cloud Run service and set `ASTROMESH_OTLP_ENABLED=1` on the runtime container so it exports spans to Cloud Trace. |
 | `tracing.collector_image` | string | `otel/opentelemetry-collector-contrib:0.115.1` | Container image for the OTel Collector sidecar. |
 
+### `spec.env`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `env` | map of string → string | `{}` | Extra environment variables set on the runtime Cloud Run container. |
+
 There is no `logging` field — Cloud Run ships container logs to Cloud Logging automatically. See [GCP Provider](/astromesh/orbit/gcp-provider/) for how `orbit logs` reads them.
 
 ## Presets
 
-The `orbit init` wizard offers two presets that fill in all values automatically. You can also pass `--preset` to skip the interactive wizard entirely.
+The `orbit init` wizard offers two presets that fill in all values automatically. (`--preset` is accepted but the wizard still asks.) Both presets also write the default `storage` and `observability` blocks (tracing off), omitted below.
 
 ### Starter (~$15/mo)
 
@@ -162,7 +171,7 @@ apiVersion: astromesh/v1
 kind: OrbitDeployment
 metadata:
   name: my-astromesh
-  environment: dev
+  environment: develop
 
 spec:
   provider:
@@ -173,9 +182,9 @@ spec:
   compute:
     runtime:
       min_instances: 1
-      max_instances: 1
-      cpu: "1"
-      memory: "1Gi"
+      max_instances: 3
+      cpu: "2"
+      memory: "2Gi"
 
   database:
     tier: db-f1-micro
@@ -216,8 +225,8 @@ spec:
     runtime:
       min_instances: 1
       max_instances: 5
-      cpu: "2"
-      memory: "2Gi"
+      cpu: "4"
+      memory: "4Gi"
 
   database:
     tier: db-g1-small
@@ -237,15 +246,13 @@ spec:
     runtime: fulfarodev/astromesh:latest
 ```
 
-## Environment Options
+## Multiple Environments
 
-The `metadata.environment` field affects resource naming and default behaviors:
+`metadata.environment` does not change resource names. Most resources are prefixed with `metadata.name` (and the Terraform state uses it as its prefix), but the Cloud Run service (`astromesh-runtime`) and the service account (`astromesh-orbit`) have fixed names, so two deployments in one GCP project collide. Use a GCP project per environment.
 
-| Environment | Naming Pattern | Notes |
-|---|---|---|
-| `dev` | `{name}-dev-*` | Suitable for development and testing |
-| `staging` | `{name}-staging-*` | Pre-production validation |
-| `production` | `{name}-*` | Production workloads (no environment suffix) |
+<Aside type="caution">
+  The `init` wizard offers `dev`, which the schema rejects — change it to `develop` in the generated file.
+</Aside>
 
 <Aside type="tip">
   You can maintain multiple `orbit.yaml` files for different environments (e.g., `orbit.dev.yaml`, `orbit.prod.yaml`) and pass them explicitly: `astromeshctl orbit apply --config orbit.prod.yaml`.
@@ -253,15 +260,15 @@ The `metadata.environment` field affects resource naming and default behaviors:
 
 ## Working Directory
 
-After running `orbit init`, your project will have:
+After `orbit init` and a first `orbit plan`/`apply`, your project will have:
 
 ```
 your-project/
 ├── orbit.yaml           # Committed to git
 └── .orbit/              # Gitignored
     ├── generated/       # .tf files (regenerated on every plan/apply)
-    ├── orbit.env        # Connection variables (written after apply)
-    └── .terraform/      # Terraform cache and plugins
+    │   └── .terraform/  # Terraform cache and plugins
+    └── orbit.env        # Terraform outputs (written after apply)
 ```
 
 ## Roadmap Fields

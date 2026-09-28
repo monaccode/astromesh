@@ -30,7 +30,7 @@ flowchart TB
     s4["`**4. Start API server**
     Uvicorn on configured host:port`"]
     s5["`**5. Write PID file**
-    /var/run/astromesh/astromeshd.pid`"]
+    /var/lib/astromesh/astromeshd.pid`"]
     s6["`**6. Notify systemd**
     sd_notify(READY=1)`"]
     serving["Serving requests"]
@@ -48,11 +48,11 @@ flowchart TB
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--config PATH` | (auto-detect) | Explicit path to configuration directory |
-| `--port PORT` | `8000` | Port for the HTTP API server |
-| `--host HOST` | `0.0.0.0` | Bind address for the HTTP server |
+| `--port PORT` | `runtime.yaml`, else `8000` | Port for the HTTP API server |
+| `--host HOST` | `runtime.yaml`, else `0.0.0.0` | Bind address for the HTTP server |
 | `--log-level LEVEL` | `info` | Logging level: `debug`, `info`, `warning`, `error` |
-| `--pid-file PATH` | `/var/run/astromesh/astromeshd.pid` | Path to write the PID file |
-| `--workers N` | `1` | Number of Uvicorn worker processes |
+| `--pid-file PATH` | `astromeshd.pid` in the platform data dir | Path to write the PID file |
+| `--foreground` | off | Run in foreground mode, without init-system integration |
 
 ### Examples
 
@@ -84,7 +84,7 @@ The first path that exists and contains a `runtime.yaml` file is used. If none i
 
 The daemon writes its process ID to a PID file after the API server is ready. This enables process managers and init systems to track and signal the process.
 
-**Default location:** `/var/run/astromesh/astromeshd.pid`
+**Default location:** `astromeshd.pid` in the platform data directory — `/var/lib/astromesh/astromeshd.pid` on Linux, `/Library/Application Support/Astromesh/data/` on macOS, `%ProgramData%\Astromesh\data\` on Windows.
 
 The PID file is removed on graceful shutdown. If the daemon crashes, a stale PID file may remain -- `astromeshd` checks for and cleans up stale PID files on startup.
 
@@ -109,7 +109,7 @@ RestartSec=5
 User=astromesh
 Group=astromesh
 RuntimeDirectory=astromesh
-PIDFile=/var/run/astromesh/astromeshd.pid
+PIDFile=/var/lib/astromesh/astromeshd.pid
 
 [Install]
 WantedBy=multi-user.target
@@ -132,7 +132,7 @@ WantedBy=multi-user.target
 | `/etc/astromesh/runtime.yaml` | Global runtime configuration |
 | `/etc/astromesh/agents/` | Agent YAML definitions |
 | `/etc/astromesh/channels.yaml` | Channel adapter configuration |
-| `/var/run/astromesh/astromeshd.pid` | PID file |
+| `/var/lib/astromesh/astromeshd.pid` | PID file |
 | `/var/log/astromesh/` | Log files (when file logging is enabled) |
 | `/var/lib/astromesh/` | Persistent data (vector stores, episodic logs) |
 

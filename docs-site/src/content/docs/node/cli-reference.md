@@ -1,311 +1,109 @@
 ---
 title: "CLI Reference"
-description: "Complete astromeshctl command reference for Astromesh Node"
+description: "astromeshd flags and the astromeshctl commands Astromesh Node adds"
 ---
 
-`astromeshctl` is the command-line interface for managing an Astromesh Node. It communicates with the running `astromeshd` daemon over HTTP (default: `http://localhost:8000`).
+Astromesh Node ships two entry points: the `astromeshd` daemon and `astromeshctl`. `astromeshctl` itself comes from the `astromesh-cli` package; Node registers a plugin on it (the `astromeshctl.plugins` entry point) that adds `init`, `validate`, `config validate` and `centinela`. Everything else — `status`, `doctor`, `agents list`, `providers list`, `run`, `traces`, `mesh`, … — is documented in the [CLI Commands reference](/astromesh/reference/cli-commands/).
 
-## Global Flags
+`astromeshctl` talks to the daemon over HTTP at `ASTROMESH_DAEMON_URL` (default `http://localhost:8000`). There are no global flags besides `--help`; JSON output is a per-command `--json` flag.
+
+Service control (start, stop, restart, logs) is done with the platform service manager, not with `astromeshctl` — see [Service control](#service-control) below.
+
+## `astromeshd`
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--host` | `localhost` | Daemon host |
-| `--port` | `8000` | Daemon port |
-| `--json` | false | Output in JSON format (all commands) |
-| `--config` | platform default | Path to config directory |
-| `--help` | — | Show help |
-| `--version` | — | Show version |
+| `--config DIR` | auto-detected | Config directory. Without it: the system dir if it has a `runtime.yaml`, else `./config` if it has one, else the system dir |
+| `--host HOST` | `spec.api.host`, else `0.0.0.0` | Bind address |
+| `--port PORT` | `spec.api.port`, else `8000` | Bind port |
+| `--log-level LEVEL` | `info` | `debug`, `info`, `warning`, `error` |
+| `--pid-file PATH` | `<data dir>/astromeshd.pid` | PID file (`/var/lib/astromesh/astromeshd.pid` on Linux) |
+| `--foreground` | off | Run without init-system integration (no systemd notify / watchdog) |
+
+The system config dir is `/etc/astromesh` on Linux, `/Library/Application Support/Astromesh/config` on macOS and `%ProgramData%\Astromesh\config` on Windows.
 
 ## `astromeshctl version`
-
-Print version information.
 
 ```bash
 astromeshctl version
 ```
 
-Output:
-
 ```
-Astromesh Node v0.1.1
-Daemon:   /opt/astromesh/bin/astromeshd
-CLI:      /opt/astromesh/bin/astromeshctl
-Python:   3.12.x
-Platform: linux/amd64
+astromesh-cli 0.3.1
+astromesh core 0.59.0
 ```
 
 ## `astromeshctl init`
 
-Interactive configuration wizard. Generates `runtime.yaml`, `providers.yaml`, and a default agent.
+Interactive wizard. Writes `runtime.yaml` (from the chosen role's profile), `providers.yaml`, a `.env` with the provider API key if you entered one, and copies the sample agents into `agents/`. It then validates what it wrote and prints how to start the daemon.
 
 ```bash
-sudo astromeshctl init [flags]
+sudo astromeshctl init [--role ROLE] [--non-interactive] [--dev]
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--profile <name>` | Pre-select a profile (`full`, `gateway`, `worker`, `inference`, `minimal`, `rag`, `edge`) |
-| `--provider <name>` | Pre-select a provider (`ollama`, `openai`, `anthropic`, `groq`, `gemini`, `onnx`) |
-| `--model <name>` | Pre-select a model |
-| `--non-interactive` | Skip prompts; use provided flags and defaults |
-| `--output <dir>` | Write config to a custom directory |
+| `--role` | Node role: `full`, `gateway`, `worker`, `inference`. Prompted for when omitted |
+| `--non-interactive` | Accept all defaults: role `full` (unless `--role`), provider `ollama`, no mesh, overwrite existing files without asking |
+| `--dev` | Write to `./config/` instead of the system config dir |
 
-Example:
+Run as root, `init` writes to `/etc/astromesh/`; as a regular user, on Windows, or with `--dev` it writes to `./config/`. On macOS and Windows the daemon's system directory is elsewhere, so run `init --dev` from `/Library/Application Support/Astromesh` or `C:\ProgramData\Astromesh`. The provider prompt offers `ollama`, `openai`, `anthropic` or `skip`. The mesh prompt appears only for roles other than `full`.
 
 ```bash
-sudo astromeshctl init --profile worker --provider openai --model gpt-4o --non-interactive
+sudo astromeshctl init --role worker --non-interactive
 ```
 
-## `astromeshctl status`
+:::caution[Packaged installs]
+The wizard looks for its role profiles next to its own source tree. In the `.deb`/`.rpm`/macOS/Windows builds it does not find them, prints `Profile not found` and writes an empty `runtime.yaml` (which runs with every service on — the `full` defaults). On Linux, copy the one the package ships in `/etc/astromesh/profiles/` over it.
+:::
 
-Display the current runtime status.
+## `astromeshctl validate`
+
+Checks every YAML file under a directory: syntax, and that `kind` matches the file name (`*.agent.yaml` → `Agent`, `*.workflow.yaml` → `Workflow`, `providers.yaml` → `ProviderConfig`, `runtime.yaml` → `RuntimeConfig`, `channels.yaml` → `ChannelConfig`).
 
 ```bash
-astromeshctl status [--json]
-```
-
-Output:
-
-```
-┌──────────────────────────────────────┐
-│         Astromesh Status             │
-├──────────────┬───────────────────────┤
-│ Status       │ ● Running             │
-│ Version      │ 0.1.1                 │
-│ Uptime       │ 4h 12m 33s            │
-│ Profile      │ full                  │
-│ PID          │ 4521                  │
-│ Agents       │ 3 loaded              │
-│ Providers    │ 2 healthy, 0 degraded │
-│ Memory       │ 156.0 MB              │
-└──────────────┴───────────────────────┘
-```
-
-JSON output:
-
-```json
-{
-  "status": "running",
-  "version": "0.1.1",
-  "uptime_seconds": 15153,
-  "profile": "full",
-  "pid": 4521,
-  "agents_loaded": 3,
-  "providers": { "healthy": 2, "degraded": 0 },
-  "memory_mb": 156.0
-}
-```
-
-## `astromeshctl start`
-
-Start the daemon service (delegates to the platform service manager).
-
-```bash
-sudo astromeshctl start
-```
-
-## `astromeshctl stop`
-
-Stop the daemon service gracefully.
-
-```bash
-sudo astromeshctl stop
-```
-
-## `astromeshctl restart`
-
-Restart the daemon service.
-
-```bash
-sudo astromeshctl restart
-```
-
-## `astromeshctl reload`
-
-Reload configuration without restarting (sends SIGHUP on Linux/macOS).
-
-```bash
-sudo astromeshctl reload
-```
-
-## `astromeshctl doctor`
-
-Run a full health diagnostics check.
-
-```bash
-astromeshctl doctor [--json]
-```
-
-Output:
-
-```
-Astromesh Doctor
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-OK  Daemon          Running (PID 4521)
-OK  API Server      Responding on :8000
-OK  Provider: ollama   Connected (llama3.1:8b available)
-OK  Provider: openai   Connected (gpt-4o available)
-OK  Memory: sqlite     /var/lib/astromesh/memory/conversations.db
-OK  Config             All files valid
-
-Result: Healthy
-```
-
-## `astromeshctl logs`
-
-Tail the daemon logs.
-
-```bash
-astromeshctl logs [flags]
+astromeshctl validate [--path ./config]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--follow` / `-f` | false | Follow log output |
-| `--lines` / `-n` | 50 | Number of lines to show |
-| `--level` | all | Filter by log level (`debug`, `info`, `warning`, `error`) |
+| `--path` | `./config` | Directory to validate |
 
-Example:
+## `astromeshctl config validate`
 
-```bash
-astromeshctl logs -f -n 100
-astromeshctl logs --level error
-```
-
-## `astromeshctl agents`
-
-Manage agents loaded by the daemon.
-
-### `astromeshctl agents list`
+Parses `runtime.yaml`, `providers.yaml`, `channels.yaml`, `agents/*.agent.yaml` (which must be `kind: Agent`) and `rag/*.rag.yaml` in a directory, without starting the daemon.
 
 ```bash
-astromeshctl agents list [--json]
+astromeshctl config validate [--path ./config]
 ```
 
-Output:
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `./config` | Config directory to validate |
 
-```
-┌──────────────┬──────────────────────────┬──────────────────┬─────────┐
-│ Name         │ Description              │ Model            │ Pattern │
-├──────────────┼──────────────────────────┼──────────────────┼─────────┤
-│ default      │ Default assistant        │ ollama/llama3.1:8b │ react │
-│ researcher   │ Research assistant       │ openai/gpt-4o    │ react   │
-│ summarizer   │ Document summarizer      │ openai/gpt-4o    │ pipeline│
-└──────────────┴──────────────────────────┴──────────────────┴─────────┘
-```
+:::caution[Exit code]
+`validate` and `config validate` print the errors they find but exit `0` either way. Don't use their exit code as a CI gate.
+:::
 
-### `astromeshctl agents info <name>`
+## `astromeshctl centinela`
 
-```bash
-astromeshctl agents info default [--json]
-```
+Manages the [Centinela](/astromesh/nebula/centinela/) model provider endpoints.
 
-### `astromeshctl agents reload`
+| Command | Flags | Description |
+|---------|-------|-------------|
+| `centinela reconcile` | `--bindings` (`./config/centinela/bindings.yaml`), `--out` (`./config/providers.centinela.yaml`) | Build the Centinela `ProviderConfig` from the bindings and the vendored catalog lock |
+| `centinela plan-promotion` | `--new-lock` (required), `--version` (required), `--bindings`, `--vendored-lock` (`./docs-site/src/data/catalog.lock.json`), `--pr-body` (`./pr-body.md`), `--labels-out` (`./pr-labels.txt`), `--pyproject` (repeatable) | Plan a promotion to a new Nebula catalog (no HF calls): refreshes the vendored lock, bumps the `astromesh-nebula` pin in the given `pyproject.toml` files, appends stub bindings for new models, and writes the PR body and labels |
+| `centinela apply-endpoints` | `--bindings`, `--out`, `--namespace` (default `$HF_ORG`), `--dry-run`, `--wait-timeout` (`1800` s) | Create or update the Hugging Face endpoints (needs `HF_TOKEN`) and write the resulting `ProviderConfig` |
 
-Reload all agent definitions from disk (equivalent to `astromeshctl reload`):
+Exit codes: `reconcile` exits `1` on a reconcile error; `plan-promotion` exits `2` when planning fails and `1` when the plan has blocked moves; `apply-endpoints` exits `2` when planning fails.
 
-```bash
-sudo astromeshctl agents reload
-```
+## Service control
 
-## `astromeshctl providers`
+| Action | Linux (systemd) | macOS (launchd) | Windows |
+|--------|-----------------|-----------------|---------|
+| Start | `sudo systemctl start astromeshd` | `sudo launchctl load /Library/LaunchDaemons/com.astromesh.daemon.plist` | `Start-Service astromeshd` |
+| Stop | `sudo systemctl stop astromeshd` | `sudo launchctl unload /Library/LaunchDaemons/com.astromesh.daemon.plist` | `Stop-Service astromeshd` |
+| Restart | `sudo systemctl restart astromeshd` | unload + load | `Restart-Service astromeshd` |
+| Logs | `journalctl -u astromeshd -f` | `/Library/Logs/Astromesh/astromeshd.{out,err}.log` | — |
 
-### `astromeshctl providers list`
-
-```bash
-astromeshctl providers list [--json]
-```
-
-Output:
-
-```
-┌─────────┬────────┬─────────────────────────┬──────────┐
-│ Name    │ Type   │ Endpoint                │ Status   │
-├─────────┼────────┼─────────────────────────┼──────────┤
-│ ollama  │ ollama │ http://localhost:11434  │ ● Healthy│
-│ openai  │ openai │ https://api.openai.com  │ ● Healthy│
-└─────────┴────────┴─────────────────────────┴──────────┘
-```
-
-### `astromeshctl providers health`
-
-Run health checks on all configured providers:
-
-```bash
-astromeshctl providers health [--json]
-```
-
-## `astromeshctl config`
-
-### `astromeshctl config validate`
-
-Validate configuration files without starting the daemon:
-
-```bash
-astromeshctl config validate [--config <dir>]
-```
-
-Output:
-
-```
-Validating /etc/astromesh/runtime.yaml ... OK
-Validating /etc/astromesh/providers.yaml ... OK
-Validating /etc/astromesh/agents/default.agent.yaml ... OK
-
-All configuration files are valid.
-```
-
-### `astromeshctl config show`
-
-Print the merged active configuration:
-
-```bash
-astromeshctl config show [--json]
-```
-
-### `astromeshctl config edit`
-
-Open the config directory in the system editor:
-
-```bash
-sudo astromeshctl config edit
-```
-
-## `astromeshctl memory`
-
-### `astromeshctl memory stats`
-
-Display memory backend usage:
-
-```bash
-astromeshctl memory stats [--json]
-```
-
-### `astromeshctl memory clear <agent>`
-
-Clear conversational memory for a specific agent:
-
-```bash
-astromeshctl memory clear default
-astromeshctl memory clear --all    # Clear for all agents
-```
-
-## `astromeshctl tools`
-
-### `astromeshctl tools list`
-
-List all registered tools:
-
-```bash
-astromeshctl tools list [--json]
-```
-
-## JSON Output
-
-All commands support `--json` for scripting and automation:
-
-```bash
-astromeshctl status --json | jq '.agents_loaded'
-astromeshctl providers list --json | jq '.[] | select(.status == "healthy") | .name'
-```
+Configuration changes take effect on restart. `systemctl reload` sends `SIGHUP`, which the daemon only logs — it does not reload agents or providers.

@@ -17,10 +17,10 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
 
 1. ## Install Orbit
 
-   Install `astromesh-orbit` with the GCP provider extra:
+   Install `astromesh-orbit` with the GCP provider extra, next to `astromesh-cli` (which provides `astromeshctl`; Orbit plugs into it):
 
    ```bash
-   pip install astromesh-orbit[gcp]
+   pip install astromesh-cli "astromesh-orbit[gcp]"
    ```
 
    Verify the installation:
@@ -35,12 +35,14 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    Cloud-native deployment for Astromesh.
 
    Commands:
-     init     Initialize orbit.yaml with an interactive wizard
-     plan     Preview infrastructure changes
-     apply    Provision the full Astromesh stack
-     status   Show deployment status
-     destroy  Tear down all provisioned resources
-     eject    Export standalone Terraform files
+     init     Interactive setup — generates orbit.yaml.
+     plan     Preview infrastructure changes.
+     apply    Deploy infrastructure to the cloud.
+     status   Show deployment status.
+     logs     Read the runtime service's logs from Cloud Logging.
+     destroy  Destroy all provisioned infrastructure.
+     eject    Export standalone Terraform files.
+     upgrade  Re-render Terraform templates (after an Orbit package update) and show what changes.
    ```
 
 2. ## Initialize Configuration
@@ -48,35 +50,14 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    Run the interactive wizard to generate your `orbit.yaml`:
 
    ```bash
-   astromeshctl orbit init --provider gcp
+   astromeshctl orbit init
    ```
 
-   The wizard walks you through the key decisions:
+   The wizard asks for the project, region, deployment name, environment and preset (`starter` ~$15/mo or `pro` ~$80/mo), then writes `orbit.yaml` and adds `.orbit/` to `.gitignore`.
 
-   ```
-   ╭─ Astromesh Orbit ─────────────────────────────────╮
-   │                                                    │
-   │  Welcome! Let's configure your deployment.         │
-   │                                                    │
-   ╰────────────────────────────────────────────────────╯
-
-   ? GCP Project ID: my-project-123
-   ? Region: us-central1
-   ? Deployment preset:
-     ❯ Starter (~$15/mo) — 1 instance, db-f1-micro, 1GB cache
-       Pro (~$80/mo) — auto-scaling, db-g1-small with HA, 4GB cache
-       Custom — configure everything manually
-   ? Environment: production
-
-   ✓ Generated orbit.yaml
-   ✓ Added .orbit/ to .gitignore
-   ```
-
-   For a quick start, use the `--preset` flag to skip the wizard:
-
-   ```bash
-   astromeshctl orbit init --provider gcp --preset starter
-   ```
+   <Aside type="caution">
+     Pick `staging` or `production` as the environment, or edit a `dev` answer to `develop` afterwards: the schema accepts `develop`, not `dev`.
+   </Aside>
 
 3. ## Preview Changes
 
@@ -86,32 +67,21 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    astromeshctl orbit plan
    ```
 
-   Orbit validates your GCP project, checks permissions, and generates a Terraform plan:
+   Orbit checks your credentials, the project and the required APIs, creates the Terraform state bucket if needed, renders `.orbit/generated/` and runs `terraform plan`:
 
    ```
-   ✓ GCP project 'my-project-123' exists
-   ✓ User has roles/editor
-   ✓ Required APIs enabled (5/5)
-   ✓ Generated 10 Terraform files
+     Orbit Deployment Plan
 
-   Terraform Plan:
-   ──────────────────────────────────────────────
+     Validating... OK
+     OK State bucket created: gs://my-project-123-astromesh-orbit-state
 
-   + google_cloud_run_v2_service.runtime
-   + google_sql_database_instance.main
-   + google_sql_database.astromesh
-   + google_redis_instance.cache
-   + google_secret_manager_secret.jwt_secret
-   + google_vpc_access_connector.main
-   + google_service_account.orbit
-   + google_project_iam_member.orbit (4 bindings)
-
-   Plan: 10 to add, 0 to change, 0 to destroy.
-   Estimated monthly cost: ~$15 (Starter preset)
+     Resources to create: 19
+     Resources to update: 0
+     Resources to destroy: 0
    ```
 
    <Aside type="tip">
-     If any required GCP APIs are not enabled, Orbit offers to enable them automatically. You can also enable them manually with `gcloud services enable`.
+     If a required GCP API is not enabled, validation fails and prints the `gcloud services enable` command to run. See [GCP Provider](/astromesh/orbit/gcp-provider/#required-gcp-apis) for the full list.
    </Aside>
 
 4. ## Deploy
@@ -122,27 +92,7 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    astromeshctl orbit apply
    ```
 
-   Confirm when prompted (or use `--auto-approve` to skip):
-
-   ```
-   Do you want to apply this plan? [y/N]: y
-
-   Applying...
-   ✓ google_service_account.orbit                  (3s)
-   ✓ google_vpc_access_connector.main              (45s)
-   ✓ google_sql_database_instance.main             (8m 12s)
-   ✓ google_redis_instance.cache                   (5m 30s)
-   ✓ google_secret_manager_secret.jwt_secret       (2s)
-   ✓ google_cloud_run_v2_service.runtime           (12s)
-
-   ╭─ Deployment Complete ─────────────────────────────╮
-   │                                                    │
-   │  Runtime:  https://astromesh-runtime-abc123.run.app│
-   │                                                    │
-   │  Connection details saved to .orbit/orbit.env      │
-   │                                                    │
-   ╰────────────────────────────────────────────────────╯
-   ```
+   `apply` does not prompt — it runs `terraform apply -auto-approve` — so review the plan first. When it finishes it prints the runtime URL and writes `.orbit/orbit.env` with the Terraform outputs.
 
 5. ## Verify
 
@@ -152,17 +102,7 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    astromeshctl orbit status
    ```
 
-   ```
-   Deployment: my-astromesh (production)
-   Provider:   gcp / my-project-123 / us-central1
-   State:      gs://my-project-123-astromesh-orbit-state
-   Last applied: 2026-03-18T14:32:00Z
-
-   RESOURCE                  TYPE                    STATUS    URL
-   astromesh-runtime         cloud_run_v2_service    running   https://astromesh-runtime-abc123.run.app
-   main                      sql_database_instance   running   —
-   cache                     redis_instance          running   —
-   ```
+   It lists the `astromesh-runtime` Cloud Run service with its status and URL, and the state bucket.
 
    Test the runtime health endpoint:
 
@@ -171,7 +111,7 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
    ```
 
    ```json
-   {"status": "healthy", "version": "0.5.0"}
+   {"status": "ok", "version": "0.59.0"}
    ```
 
 6. ## Clean Up (optional)

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-27
+
+### Changed
+- Release aligned with the suite round of astromesh 0.59.0; no code or dependency changes.
+
 ## [0.4.0] - 2026-07-14
 
 ### Added

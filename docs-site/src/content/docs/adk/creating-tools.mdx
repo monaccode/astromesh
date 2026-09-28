@@ -40,7 +40,11 @@ class DatabaseTool(Tool):
         pass  # Close connections
 ```
 
+The runner calls `execute(args)`, but it does not read `parameters()` (the model sees the tool with an empty schema) and never calls `cleanup()`. Prefer `@tool` when the model needs the argument schema.
+
 ## MCP Tools
+
+`mcp_tools()` builds a lazy `MCPToolSet`, but the runner does not run its discovery yet: the set reaches the model as a single tool with no schema, and the server's tools are not called. The API is shown for reference.
 
 ```python
 from astromesh_adk import mcp_tools
@@ -64,5 +68,7 @@ async def dev_agent(ctx):
 |-----------|------|-------------|
 | `description` | `str` | Description for the LLM |
 | `rate_limit` | `dict` | `{"max_calls": N, "window_seconds": N}` |
-| `requires_approval` | `bool` | Require approval before execution |
-| `timeout` | `int` | Timeout in seconds |
+| `requires_approval` | `bool` | Require approval before execution. Default `False` |
+| `timeout` | `int` | Timeout in seconds. Default `30` |
+
+`rate_limit`, `requires_approval` and `timeout` are stored on the tool but not enforced by the ADK runner.

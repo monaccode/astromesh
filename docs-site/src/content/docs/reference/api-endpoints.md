@@ -123,37 +123,53 @@ A run that uses integrations supplies their credentials here:
 **Response:**
 ```json
 {
-  "response": "Based on my research, the latest trends in AI include...",
-  "session_id": "sess_abc123",
-  "tool_calls": [
-    {
-      "tool": "web_search",
-      "input": { "query": "latest AI trends 2026" },
-      "output": "..."
-    }
-  ],
+  "answer": "Based on my research, the latest trends in AI include...",
+  "steps": [ ... ],
   "usage": {
-    "input_tokens": 1250,
-    "output_tokens": 430,
-    "total_tokens": 1680
+    "tokens_in": 1250,
+    "tokens_out": 430,
+    "model": "gpt-4o",
+    "by_model": [
+      {
+        "provider": "openai",
+        "model": "gpt-4o",
+        "role": "default",
+        "calls": 2,
+        "tokens_in": 1250,
+        "tokens_out": 430,
+        "tokens_cached": 1024,
+        "cost": 0.0074
+      }
+    ]
   },
-  "timing": {
-    "total_ms": 3200,
-    "model_ms": 2800,
-    "tool_ms": 400
-  },
-  "model": "openai/gpt-4o",
-  "provider": "openai"
+  "trace": { ... },
+  "data": null,
+  "chain": null,
+  "propuestas": []
 }
 ```
+
+| Field | Description |
+|-------|-------------|
+| `answer` | The agent's final answer |
+| `steps` | Orchestration steps (thought / action / observation) |
+| `usage` | Token usage summed from the run's trace. `null` when no provider reported tokens |
+| `usage.model` | First model seen, kept for compatibility. Use `by_model` on multi-model runs |
+| `usage.by_model[]` | One entry per `(provider, model, role)`, ordered by total tokens descending |
+| `usage.by_model[].tokens_cached` | Part of `tokens_in` the provider served from its prompt cache (0 when the provider reports none). Available since astromesh **v0.54.0** |
+| `trace` | The run's trace (spans) |
+| `data` | Validated structured output when the agent declares `output_schema` |
+| `chain` | Chain block when the agent declares `spec.chain` |
+| `propuestas` | Writes proposed by `mode: propose` tools, not executed (see [Tenant APIs and MCP](/astromesh/configuration/tenant-apis-and-mcp/)). Empty when there were none. Available since astromesh **v0.59.0** |
 
 **Errors:**
 
 | Status | Description |
 |--------|-------------|
 | `404` | Agent not found |
-| `503` | All providers unavailable |
-| `408` | Orchestration timeout exceeded |
+| `502` | Model provider error: `detail` is `{error, message, hint}`. OpenAI-compatible providers include their response body in `message` (truncated to 800 characters) |
+| `503` | Runtime not initialized |
+| `500` | Any other failure |
 
 ---
 
@@ -764,54 +780,50 @@ Stream agent responses in real-time over WebSocket.
 |-----------|------|-------------|
 | `name` | `string` | Agent name |
 
+**Query parameters:** `session_id` (default `"default"`).
+
 **Client sends:**
 ```json
 {
-  "query": "Explain quantum computing",
-  "session_id": "sess_abc123"
+  "query": "Explain quantum computing"
 }
 ```
 
 **Server sends (multiple messages):**
 
-Token chunks:
+Status:
 ```json
-{
-  "type": "token",
-  "content": "Quantum"
-}
+{ "type": "status", "status": "processing", "agent": "assistant" }
+```
+
+Model text:
+```json
+{ "type": "token", "content": "Quantum computing uses..." }
 ```
 
 Tool call notification:
 ```json
 {
   "type": "tool_call",
-  "tool": "web_search",
-  "input": { "query": "quantum computing basics" }
+  "id": "call_1",
+  "name": "web_search",
+  "arguments": { "query": "quantum computing basics" }
 }
 ```
 
 Tool result:
 ```json
-{
-  "type": "tool_result",
-  "tool": "web_search",
-  "output": "..."
-}
+{ "type": "tool_result", "id": "call_1", "ok": true }
 ```
 
-Completion:
+Completion — `usage` has the same shape as in `POST /v1/agents/{name}/run`, including `by_model[].tokens_cached`:
 ```json
 {
   "type": "done",
-  "usage": {
-    "input_tokens": 800,
-    "output_tokens": 350,
-    "total_tokens": 1150
-  },
-  "timing": {
-    "total_ms": 2400
-  }
+  "answer": "Quantum computing uses...",
+  "session_id": "sess_abc123",
+  "usage": { "tokens_in": 800, "tokens_out": 350, "model": "gpt-4o", "by_model": [ ... ] },
+  "propuestas": []
 }
 ```
 

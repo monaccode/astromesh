@@ -170,7 +170,7 @@ flowchart TB
     build_context() → Assemble context from all memory types
     persist_turn() → Store conversation turns`"]
     mm --> conv["`**Conversational**
-    Redis/PG/SQLite`"]
+    Redis`"]
     mm --> sem["`**Semantic**
     pgvector/Chroma/Qdrant/FAISS`"]
     mm --> epi["`**Episodic**
@@ -181,7 +181,7 @@ flowchart TB
 
 | Type | Purpose | Backend Options |
 |------|---------|----------------|
-| **Conversational** | Chat history -- stores user and assistant messages for multi-turn conversations | Redis, PostgreSQL, SQLite |
+| **Conversational** | Chat history -- stores user and assistant messages for multi-turn conversations | Redis |
 | **Semantic** | Vector embeddings -- stores and retrieves information by semantic similarity | pgvector, ChromaDB, Qdrant, FAISS |
 | **Episodic** | Event logs -- records significant events, tool calls, and outcomes for long-term learning | PostgreSQL |
 
