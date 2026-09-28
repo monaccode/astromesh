@@ -37,6 +37,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **astromesh-node 0.1.3**: `astromesh>=0.59.0` y `astromesh-cli>=0.3.1`.
 - **astromesh-orbit 0.4.2**, **astromesh-glyph 0.1.3**: liberación alineada, sin cambios.
 
+## [0.59.1] - 2026-09-27
+
+### Security
+
+- **Los templates de Jinja que vienen de un manifiesto corren en sandbox**
+  (`ImmutableSandboxedEnvironment`): el system prompt y el `when` de `spec.prefetch`
+  (`astromesh/core/prompt_engine.py`), el `when` y los argumentos de un workflow
+  (`astromesh/workflow/executor.py`) y el `context_transform` de una tool
+  (`astromesh/core/tools.py`). El system prompt lleva texto que escribe un tenant (la persona de
+  un empleado de CLARUS OFFICIUM, una plantilla de Centuria), y con un `Environment` sin sandbox
+  un `{{ ''.__class__.__mro__ … }}` se evaluaba en el runtime compartido. Un prompt que intenta
+  eso hace fallar la corrida ANTES de llamar al modelo (`tests/test_prompt_engine_sandbox.py`,
+  `test_la_corrida_falla_con_un_prompt_ssti`). Verificado antes del release: los 35 agentes
+  publicados en nexus-dev y nexus-mvp renderizan su prompt igual bajo el sandbox.
+
 ## [0.59.0] - 2026-09-25
 
 ### Added
