@@ -20,6 +20,7 @@ from astromesh.integrations.credentials import CredentialResolver
 from astromesh.integrations.mcp import handler_de_tool, nombre_de_tool, servidor_de_mcp
 from astromesh.integrations.propuestas import (
     CLAVE_PROPUESTAS,
+    CLAVE_VIA,
     SIN_CANAL,
     SOLO_PRINCIPAL,
     handler_de_propuesta,
@@ -1169,6 +1170,7 @@ class AgentRuntime:
         connections=None,
         desde_humano: bool = True,
         admite_propuestas: bool = True,
+        propuestas_padre: list[dict] | None = None,
     ):
         agent = self._agents.get(agent_name)
         if not agent:
@@ -1182,6 +1184,7 @@ class AgentRuntime:
             connections=connections,
             desde_humano=desde_humano,
             admite_propuestas=admite_propuestas,
+            propuestas_padre=propuestas_padre,
         )
 
     def agent_error(self, name: str) -> str | None:
@@ -1356,6 +1359,7 @@ class Agent:
         connections=None,
         desde_humano: bool = True,
         admite_propuestas: bool = True,
+        propuestas_padre: list[dict] | None = None,
     ):
         from datetime import UTC, datetime
 
@@ -1428,13 +1432,20 @@ class Agent:
             # Lo que propusieron las tools `mode: propose` en ESTA corrida
             # (`integrations/propuestas.py`). Una lista por corrida, local a
             # esta llamada: dos corridas simultáneas del mismo agente no se ven.
-            # Una corrida re-entrante, o la de un canal que no devuelve
-            # `propuestas` (`admite_propuestas=False`: WhatsApp,
+            # Un sub-agente con `propuestas_padre` escribe en la lista de quien
+            # lo llamó (`core/tools.py`, rama AGENT) y marca lo suyo con `via`.
+            # Cualquier otra corrida re-entrante, o la de un canal que no
+            # devuelve `propuestas` (`admite_propuestas=False`: WhatsApp,
             # `agent_channels`), no recibe lista sino el motivo: su respuesta no
             # las llevaría, y proponer ahí se rechaza en vez de perderse.
-            propuestas: list[dict] | str = (
-                SOLO_PRINCIPAL if not desde_humano else [] if admite_propuestas else SIN_CANAL
-            )
+            propuestas: list[dict] | str
+            if propuestas_padre is not None:
+                propuestas = propuestas_padre
+            elif not desde_humano:
+                propuestas = SOLO_PRINCIPAL
+            else:
+                propuestas = [] if admite_propuestas else SIN_CANAL
+            via = self.name if propuestas_padre is not None else None
 
             # Las búsquedas fijas del turno, antes del LLM: con las MISMAS
             # credenciales que `tool_fn` (connections + run_secrets). Ver
@@ -1640,6 +1651,7 @@ class Agent:
                             # Ver `caller_publico` arriba.
                             "caller_context": caller_publico,
                             CLAVE_PROPUESTAS: propuestas,
+                            CLAVE_VIA: via,
                         },
                     )
                     tool_span.set_attribute("tool_args", args)
@@ -1779,7 +1791,11 @@ class Agent:
                     root_span.set_attribute("output_data_error", data_error)
 
             result["trace"] = tracing.to_dict()
-            result["propuestas"] = propuestas if isinstance(propuestas, list) else []
+            # La de un hijo con `propuestas_padre` ya está en la respuesta del
+            # padre: devolverla también la duplicaría.
+            result["propuestas"] = (
+                propuestas if isinstance(propuestas, list) and propuestas_padre is None else []
+            )
             logger.debug(
                 "agent.run %s finished answer_chars=%d steps=%d",
                 self.name,

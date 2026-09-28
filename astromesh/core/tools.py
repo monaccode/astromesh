@@ -250,6 +250,9 @@ class ToolRegistry:
                 except Exception as exc:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     return {"error": f"Context transform failed: {exc}"}
             parent_trace_id = (context or {}).get("trace_id")
+            from astromesh.integrations.propuestas import CLAVE_PROPUESTAS
+
+            lista = (context or {}).get(CLAVE_PROPUESTAS)
             resultado = await self._runtime.run(
                 agent_name,
                 query,
@@ -263,6 +266,11 @@ class ToolRegistry:
                 # que él mismo redactó (o uno que un documento le sopló vía
                 # prompt injection). Ver Agent.run.
                 desde_humano=False,
+                # La lista de propuestas de la corrida que llamó: lo que el hijo
+                # proponga sale en la respuesta de ESA corrida, con `via`
+                # (`Agent.run`). Un motivo (str) —el padre no podía proponer—
+                # no se hereda: el hijo recibe el suyo, como antes de 0.61.0.
+                propuestas_padre=lista if isinstance(lista, list) else None,
             )
             # La observación vuelve al modelo que llamó esta tool y se `str()`-ifica
             # ENTERA dentro de su historia (`ReActPattern`, orchestration/patterns.py).

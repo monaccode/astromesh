@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`orbit init --provider/--preset` responden las preguntas del wizard.** Se aceptaban y se
   ignoraban; ahora un preset o provider desconocido falla antes de empezar.
 
+### Added (Backend)
+
+- **Un sub-agente propone sobre la lista de quien lo llamó.** La tool `type: agent` le pasa al
+  hijo la lista de propuestas de la corrida padre (`propuestas_padre`, `core/tools.py`), y lo que
+  el hijo propone con una tool `mode: propose` sale en `propuestas` de la respuesta del PADRE con
+  `via: <metadata.name del hijo>`. Antes, una corrida re-entrante sólo podía rechazarlo
+  (`SOLO_PRINCIPAL`). El tope de 20 es de la corrida entera, hijos incluidos; los 16 KB siguen
+  siendo por propuesta. La respuesta del hijo no repite las propuestas. Un paso de workflow o de
+  `spec.chain` no recibe lista y sigue rechazando como antes. Lo usan los especialistas de CLARUS
+  OFFICIUM (`tests/test_propuestas.py`).
+
 ### Fixed (Astromesh Node)
 
 - **El tarball de macOS y el zip de Windows funcionan fuera de CI.** Tenían el mismo defecto que

@@ -9,7 +9,7 @@ import pytest
 import respx
 import yaml
 
-from astromesh.integrations.propuestas import AVISO, MAX_PROPUESTAS, SIN_CANAL
+from astromesh.integrations.propuestas import AVISO, MAX_PROPUESTAS, SIN_CANAL, SOLO_PRINCIPAL
 from astromesh.runtime.engine import AgentRuntime
 
 API = {
@@ -244,7 +244,8 @@ async def test_dos_corridas_simultaneas_no_se_mezclan_las_propuestas(tmp_path, n
 
 async def test_una_corrida_reentrante_no_propone(tmp_path, ningun_host):
     """Un sub-agente o un paso de workflow: su respuesta no sale en `/run`, así
-    que proponer ahí se rechaza al modelo en vez de perderse."""
+    que proponer ahí se rechaza al modelo en vez de perderse.
+    Sin `propuestas_padre` (un paso de workflow, `spec.chain`) sigue igual desde 0.61.0."""
     runtime = await _runtime(tmp_path, API)
     agente = runtime._agents["demo-agent"]
     patron = _PideLaTool([("erp_cliente_crear_pedido", {"sku": "A-1", "cantidad": 1})])
@@ -479,3 +480,122 @@ async def test_las_rutas_de_canal_corren_sin_admitir_propuestas(monkeypatch):
     )
     await agent_channels._process_agent_message("demo-agent", "whatsapp", msg)
     assert runtime.run.call_args.kwargs["admite_propuestas"] is False
+
+
+# --- Un sub-agente (`type: agent`) propone sobre la lista del padre (0.61.0) ---
+
+PEDIDO = ("erp_cliente_crear_pedido", {"sku": "A-1", "cantidad": 1})
+
+
+def _con_nombre(nombre: str, *tools: dict) -> dict:
+    a = _agente(*tools)
+    a["metadata"]["name"] = nombre
+    return a
+
+
+async def _padre_e_hijo(tmp_path, tools_del_padre: tuple[dict, ...] = ()) -> AgentRuntime:
+    """`padre` consulta a `hijo` con `consultar_hijo`; `hijo` tiene la API que propone."""
+    config_dir = tmp_path / "config"
+    (config_dir / "agents").mkdir(parents=True)
+    consulta = {"name": "consultar_hijo", "type": "agent", "agent": "hijo"}
+    for a in (_con_nombre("padre", *tools_del_padre, consulta), _con_nombre("hijo", API)):
+        nombre = a["metadata"]["name"]
+        (config_dir / "agents" / f"{nombre}.agent.yaml").write_text(yaml.safe_dump(a))
+    runtime = AgentRuntime(config_dir=str(config_dir))
+    await runtime.bootstrap()
+    return runtime
+
+
+def _patron(runtime: AgentRuntime, agente: str, llamadas) -> _PideLaTool:
+    p = _PideLaTool(llamadas)
+    runtime._agents[agente]._pattern = p
+    return p
+
+
+async def test_lo_que_propone_un_sub_agente_sale_en_la_corrida_del_padre_con_via(
+    tmp_path, ningun_host
+):
+    runtime = await _padre_e_hijo(tmp_path)
+    hijo = _patron(runtime, "hijo", [PEDIDO])
+    _patron(runtime, "padre", [("consultar_hijo", {"query": "cargá el pedido"})])
+    r = await runtime._agents["padre"].run("hacelo", session_id="s1", connections=CONEXIONES)
+    assert hijo.observaciones[0]["success"] is True
+    assert r["propuestas"] == [
+        {
+            "tool": "erp_cliente_crear_pedido",
+            "tipo": "api",
+            "destino": "erp-cliente",
+            "operacion": "crear_pedido",
+            "argumentos": {"sku": "A-1", "cantidad": 1},
+            "via": "hijo",
+        }
+    ]
+    # Proponer no llama: `ningun_host` falla el test si algo salió a la red.
+    assert not ningun_host.called
+
+
+async def test_lo_que_propone_el_padre_no_lleva_via(tmp_path, ningun_host):
+    runtime = await _padre_e_hijo(tmp_path, (API,))
+    _patron(runtime, "hijo", [PEDIDO])
+    _patron(runtime, "padre", [PEDIDO, ("consultar_hijo", {"query": "otro"})])
+    r = await runtime._agents["padre"].run("hacelo", session_id="s1", connections=CONEXIONES)
+    assert [p.get("via") for p in r["propuestas"]] == [None, "hijo"]
+    assert "via" not in r["propuestas"][0]
+
+
+async def test_el_tope_de_20_es_de_la_corrida_entera(tmp_path, ningun_host):
+    runtime = await _padre_e_hijo(tmp_path, (API,))
+    hijo = _patron(runtime, "hijo", [PEDIDO, PEDIDO])
+    _patron(
+        runtime,
+        "padre",
+        [PEDIDO] * (MAX_PROPUESTAS - 1) + [("consultar_hijo", {"query": "dos más"})],
+    )
+    r = await runtime._agents["padre"].run("hacelo", session_id="s1", connections=CONEXIONES)
+    assert len(r["propuestas"]) == MAX_PROPUESTAS
+    assert r["propuestas"][-1]["via"] == "hijo"
+    assert hijo.observaciones[0]["success"] is True
+    assert hijo.observaciones[1]["success"] is False
+    assert "20 escrituras" in hijo.observaciones[1]["error"]
+
+
+async def test_la_respuesta_del_hijo_no_trae_las_propuestas(tmp_path, ningun_host):
+    """Ya están en la lista del padre: devolverlas también las duplicaría en
+    quien lea la respuesta del hijo."""
+    runtime = await _padre_e_hijo(tmp_path)
+    _patron(runtime, "hijo", [PEDIDO])
+    lista: list[dict] = [{"tool": "del_padre"}]
+    r = await runtime.run(
+        "hijo",
+        "q",
+        "s1",
+        connections=CONEXIONES,
+        desde_humano=False,
+        propuestas_padre=lista,
+    )
+    assert r["propuestas"] == []
+    assert len(lista) == 2
+    assert lista[1]["via"] == "hijo"
+
+
+async def test_un_padre_que_no_puede_proponer_no_le_pasa_lista_al_hijo(tmp_path, ningun_host):
+    """Un canal sin propuestas (WhatsApp) le da al padre un MOTIVO, no una
+    lista: el hijo no hereda nada y sigue rechazando como antes de 0.61.0."""
+    runtime = await _padre_e_hijo(tmp_path)
+    hijo = _patron(runtime, "hijo", [PEDIDO])
+    _patron(runtime, "padre", [("consultar_hijo", {"query": "q"})])
+    r = await runtime._agents["padre"].run(
+        "hacelo", session_id="s1", connections=CONEXIONES, admite_propuestas=False
+    )
+    assert hijo.observaciones[0]["success"] is False
+    assert hijo.observaciones[0]["error"] == SOLO_PRINCIPAL
+    assert r["propuestas"] == []
+
+
+async def test_un_hijo_que_no_propone_no_cambia_lo_que_ve_el_padre(tmp_path, ningun_host):
+    runtime = await _padre_e_hijo(tmp_path)
+    _patron(runtime, "hijo", [])
+    padre = _patron(runtime, "padre", [("consultar_hijo", {"query": "q"})])
+    r = await runtime._agents["padre"].run("hacelo", session_id="s1", connections=CONEXIONES)
+    assert padre.observaciones[0] == {"answer": "listo"}
+    assert r["propuestas"] == []

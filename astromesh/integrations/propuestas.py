@@ -9,12 +9,15 @@ en `propuestas` de la respuesta de `/run` y ejecuta lo que una persona apruebe.
 
 La lista la crea `Agent.run` por corrida y viaja en el context de `tool_fn`
 bajo `CLAVE_PROPUESTAS`, al lado de `connections`: dos corridas simultáneas del
-mismo agente tienen dos listas y ninguna ve la de la otra. Una corrida
-re-entrante (`desde_humano=False`: un sub-agente `type: agent`,
-`core/tools.py:263`; un paso de workflow —toda `spec.chain` pasa por ahí—,
-`workflow/executor.py:128`; el servidor MCP de astromesh, `mcp/server.py:70`)
-no recibe lista: su respuesta no sale en la de `/run`, así que proponer ahí se
-rechaza al modelo en vez de perderse callado.
+mismo agente tienen dos listas y ninguna ve la de la otra. Un sub-agente
+`type: agent` recibe la lista de la corrida que lo llamó (`propuestas_padre`,
+`core/tools.py`, rama `ToolType.AGENT`): lo que propone sale en la respuesta de
+ESA corrida, marcado con `via` (su `metadata.name`), y el tope de
+`MAX_PROPUESTAS` es de la corrida entera. Cualquier otra corrida re-entrante
+(`desde_humano=False` sin lista del padre: un paso de workflow —toda
+`spec.chain` pasa por ahí—, `workflow/executor.py`; el servidor MCP de
+astromesh, `mcp/server.py`) no recibe lista: su respuesta no sale en la de
+`/run`, así que proponer ahí se rechaza al modelo en vez de perderse callado.
 """
 
 from __future__ import annotations
@@ -28,6 +31,10 @@ from astromesh.tools.base import ToolResult
 
 #: Clave del context de `tool_fn` donde viaja la lista de la corrida.
 CLAVE_PROPUESTAS = "propuestas"
+#: Clave del context de `tool_fn` con el `metadata.name` del sub-agente que
+#: propone sobre la lista de su padre. `None` en la corrida principal: lo que
+#: propone el propio agente no lleva `via`.
+CLAVE_VIA = "propuestas_via"
 MAX_PROPUESTAS = 20
 MAX_BYTES_ARGUMENTOS = 16 * 1024
 AVISO = (
@@ -95,17 +102,19 @@ def handler_de_propuesta(
                     "no se registró. Decí en tu respuesta qué quedó sin proponer."
                 ),
             ).to_dict()
-        lista.append(
-            {
-                "tool": tool,
-                "tipo": tipo,
-                "destino": destino,
-                "operacion": operacion,
-                # Una copia: lo que el patrón haga después con `argumentos` no
-                # cambia lo que se aprueba.
-                "argumentos": json.loads(crudo),
-            }
-        )
+        entrada = {
+            "tool": tool,
+            "tipo": tipo,
+            "destino": destino,
+            "operacion": operacion,
+            # Una copia: lo que el patrón haga después con `argumentos` no
+            # cambia lo que se aprueba.
+            "argumentos": json.loads(crudo),
+        }
+        via = (_run_context or {}).get(CLAVE_VIA)
+        if isinstance(via, str) and via:
+            entrada["via"] = via
+        lista.append(entrada)
         return ToolResult(success=True, data=AVISO).to_dict()
 
     _handler.wants_run_context = True
