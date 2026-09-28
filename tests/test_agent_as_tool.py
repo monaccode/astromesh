@@ -132,8 +132,26 @@ class TestExecuteAgentTool:
             # integración declarada por el hijo se queda sin conexión.
             connections={},
             desde_humano=False,
+            propuestas_padre=None,
         )
         assert result["answer"] == "Lead is qualified"
+
+    @pytest.mark.asyncio
+    async def test_el_sub_agente_recibe_la_lista_de_propuestas_del_padre(
+        self, registry_with_agent, runtime_mock
+    ):
+        lista: list[dict] = []
+        await registry_with_agent.execute(
+            "qualify-lead", {"query": "q"}, context={"session": "s", "propuestas": lista}
+        )
+        assert runtime_mock.run.call_args.kwargs["propuestas_padre"] is lista
+
+    @pytest.mark.asyncio
+    async def test_un_motivo_del_padre_no_se_hereda(self, registry_with_agent, runtime_mock):
+        await registry_with_agent.execute(
+            "qualify-lead", {"query": "q"}, context={"session": "s", "propuestas": "motivo"}
+        )
+        assert runtime_mock.run.call_args.kwargs["propuestas_padre"] is None
 
     @pytest.mark.asyncio
     async def test_execute_agent_tool_no_runtime(self):
@@ -169,6 +187,7 @@ class TestExecuteAgentTool:
             parent_trace_id=None,
             connections={},
             desde_humano=False,
+            propuestas_padre=None,
         )
 
 
