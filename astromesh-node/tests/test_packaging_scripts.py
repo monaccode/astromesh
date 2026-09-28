@@ -61,3 +61,31 @@ def test_upgrade_restarts_if_running_and_keeps_the_enabled_state(args, shims):
     calls = _service_calls(_run("postinstall.sh", args, shims))
     assert "systemctl try-restart astromeshd.service" in calls
     assert "systemctl enable astromeshd.service" not in calls
+
+
+@pytest.mark.parametrize(
+    "script,args",
+    [
+        ("postinstall.sh", ["configure", ""]),
+        ("postinstall.sh", ["2"]),
+        ("preremove.sh", ["remove"]),
+        ("postremove.sh", ["remove"]),
+    ],
+)
+def test_scripts_succeed_without_systemctl(script, args, tmp_path):
+    """Containers and build chroots have no systemctl: installing must not fail there."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for name in ("chown", "chmod", "mkdir"):
+        (bin_dir / name).write_text("#!/bin/sh\nexit 0\n")
+        (bin_dir / name).chmod(0o755)
+    # A PATH with the shims and the shell basics, but no systemctl.
+    for tool in ("bash", "sh", "echo", "cat", "getent", "rm"):
+        real = subprocess.run(["which", tool], capture_output=True, text=True).stdout.strip()
+        if real:
+            (bin_dir / tool).symlink_to(real)
+    env = {"PATH": str(bin_dir), "HOME": str(tmp_path)}
+    result = subprocess.run(
+        [str(bin_dir / "bash"), str(SCRIPTS / script), *args], env=env, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr

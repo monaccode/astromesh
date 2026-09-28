@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed (Astromesh Node)
 
+- **Los paquetes `.deb` y `.rpm` funcionan fuera de CI.** Hasta 0.1.7 el venv se armaba en un
+  directorio de staging con el Python del toolcache del runner de GitHub: cada paquete publicado
+  tenía shebangs a `/home/runner/...` e intérprete en `/opt/hostedtoolcache/...`, y fallaba con
+  `bad interpreter` en cualquier máquina real (medido en Ubuntu 24.04 y Rocky 9). El `.rpm` además
+  pedía `python3-venv`, que no existe en RHEL. Ahora el paquete trae su propio CPython 3.12
+  (python-build-standalone, stripped, sha256 fijado) en `/opt/astromesh/python` y el venv se
+  arma en su ruta final (`packaging/build-venv.sh`, compartido por deb y rpm); no depende del
+  Python del sistema. `release-node.yml` instala el `.deb` en ubuntu:24.04 y debian:trixie y el
+  `.rpm` en rockylinux:9 y los corre antes de publicar. Los scripts del paquete ya no fallan
+  donde no hay `systemctl` (contenedores, chroots).
 - **Actualizar el paquete ya no deja el servicio parado ni deshabilitado.** `preremove.sh` hacía
   stop + disable siempre, también en un upgrade: en rpm el `%preun` del paquete viejo corre
   después del `%post` del nuevo y dejaba el nodo parado y deshabilitado; en deb `prerm upgrade`

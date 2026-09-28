@@ -11,7 +11,7 @@ This guide covers installing Astromesh Node on Debian-based Linux distributions 
 |-------------|---------|-------|
 | Debian / Ubuntu | Debian 12+ / Ubuntu 22.04+ | `lsb_release -a` |
 | systemd | 250+ | `systemctl --version` |
-| Python | 3.12+ as the system `python3` (package dependency) | `python3 --version` |
+| Python | None — the package carries its own CPython 3.12 in `/opt/astromesh/python` (since **v0.1.8**) | — |
 | Architecture | amd64 only | `dpkg --print-architecture` |
 | Network | Outbound to LLM provider or local Ollama | — |
 

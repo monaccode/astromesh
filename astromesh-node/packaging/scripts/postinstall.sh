@@ -18,6 +18,13 @@ chmod 640 /etc/astromesh/*.yaml
 chmod 750 /etc/astromesh/agents /etc/astromesh/profiles
 chmod 640 /etc/astromesh/agents/* /etc/astromesh/profiles/*
 
+# Containers and build chroots have no systemctl; the files are in place either way, and a
+# failing postinst would leave the package half-configured.
+if ! command -v systemctl >/dev/null 2>&1; then
+    echo "  systemctl not found: skipping service setup. Run 'astromeshctl init' to configure."
+    exit 0
+fi
+
 systemctl daemon-reload
 
 # Fresh install vs upgrade. deb: postinst configure <old-version> (empty on a fresh install);
