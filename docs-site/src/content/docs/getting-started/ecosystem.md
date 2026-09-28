@@ -15,7 +15,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 |-----------|-------------|----------------|---------|
 | **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 17 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.60.0 |
 | **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.3 |
-| **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.3.1 |
+| **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.4.0 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.3.1 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.9 |
 | **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.12.0 |
