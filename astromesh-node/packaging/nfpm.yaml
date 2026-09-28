@@ -46,7 +46,7 @@ contents:
   - src: ../config/agents/*
     dst: /etc/astromesh/agents/
     type: config
-  - src: config/profiles/*
+  - src: ../config/profiles/*
     dst: /etc/astromesh/profiles/
     type: config
 

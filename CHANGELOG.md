@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed (Astromesh Node)
 
+- **`astromeshctl init` encuentra sus perfiles en una instalación empaquetada.** Los buscaba
+  relativos a su propio archivo, lo que sólo existía en un checkout: instalado apuntaba adentro
+  del venv, escribía un `runtime.yaml` vacío y seguía. Ahora los lee del config que el core ya
+  empaqueta (`astromesh/_bundled/config`, o `config/` en editable) y, si falta el perfil, corta
+  con código 1. Como admin usa el config dir de cada plataforma (en macOS y Windows no es
+  `/etc/astromesh`). La copia duplicada `astromesh-node/config/profiles` se va; el `.deb`/`.rpm`
+  toma los perfiles de `config/profiles`.
+
+### Fixed (Astromesh Node)
+
 - **`--foreground` ya no muere con SIGHUP.** `ForegroundManager` guardaba el handler de recarga
   pero no registraba la señal, y la acción por defecto de SIGHUP es terminar el proceso: en
   Docker o en dev, `kill -HUP` mataba el daemon en vez de recargar los agentes
