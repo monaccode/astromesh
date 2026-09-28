@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-09-28
+
 ### Fixed
 - **astromeshd ya no muere cada 30 segundos bajo systemd.** La unidad declara
   `WatchdogSec=30` y el daemon mandaba `READY=1` pero nunca `WATCHDOG=1`, así que systemd
