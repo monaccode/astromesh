@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   siendo por propuesta. La respuesta del hijo no repite las propuestas. Un paso de workflow o de
   `spec.chain` no recibe lista y sigue rechazando como antes. Lo usan los especialistas de CLARUS
   OFFICIUM (`tests/test_propuestas.py`).
+- **Conocido:** si un sub-agente falla DESPUÉS de proponer, lo que propuso queda en la lista del
+  padre, y si el padre lo reintenta puede volver a proponerlo. Cada propuesta la aprueba una
+  persona y CLARUS muestra el `via`.
 
 ### Fixed (Astromesh Node)
 

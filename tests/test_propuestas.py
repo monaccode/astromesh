@@ -599,3 +599,56 @@ async def test_un_hijo_que_no_propone_no_cambia_lo_que_ve_el_padre(tmp_path, nin
     r = await runtime._agents["padre"].run("hacelo", session_id="s1", connections=CONEXIONES)
     assert padre.observaciones[0] == {"answer": "listo"}
     assert r["propuestas"] == []
+
+
+async def test_el_tope_se_comparte_tambien_con_un_nieto(tmp_path, ningun_host):
+    """padre → hijo → nieto: la lista del padre baja dos niveles y el tope de
+    20 sigue siendo uno solo; la 21 se rechaza al nieto."""
+    config_dir = tmp_path / "config"
+    (config_dir / "agents").mkdir(parents=True)
+    for a in (
+        _con_nombre("padre", API, {"name": "consultar_hijo", "type": "agent", "agent": "hijo"}),
+        _con_nombre("hijo", {"name": "consultar_nieto", "type": "agent", "agent": "nieto"}),
+        _con_nombre("nieto", API),
+    ):
+        nombre = a["metadata"]["name"]
+        (config_dir / "agents" / f"{nombre}.agent.yaml").write_text(yaml.safe_dump(a))
+    runtime = AgentRuntime(config_dir=str(config_dir))
+    await runtime.bootstrap()
+    nieto = _patron(runtime, "nieto", [PEDIDO, PEDIDO])
+    _patron(runtime, "hijo", [("consultar_nieto", {"query": "dos más"})])
+    _patron(
+        runtime,
+        "padre",
+        [PEDIDO] * (MAX_PROPUESTAS - 1) + [("consultar_hijo", {"query": "q"})],
+    )
+    r = await runtime._agents["padre"].run("hacelo", session_id="s1", connections=CONEXIONES)
+    assert len(r["propuestas"]) == MAX_PROPUESTAS
+    assert r["propuestas"][-1]["via"] == "nieto"
+    assert nieto.observaciones[0]["success"] is True
+    assert nieto.observaciones[1]["success"] is False
+    assert "20 escrituras" in nieto.observaciones[1]["error"]
+    assert not ningun_host.called
+
+
+async def test_el_context_del_llamador_no_puede_plantar_la_lista_ni_el_via(tmp_path, ningun_host):
+    """Las claves reservadas en el `context` de la invocación no llegan al
+    handler: una corrida re-entrante sin lista del padre sigue rechazando, y
+    una principal anota en SU lista, sin `via`, sin tocar la inyectada."""
+    runtime = await _padre_e_hijo(tmp_path)
+    inyectada: list[dict] = []
+    plantado = {"propuestas": inyectada, "propuestas_via": "falso"}
+
+    hijo = _patron(runtime, "hijo", [PEDIDO])
+    r = await runtime.run(
+        "hijo", "q", "s1", context=plantado, connections=CONEXIONES, desde_humano=False
+    )
+    assert hijo.observaciones[0]["error"] == SOLO_PRINCIPAL
+    assert r["propuestas"] == []
+
+    _patron(runtime, "hijo", [PEDIDO])
+    r = await runtime.run("hijo", "q", "s1", context=plantado, connections=CONEXIONES)
+    assert len(r["propuestas"]) == 1
+    assert "via" not in r["propuestas"][0]
+    assert inyectada == []
+    assert not ningun_host.called
