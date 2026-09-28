@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed (Astromesh Node)
 
+- **Actualizar el paquete ya no deja el servicio parado ni deshabilitado.** `preremove.sh` hacía
+  stop + disable siempre, también en un upgrade: en rpm el `%preun` del paquete viejo corre
+  después del `%post` del nuevo y dejaba el nodo parado y deshabilitado; en deb `prerm upgrade`
+  lo paraba y nadie lo volvía a arrancar. Ahora sólo lo hace en una desinstalación real, y
+  `postinstall.sh` distingue instalación nueva (`enable`, sin arrancar) de upgrade
+  (`try-restart`, respetando si el admin lo había deshabilitado).
 - **`astromeshctl init` encuentra sus perfiles en una instalación empaquetada.** Los buscaba
   relativos a su propio archivo, lo que sólo existía en un checkout: instalado apuntaba adentro
   del venv, escribía un `runtime.yaml` vacío y seguía. Ahora los lee del config que el core ya
