@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-09-28
+
 ### Fixed
 - **El wizard de `orbit init` proponía `dev`, que el schema rechaza.** Su default no validaba:
   `orbit plan` fallaba sobre el archivo que el propio wizard escribía. Ahora las opciones y el
