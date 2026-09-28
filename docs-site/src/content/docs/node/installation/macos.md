@@ -11,7 +11,7 @@ This guide covers installing Astromesh Node on macOS 13 (Ventura) and later.
 |-------------|---------|-------|
 | macOS | 13 (Ventura)+ | `sw_vers -productVersion` |
 | Architecture | The archive is built on GitHub's `macos-latest` runner (Apple Silicon) | `uname -m` |
-| Python | 3.12+ | `python3 --version` |
+| Python | None — the archive carries its own CPython 3.12 in `/usr/local/opt/astromesh/python` (since **v0.1.9**) | — |
 | Network | Outbound to LLM provider or local Ollama | — |
 
 ## Download
@@ -19,7 +19,7 @@ This guide covers installing Astromesh Node on macOS 13 (Ventura) and later.
 Node archives are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them). There is one macOS archive:
 
 ```bash
-VERSION=0.1.8
+VERSION=0.1.9
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-macos.tar.gz
 ```
 
@@ -36,7 +36,7 @@ sudo ./install.sh
 
 The installer:
 
-1. Copies the virtualenv to `/usr/local/opt/astromesh/venv/` and symlinks `astromeshd` and `astromeshctl` into `/usr/local/bin/`
+1. Copies the bundled CPython and the virtualenv to `/usr/local/opt/astromesh/{python,venv}/`, replacing any previous copy, and symlinks `astromeshd` and `astromeshctl` into `/usr/local/bin/`
 2. Creates `/Library/Application Support/Astromesh/{config,data}` and `/Library/Logs/Astromesh/`
 3. Creates the `_astromesh` system user (no login shell)
 4. Copies the launchd plist to `/Library/LaunchDaemons/com.astromesh.daemon.plist` (it does not load it)
@@ -129,13 +129,16 @@ tail -f /Library/Logs/Astromesh/astromeshd.out.log
 | `/usr/local/opt/astromesh/venv/` | Virtualenv (`astromeshd`, `astromeshctl` symlinked into `/usr/local/bin/`) |
 | `/Library/LaunchDaemons/com.astromesh.daemon.plist` | launchd unit |
 
+:::caution[Archives up to v0.1.8]
+They packaged a virtualenv built on the CI runner, and every command failed with `bad interpreter` on a real Mac. Use **v0.1.9** or later.
+:::
+
 ## Upgrade
 
-Unload the daemon, remove the old virtualenv (the installer's `cp -R venv` would otherwise nest the new one inside it), then download, extract and run `sudo ./install.sh` as above. The installer does not reload the daemon; load it yourself:
+Unload the daemon, then download, extract and run `sudo ./install.sh` as above — since **v0.1.9** it replaces the old `python/` and `venv/` itself. The installer does not reload the daemon; load it yourself:
 
 ```bash
 sudo launchctl unload /Library/LaunchDaemons/com.astromesh.daemon.plist
-sudo rm -rf /usr/local/opt/astromesh/venv
 # download + extract + sudo ./install.sh
 sudo launchctl load /Library/LaunchDaemons/com.astromesh.daemon.plist
 ```

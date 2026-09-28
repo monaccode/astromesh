@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed (Astromesh Node)
 
+- **El tarball de macOS y el zip de Windows funcionan fuera de CI.** Tenían el mismo defecto que
+  los paquetes de Linux hasta 0.1.7: el venv se armaba en `staging/` con el Python de
+  `setup-python`, así que en macOS cada comando fallaba con `bad interpreter` (medido en una Mac
+  arm64) y en Windows los launchers apuntaban a `D:\a\...\staging`. Ahora traen su propio
+  CPython 3.12 (python-build-standalone stripped, sha256 fijado) y el venv se arma en su ruta
+  final (`/usr/local/opt/astromesh`, `C:\Program Files\Astromesh`). `install.sh`/`install.ps1`
+  reemplazan la copia anterior en vez de anidarla. El release instala y corre cada archivo en un
+  runner limpio (`verify-macos`, `verify-windows`) antes de publicar.
+
+### Fixed (Astromesh Node)
+
 - **Los paquetes `.deb` y `.rpm` funcionan fuera de CI.** Hasta 0.1.7 el venv se armaba en un
   directorio de staging con el Python del toolcache del runner de GitHub: cada paquete publicado
   tenía shebangs a `/home/runner/...` e intérprete en `/opt/hostedtoolcache/...`, y fallaba con
