@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-09-28
+
 ### Fixed
 - **Los paquetes `.deb` y `.rpm` funcionan fuera de CI.** Hasta 0.1.7 el venv se armaba en un
   directorio de staging con el Python del toolcache del runner de GitHub: cada paquete publicado
