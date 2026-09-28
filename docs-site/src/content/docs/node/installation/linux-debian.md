@@ -20,7 +20,7 @@ This guide covers installing Astromesh Node on Debian-based Linux distributions 
 Node packages are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```bash
-VERSION=0.1.4
+VERSION=0.1.5
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
 ```
 
@@ -131,7 +131,7 @@ sudo journalctl -u astromeshd -p err
 ## Upgrade
 
 ```bash
-VERSION=0.1.4
+VERSION=0.1.5
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
 sudo apt install ./astromesh-node_${VERSION}_amd64.deb
 ```
