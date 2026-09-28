@@ -6,8 +6,9 @@ import time
 import uuid
 from typing import Any
 
-from jinja2 import BaseLoader, Environment, StrictUndefined, Undefined
+from jinja2 import BaseLoader, StrictUndefined, Undefined
 from jinja2.exceptions import UndefinedError
+from jinja2.sandbox import ImmutableSandboxedEnvironment
 
 from astromesh.workflow.models import StepResult, StepSpec, StepStatus, StepType
 
@@ -29,10 +30,13 @@ class StepExecutor:
     def __init__(self, runtime, tool_registry, parent_trace_id=None, session_id=None):
         self._runtime = runtime
         self._tool_registry = tool_registry
-        self._jinja = Environment(loader=BaseLoader(), undefined=_SilentUndefined)
+        # Sandbox: `when` y los argumentos vienen del YAML del workflow (SSTI).
+        self._jinja = ImmutableSandboxedEnvironment(loader=BaseLoader(), undefined=_SilentUndefined)
         # Entorno estricto para las guardas que lo pidan: un `when` con un campo
         # inexistente tiene que gritar, no rendir vacío y saltear en silencio.
-        self._jinja_strict = Environment(loader=BaseLoader(), undefined=StrictUndefined)
+        self._jinja_strict = ImmutableSandboxedEnvironment(
+            loader=BaseLoader(), undefined=StrictUndefined
+        )
         # Hasta acá cada paso `agent` abría su propia sesión y su propio árbol de
         # trazas, así que un workflow se veía en el timeline como N corridas sueltas
         # sin relación entre sí.
