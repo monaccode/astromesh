@@ -12,7 +12,7 @@
 
 Agent Development Kit for the [Astromesh](https://github.com/monaccode/astromesh) runtime.
 
-Write agents as Python decorators, run them locally against the core engine, or deploy the same code to a remote node.
+Write agents as Python decorators, run them locally against the core engine, or run the agent of the same name on a remote node with `connect()`, `remote()` or `.bind()`.
 
 ## Install
 

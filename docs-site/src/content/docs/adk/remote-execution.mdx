@@ -1,18 +1,18 @@
 ---
 title: Remote Execution
-description: Connect agents to a remote Astromesh cluster
+description: Run an ADK agent on a remote Astromesh node by name
 ---
 
-:::caution[Not wired yet]
-`connect()`, `remote()` and `agent.bind()` record the connection (in a `contextvars` variable, or on the agent), but the ADK runner does not read it: every `run()` executes in-process, on the local runtime. The API below is what exists today; nothing is sent to the remote URL.
-:::
+With a connection in effect, `agent.run()` and `agent.stream()` run **the agent of the same name on a remote Astromesh node** instead of the local runtime. Available since astromesh-adk **v0.4.0**; before it, the connection was recorded and ignored.
+
+The local definition is a handle: the agent has to be **deployed on the node** under the same `name` (as an `*.agent.yaml`, from Cortex, or with `astromeshctl`). Its Python `@tool`s and its handler do not travel — the node runs the agent it has.
 
 ## Connect Globally
 
 ```python
 from astromesh_adk import connect, disconnect
 
-connect(url="https://my-cluster.astromesh.io", api_key="ask-xxx")
+connect(url="https://node.example.com", api_key="ask-xxx")
 result = await my_agent.run("query")
 disconnect()
 ```
@@ -22,22 +22,43 @@ disconnect()
 ```python
 from astromesh_adk import remote
 
-async with remote("https://cluster.io", api_key="..."):
+async with remote("https://node.example.com", api_key="..."):
     result = await agent.run("query")
+# back to the local runtime (or to the connect() global) here
 ```
 
 ## Per-Agent Binding
 
 ```python
-my_agent.bind(remote="https://cluster.io", api_key="...")
+my_agent.bind(remote="https://node.example.com", api_key="...")
 result = await my_agent.run("query")
+my_agent.bind(None, None)  # unbind
 ```
 
-## Intended Resolution Priority
+## Resolution Priority
 
 1. `agent.bind()` (per-agent)
-2. `remote()` context manager
+2. `remote()` context manager (scoped with `contextvars`, safe across concurrent tasks)
 3. `connect()` global
 4. Local runtime
 
-The connection state uses `contextvars` for async-safe concurrent execution.
+Passing `runtime=` to `run()`/`stream()` always runs locally on that runtime.
+
+## What Goes Over the Wire
+
+| Call | Node endpoint | Notes |
+|------|---------------|-------|
+| `run(query, session_id, context)` | `POST /v1/agents/{name}/run` | `context` is sent as the run context. |
+| `stream(query, session_id)` | WebSocket `/v1/ws/agent/{name}?session_id=…` | The WS protocol carries only the query, so `context` is not sent when streaming. Events map to `token` (model text), `step` (each `tool_call`) and `done` (with the `RunResult`). |
+
+The API key goes as both `Authorization: Bearer <key>` and `X-API-Key: <key>`, and neither is sent when the key is empty. A bare node doesn't authenticate; the key is for the hub (Nexus) or a gateway in front of it.
+
+The `RunResult` from a remote run fills `answer`, `steps`, `trace`, `tokens` and `model` from the node's `usage`, adds up `cost` across `usage.by_model`, and measures `latency_ms` on the client. `metadata` carries `remote` (the node URL), `propuestas` (writes a `mode: propose` tool left for approval), `data` and `chain`.
+
+## Errors
+
+| Situation | Exception |
+|-----------|-----------|
+| The node has no agent with that name (HTTP 404) | `AgentNotFoundError` |
+| The node answers an error (4xx/5xx), or the stream sends an `error` event | `RemoteError`, with the node's `detail` |
+| The node can't be reached | `RemoteUnavailableError` |

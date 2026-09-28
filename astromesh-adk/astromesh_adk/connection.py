@@ -28,19 +28,22 @@ def connect(url: str, api_key: str) -> None:
     """Set a global remote connection. All agent.run() calls will use this."""
     global _global_connection
     _global_connection = RemoteConnection(url=url, api_key=api_key)
-    _connection_var.set(_global_connection)
 
 
 def disconnect() -> None:
     """Clear the global remote connection. Agents will run locally."""
     global _global_connection
     _global_connection = None
-    _connection_var.set(None)
 
 
 def get_connection() -> RemoteConnection | None:
-    """Get the current connection (contextvar > global > None)."""
-    return _connection_var.get(None)
+    """The connection in effect: a scoped ``remote()`` wins, then ``connect()``, else None.
+
+    The contextvar belongs only to ``remote()``. ``connect()`` used to write it too, so a
+    connect() made inside one asyncio task was invisible to the others, and the global
+    this function claimed to fall back to was never read.
+    """
+    return _connection_var.get(None) or _global_connection
 
 
 class remote:
