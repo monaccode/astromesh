@@ -21,7 +21,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.12.0 |
 | **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.24.1 |
 | **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.20.0 |
-| **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.3 |
+| **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.4 |
 | **Prisma** | Multi-cloud reconciler — translates the same agent spec into a cloud's own managed AI primitives | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | *in development* |
 | **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.23.1 |
 | **Herald** | Communications gateway — channel messages reach agents, and agents reach people back, optionally as several paced messages per answer | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.7.4 |
