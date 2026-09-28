@@ -46,3 +46,24 @@ async def test_install_service_raises_in_foreground(manager):
 async def test_uninstall_service_raises_in_foreground(manager):
     with pytest.raises(RuntimeError, match="foreground"):
         await manager.uninstall_service()
+
+
+def test_sighup_runs_the_reload_handler_instead_of_killing_the_process():
+    """Without a handler, SIGHUP's default action terminates the daemon."""
+    import os
+    import signal
+    import sys
+
+    import pytest
+
+    if sys.platform == "win32":
+        pytest.skip("no SIGHUP on Windows")
+    previous = signal.getsignal(signal.SIGHUP)
+    try:
+        manager = ForegroundManager()
+        calls = []
+        manager.register_reload_handler(lambda: calls.append("reload"))
+        os.kill(os.getpid(), signal.SIGHUP)
+        assert calls == ["reload"]
+    finally:
+        signal.signal(signal.SIGHUP, previous)

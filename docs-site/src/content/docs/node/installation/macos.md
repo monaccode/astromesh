@@ -19,7 +19,7 @@ This guide covers installing Astromesh Node on macOS 13 (Ventura) and later.
 Node archives are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them). There is one macOS archive:
 
 ```bash
-VERSION=0.1.6
+VERSION=0.1.7
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-macos.tar.gz
 ```
 
