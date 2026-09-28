@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-28
+
+### Added
+- **Ejecución remota por nombre.** Con una conexión en efecto (`agent.bind()`, `remote()` o
+  `connect()`, en ese orden), `run()` llama a `POST /v1/agents/{name}/run` del nodo y `stream()`
+  a su WebSocket, con la API key como `Authorization: Bearer` y `X-API-Key`; devuelven el mismo
+  `RunResult`/`StreamEvent` (con `propuestas` en `metadata`). El agente tiene que estar desplegado
+  en el nodo con ese nombre: las `@tool` locales no viajan. 404 → `AgentNotFoundError`, error del
+  nodo → `RemoteError`, nodo inalcanzable → `RemoteUnavailableError`. Hasta ahora la conexión se
+  guardaba y se ignoraba: todo corría local (`astromesh_adk/_remote.py`).
+
+### Fixed
+- **`get_connection()` ve la conexión de `connect()` desde cualquier tarea.** `connect()` escribía
+  un contextvar, invisible para las tareas asyncio ya creadas, y la global que la función decía
+  consultar nunca se leía. Ahora el contextvar es sólo de `remote()`.
+
+### Changed
+- Nueva dependencia directa `websockets>=13.0` (ya llegaba con el core vía `uvicorn[standard]`).
+
 ## [0.3.1] - 2026-09-27
 
 ### Changed

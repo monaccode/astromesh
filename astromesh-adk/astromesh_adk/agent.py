@@ -12,6 +12,14 @@ from astromesh_adk.memory import normalize_memory_config
 from astromesh_adk.result import RunResult, StreamEvent
 from astromesh_adk.tools import ToolDefinitionWrapper
 from astromesh_adk.callbacks import Callbacks
+from astromesh_adk.connection import RemoteConnection, get_connection
+
+
+def _remote_connection(agent_obj) -> RemoteConnection | None:
+    """Where this agent runs: its own ``bind()`` wins over ``remote()``/``connect()``."""
+    if agent_obj._remote_url:
+        return RemoteConnection(url=agent_obj._remote_url, api_key=agent_obj._remote_api_key or "")
+    return get_connection()
 
 
 class AgentWrapper:
@@ -58,7 +66,16 @@ class AgentWrapper:
         callbacks: Callbacks | None = None,
         runtime: Any = None,
     ) -> RunResult:
-        """Execute the agent with a query."""
+        """Execute the agent with a query.
+
+        With a remote connection in effect (``bind()``, ``remote()`` or ``connect()``) and no
+        explicit ``runtime``, runs the agent of this name on that node instead.
+        """
+        conn = _remote_connection(self) if runtime is None else None
+        if conn is not None:
+            from astromesh_adk._remote import run_remote
+
+            return await run_remote(conn, self.name, query, session_id, context)
         from astromesh_adk.runner import get_or_create_runtime
 
         rt = runtime or get_or_create_runtime()
@@ -73,7 +90,14 @@ class AgentWrapper:
         callbacks: Callbacks | None = None,
         runtime: Any = None,
     ) -> AsyncIterator[StreamEvent]:
-        """Stream the agent execution."""
+        """Stream the agent execution (remotely over the node's WS when connected)."""
+        conn = _remote_connection(self) if runtime is None else None
+        if conn is not None:
+            from astromesh_adk._remote import stream_remote
+
+            async for event in stream_remote(conn, self.name, query, session_id):
+                yield event
+            return
         from astromesh_adk.runner import get_or_create_runtime
 
         rt = runtime or get_or_create_runtime()
@@ -101,8 +125,8 @@ class AgentWrapper:
         }
         return wrapper
 
-    def bind(self, remote: str, api_key: str) -> None:
-        """Bind this agent to execute on a specific remote Astromesh instance."""
+    def bind(self, remote: str | None, api_key: str | None) -> None:
+        """Bind this agent to execute on a specific remote Astromesh instance (None unbinds)."""
         self._remote_url = remote
         self._remote_api_key = api_key
 
@@ -201,7 +225,12 @@ class Agent:
         callbacks: Callbacks | None = None,
         runtime: Any = None,
     ) -> RunResult:
-        """Execute the agent."""
+        """Execute the agent (on the connected node when there is one; see AgentWrapper.run)."""
+        conn = _remote_connection(self) if runtime is None else None
+        if conn is not None:
+            from astromesh_adk._remote import run_remote
+
+            return await run_remote(conn, self.name, query, session_id, context)
         from astromesh_adk.runner import get_or_create_runtime
 
         rt = runtime or get_or_create_runtime()
@@ -216,7 +245,14 @@ class Agent:
         callbacks: Callbacks | None = None,
         runtime: Any = None,
     ) -> AsyncIterator[StreamEvent]:
-        """Stream the agent execution."""
+        """Stream the agent execution (remotely over the node's WS when connected)."""
+        conn = _remote_connection(self) if runtime is None else None
+        if conn is not None:
+            from astromesh_adk._remote import stream_remote
+
+            async for event in stream_remote(conn, self.name, query, session_id):
+                yield event
+            return
         from astromesh_adk.runner import get_or_create_runtime
 
         rt = runtime or get_or_create_runtime()
@@ -244,8 +280,8 @@ class Agent:
         }
         return wrapper
 
-    def bind(self, remote: str, api_key: str) -> None:
-        """Bind to a remote Astromesh instance."""
+    def bind(self, remote: str | None, api_key: str | None) -> None:
+        """Bind this agent to execute on a specific remote Astromesh instance (None unbinds)."""
         self._remote_url = remote
         self._remote_api_key = api_key
 
