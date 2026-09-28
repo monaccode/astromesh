@@ -66,3 +66,44 @@ def test_register_reload_handler_sets_sighup(manager):
         mock_signal.signal.assert_called_once()
         args = mock_signal.signal.call_args
         assert args[0][0] == mock_signal.SIGHUP
+
+
+async def test_watchdog_pings_while_the_loop_runs(manager, monkeypatch):
+    """With WatchdogSec set, systemd kills a unit that never sends WATCHDOG=1."""
+    import asyncio
+
+    monkeypatch.setenv("WATCHDOG_USEC", "100000")  # 0.1 s → ping every 0.05 s
+    monkeypatch.delenv("WATCHDOG_PID", raising=False)
+    notifier = MagicMock()
+    with patch.object(manager, "_get_notifier", return_value=notifier):
+        await manager.notify_ready()
+        await asyncio.sleep(0.18)
+        pings = [c for c in notifier.notify.call_args_list if c.args == ("WATCHDOG=1",)]
+        assert len(pings) >= 2
+        await manager.notify_stopping()
+        before = notifier.notify.call_count
+        await asyncio.sleep(0.12)
+        assert notifier.notify.call_count == before  # stopped pinging
+
+
+async def test_no_watchdog_without_watchdog_usec(manager, monkeypatch):
+    import asyncio
+
+    monkeypatch.delenv("WATCHDOG_USEC", raising=False)
+    notifier = MagicMock()
+    with patch.object(manager, "_get_notifier", return_value=notifier):
+        await manager.notify_ready()
+        await asyncio.sleep(0.05)
+        notifier.notify.assert_called_once_with("READY=1")
+
+
+async def test_no_watchdog_when_meant_for_another_pid(manager, monkeypatch):
+    import asyncio
+
+    monkeypatch.setenv("WATCHDOG_USEC", "100000")
+    monkeypatch.setenv("WATCHDOG_PID", "1")
+    notifier = MagicMock()
+    with patch.object(manager, "_get_notifier", return_value=notifier):
+        await manager.notify_ready()
+        await asyncio.sleep(0.12)
+        notifier.notify.assert_called_once_with("READY=1")

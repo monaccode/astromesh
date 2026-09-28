@@ -22,7 +22,7 @@ Administrator privileges are required for installation.
 Node archives are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```powershell
-$Version = "0.1.3"
+$Version = "0.1.4"
 Invoke-WebRequest `
   -Uri "https://github.com/monaccode/astromesh/releases/download/node-v$Version/astromesh-node-$Version-windows.zip" `
   -OutFile astromesh-node.zip
