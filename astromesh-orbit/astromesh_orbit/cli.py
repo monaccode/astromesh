@@ -49,7 +49,18 @@ def init(
     preset: str | None = typer.Option(None, help="Preset: starter or pro"),
 ):
     """Interactive setup — generates orbit.yaml."""
-    run_wizard()
+    from astromesh_orbit.wizard.defaults import PRESETS
+
+    if provider not in PROVIDERS:
+        raise typer.BadParameter(
+            f"'{provider}' — available: {', '.join(PROVIDERS)}", param_hint="--provider"
+        )
+    if preset is not None and preset not in PRESETS:
+        raise typer.BadParameter(
+            f"'{preset}' — available: {', '.join(PRESETS)}", param_hint="--preset"
+        )
+    # The flags answer the wizard's prompts; until 0.4.4 they were accepted and ignored.
+    run_wizard(provider=provider, preset=preset)
 
 
 @orbit_app.command()
@@ -116,8 +127,17 @@ def apply(
     async def _apply():
         cfg = _load_config(config)
         prov = _get_provider(cfg)
-        GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
+        # Until 0.4.4 apply never asked — it created billable resources straight away, and
+        # --auto-approve had nothing to skip. Same contract as destroy and terraform apply.
+        if not auto_approve:
+            typer.confirm(
+                f"Deploy '{cfg.metadata.name}' to {cfg.spec.provider.project} "
+                f"({cfg.spec.provider.region})? This creates billable cloud resources.",
+                abort=True,
+            )
+
+        GENERATED_DIR.mkdir(parents=True, exist_ok=True)
         console.print("\n  [cyan bold]Astromesh Orbit -- Deploying[/]\n")
 
         try:

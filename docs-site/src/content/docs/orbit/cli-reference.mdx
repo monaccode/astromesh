@@ -29,8 +29,8 @@ astromeshctl orbit init [--provider <name>] [--preset <tier>]
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--provider` | string | `gcp` | Accepted but not used yet: the wizard always asks. |
-| `--preset` | string | — | Accepted but not used yet: the wizard always asks (`starter` or `pro`). |
+| `--provider` | string | `gcp` | Answers the wizard's provider prompt. An unknown provider fails before the wizard starts. |
+| `--preset` | string | — | `starter` or `pro`; answers the wizard's preset prompt. Without it, the wizard asks. |
 
 <Aside type="caution">
   `init` always runs the interactive wizard; there is no non-interactive mode today. For CI, commit an `orbit.yaml` written by hand (see [Configuration](/astromesh/orbit/configuration/)).
@@ -136,10 +136,10 @@ astromeshctl orbit apply [--config <path>] [--auto-approve]
 | Flag | Type | Default | Description |
 |---|---|---|---|
 | `--config` | path | `orbit.yaml` | Path to the Orbit configuration file. |
-| `--auto-approve` | bool | false | Accepted for CI scripts; `apply` does not prompt either way. |
+| `--auto-approve` | bool | false | Skip the confirmation prompt (for CI). |
 
 <Aside type="caution">
-  `apply` does not ask for confirmation: it runs `terraform apply -auto-approve`. Run `orbit plan` first to see what will change.
+  `apply` asks for confirmation before creating billable resources, and aborts on anything but yes — so a non-interactive run needs `--auto-approve`. Before **v0.4.4** it did not ask at all. Run `orbit plan` first to see what will change.
 </Aside>
 
 **Example:**

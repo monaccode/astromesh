@@ -26,16 +26,22 @@ GCP_REGIONS = [
 ]
 
 
-def run_wizard(output_path: Path = Path("orbit.yaml")) -> Path:
+def run_wizard(
+    output_path: Path = Path("orbit.yaml"),
+    *,
+    provider: str | None = None,
+    preset: str | None = None,
+) -> Path:
     """Run the interactive wizard. Returns path to the generated orbit.yaml."""
     console.print("\n  [cyan bold]🛰️  Astromesh Orbit — Cloud Deployment Setup[/]\n")
 
     # Provider
-    provider = Prompt.ask(
-        "  Cloud provider",
-        choices=["gcp"],
-        default="gcp",
-    )
+    if provider is None:
+        provider = Prompt.ask(
+            "  Cloud provider",
+            choices=["gcp"],
+            default="gcp",
+        )
 
     # GCP-specific
     project = Prompt.ask("  GCP Project ID")
@@ -50,14 +56,15 @@ def run_wizard(output_path: Path = Path("orbit.yaml")) -> Path:
     )
 
     # Preset
-    console.print()
-    for key, p in PRESETS.items():
-        cost = p["estimated_cost"]
-        ha = "HA" if p["database"]["high_availability"] else "no HA"
-        cache = p["cache"]["memory_gb"]
-        console.print(f"    [bold]{key}[/] (~${cost}/mo) — {ha}, {cache}GB cache")
-    console.print()
-    preset = Prompt.ask("  Preset", choices=list(PRESETS.keys()), default="starter")
+    if preset is None:
+        console.print()
+        for key, p in PRESETS.items():
+            cost = p["estimated_cost"]
+            ha = "HA" if p["database"]["high_availability"] else "no HA"
+            cache = p["cache"]["memory_gb"]
+            console.print(f"    [bold]{key}[/] (~${cost}/mo) — {ha}, {cache}GB cache")
+        console.print()
+        preset = Prompt.ask("  Preset", choices=list(PRESETS.keys()), default="starter")
 
     data = build_orbit_yaml(
         name=name,
