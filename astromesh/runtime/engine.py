@@ -454,6 +454,80 @@ class AgentRuntime:
 
         self._compile_chains()
 
+    async def reload(self) -> dict:
+        """Relee `rag/` y `agents/` del disco y reemplaza el estado de una sola vez.
+
+        Todo se construye aparte: si hay un ciclo entre agentes o una cadena que no
+        compila, levanta y el runtime sigue con lo que tenía. Un agente que no construye
+        queda en `draft` con su error, sin arrastrar a los demás. Un agente pausado sigue
+        pausado aunque su YAML cambie. Sin awaits en el medio: una corrida en curso termina
+        con el agente viejo y la siguiente ve el nuevo.
+
+        Devuelve `{added, updated, removed, failed}`; `failed` es `{nombre: error}`.
+        """
+        if not _agent_disk_persist_enabled():
+            raise RuntimeError(
+                "ASTROMESH_PERSIST_AGENTS=0: el disco no es la fuente de los agentes, "
+                "recargarlo borraría los registrados por API"
+            )
+        from astromesh.rag.loader import RAGPipelineLoader
+
+        rag_specs = RAGPipelineLoader(str(self._config_dir / "rag")).load_all()
+        failed: dict[str, str] = {}
+        configs: dict[str, dict] = {}
+        agents_dir = self._config_dir / "agents"
+        for path in sorted(agents_dir.glob("*.agent.yaml")) if agents_dir.exists() else []:
+            stem = path.name.removesuffix(".agent.yaml")
+            try:
+                config = yaml.safe_load(path.read_text())
+                name = config["metadata"]["name"]
+            except (yaml.YAMLError, OSError, KeyError, TypeError) as exc:
+                failed[stem] = f"{type(exc).__name__}: {exc}"
+                continue
+            configs[name] = config
+
+        self._detect_circular_refs(list(configs.values()))
+        chains = {}
+        for name in configs:
+            wf = compile_chain(name, configs)
+            if wf is not None:
+                chains[chain_workflow_name(name)] = wf
+
+        agents: dict[str, Agent] = {}
+        status: dict[str, str] = {}
+        errors: dict[str, str] = {}
+        previous_rag, self._rag_specs = self._rag_specs, rag_specs
+        try:
+            for name, config in configs.items():
+                if self._agent_status.get(name) == "paused":
+                    status[name] = "paused"
+                    continue
+                try:
+                    agents[name] = self._build_agent(config)
+                except Exception as exc:
+                    logger.exception("Reload: agent %s failed to build", name)
+                    status[name] = "draft"
+                    errors[name] = failed[name] = f"{type(exc).__name__}: {exc}"
+                    continue
+                status[name] = "deployed"
+        except BaseException:
+            self._rag_specs = previous_rag
+            raise
+
+        old = self._agent_configs
+        result = {
+            "added": sorted(set(configs) - set(old)),
+            "updated": sorted(n for n in configs if n in old and old[n] != configs[n]),
+            "removed": sorted(set(old) - set(configs)),
+            "failed": failed,
+        }
+        self._agents = agents
+        self._agent_configs = configs
+        self._agent_status = status
+        self._agent_errors = errors
+        self._compiled_chains = chains
+        return result
+
     def _compile_chains(self) -> None:
         """Compila la cadena de cada agente que declare `spec.chain`.
 
@@ -485,8 +559,12 @@ class AgentRuntime:
         graph: dict[str, list[str]] = {}
         for config in configs:
             name = config["metadata"]["name"]
+            # `.get` y no `["agent"]`: un tool sin `agent:` es un error de ESE agente
+            # (`_build_agent` lo reporta y lo deja en draft), no del arranque entero.
             agent_tools = [
-                t["agent"] for t in config["spec"].get("tools", []) if t.get("type") == "agent"
+                t["agent"]
+                for t in config["spec"].get("tools", [])
+                if t.get("type") == "agent" and t.get("agent")
             ]
             graph[name] = agent_tools
 
