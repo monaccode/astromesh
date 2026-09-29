@@ -70,3 +70,75 @@ async def upload_file(arguments: dict, ctx: IntegrationContext) -> ToolResult:
     except ValueError:
         data = {"raw": upload.text}
     return ToolResult(success=True, data=data, metadata={"status_code": upload.status_code})
+
+
+TOPE_ARCHIVO = 50_000
+
+# Formatos de Google: no se descargan, se exportan a texto.
+EXPORTABLES = {
+    "application/vnd.google-apps.document": "text/plain",
+    "application/vnd.google-apps.spreadsheet": "text/csv",
+    "application/vnd.google-apps.presentation": "text/plain",
+}
+
+
+def _es_descargable(mime: str) -> bool:
+    return mime.startswith("text/") or mime in ("application/json", "application/xml")
+
+
+def _fallo(paso: str, response) -> ToolResult:
+    return ToolResult(
+        success=False,
+        data=None,
+        error=f"{paso} falló: HTTP {response.status_code}: {response.text[:300]}",
+        metadata={
+            "error_kind": errors.classify_status(response.status_code),
+            "status_code": response.status_code,
+        },
+    )
+
+
+async def read_file(arguments: dict, ctx: IntegrationContext) -> ToolResult:
+    """Un archivo de Drive como texto; nunca binario."""
+    file_id = arguments["file_id"]
+    meta = await ctx.client.get(
+        f"{ctx.base_url}/files/{file_id}", params={"fields": "id,name,mimeType"}
+    )
+    if meta.status_code >= 400:
+        return _fallo("leer los metadatos del archivo", meta)
+    info = meta.json()
+    mime = info.get("mimeType", "")
+
+    if mime in EXPORTABLES:
+        contenido = await ctx.client.get(
+            f"{ctx.base_url}/files/{file_id}/export", params={"mimeType": EXPORTABLES[mime]}
+        )
+    elif _es_descargable(mime):
+        contenido = await ctx.client.get(f"{ctx.base_url}/files/{file_id}", params={"alt": "media"})
+    else:
+        return ToolResult(
+            success=False,
+            data=None,
+            error=f"No puedo leer archivos {mime}: pedí que lo pasen a un Doc de Google.",
+            metadata={"error_kind": errors.BAD_REQUEST},
+        )
+    if contenido.status_code >= 400:
+        return _fallo("leer el contenido del archivo", contenido)
+
+    texto = contenido.content.decode("utf-8", errors="replace")
+    recortado = len(texto) > TOPE_ARCHIVO
+    if recortado:
+        texto = (
+            texto[:TOPE_ARCHIVO] + f"\n\n[… recortado: el original tiene {len(texto)} caracteres]"
+        )
+    return ToolResult(
+        success=True,
+        data={
+            "id": info.get("id", file_id),
+            "name": info.get("name", ""),
+            "mime_type": mime,
+            "texto": texto,
+            "recortado": recortado,
+        },
+        metadata={"status_code": contenido.status_code},
+    )

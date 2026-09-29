@@ -232,3 +232,101 @@ async def test_calendar_get_event_hits_the_event_path():
     m = _get("google_calendar")
     result = await HttpActionExecutor().execute(m, m.action("get_event"), {"event_id": "e9"}, CONN)
     assert result.data == {"id": "e9"}
+
+
+def _part(mime, text=None, filename="", parts=None):
+    part = {"mimeType": mime, "filename": filename, "body": {}}
+    if text is not None:
+        part["body"]["data"] = base64.urlsafe_b64encode(text.encode()).decode().rstrip("=")
+    if parts is not None:
+        part["parts"] = parts
+    return part
+
+
+def _message(payload):
+    payload["headers"] = [
+        {"name": "From", "value": "ana@example.com"},
+        {"name": "SUBJECT", "value": "Hola"},
+        {"name": "Date", "value": "Mon, 28 Sep 2026"},
+    ]
+    return {"id": "m1", "threadId": "t1", "payload": payload}
+
+
+async def _read_message(payload=None, response=None):
+    respx.get(f"{GMAIL}/users/me/messages/m1").mock(
+        return_value=response or httpx.Response(200, json=_message(payload))
+    )
+    m = _get("gmail")
+    return await HttpActionExecutor().execute(
+        m, m.action("read_message"), {"message_id": "m1"}, CONN
+    )
+
+
+@respx.mock
+async def test_gmail_read_message_plain_body_and_headers():
+    result = await _read_message(_part("text/plain", "Hola ñ"))
+    data = result.data
+    assert data["texto"] == "Hola ñ"
+    assert data["from"] == "ana@example.com"
+    assert data["subject"] == "Hola"
+    assert data["thread_id"] == "t1"
+    assert data["to"] == ""
+    assert data["adjuntos"] == []
+    assert data["recortado"] is False
+
+
+@respx.mock
+async def test_gmail_read_message_prefers_plain_in_alternative():
+    payload = _part(
+        "multipart/alternative",
+        parts=[_part("text/html", "<b>html</b>"), _part("text/plain", "plano")],
+    )
+    result = await _read_message(payload)
+    assert result.data["texto"] == "plano"
+
+
+@respx.mock
+async def test_gmail_read_message_strips_nested_html_and_decodes_entities():
+    html = "<style>p{}</style><p>Hola &amp; adiós</p><script>x()</script><p>&lt;fin&gt;</p>"
+    payload = _part(
+        "multipart/mixed",
+        parts=[_part("multipart/related", parts=[_part("text/html", html)])],
+    )
+    result = await _read_message(payload)
+    assert result.data["texto"] == "Hola & adiós\n<fin>"
+
+
+@respx.mock
+async def test_gmail_read_message_lists_attachments_and_keeps_them_out_of_text():
+    payload = _part(
+        "multipart/mixed",
+        parts=[
+            _part("text/plain", "cuerpo"),
+            _part("application/pdf", "SECRETO", filename="factura.pdf"),
+        ],
+    )
+    result = await _read_message(payload)
+    assert result.data["adjuntos"] == ["factura.pdf"]
+    assert result.data["texto"] == "cuerpo"
+
+
+@respx.mock
+async def test_gmail_read_message_truncates_at_20000():
+    result = await _read_message(_part("text/plain", "a" * 30_000))
+    assert result.data["recortado"] is True
+    assert result.data["texto"].startswith("a" * 20_000 + "\n\n[… recortado")
+    assert "30000" in result.data["texto"]
+
+
+@respx.mock
+async def test_gmail_read_message_without_body_is_empty_text():
+    result = await _read_message(_part("multipart/mixed", parts=[]))
+    assert result.success is True
+    assert result.data["texto"] == ""
+
+
+@respx.mock
+async def test_gmail_read_message_classifies_404():
+    result = await _read_message(response=httpx.Response(404, text="nope"))
+    assert result.success is False
+    assert result.metadata["error_kind"] == errors.classify_status(404)

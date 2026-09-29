@@ -17,7 +17,7 @@ def _drive():
 def test_actions_and_modes():
     manifest = _drive()
     actions = {a.name: a for a in manifest.actions}
-    assert set(actions) == {"list_files", "get_file", "search", "upload_file"}
+    assert set(actions) == {"list_files", "get_file", "search", "upload_file", "read_file"}
     assert actions["list_files"].handler is None
     assert actions["upload_file"].handler is not None
     assert actions["upload_file"].writes is True
@@ -111,3 +111,80 @@ async def test_upload_init_error_is_classified():
     )
     assert result.success is False
     assert result.metadata["error_kind"] == errors.CREDENTIAL_INVALID
+
+
+DRIVE = "https://www.googleapis.com/drive/v3"
+
+
+def _meta(mime, name="f"):
+    return httpx.Response(200, json={"id": "F1", "name": name, "mimeType": mime})
+
+
+async def _read():
+    m = _drive()
+    return await HttpActionExecutor().execute(m, m.action("read_file"), {"file_id": "F1"}, CONN)
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_exports_docs_sheets_and_slides(respx_mock):
+    for mime, out in (
+        ("application/vnd.google-apps.document", "text/plain"),
+        ("application/vnd.google-apps.spreadsheet", "text/csv"),
+        ("application/vnd.google-apps.presentation", "text/plain"),
+    ):
+        respx_mock.get(f"{DRIVE}/files/F1").mock(return_value=_meta(mime))
+        route = respx_mock.get(f"{DRIVE}/files/F1/export").mock(
+            return_value=httpx.Response(200, text="hola ñ")
+        )
+        result = await _read()
+        assert result.success is True
+        assert result.data["texto"] == "hola ñ"
+        assert result.data["recortado"] is False
+        assert route.calls.last.request.url.params["mimeType"] == out
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_downloads_text_and_json(respx_mock):
+    for mime in ("text/plain", "application/json"):
+        respx_mock.get(f"{DRIVE}/files/F1", params={"fields": "id,name,mimeType"}).mock(
+            return_value=_meta(mime)
+        )
+        route = respx_mock.get(f"{DRIVE}/files/F1", params={"alt": "media"}).mock(
+            return_value=httpx.Response(200, content=b'{"a": 1}')
+        )
+        result = await _read()
+        assert result.data["texto"] == '{"a": 1}'
+        assert route.called
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_refuses_binaries_without_fetching_content(respx_mock):
+    respx_mock.get(f"{DRIVE}/files/F1").mock(return_value=_meta("application/pdf"))
+    result = await _read()
+    assert result.success is False
+    assert result.error == (
+        "No puedo leer archivos application/pdf: pedí que lo pasen a un Doc de Google."
+    )
+    assert respx_mock.calls.call_count == 1
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_truncates_at_50000(respx_mock):
+    respx_mock.get(f"{DRIVE}/files/F1").mock(
+        return_value=_meta("application/vnd.google-apps.document")
+    )
+    respx_mock.get(f"{DRIVE}/files/F1/export").mock(
+        return_value=httpx.Response(200, text="a" * 60_000)
+    )
+    result = await _read()
+    assert result.data["recortado"] is True
+    assert result.data["texto"].startswith("a" * 50_000 + "\n\n[… recortado")
+    assert "60000" in result.data["texto"]
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_classifies_a_metadata_404(respx_mock):
+    respx_mock.get(f"{DRIVE}/files/F1").mock(return_value=httpx.Response(404, text="nope"))
+    result = await _read()
+    assert result.success is False
+    assert result.metadata["error_kind"] == errors.classify_status(404)

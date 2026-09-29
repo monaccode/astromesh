@@ -94,3 +94,15 @@ spec:
         parent_folder_id:
           type: string
           description: "ID de la carpeta destino; si se omite, va a la raíz"
+
+    - name: read_file
+      description: >
+        Lee el contenido de un archivo como texto: Docs, hojas (la primera, en
+        CSV), presentaciones y archivos de texto.
+      handler: "python:astromesh.integrations.catalog.google_drive.handlers:read_file"
+      writes: false
+      parameters:
+        file_id:
+          type: string
+          description: "ID del archivo en Drive"
+          required: true
