@@ -152,19 +152,22 @@ For full Docker deployment guides including Docker Compose with Ollama, PostgreS
 
 ## Debian Package (Linux)
 
-For Debian and Ubuntu systems, Astromesh is available as a `.deb` package that installs the daemon, CLI, and systemd service.
+For Debian and Ubuntu systems, Astromesh Node ships a `.deb` package that installs the daemon, CLI, and systemd service, with its own Python. It is attached to the `node-v*` releases (the repository's "latest" release is the core):
 
 ### 1. Download package from GitHub Releases
 
 ```bash
-curl -LO https://github.com/monaccode/astromesh/releases/latest/download/astromesh_<VERSION>_amd64.deb
+VERSION=0.1.10
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node_${VERSION}_amd64.deb
 ```
 
 ### 2. Install
 
 ```bash
-sudo apt install ./astromesh_<VERSION>_amd64.deb
+sudo apt install ./astromesh-node_${VERSION}_amd64.deb
 ```
+
+RHEL, macOS and Windows: see [Astromesh Node](/astromesh/node/quick-start/).
 
 ### 3. Verify the installation
 

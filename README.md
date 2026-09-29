@@ -443,8 +443,8 @@ Cross-platform system installer and daemon — deploy Astromesh as a **native sy
 
 ```bash
 # Debian/Ubuntu
-sudo dpkg -i astromesh-node-0.1.10-amd64.deb
-sudo astromeshctl init --profile full
+sudo apt install ./astromesh-node_0.1.10_amd64.deb
+sudo astromeshctl init --role full --non-interactive
 sudo systemctl start astromeshd
 ```
 
