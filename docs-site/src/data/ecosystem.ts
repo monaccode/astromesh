@@ -229,7 +229,7 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Prisma',
     short: 'Prisma',
     group: 'ship',
-    version: '0.2.0',
+    version: '0.2.1',
     released: '2026-09-29',
     tagline:
       'Turns your agent into the cloud’s own native agent, on that cloud’s base resources — and writes down what does not carry over.',
