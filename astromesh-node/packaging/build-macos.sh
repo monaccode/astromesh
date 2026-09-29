@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Builds dist/astromesh-node-<version>-macos.tar.gz: a standalone CPython and a venv built on
+# Builds dist/astromesh-node-<version>-macos-<arm64|x86_64>.tar.gz: a standalone CPython and a venv built on
 # it, both AT THEIR FINAL PATH (/usr/local/opt/astromesh), plus install.sh and the launchd
 # plist. A venv is not relocatable: until node 0.1.8 it was built in staging/ with the
 # runner's python.org Python and every tarball failed with "bad interpreter".
 #
 # Needs a writable /usr/local/opt/astromesh (CI pre-creates it). Architecture follows the
-# build machine: macos-latest is Apple silicon, so the published tarball is arm64.
+# build machine; CI builds one tarball on Apple silicon and one on Intel.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -52,8 +52,9 @@ done
 [ "${bad}" = "0" ] || exit 1
 "${PREFIX}/venv/bin/python" -c "import astromesh.api.main, astromesh_node; print('==> venv OK', astromesh_node.__version__)"
 
-tar czf "dist/astromesh-node-${VERSION}-macos.tar.gz" \
+OUT="dist/astromesh-node-${VERSION}-macos-$(uname -m).tar.gz"
+tar czf "${OUT}" \
     -C "${PREFIX}" python venv \
     -C "${PWD}/packaging/scripts" install.sh \
     -C "${PWD}/packaging/launchd" com.astromesh.daemon.plist
-echo "==> Built dist/astromesh-node-${VERSION}-macos.tar.gz"
+echo "==> Built ${OUT}"

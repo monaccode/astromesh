@@ -30,7 +30,7 @@ astromeshctl version
 
 ```
 astromesh-cli 0.3.1
-astromesh core 0.59.0
+astromesh core 0.61.0
 ```
 
 ## `astromeshctl init`

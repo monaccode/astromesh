@@ -10,18 +10,21 @@ This guide covers installing Astromesh Node on macOS 13 (Ventura) and later.
 | Requirement | Version | Check |
 |-------------|---------|-------|
 | macOS | 13 (Ventura)+ | `sw_vers -productVersion` |
-| Architecture | The archive is built on GitHub's `macos-latest` runner (Apple Silicon) | `uname -m` |
+| Architecture | Apple silicon (`arm64`) or Intel (`x86_64`) since **v0.1.10**; up to v0.1.9, Apple silicon only | `uname -m` |
 | Python | None — the archive carries its own CPython 3.12 in `/usr/local/opt/astromesh/python` (since **v0.1.9**) | — |
 | Network | Outbound to LLM provider or local Ollama | — |
 
 ## Download
 
-Node archives are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them). There is one macOS archive:
+Node archives are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them). There is one archive per architecture, `arm64` (Apple silicon) and `x86_64` (Intel); `uname -m` picks the right one:
 
 ```bash
-VERSION=0.1.9
-curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-macos.tar.gz
+VERSION=0.1.10
+ARCH=$(uname -m)
+curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-macos-${ARCH}.tar.gz
 ```
+
+Up to v0.1.9 there was a single `astromesh-node-<version>-macos.tar.gz`, built for Apple silicon only.
 
 ## Install
 
@@ -29,7 +32,7 @@ The archive has no top-level folder, so extract it into one and run the installe
 
 ```bash
 mkdir astromesh-node
-tar -xzf astromesh-node-${VERSION}-macos.tar.gz -C astromesh-node
+tar -xzf astromesh-node-${VERSION}-macos-${ARCH}.tar.gz -C astromesh-node
 cd astromesh-node
 sudo ./install.sh
 ```
@@ -51,7 +54,7 @@ Expected output:
 
 ```
 astromesh-cli 0.3.1
-astromesh core 0.59.0
+astromesh core 0.61.0
 ```
 
 ## Gatekeeper (macOS Security)
