@@ -42,6 +42,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`orbit init --provider/--preset` responden las preguntas del wizard.** Se aceptaban y se
   ignoraban; ahora un preset o provider desconocido falla antes de empezar.
 
+
+## [0.62.0] - 2026-09-29
+
+### Added (Backend)
+
+- **`google_calendar` integration.** `list_calendars()` (all of a tenant, readable), `list_events()` (query by calendar + date range), `get_event()` (full detail). Read-only.
+- **`gmail.read_message()`.** Full text of a mail in original charset, up to 20,000 chars. Attachments are listed (name, mimetype, size) but not read.
+- **`google_drive.read_file()`.** Read text files, Docs and Slides as Markdown, Sheets (first tab) as CSV. Binaries rejected with a clear error. Streamed, up to 200 KB / 50,000 chars. Model-supplied file IDs pass through the path guard.
+
+Note: Nothing new writes.
+
 ## [0.61.0] - 2026-09-28
 
 ### Added (Backend)
