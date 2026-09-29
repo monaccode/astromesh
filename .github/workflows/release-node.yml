@@ -53,7 +53,11 @@ jobs:
 
   build-macos:
     needs: validate-tag
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        # macos-latest is Apple silicon; macos-15-intel is the Intel image.
+        runner: [macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
       # No setup-python: the tarball carries its own CPython, built in place.
@@ -64,7 +68,7 @@ jobs:
         run: bash packaging/build-macos.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: astromesh-node-macos
+          name: astromesh-node-${{ matrix.runner }}
           path: astromesh-node/dist/*.tar.gz
 
   build-windows:
@@ -115,11 +119,14 @@ jobs:
   # Same idea as verify-linux, on a clean runner that never built anything.
   verify-macos:
     needs: build-macos
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        runner: [macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: astromesh-node-macos
+          name: astromesh-node-${{ matrix.runner }}
           path: pkg/
       - name: Install and run
         run: |

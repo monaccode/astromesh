@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Astromesh Node)
+
+- **Tarball para Mac Intel.** El release de macOS se arma dos veces, en `macos-latest` (Apple
+  silicon) y en `macos-15-intel`, y cada tarball se instala y corre en un runner limpio de su
+  arquitectura antes de publicar. El nombre lleva la arquitectura:
+  `astromesh-node-<versión>-macos-arm64.tar.gz` y `...-macos-x86_64.tar.gz` (hasta 0.1.9 había
+  uno solo, `-macos.tar.gz`, y era arm64).
+
 ### Added (Astromesh ADK)
 
 - **Ejecución remota por nombre.** Con una conexión en efecto (`agent.bind()`, `remote()` o

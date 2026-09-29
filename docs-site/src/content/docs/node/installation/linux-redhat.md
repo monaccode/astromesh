@@ -20,7 +20,7 @@ This guide covers installing Astromesh Node on RPM-based Linux distributions: RH
 Node packages are attached to the `node-v*` releases on GitHub (the repository's "latest" release is the core, so `releases/latest/download/...` does not find them):
 
 ```bash
-VERSION=0.1.9
+VERSION=0.1.10
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-1.x86_64.rpm
 ```
 
@@ -44,7 +44,7 @@ Expected output:
 
 ```
 astromesh-cli 0.3.1
-astromesh core 0.59.0
+astromesh core 0.61.0
 ```
 
 ## Configure
@@ -151,7 +151,7 @@ sudo journalctl -u astromeshd -p err
 ## Upgrade
 
 ```bash
-VERSION=0.1.9
+VERSION=0.1.10
 curl -LO https://github.com/monaccode/astromesh/releases/download/node-v${VERSION}/astromesh-node-${VERSION}-1.x86_64.rpm
 sudo dnf upgrade ./astromesh-node-${VERSION}-1.x86_64.rpm
 ```
