@@ -18,7 +18,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.4.0 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.3.1 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.9 |
-| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.12.0 |
+| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.13.0 |
 | **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.24.1 |
 | **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.20.0 |
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.4 |
