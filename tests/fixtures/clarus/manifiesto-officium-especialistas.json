@@ -1,0 +1,139 @@
+{
+  "empleado": {
+    "apiVersion": "astromesh/v1",
+    "kind": "Agent",
+    "metadata": {
+      "name": "officium-3f2a9c1e",
+      "version": "1.0.0"
+    },
+    "spec": {
+      "orchestration": {
+        "pattern": "react"
+      },
+      "model": {
+        "primary": {
+          "provider": "openai_compat",
+          "endpoint": "https://api.moonshot.ai/v1",
+          "api_key_env": "MOONSHOT_API_KEY",
+          "model": "kimi-k3",
+          "parameters": {
+            "reasoning_effort": "low"
+          }
+        }
+      },
+      "memory": {
+        "conversational": {
+          "backend": "redis",
+          "connection": {
+            "url": "redis://astromesh-redis:6379"
+          },
+          "strategy": "sliding_window",
+          "max_turns": 20
+        }
+      },
+      "prompts": {
+        "system": "Sos Lucía, Analista de recaudación de la empresa.\n\nSos analista de recaudación.\n\nLo que sabés hacer:\n- Contribuyentes: Cargás contribuyentes.\n\nCómo trabajás:\n- Te llegan dos tipos de mensaje. Un ENCARGO trae estas partes: LA EMPRESA, LOS DOCUMENTOS y EL ENCARGO (a veces también TU ENTREGA ANTERIOR y LO QUE HAY QUE CORREGIR). Cualquier otro mensaje es una persona del equipo que te habla directamente: contestale como un compañero, corto y al punto, y acordate de lo que ya hablaron.\n- Usás sólo los números y datos que están en LOS DOCUMENTOS o en la memoria de la empresa. Si falta un dato, lo decís; no lo inventás.\n- En un ENCARGO, entregás el resultado listo para que una persona lo revise: un título, el contenido (con tablas en markdown cuando hay números) y al final una sección \"Supuestos y exclusiones\" con lo que asumiste y lo que dejaste afuera y por qué.\n- Usás la terminología y los organismos del país de la empresa.\n\nTus especialistas internos. Consultalos con su herramienta cuando el trabajo toque su tema: no ven tu conversación ni tus documentos, así que mandales en la consulta todos los datos que necesitan. Lo que un especialista propone escribir también queda para que una persona lo apruebe.\n- Padrón (`consultar_padron`): Cargás contribuyentes en el padrón de PRAXIS.\n\n{% if memory.conversation %}\nLO QUE YA HABLARON, de lo más viejo a lo más nuevo:\n{% for t in memory.conversation %}[{{ t.role }}] {{ t.content }}\n{% endfor %}\nEso ya pasó: no vuelvas a pedir datos que ya te dieron, ni te presentes de nuevo.\n{% endif %}"
+      },
+      "tools": [
+        {
+          "name": "datetime_now",
+          "type": "builtin"
+        },
+        {
+          "name": "consultar_padron",
+          "type": "agent",
+          "agent": "officium-3f2a9c1e-padron",
+          "description": "Padrón, especialista interno: Cargás contribuyentes en el padrón de PRAXIS.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "La consulta, con todos los datos que necesita: no ve tu conversación ni tus documentos."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "especialistas": [
+    {
+      "apiVersion": "astromesh/v1",
+      "kind": "Agent",
+      "metadata": {
+        "name": "officium-3f2a9c1e-padron",
+        "version": "1.0.0"
+      },
+      "spec": {
+        "orchestration": {
+          "pattern": "react"
+        },
+        "model": {
+          "primary": {
+            "provider": "openai_compat",
+            "endpoint": "https://api.moonshot.ai/v1",
+            "api_key_env": "MOONSHOT_API_KEY",
+            "model": "kimi-k2.6"
+          }
+        },
+        "prompts": {
+          "system": "Sos Padrón, especialista interno de Lucía: Cargás contribuyentes en el padrón de PRAXIS.\n\nTe consulta Lucía en medio de su trabajo y tu respuesta vuelve a Lucía, no a una persona. Contestá corto y al punto, diciendo de dónde sacaste cada dato.\n- Usás sólo los datos de la consulta y los de tus herramientas. Si falta un dato, lo decís; no lo inventás."
+        },
+        "tools": [
+          {
+            "type": "mcp",
+            "name": "praxis-erp",
+            "connection": "mcp_praxis-erp",
+            "path": "/mcp",
+            "auth": {
+              "scheme": "bearer"
+            },
+            "tools": [
+              {
+                "name": "query_records",
+                "description": "Busca registros de una entidad",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "entity": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "entity"
+                  ]
+                },
+                "writes": false
+              },
+              {
+                "name": "create_record",
+                "description": "Crea un registro",
+                "input_schema": {
+                  "type": "object",
+                  "properties": {
+                    "entity": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "entity",
+                    "data"
+                  ]
+                },
+                "writes": true,
+                "mode": "propose"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
