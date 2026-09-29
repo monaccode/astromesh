@@ -8,8 +8,11 @@ la segunda — exactamente lo que el manifest declarativo no puede expresar.
 
 from __future__ import annotations
 
+import codecs
+
 from astromesh.integrations import errors
 from astromesh.integrations.executor import IntegrationContext
+from astromesh.integrations.interpolation import InterpolationError, interpolate
 from astromesh.tools.base import ToolResult
 
 _UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/drive/v3/files"
@@ -98,9 +101,33 @@ def _fallo(paso: str, response) -> ToolResult:
     )
 
 
+async def _leer_con_tope(ctx: IntegrationContext, url: str, params: dict):
+    """GET en streaming que corta a TOPE_ARCHIVO * 4 bytes (un carácter UTF-8 son <= 4)."""
+    tope = TOPE_ARCHIVO * 4
+    async with ctx.client.stream("GET", url, params=params) as response:
+        if response.status_code >= 400:
+            await response.aread()
+            return response, b"", False
+        buf = bytearray()
+        async for trozo in response.aiter_bytes():
+            buf += trozo
+            if len(buf) > tope:
+                return response, bytes(buf[:tope]), True
+        return response, bytes(buf), False
+
+
 async def read_file(arguments: dict, ctx: IntegrationContext) -> ToolResult:
     """Un archivo de Drive como texto; nunca binario."""
-    file_id = arguments["file_id"]
+    try:
+        # Mismo guard que el ejecutor declarativo: el id lo elige el modelo.
+        file_id = interpolate("{id}", {"id": arguments["file_id"]}, position="path")
+    except InterpolationError as exc:
+        return ToolResult(
+            success=False,
+            data=None,
+            error=f"file_id inválido: {exc}",
+            metadata={"error_kind": errors.BAD_REQUEST},
+        )
     meta = await ctx.client.get(
         f"{ctx.base_url}/files/{file_id}", params={"fields": "id,name,mimeType"}
     )
@@ -110,11 +137,9 @@ async def read_file(arguments: dict, ctx: IntegrationContext) -> ToolResult:
     mime = info.get("mimeType", "")
 
     if mime in EXPORTABLES:
-        contenido = await ctx.client.get(
-            f"{ctx.base_url}/files/{file_id}/export", params={"mimeType": EXPORTABLES[mime]}
-        )
+        url, params = f"{ctx.base_url}/files/{file_id}/export", {"mimeType": EXPORTABLES[mime]}
     elif _es_descargable(mime):
-        contenido = await ctx.client.get(f"{ctx.base_url}/files/{file_id}", params={"alt": "media"})
+        url, params = f"{ctx.base_url}/files/{file_id}", {"alt": "media"}
     else:
         return ToolResult(
             success=False,
@@ -122,15 +147,16 @@ async def read_file(arguments: dict, ctx: IntegrationContext) -> ToolResult:
             error=f"No puedo leer archivos {mime}: pedí que lo pasen a un Doc de Google.",
             metadata={"error_kind": errors.BAD_REQUEST},
         )
+    contenido, crudo, cortado = await _leer_con_tope(ctx, url, params)
     if contenido.status_code >= 400:
         return _fallo("leer el contenido del archivo", contenido)
 
-    texto = contenido.content.decode("utf-8", errors="replace")
-    recortado = len(texto) > TOPE_ARCHIVO
+    # El decoder incremental descarta una secuencia UTF-8 partida al final del corte.
+    texto = codecs.getincrementaldecoder("utf-8")("replace").decode(crudo, final=not cortado)
+    recortado = cortado or len(texto) > TOPE_ARCHIVO
     if recortado:
-        texto = (
-            texto[:TOPE_ARCHIVO] + f"\n\n[… recortado: el original tiene {len(texto)} caracteres]"
-        )
+        cuanto = f"más de {len(texto)}" if cortado else f"{len(texto)}"
+        texto = texto[:TOPE_ARCHIVO] + f"\n\n[… recortado: el original tiene {cuanto} caracteres]"
     return ToolResult(
         success=True,
         data={

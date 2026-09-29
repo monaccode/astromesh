@@ -188,3 +188,63 @@ async def test_read_file_classifies_a_metadata_404(respx_mock):
     result = await _read()
     assert result.success is False
     assert result.metadata["error_kind"] == errors.classify_status(404)
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_refuses_ids_that_escape_the_path_segment(respx_mock):
+    m = _drive()
+    for bad in ("../x", "a/b", "..", "../../gmail/v1/users/me/messages"):
+        result = await HttpActionExecutor().execute(
+            m, m.action("read_file"), {"file_id": bad}, CONN
+        )
+        assert result.success is False, bad
+    assert respx_mock.calls.call_count == 0
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_encodes_query_injection_and_percent_escapes(respx_mock):
+    route = respx_mock.get(url__regex=r".*").mock(return_value=httpx.Response(404, text="x"))
+    m = _drive()
+    for bad, esperado in (("X?alt=media&", "X%3Falt%3Dmedia%26"), ("%2F", "%252F")):
+        await HttpActionExecutor().execute(m, m.action("read_file"), {"file_id": bad}, CONN)
+        req = route.calls.last.request
+        assert req.url.raw_path.decode().startswith(f"/drive/v3/files/{esperado}?fields=")
+        assert "alt" not in req.url.params
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_stops_reading_after_the_byte_cap(respx_mock):
+    respx_mock.get(f"{DRIVE}/files/F1", params={"fields": "id,name,mimeType"}).mock(
+        return_value=_meta("text/plain")
+    )
+    leidos = []
+
+    async def cuerpo():
+        # 1 MB en trozos de 10 kB; un lector que no corta consumiría todo.
+        for _ in range(100):
+            leidos.append(1)
+            yield b"a" * 10_000
+
+    respx_mock.get(f"{DRIVE}/files/F1", params={"alt": "media"}).mock(
+        return_value=httpx.Response(200, content=cuerpo())
+    )
+    result = await _read()
+    assert result.data["recortado"] is True
+    assert result.data["texto"].startswith(
+        "a" * 50_000 + "\n\n[… recortado: el original tiene más de"
+    )
+    assert len(leidos) < 100
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_read_file_cap_does_not_leave_a_broken_utf8_tail(respx_mock):
+    respx_mock.get(f"{DRIVE}/files/F1", params={"fields": "id,name,mimeType"}).mock(
+        return_value=_meta("text/plain")
+    )
+    # 3 bytes por carácter: el corte a 200.000 bytes cae en medio de uno.
+    respx_mock.get(f"{DRIVE}/files/F1", params={"alt": "media"}).mock(
+        return_value=httpx.Response(200, content="€".encode() * 100_000)
+    )
+    result = await _read()
+    assert "�" not in result.data["texto"]
+    assert result.data["recortado"] is True
