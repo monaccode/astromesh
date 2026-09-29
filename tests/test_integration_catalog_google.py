@@ -165,3 +165,70 @@ async def test_sheets_append_values_uses_insert_rows():
     )
     assert result.success is True
     assert route.calls[0].request.url.params["insertDataOption"] == "INSERT_ROWS"
+
+
+CAL = "https://www.googleapis.com/calendar/v3"
+
+
+def test_the_google_family_includes_calendar():
+    manifest = _get("google_calendar")
+    assert manifest.auth.scheme == "bearer"
+    assert manifest.auth.credential == "access_token"
+    assert not any(a.writes for a in manifest.actions)
+
+
+@respx.mock
+async def test_calendar_list_events_defaults_to_primary_and_orders_by_start():
+    route = respx.get(f"{CAL}/calendars/primary/events").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "e1"}]})
+    )
+    m = _get("google_calendar")
+    result = await HttpActionExecutor().execute(
+        m,
+        m.action("list_events"),
+        {"time_min": "2026-09-30T00:00:00Z", "time_max": "2026-10-01T00:00:00Z"},
+        CONN,
+    )
+    assert result.data == [{"id": "e1"}]
+    q = route.calls.last.request.url.params
+    assert q["timeMin"] == "2026-09-30T00:00:00Z"
+    assert q["timeMax"] == "2026-10-01T00:00:00Z"
+    assert q["singleEvents"] == "true"
+    assert q["orderBy"] == "startTime"
+    assert q["maxResults"] == "50"
+    assert "q" not in q
+
+
+@respx.mock
+async def test_calendar_list_events_omits_empty_range_and_sends_query():
+    route = respx.get(f"{CAL}/calendars/work/events").mock(
+        return_value=httpx.Response(200, json={"items": []})
+    )
+    m = _get("google_calendar")
+    await HttpActionExecutor().execute(
+        m, m.action("list_events"), {"calendar_id": "work", "query": "reunión"}, CONN
+    )
+    q = route.calls.last.request.url.params
+    assert q["q"] == "reunión"
+    assert "timeMin" not in q
+    assert "timeMax" not in q
+
+
+@respx.mock
+async def test_calendar_list_calendars_returns_items():
+    respx.get(f"{CAL}/users/me/calendarList").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "primary"}]})
+    )
+    m = _get("google_calendar")
+    result = await HttpActionExecutor().execute(m, m.action("list_calendars"), {}, CONN)
+    assert result.data == [{"id": "primary"}]
+
+
+@respx.mock
+async def test_calendar_get_event_hits_the_event_path():
+    respx.get(f"{CAL}/calendars/primary/events/e9").mock(
+        return_value=httpx.Response(200, json={"id": "e9"})
+    )
+    m = _get("google_calendar")
+    result = await HttpActionExecutor().execute(m, m.action("get_event"), {"event_id": "e9"}, CONN)
+    assert result.data == {"id": "e9"}
