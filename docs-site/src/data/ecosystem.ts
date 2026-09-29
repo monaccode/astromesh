@@ -229,12 +229,12 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Prisma',
     short: 'Prisma',
     group: 'ship',
-    version: '0.1.0',
-    released: '2026-07-17',
+    version: '0.2.0',
+    released: '2026-09-29',
     tagline:
-      'Reconciles the same agent spec into each cloud’s own managed AI primitives — and writes down what a cloud cannot host.',
+      'Turns your agent into the cloud’s own native agent, on that cloud’s base resources — and writes down what does not carry over.',
     latest:
-      'Agent, memory, RAG, tools and guardrails mapped onto the researched GCP surface. Everything still runs against an in-memory gateway.',
+      'An agent becomes an ADK agent config on Agent Engine, bound to Sessions, Memory Bank, the RAG corpus and Model Armor. Nothing is provisioned yet.',
     install: 'uv sync --extra dev',
     href: '/astromesh/prisma/introduction/',
     repo: 'https://github.com/monaccode/astromesh-prisma',

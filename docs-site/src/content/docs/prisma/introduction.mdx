@@ -1,6 +1,6 @@
 ---
 title: Astromesh Prisma
-description: The multi-cloud reconciling control plane — the same agent spec, translated into each cloud's own managed AI primitives, with the gaps written down.
+description: Turns an Astromesh agent into the target cloud's own native agent, running on that cloud's base resources — with the gaps written down.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
@@ -12,15 +12,78 @@ does not yet provision anything real in GCP. This page describes what exists and
 does not — it is not a preview of a product you can pull.
 </Aside>
 
-**Astromesh Prisma** <Badge text="in development" variant="caution" /> takes the Astromesh agent
-spec — `kind: Agent` and `kind: RAGPipeline`, the same YAML the runtime loads — and reconciles it
-into a cloud's **native, managed AI primitives**. Kubernetes-operator style: the YAML is the source
-of truth, and a loop drives the cloud toward it. GCP and Vertex AI first.
+**Astromesh Prisma** <Badge text="in development" variant="caution" /> takes an agent you wrote for
+Astromesh and turns it into **the target cloud's own native agent**, running on **that cloud's base
+resources**. The YAML the runtime loads (`kind: Agent`, `kind: RAGPipeline`) stays the source of
+truth, and a reconcile loop drives the cloud toward it, Kubernetes-operator style. GCP first.
 
 Its distinguishing idea is a negative one. **Coverage gaps are explicit and never silently
-dropped.** A field one cloud cannot host is reported as unsupported rather than quietly ignored,
-and the coverage matrix is *generated from the mapping registry* instead of written by hand — so
-the document cannot drift away from the code that implements it.
+dropped.** Whatever the native agent cannot do the way Astromesh does is reported, section by
+section, and the coverage matrix is *generated from the mapping registry* instead of written by
+hand. A test also walks the core's own agent schema and fails when the core adds a key Prisma has
+not decided on.
+
+## From your agent to GCP's agent
+
+On GCP the native agent is an **ADK agent config** (`agent_class: LlmAgent`) that Agent Engine
+deploys declaratively, through `spec.sourceCodeSpec.agentConfigSource.adkConfig`. Prisma does not
+generate agent code. It writes that config and wires it to the resources the agent runs on:
+
+| In your YAML | On GCP | How the native agent reaches it |
+|---|---|---|
+| `prompts.system`, `model`, sampling settings | the ADK config itself | `instruction`, `model`, `generate_content_config` |
+| `memory.conversational` | Agent Engine **Sessions** | built into the engine |
+| `memory.semantic` | the engine's **Memory Bank** | `preload_memory` reads it; a callback writes every turn to it |
+| `knowledge.pipeline` | the **RAG Engine corpus** that pipeline's own manifest provisions | a retrieval tool bound to the corpus |
+| `pii_detection` guardrail | a **Model Armor** template | `model_armor_config`, on the side the rule is declared |
+| `type: client` tools | — | a long-running tool: the model asks, your app answers |
+| `builtin` `web_search` | Google Search grounding | ADK's `GoogleSearchTool` |
+| `orchestration.pattern: pipeline` | — | a `SequentialAgent`, one sub-agent per stage |
+
+A reference to a resource whose full name only exists once it is created is written as a
+**binding**, `prisma://{kind}/{manifest}/{resource_type}/{name}`, and the gateway resolves it at
+deploy time. The GCP surface was read from the `aiplatform` v1 discovery document and the
+`google-adk` 2.10.0 source, not from memory. The test suite then loads each generated config into
+ADK, runs it with a recording model in place of Gemini, and checks the request ADK would send.
+
+`POST /v1/translate` shows what an agent becomes without storing or deploying anything:
+
+```json
+{
+  "resources": [
+    {"resource_type": "vertex.agent_engine", "name": "support-agent", "config": {
+      "spec": {"agent_framework": "google-adk", "source_code_spec": {"agent_config_source": {
+        "adk_config": {"json_config": {
+          "agent_class": "LlmAgent", "name": "support_agent", "model": "gemini-2.5-flash",
+          "instruction": "You help customers with their orders.",
+          "tools": [{"name": "prisma_tools.client_tool", "args": {"name": "confirm_refund", "...": "..."}},
+                    {"name": "prisma_tools.rag_retrieval", "args": {
+                      "rag_corpora": ["prisma://RAGPipeline/help-center/vertex.rag_corpus/help-center-corpus"]}},
+                    {"name": "preload_memory"}]}}}}},
+      "context_spec": {"memory_bank_config": {}}}},
+    {"resource_type": "modelarmor.template", "name": "support-agent-model-armor", "config": {"...": "..."}}
+  ],
+  "gaps": [
+    {"section": "model.fallback", "coverage": "unsupported",
+     "detail": "model candidate(s) llama3.1:8b are dropped: the native agent calls only the first one"},
+    {"section": "tools.builtin.unmapped", "coverage": "unsupported",
+     "detail": "builtin tool(s) send_email run Astromesh Python with no GCP counterpart; ..."}
+  ]
+}
+```
+
+### What does not translate, and why
+
+Among others:
+- **Model routing and fallback.** A native agent has one model.
+- **Episodic memory.**
+- **`integration`, `api` and `mcp` tools.** A `writes: true` tool *proposes* in Astromesh, and an
+  ADK toolset would execute it.
+- **`parallel_fan_out`, `supervisor`, `swarm` and `glyph`.**
+- **`content_filter`** (regex replacement) and **`topic_filter`**, which needs the agent
+  registered in Agent Registry first.
+
+Each shows up as a gap with that reason, not as silence.
 
 ## Prisma or Orbit?
 
@@ -54,15 +117,14 @@ astromesh_prisma/
 Identity is `(kind, name)`, not `name`. A single-key store silently lost data when an Agent and a
 RAGPipeline shared a name — which is why every route carries the kind.
 
-### Native resources mapped today
+### Native resources
 
-`vertex.agent_engine` · `vertex.memory_bank` · `vertex.vector_index` ·
-`vertex.vector_index_endpoint` · `vertex.rag_corpus` · `modelarmor.template`
+`vertex.agent_engine` (carrying the ADK config, Memory Bank and the bindings) ·
+`vertex.rag_corpus` · `modelarmor.template`
 
-These are the ones that exist. An earlier iteration also mapped `vertex.endpoint` and
-`vertex.reasoning`, which do not exist — they were removed rather than kept as aspirational rows.
-A control plane whose thesis is truthful coverage cannot ship a matrix with invented destinations
-in it.
+Tools are not resources. In GCP, what an agent can call lives inside its config. Resources that do
+not exist were removed rather than kept as aspirational rows: `vertex.endpoint`, `vertex.reasoning`,
+and a free-standing `vertex.memory_bank` that was never bound to an engine.
 
 ## The API
 
@@ -72,6 +134,7 @@ in it.
 | `GET` | `/v1/specs` | List submitted manifests |
 | `GET` | `/v1/specs/{kind}/{name}` | Fetch one, with its observed state |
 | `POST` | `/v1/specs/{kind}/{name}/reconcile` | Drive the cloud toward the spec |
+| `POST` | `/v1/translate` | What a manifest becomes — resources and structured gaps — without storing it |
 
 ## What is not true yet
 
@@ -80,10 +143,9 @@ a footnote:
 
 - **Nothing is provisioned for real.** Every test and every run goes through the in-memory gateway.
   The real GCP gateway is designed and currently blocked on cloud authentication.
-- **The tools row of the coverage matrix is wrong.** The mapping layer models a tool-type list
-  Astromesh never had, so a tool with no `type` reports as supported when the runtime cannot load
-  it. The runtime's real list is `builtin`, `agent`, `client`. The fix is specced, needs no cloud
-  credentials, and is the intended next task.
+- **Bindings are not resolved yet.** Resolving `prisma://` references, building the engine's
+  source archive and waiting on long-running operations are the gateway's job, and the gateway
+  does not exist yet.
 - **Marketplace distribution is not built.** One-click through a cloud marketplace is the
   distribution plan, not a current capability.
 
