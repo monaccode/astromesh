@@ -113,7 +113,7 @@ The build is driven by `mkosi.conf`. Key settings:
 | `SplitArtifacts` | `uki,partitions` | Emits the UKI and partitions separately for A/B + verity |
 | `Seed` | fixed UUID | Reproducible UUIDs so v1/v2 agree on the shared `/var` |
 | `KernelCommandLine` | `console=ttyS0 ...forward_to_console=1` | Boot + journal visible on serial for CI/QEMU |
-| `Packages` | systemd, systemd-boot(-efi), python3, fdisk, linux-image-cloud-amd64, ... | Minimal set; `fdisk` provides `sfdisk` for the A/B updater. `python3` serves the egress and sandbox checks — the runtime brings its own CPython since v0.13.0 |
+| `Packages` | systemd, systemd-boot(-efi), fdisk, apparmor, linux-image-cloud-amd64, ... | Minimal set; `fdisk` provides `sfdisk` for the A/B updater. No system `python3` since v0.13.1: every in-image script uses the runtime's own CPython, and the build fails if a package pulls `python3` back in |
 | `RemoveFiles` | locale, i18n, info, lintian, doc, man | Trim toward the 500 MB ceiling |
 | `RootPassword` | `hashed:!` | Root account locked — no interactive login |
 
