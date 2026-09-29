@@ -15,11 +15,11 @@ Supports Linux (Debian/Ubuntu, RHEL/Fedora), macOS, and Windows.
 
 ```bash
 # Install from GitHub Release
-sudo dpkg -i astromesh-node-0.1.10-amd64.deb    # Debian/Ubuntu
-sudo rpm -i astromesh-node-0.1.10-amd64.rpm      # RHEL/Fedora
+sudo apt install ./astromesh-node_0.1.10_amd64.deb     # Debian/Ubuntu
+sudo dnf install ./astromesh-node-0.1.10-1.x86_64.rpm  # RHEL/Fedora
 
 # Configure and start
-sudo astromeshctl init --profile full
+sudo astromeshctl init --role full --non-interactive
 sudo systemctl start astromeshd
 ```
 
