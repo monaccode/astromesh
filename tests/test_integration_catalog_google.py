@@ -165,3 +165,230 @@ async def test_sheets_append_values_uses_insert_rows():
     )
     assert result.success is True
     assert route.calls[0].request.url.params["insertDataOption"] == "INSERT_ROWS"
+
+
+CAL = "https://www.googleapis.com/calendar/v3"
+
+
+def test_the_google_family_includes_calendar():
+    manifest = _get("google_calendar")
+    assert manifest.auth.scheme == "bearer"
+    assert manifest.auth.credential == "access_token"
+    assert not any(a.writes for a in manifest.actions)
+
+
+@respx.mock
+async def test_calendar_list_events_defaults_to_primary_and_orders_by_start():
+    route = respx.get(f"{CAL}/calendars/primary/events").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "e1"}]})
+    )
+    m = _get("google_calendar")
+    result = await HttpActionExecutor().execute(
+        m,
+        m.action("list_events"),
+        {"time_min": "2026-09-30T00:00:00Z", "time_max": "2026-10-01T00:00:00Z"},
+        CONN,
+    )
+    assert result.data == [{"id": "e1"}]
+    q = route.calls.last.request.url.params
+    assert q["timeMin"] == "2026-09-30T00:00:00Z"
+    assert q["timeMax"] == "2026-10-01T00:00:00Z"
+    assert q["singleEvents"] == "true"
+    assert q["orderBy"] == "startTime"
+    assert q["maxResults"] == "50"
+    assert "q" not in q
+
+
+@respx.mock
+async def test_calendar_list_events_omits_empty_range_and_sends_query():
+    route = respx.get(f"{CAL}/calendars/work/events").mock(
+        return_value=httpx.Response(200, json={"items": []})
+    )
+    m = _get("google_calendar")
+    await HttpActionExecutor().execute(
+        m, m.action("list_events"), {"calendar_id": "work", "query": "reunión"}, CONN
+    )
+    q = route.calls.last.request.url.params
+    assert q["q"] == "reunión"
+    assert "timeMin" not in q
+    assert "timeMax" not in q
+
+
+@respx.mock
+async def test_calendar_list_calendars_returns_items():
+    respx.get(f"{CAL}/users/me/calendarList").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "primary"}]})
+    )
+    m = _get("google_calendar")
+    result = await HttpActionExecutor().execute(m, m.action("list_calendars"), {}, CONN)
+    assert result.data == [{"id": "primary"}]
+
+
+@respx.mock
+async def test_calendar_get_event_hits_the_event_path():
+    respx.get(f"{CAL}/calendars/primary/events/e9").mock(
+        return_value=httpx.Response(200, json={"id": "e9"})
+    )
+    m = _get("google_calendar")
+    result = await HttpActionExecutor().execute(m, m.action("get_event"), {"event_id": "e9"}, CONN)
+    assert result.data == {"id": "e9"}
+
+
+def _part(mime, text=None, filename="", parts=None, charset=None):
+    part = {"mimeType": mime, "filename": filename, "body": {}}
+    if text is not None:
+        codec = charset or "utf-8"
+        part["body"]["data"] = base64.urlsafe_b64encode(text.encode(codec)).decode().rstrip("=")
+    if charset:
+        part["headers"] = [{"name": "Content-Type", "value": f'{mime}; charset="{charset}"'}]
+    if parts is not None:
+        part["parts"] = parts
+    return part
+
+
+def _message(payload):
+    payload["headers"] = [
+        *payload.get("headers", []),
+        {"name": "From", "value": "ana@example.com"},
+        {"name": "SUBJECT", "value": "Hola"},
+        {"name": "Date", "value": "Mon, 28 Sep 2026"},
+    ]
+    return {"id": "m1", "threadId": "t1", "payload": payload}
+
+
+async def _read_message(payload=None, response=None):
+    respx.get(f"{GMAIL}/users/me/messages/m1").mock(
+        return_value=response or httpx.Response(200, json=_message(payload))
+    )
+    m = _get("gmail")
+    return await HttpActionExecutor().execute(
+        m, m.action("read_message"), {"message_id": "m1"}, CONN
+    )
+
+
+@respx.mock
+async def test_gmail_read_message_plain_body_and_headers():
+    result = await _read_message(_part("text/plain", "Hola ñ"))
+    data = result.data
+    assert data["texto"] == "Hola ñ"
+    assert data["from"] == "ana@example.com"
+    assert data["subject"] == "Hola"
+    assert data["thread_id"] == "t1"
+    assert data["to"] == ""
+    assert data["adjuntos"] == []
+    assert data["recortado"] is False
+
+
+@respx.mock
+async def test_gmail_read_message_prefers_plain_in_alternative():
+    payload = _part(
+        "multipart/alternative",
+        parts=[_part("text/html", "<b>html</b>"), _part("text/plain", "plano")],
+    )
+    result = await _read_message(payload)
+    assert result.data["texto"] == "plano"
+
+
+@respx.mock
+async def test_gmail_read_message_strips_nested_html_and_decodes_entities():
+    html = "<style>p{}</style><p>Hola &amp; adiós</p><script>x()</script><p>&lt;fin&gt;</p>"
+    payload = _part(
+        "multipart/mixed",
+        parts=[_part("multipart/related", parts=[_part("text/html", html)])],
+    )
+    result = await _read_message(payload)
+    assert result.data["texto"] == "Hola & adiós\n<fin>"
+
+
+@respx.mock
+async def test_gmail_read_message_lists_attachments_and_keeps_them_out_of_text():
+    payload = _part(
+        "multipart/mixed",
+        parts=[
+            _part("text/plain", "cuerpo"),
+            _part("application/pdf", "SECRETO", filename="factura.pdf"),
+        ],
+    )
+    result = await _read_message(payload)
+    assert result.data["adjuntos"] == ["factura.pdf"]
+    assert result.data["texto"] == "cuerpo"
+
+
+@respx.mock
+async def test_gmail_read_message_truncates_at_20000():
+    result = await _read_message(_part("text/plain", "a" * 30_000))
+    assert result.data["recortado"] is True
+    assert result.data["texto"].startswith("a" * 20_000 + "\n\n[… recortado")
+    assert "30000" in result.data["texto"]
+
+
+@respx.mock
+async def test_gmail_read_message_without_body_is_empty_text():
+    result = await _read_message(_part("multipart/mixed", parts=[]))
+    assert result.success is True
+    assert result.data["texto"] == ""
+
+
+@respx.mock
+async def test_gmail_read_message_classifies_404():
+    result = await _read_message(response=httpx.Response(404, text="nope"))
+    assert result.success is False
+    assert result.metadata["error_kind"] == errors.classify_status(404)
+
+
+@respx.mock
+async def test_gmail_read_message_does_not_decode_entities_twice():
+    result = await _read_message(_part("text/html", "<p>a &amp;lt; b</p>"))
+    assert result.data["texto"] == "a &lt; b"
+
+
+@respx.mock
+async def test_gmail_read_message_honors_the_part_charset():
+    result = await _read_message(_part("text/plain", "año á", charset="iso-8859-1"))
+    assert result.data["texto"] == "año á"
+
+
+@respx.mock
+async def test_gmail_read_message_unknown_charset_falls_back_to_utf8():
+    payload = _part("text/plain", "año")
+    payload["headers"] = [{"name": "Content-Type", "value": "text/plain; charset=nope-9"}]
+    result = await _read_message(payload)
+    assert result.data["texto"] == "año"
+
+
+@respx.mock
+async def test_gmail_read_message_says_when_the_body_comes_as_an_attachment():
+    payload = _part("text/plain")
+    payload["body"] = {"attachmentId": "A1", "size": 900000}
+    result = await _read_message(payload)
+    assert result.success is True
+    assert result.data["texto"].startswith("El cuerpo del correo es muy grande")
+
+
+@respx.mock
+async def test_gmail_read_message_collapses_whitespace_but_keeps_paragraphs():
+    html = "<p>uno   \n\t  dos</p><p></p><p></p><p>tres</p>"
+    result = await _read_message(_part("text/html", html))
+    assert result.data["texto"] == "uno dos\n\ntres"
+
+
+@respx.mock
+async def test_gmail_read_message_refuses_ids_that_escape_the_path_segment():
+    m = _get("gmail")
+    for bad in ("../x", "a/b", "../../gmail/v1/users/me/messages"):
+        result = await HttpActionExecutor().execute(
+            m, m.action("read_message"), {"message_id": bad}, CONN
+        )
+        assert result.success is False, bad
+    assert respx.calls.call_count == 0
+
+
+@respx.mock
+async def test_gmail_read_message_encodes_query_injection_and_percent_escapes():
+    route = respx.get(url__regex=r".*").mock(return_value=httpx.Response(404, text="x"))
+    m = _get("gmail")
+    for bad, esperado in (("X?alt=media&", "X%3Falt%3Dmedia%26"), ("%2F", "%252F")):
+        await HttpActionExecutor().execute(m, m.action("read_message"), {"message_id": bad}, CONN)
+        req = route.calls.last.request
+        assert req.url.raw_path.decode().startswith(f"/gmail/v1/users/me/messages/{esperado}?")
+        assert "alt" not in req.url.params

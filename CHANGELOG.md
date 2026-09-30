@@ -42,6 +42,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`orbit init --provider/--preset` responden las preguntas del wizard.** Se aceptaban y se
   ignoraban; ahora un preset o provider desconocido falla antes de empezar.
 
+
+## [0.62.0] - 2026-09-29
+
+### Added (Backend)
+
+- **Integración `google_calendar`, de lectura.** `list_calendars()` lista los calendarios que ve la
+  cuenta conectada (`calendarList.list`, que Google no acepta con el permiso `calendar.events`: pide
+  `calendar.calendarlist.readonly` u otro más amplio), `list_events()` los eventos de un calendario
+  (por defecto `primary`) en un rango de fechas, ordenados por inicio y con las series repetidas ya
+  expandidas, y `get_event()` el detalle de uno.
+- **`gmail.read_message()`.** El correo como texto: cabeceras, cuerpo en el juego de caracteres
+  original (el texto plano, o el HTML sin etiquetas si no hay plano) y los NOMBRES de los adjuntos
+  (no su tipo ni su tamaño; no se leen). Tope de 20.000 caracteres: un correo más largo llega
+  recortado y con `recortado: true`. Si Gmail manda el cuerpo como adjunto (`attachmentId` sin
+  `data`, típico de un cuerpo muy grande) `texto` lo avisa en vez de quedar vacío.
+- **`google_drive.read_file()`.** Lee texto, JSON y XML tal cual; un Doc o una presentación de Google
+  se exportan a texto plano (no Markdown) y una hoja de cálculo a CSV, sólo la primera hoja. Un
+  binario (PDF, imagen, Office…) se rechaza con un error claro antes de pedir el contenido. Se lee
+  en streaming y se corta a 200 KB de bytes y 50.000 caracteres; lo que pasa de eso llega recortado.
+  Un 3xx del contenido es un fallo (el cliente no sigue redirects), no un archivo vacío. El id del
+  archivo pasa por la misma guarda de ruta que el resto de las acciones.
+
+Nada de esto escribe.
+
 ## [0.61.0] - 2026-09-28
 
 ### Added (Backend)

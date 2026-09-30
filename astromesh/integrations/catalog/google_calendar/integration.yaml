@@ -1,0 +1,78 @@
+apiVersion: astromesh/v1
+kind: Integration
+metadata:
+  name: google_calendar
+  version: 0.1.0
+  description: >
+    Google Calendar API v3, de lectura. El access token lo entrega la conexión
+    ya resuelto: el core no hace el flujo OAuth ni refresca. Mismo esquema de
+    auth que gmail, google_drive y google_sheets.
+spec:
+  base_url: "https://www.googleapis.com/calendar/v3"
+  auth:
+    scheme: bearer
+    credential: access_token
+  defaults:
+    timeout_seconds: 30
+  actions:
+    - name: list_calendars
+      description: "Lista los calendarios a los que el usuario tiene acceso"
+      request:
+        method: GET
+        path: "/users/me/calendarList"
+      response:
+        select: "items"
+
+    - name: list_events
+      description: >
+        Lista los eventos de un calendario, ordenados por hora de inicio y con
+        las series repetidas ya expandidas en ocurrencias.
+      parameters:
+        calendar_id:
+          type: string
+          description: "ID del calendario; 'primary' es el principal del usuario"
+          default: "primary"
+        time_min:
+          type: string
+          description: "Inicio del rango, RFC 3339, por ejemplo 2026-09-30T00:00:00Z"
+        time_max:
+          type: string
+          description: "Fin del rango, RFC 3339"
+        query:
+          type: string
+          description: "Texto libre a buscar en los eventos"
+        max_results:
+          type: integer
+          description: "Cantidad de eventos por página, máximo 250"
+          default: 50
+      request:
+        method: GET
+        path: "/calendars/{calendar_id}/events"
+        query:
+          timeMin: "{time_min}"
+          timeMax: "{time_max}"
+          q: "{query}"
+          maxResults: "{max_results}"
+          singleEvents: "true"
+          orderBy: "startTime"
+      response:
+        select: "items"
+      pagination:
+        style: cursor
+        cursor_param: pageToken
+        cursor_path: "nextPageToken"
+
+    - name: get_event
+      description: "Devuelve un evento completo por su ID"
+      parameters:
+        calendar_id:
+          type: string
+          description: "ID del calendario; 'primary' es el principal del usuario"
+          default: "primary"
+        event_id:
+          type: string
+          description: "ID del evento"
+          required: true
+      request:
+        method: GET
+        path: "/calendars/{calendar_id}/events/{event_id}"

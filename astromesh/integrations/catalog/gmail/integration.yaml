@@ -90,3 +90,15 @@ spec:
         reply_to_thread_id:
           type: string
           description: "ID del hilo al que responder, para que quede enhebrado"
+
+    - name: read_message
+      description: >
+        Lee un correo por su ID: remitente, asunto, fecha y el texto del cuerpo
+        (sin adjuntos; de ellos sólo devuelve los nombres).
+      handler: "python:astromesh.integrations.catalog.gmail.handlers:read_message"
+      writes: false
+      parameters:
+        message_id:
+          type: string
+          description: "ID del mensaje en Gmail"
+          required: true
