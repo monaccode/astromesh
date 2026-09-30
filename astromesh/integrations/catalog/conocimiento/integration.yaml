@@ -44,3 +44,29 @@ spec:
         body:
           consulta: "{consulta}"
           max: "{max}"
+    - name: vencimientos
+      writes: false
+      description: >
+        Las fechas de vencimiento de ARCA (Argentina) para un CUIT: IVA,
+        autónomos, empleadores (F.931), servicio doméstico, monotributo,
+        Ganancias y Bienes Personales. Usala para toda fecha de vencimiento: no
+        las calcules ni las recuerdes. Devuelve {vencimientos: [{fecha,
+        obligacion, detalle}], cubreHasta, aviso?}. Si trae `aviso`, decilo.
+      parameters:
+        cuit:
+          type: string
+          description: El CUIT, con o sin guiones.
+          required: true
+        desde:
+          type: string
+          description: Fecha inicial YYYY-MM-DD. Si no la pasás, hoy.
+        hasta:
+          type: string
+          description: Fecha final YYYY-MM-DD. Si no la pasás, 30 días después de desde.
+      request:
+        method: POST
+        path: /api/conocimiento/vencimientos
+        body:
+          cuit: "{cuit}"
+          desde: "{desde}"
+          hasta: "{hasta}"
