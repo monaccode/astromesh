@@ -43,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ignoraban; ahora un preset o provider desconocido falla antes de empezar.
 
 
+## [0.63.0] - 2026-09-30
+
+### Added (Backend)
+
+- **`conocimiento.vencimientos()`.** Acción de lectura de la integración `conocimiento`: las fechas
+  de vencimiento de ARCA (IVA, autónomos, F.931, servicio doméstico, monotributo, Ganancias y Bienes
+  Personales) para un CUIT. Hace `POST /api/conocimiento/vencimientos` contra el `base_url` de la
+  conexión, con la API key en `X-Api-Key`, y el cuerpo lleva `cuit` y, sólo si se pasan, `desde` y
+  `hasta` (YYYY-MM-DD). La respuesta del backend (`vencimientos`, `cubreHasta`, `aviso`) llega tal cual.
+
 ## [0.62.0] - 2026-09-29
 
 ### Added (Backend)
