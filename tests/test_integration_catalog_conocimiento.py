@@ -29,12 +29,12 @@ def test_la_conexion_trae_el_base_url():
     assert _conocimiento().base_url is None
 
 
-def test_una_sola_accion_y_no_escribe():
+def test_las_acciones_no_escriben():
     manifest = _conocimiento()
-    assert [a.name for a in manifest.actions] == ["buscar_en_documentos"]
-    accion = manifest.action("buscar_en_documentos")
-    assert accion.writes is False
-    assert accion.mutates is False
+    assert [a.name for a in manifest.actions] == ["buscar_en_documentos", "vencimientos"]
+    for accion in manifest.actions:
+        assert accion.writes is False
+        assert accion.mutates is False
 
 
 def test_la_descripcion_manda_los_numeros_al_catalogo():
@@ -76,3 +76,39 @@ async def test_sin_max_no_lo_manda():
         manifest, manifest.action("buscar_en_documentos"), {"consulta": "garantía"}, _conexion()
     )
     assert json.loads(route.calls[0].request.content) == {"consulta": "garantía"}
+
+
+CLARUS = "https://clarus.test"
+
+
+@respx.mock
+async def test_vencimientos_manda_cuit_y_rango_con_la_clave():
+    route = respx.post(f"{CLARUS}/api/conocimiento/vencimientos").mock(
+        return_value=httpx.Response(200, json={"vencimientos": [], "cubreHasta": "2026-12-31"})
+    )
+    manifest = _conocimiento()
+    result = await HttpActionExecutor().execute(
+        manifest,
+        manifest.action("vencimientos"),
+        {"cuit": "20123456786", "desde": "2026-10-01", "hasta": "2026-10-31"},
+        ResolvedConnection("conocimiento", {"api_key": "k"}, base_url=CLARUS),
+    )
+    assert result.success is True
+    request = route.calls[0].request
+    assert request.headers["X-Api-Key"] == "k"
+    assert request.content == b'{"cuit":"20123456786","desde":"2026-10-01","hasta":"2026-10-31"}'
+
+
+@respx.mock
+async def test_vencimientos_sin_fechas_no_las_manda():
+    route = respx.post(f"{CLARUS}/api/conocimiento/vencimientos").mock(
+        return_value=httpx.Response(200, json={"vencimientos": [], "cubreHasta": "2026-12-31"})
+    )
+    manifest = _conocimiento()
+    await HttpActionExecutor().execute(
+        manifest,
+        manifest.action("vencimientos"),
+        {"cuit": "20123456786"},
+        ResolvedConnection("conocimiento", {"api_key": "k"}, base_url=CLARUS),
+    )
+    assert json.loads(route.calls[0].request.content) == {"cuit": "20123456786"}
