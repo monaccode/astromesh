@@ -183,6 +183,19 @@ async def test_read_file_truncates_at_50000(respx_mock):
 
 
 @respx.mock(assert_all_mocked=True)
+async def test_read_file_treats_a_redirect_as_a_failure(respx_mock):
+    respx_mock.get(f"{DRIVE}/files/F1", params={"fields": "id,name,mimeType"}).mock(
+        return_value=_meta("text/plain")
+    )
+    respx_mock.get(f"{DRIVE}/files/F1", params={"alt": "media"}).mock(
+        return_value=httpx.Response(302, headers={"Location": "https://example.com/x"})
+    )
+    result = await _read()
+    assert result.success is False
+    assert "HTTP 302" in result.error
+
+
+@respx.mock(assert_all_mocked=True)
 async def test_read_file_classifies_a_metadata_404(respx_mock):
     respx_mock.get(f"{DRIVE}/files/F1").mock(return_value=httpx.Response(404, text="nope"))
     result = await _read()

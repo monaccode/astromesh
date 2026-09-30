@@ -350,11 +350,19 @@ async def test_gmail_read_message_honors_the_part_charset():
 
 @respx.mock
 async def test_gmail_read_message_unknown_charset_falls_back_to_utf8():
-    result = await _read_message(_part("text/plain", "año", charset="utf-8"))
     payload = _part("text/plain", "año")
     payload["headers"] = [{"name": "Content-Type", "value": "text/plain; charset=nope-9"}]
     result = await _read_message(payload)
     assert result.data["texto"] == "año"
+
+
+@respx.mock
+async def test_gmail_read_message_says_when_the_body_comes_as_an_attachment():
+    payload = _part("text/plain")
+    payload["body"] = {"attachmentId": "A1", "size": 900000}
+    result = await _read_message(payload)
+    assert result.success is True
+    assert result.data["texto"].startswith("El cuerpo del correo es muy grande")
 
 
 @respx.mock

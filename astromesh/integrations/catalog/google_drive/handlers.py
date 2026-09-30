@@ -105,7 +105,9 @@ async def _leer_con_tope(ctx: IntegrationContext, url: str, params: dict):
     """GET en streaming que corta a TOPE_ARCHIVO * 4 bytes (un carácter UTF-8 son <= 4)."""
     tope = TOPE_ARCHIVO * 4
     async with ctx.client.stream("GET", url, params=params) as response:
-        if response.status_code >= 400:
+        # Un 3xx tampoco es contenido (el cliente no sigue redirects): sería el
+        # cuerpo del redirect leído como si fuera el archivo.
+        if response.status_code >= 300:
             await response.aread()
             return response, b"", False
         buf = bytearray()
@@ -148,7 +150,7 @@ async def read_file(arguments: dict, ctx: IntegrationContext) -> ToolResult:
             metadata={"error_kind": errors.BAD_REQUEST},
         )
     contenido, crudo, cortado = await _leer_con_tope(ctx, url, params)
-    if contenido.status_code >= 400:
+    if contenido.status_code >= 300:
         return _fallo("leer el contenido del archivo", contenido)
 
     # El decoder incremental descarta una secuencia UTF-8 partida al final del corte.

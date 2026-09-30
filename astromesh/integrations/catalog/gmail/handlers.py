@@ -115,16 +115,25 @@ def _decodificar(data: str, charset: str = "utf-8") -> str:
         return crudo.decode("utf-8", errors="replace")
 
 
-def _recorrer(part: dict, cuerpos: dict, adjuntos: list[str]) -> None:
+def _recorrer(part: dict, cuerpos: dict, adjuntos: list[str], grandes: list[str]) -> None:
     if part.get("filename"):
         adjuntos.append(part["filename"])
         return
     mime = part.get("mimeType", "")
-    data = (part.get("body") or {}).get("data")
+    body = part.get("body") or {}
+    data = body.get("data")
     if data and mime in ("text/plain", "text/html"):
         cuerpos.setdefault(mime, _decodificar(data, _charset(part)))
+    elif body.get("attachmentId") and mime in ("text/plain", "text/html"):
+        # Gmail manda un cuerpo grande como adjunto, sin `data`.
+        grandes.append(mime)
     for hija in part.get("parts") or []:
-        _recorrer(hija, cuerpos, adjuntos)
+        _recorrer(hija, cuerpos, adjuntos, grandes)
+
+
+AVISO_CUERPO_GRANDE = (
+    "El cuerpo del correo es muy grande y Gmail lo manda como adjunto: no lo puedo leer."
+)
 
 
 async def read_message(arguments: dict, ctx: IntegrationContext) -> ToolResult:
@@ -158,11 +167,14 @@ async def read_message(arguments: dict, ctx: IntegrationContext) -> ToolResult:
     payload = mensaje.get("payload") or {}
     cuerpos: dict[str, str] = {}
     adjuntos: list[str] = []
-    _recorrer(payload, cuerpos, adjuntos)
+    grandes: list[str] = []
+    _recorrer(payload, cuerpos, adjuntos, grandes)
     if "text/plain" in cuerpos:
         texto = cuerpos["text/plain"]
     else:
         texto = _sin_etiquetas(cuerpos.get("text/html", ""))
+    if not texto and grandes:
+        texto = AVISO_CUERPO_GRANDE
 
     cabeceras = {h["name"].lower(): h["value"] for h in payload.get("headers") or []}
     recortado = len(texto) > TOPE_CORREO
