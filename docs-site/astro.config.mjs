@@ -196,9 +196,11 @@ export default defineConfig({
           label: 'Astromesh Nexus',
           items: [
             { label: 'Introduction', slug: 'nexus/introduction' },
-            { label: 'Architecture & CRDs', slug: 'nexus/architecture' },
+            { label: 'Architecture', slug: 'nexus/architecture' },
             { label: 'Quick Start', slug: 'nexus/quickstart' },
             { label: 'API Reference', slug: 'nexus/api-reference' },
+            { label: 'Plans & Billing', slug: 'nexus/billing' },
+            { label: 'Operations', slug: 'nexus/operations' },
           ],
         },
         {

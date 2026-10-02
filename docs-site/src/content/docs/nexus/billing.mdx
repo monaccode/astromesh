@@ -1,0 +1,115 @@
+---
+title: Plans & Billing
+description: How Nexus admits a run against a plan, turns tokens into credits, sells plans per vertical and closes each month into charges.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Nexus answers two money questions about every run. **May it happen?** That is admission, against a plan. **What did it cost?** That is pricing, against tariffs. On top of both, subscriptions sell a plan per vertical, and a monthly close turns each subscription's period into charges.
+
+All money is integer **micro-units**. One credit is one US dollar, which is 1,000,000 micros, and rounding happens once per total, never per step.
+
+## Plans
+
+A plan holds a tenant's hard limits and its commercial terms. Every tenant has a **base plan**, `plan_free` unless an operator assigns another.
+
+| Field | Enforced how |
+|---|---|
+| `max_concurrency` | At admission: runs `in_progress` at once. |
+| `max_rpm` | At admission: attempts per UTC minute. Rejected attempts count too. |
+| `credit_cap_period_micros` | At admission: credits charged in the current UTC month. |
+| `max_tokens_per_call` | Clamped into the spec's `max_tokens` before the run. |
+| `max_iterations` | Clamped into `orchestration.max_iterations` before the run. |
+| `max_active_agents` | Recorded and shown in the console. |
+| `min_fee_micros`, `activation_price_micros` | Charged at the period close (subscription plans). |
+| `included_credits_micros`, `extra_credit_price_micros` | Stored with the plan's terms. |
+
+A limit left out (`null`) means **no limit**, and `0` means **blocked**, so a plan loaded with a missing value closes the tap instead of opening it. Plans are immutable once created: to change a tenant's terms, create a plan and assign it.
+
+`plan_free` ships with 25 agents, 10 concurrent runs, 60 runs per minute, 1,000 credits per month, 2,048 tokens per call and 10 iterations. Nexus rewrites it on every boot, so those numbers are the code's.
+
+## Admission
+
+Before running anything, Nexus registers the invocation and checks the limits in one transaction, in this order:
+
+1. If the run is under a subscription: `subscription_inactive` (`422`), then the subscription plan's credit cap, `subscription_credit_budget_exhausted` (`402`).
+2. The tenant's credit cap: `credit_budget_exhausted` (`402`).
+3. Concurrency: `concurrency_exceeded` (`429`).
+4. Requests per minute: `rate_limited` (`429`).
+
+The most durable cause is reported first. A tenant that is both out of budget and rate-limited is told about the budget, because waiting a minute would not help. Every rejection is stored as an invocation with status `rejected`.
+
+Once the period's credits reach 80 % of a cap (the tenant's or the subscription's, whichever is higher), the run response carries `X-Nexus-Credit-Usage: <percent>`.
+
+## Credits and tariffs
+
+The runtime reports usage per model: input tokens, output tokens, and the input tokens the provider served from its prompt cache. Nexus prices each row against the **tariff in force when the run started**:
+
+```text
+credits = (in − cached) × credits_per_1k_in
+        + cached        × credits_per_1k_cached_in
+        + out           × credits_per_1k_out        (per 1,000 tokens, rounded once)
+```
+
+A tariff also records the **provider cost** and, for models served on your own infrastructure (`own: true`), an **infrastructure cost**. Neither one ever reaches a customer-facing response.
+
+| Rule | Why |
+|---|---|
+| Tariffs are **append-only**, versioned by `effective_from`. | Changing a price files a new row; past runs keep the price they were charged. |
+| A model with no tariff is **`unpriced`** and charges zero. | Nexus never invents a price. The console shows unpriced runs so you can file the missing tariff. |
+| No `credits_per_1k_cached_in` means no cache discount. | It overcharges rather than undercharges. |
+
+Nexus seeds tariffs for the Moonshot Kimi models the platform runs, at the provider's published prices, so a credit equals the provider cost and the seed adds no margin. Add margin by filing a later row.
+
+## Subscriptions
+
+A **subscription** sells a plan to a tenant for one vertical, called an *argo*. A tenant has at most one active subscription per argo, and only operators create, re-plan or cancel them.
+
+A subscription plan carries an `argo_code` and a `spec` of **business units** and features:
+
+```json
+{
+  "argo_code": "presto",
+  "spec": {
+    "unidades": {
+      "presto.presupuestos": { "incluidas": 100, "excedente_micros": 50000 }
+    },
+    "features": { "presto.modulos": ["ventas"] }
+  }
+}
+```
+
+Units are named `<argo>.<name>`, quantities are integers of 0 or more, and an argo plan cannot be assigned as a tenant's base plan, because its open limits would lift the tenant's pool caps.
+
+What a subscription changes:
+
+- **Publishing with `?subscription_id=`** ties an agent to it, and its runs are recorded under it.
+- **Admission** adds the subscription plan's credit cap to the tenant's own. The spec is clamped with the subscription plan's `max_tokens_per_call` and `max_iterations`, falling back field by field to the tenant's base plan.
+- **Usage events** (`POST /api/v1/usage/events`) report business units: a quote created, a document filed. They are idempotent per subscription and `event_id`.
+- A **plan change** is scheduled for the next period. Scheduling the current plan cancels a pending change.
+- **Cancelling** sets an end date. Deleting a tenant cancels its subscriptions in the same transaction.
+
+## The period close
+
+A job inside `nexus-api` runs at boot and every 15 minutes, behind an advisory lock. It closes each subscription's month **48 hours after the month ends**. In one transaction per subscription and period, it writes these charges:
+
+| Charge | Amount |
+|---|---|
+| `cuota` | The plan's `min_fee_micros`, prorated by active UTC days. |
+| `activacion` | `activation_price_micros`, if the subscription started that month and was active at least one day. |
+| `excedente_unidad` | Per unit: `(used − incluidas) × excedente_micros`, never negative. Written even when it is 0. |
+
+The close then applies any scheduled plan change. Running it twice duplicates nothing; a failed close is logged for that subscription and retried on the next pass, without blocking the others. After the close, a usage event for that period is rejected with `409 period_closed`.
+
+**Margin** is the period's charges minus the provider and infrastructure cost of the subscription's invocations. It is `null` until the period closes; the console shows "sin cierre".
+
+### Statements
+
+- `GET /api/v1/admin/tenants/:id/statement?period=YYYY-MM` returns the stored charges for a closed period. For the month in progress it returns a live projection with `provisional: true`, computed by the same function the close uses.
+- `statement.csv` has one line per charge.
+- `POST /api/v1/admin/billing-periods/:id/facturado` marks a closed period invoiced. It is the only transition, it is audited, and it is `409` if repeated.
+- `GET /api/v1/admin/billing-periods/overdue` lists periods past their grace period by more than one hour that are still open.
+
+<Aside type="caution" title="Known limitation: plan changes during the grace period">
+A plan change scheduled between the first of month M+1 and the close of month M (around the 3rd, 00:00–00:15 UTC) is applied when M closes. All of M+1 is then billed on the new plan, and units the new plan does not declare are never charged. Schedule plan changes after the previous month has closed: its statement is no longer `provisional`, and `/billing-periods/overdue` no longer lists it.
+</Aside>
