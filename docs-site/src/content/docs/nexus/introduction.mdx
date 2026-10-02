@@ -1,104 +1,67 @@
 ---
 title: Astromesh Nexus
-description: The multi-tenant managed control plane that publishes, runs, meters and bills agents on the Astromesh runtime.
+description: The multi-tenant control plane that publishes, runs, meters and bills agents on a shared Astromesh runtime pool.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
 <Aside type="caution">
-**v0.9.0 · pre-1.0.** Nexus was reoriented away from its original Kubernetes-operator design (one namespace and one dedicated `astromesh-node` per customer) toward a **managed platform** with a shared runtime pool, per-use accounting and a web console. Endpoints and data shapes can still change between minor releases.
+**v0.26.2 · pre-1.0.** Endpoints and data shapes can still change between minor releases.
 </Aside>
 
-**Astromesh Nexus** is the control plane of the agent cloud: it publishes, executes, meters and bills the agents that run on the Astromesh runtime, in multi-tenancy.
+**Astromesh Nexus** is the control plane of the agent cloud. It publishes, executes, meters and bills the agents that run on the Astromesh runtime, for many tenants at once.
 
-External clients call the Nexus REST API. Nexus resolves the tenant, applies its limits, dispatches the run to a shared pool of runtimes, measures what it consumed, and records the invocation.
+A client calls the Nexus REST API. Nexus resolves the tenant, admits the run against its limits, loads the agent into a shared pool of runtimes, measures what the run consumed, prices it, and records the invocation.
 
-## What Nexus is
+## What Nexus does
 
-- A **managed multi-tenant control plane**, written in Go (Gin, `:8080`).
-- An **agent registry with versioning** — specs live in PostgreSQL, each publish appending a new version with its author and checksum.
-- An **invocation core**: tenant → limits → dispatch → metering → registry.
-- A **billing and observability surface**: per-agent and per-tenant consumption, per-model breakdown, and nested sub-invocations.
-- A **streaming adaptor**: runs can be streamed over WebSocket, cancelled mid-flight, and billed at stream close.
+| Area | What you get |
+|---|---|
+| **Tenants and access** | Users, tenants, API keys and an operator role. JWT for people, `X-API-Key` for programs. |
+| **Agent registry** | Full `astromesh/v1` specs in PostgreSQL. Every publish appends an immutable version with its author and checksum. |
+| **Execution** | Synchronous runs (`POST …/run`) and WebSocket streaming with server-side cancel, dispatched to a shared runtime pool. |
+| **Admission** | Per-plan caps on concurrency, requests per minute and credits per period, plus token and iteration ceilings clamped into the spec. |
+| **Metering and pricing** | Per-model token usage (including the provider's prompt cache), priced against effective-dated tariffs into credits. |
+| **Subscriptions and billing** | Plans sold per vertical (*argo*), business-unit usage events, and a monthly period close that writes charges and a statement. |
+| **Connections** | Per-tenant credentials (an ERP key, an API, an MCP server), sealed with AES-256-GCM and forwarded to each run. |
+| **Messaging** | Proactive sends through [Herald](/astromesh/herald/introduction/), including from an agent mid-run with a per-run token. |
+| **Observability** | Per-agent status, logs and metrics, invocation detail, tenant usage, and cross-tenant reads for operators. |
+| **Operator console** | A web console embedded in the binary: platform, customers, agent health, invocations, plans and tariffs, billing. |
 
 ## What Nexus is not
 
-- It is **not the agent runtime**. Agents execute inside the Astromesh runtime pool, not in Nexus.
-- It is **no longer a Kubernetes operator**. Agents are rows in PostgreSQL with versioning, not Custom Resources in etcd, and tenants no longer get a dedicated namespace and node each.
-- It is **not single-tenant**. Tenant isolation and per-tenant accounting are the whole point.
+- **Not the agent runtime.** Agents execute inside the Astromesh runtime pool. Nexus decides whether a run may happen and what it cost.
+- **Not a Kubernetes operator.** Agents are rows in PostgreSQL, not Custom Resources, and tenants share one runtime pool instead of getting a namespace and a node each.
+- **Not single-tenant.** Tenant isolation and per-tenant accounting are enforced in every query.
 
-## Architecture
+## How a run flows
 
 ```mermaid
-flowchart TB
-    User["Client / Cortex / Leia"] -->|"REST · API key or JWT"| API
-    WA["WhatsApp (Meta)"] -->|webhook| API
-
-    subgraph nexus["nexus-api (Go)"]
-        API["Input adaptors"]
-        CORE["Invocation core
-        tenant → limits → dispatch
-        → metering → registry"]
-        ADMIN["Admin API"]
-        LOOP["Reconciliation loop"]
-        API --> CORE
-    end
-
-    DB[("PostgreSQL
-    specs · invocations · usage")]
-    POOL["runtime-pool
-    N astromesh pods
-    agents held in memory"]
-
-    CORE --> DB
-    CORE --> POOL
-    ADMIN --> DB
-    LOOP --> DB
-    LOOP --> POOL
+flowchart LR
+    C["Client · Herald · Cortex"] -->|"REST / WS"| N["nexus-api"]
+    N -->|"1 · resolve tenant + agent"| DB[("PostgreSQL")]
+    N -->|"2 · admit: rpm · concurrency · credits"| DB
+    N -->|"3 · load spec (if changed)"| P["runtime pool<br/>astromesh"]
+    N -->|"4 · run"| P
+    P -->|"answer + usage by model"| N
+    N -->|"5 · price + close invocation"| DB
 ```
 
-The **runtime pool** is a cache, not a registry: pods start empty and Nexus injects agents through the runtime API (`ASTROMESH_PERSIST_AGENTS=0`). The durable copy of every spec lives in PostgreSQL.
+The pool is a cache, not a registry: Nexus pushes a tenant's agent into it on first use and again only when the spec changed. The durable copy of every spec lives in PostgreSQL.
 
-## Key concepts
+## Where Nexus fits
 
-### Tenants
+| | |
+|---|---|
+| [**Astromesh runtime**](/astromesh/getting-started/what-is-astromesh/) | What the pool runs. Each Nexus release pins one runtime version (astromesh 0.61.0 at Nexus 0.26.2). |
+| [**Herald**](/astromesh/herald/introduction/) | The messaging gateway. Herald invokes agents through Nexus; Nexus sends proactive messages through Herald. |
+| [**Cortex**](/astromesh/cortex/introduction/) | The desktop console. It connects to Nexus as a managed hub to publish agents. |
+| [**Leia**](/astromesh/leia/introduction/) | The same operations in natural language, from Claude Code. |
 
-A tenant is an isolated workspace with its own agents, API keys, plan and consumption. Isolation is enforced in the data layer and in every query, not by a Kubernetes namespace boundary.
+## Next
 
-### Agents and versions
-
-An agent carries a full `astromesh/v1` spec. Publishing appends a **new version** with its number, date, author and checksum; earlier versions stay readable and can be reverted to by republishing their spec.
-
-### Dual authentication
-
-The REST API accepts a **Bearer JWT** (interactive sessions, optionally scoped with `X-Tenant-ID`) or an **`X-API-Key`** (programmatic, tenant-scoped). Auth and health routes are public; everything under `/api/v1/*` requires one of the two. Operator-only admin routes take a separate `X-Operator-Token`.
-
-## What's new
-
-### v0.9.0 — tenant usage endpoint
-
-`GET /api/v1/usage[?period=YYYY-MM]` reports tenant-wide consumption: current-month and all-time totals (invocations, tokens and the three money columns) plus a per-agent ranking by credits, including soft-deleted agents flagged `deleted`. `period` defaults to the current UTC month.
-
-### v0.8.0 — streaming runs and real observability
-
-`GET /api/v1/agents/:name/run/stream` (WebSocket) proxies the runtime's per-run execution events to the client and bills credits at stream close, reusing the synchronous path's pricing. All HTTP-status validation happens **before** the upgrade. Closing the client socket cancels the run server-side and records the invocation as `cancelled` with zero credits.
-
-The same release replaced the earlier stubs with real aggregation: `GET /api/v1/agents/:name/metrics` and `GET /api/v1/agents/:name/invocations/:id` read from the invocation registry, exposing per-model usage and child invocations.
-
-### v0.7.0 — the runtime pool
-
-A Kustomize component deploys the Astromesh runtime that Nexus dispatches to, behind a ClusterIP service, so `POST /api/v1/agents/:name/run` actually executes instead of failing `502`/`504`.
-
-### v0.6.0 — Kubernetes deployment
-
-Kustomize base plus per-environment overlays for **dev** and **mvp**, one ArgoCD Application each.
-
-## Ecosystem role
-
-Nexus is the cloud control plane the rest of the ecosystem deploys agents to. [Cortex](/astromesh/cortex/introduction/), Forge and [Leia](/astromesh/leia/introduction/) all target it. See the [ecosystem overview](/astromesh/getting-started/ecosystem/) for the full picture.
-
-## What's next
-
-- [Architecture](/astromesh/nexus/architecture/) — control-plane components and data model.
-- [Quickstart](/astromesh/nexus/quickstart/) — bootstrap Nexus and deploy your first agent.
-- [API Reference](/astromesh/nexus/api-reference/) — auth model, endpoints, and a curl walkthrough.
+- [Architecture](/astromesh/nexus/architecture/): components, data model, the run path and its guarantees.
+- [Quick Start](/astromesh/nexus/quickstart/): deploy Nexus and run your first agent.
+- [API Reference](/astromesh/nexus/api-reference/): every route, its auth and its errors.
+- [Plans & Billing](/astromesh/nexus/billing/): admission, credits, tariffs, subscriptions and the period close.
+- [Operations](/astromesh/nexus/operations/): configuration, the console, `nexus-admin`, deploy and backups.

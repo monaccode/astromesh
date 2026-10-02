@@ -1,0 +1,109 @@
+---
+title: Operations
+description: Configuring nexus, the operator console, the nexus-admin CLI, deploy and release, and verified backups.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Configuration
+
+Every flag of `nexus` has an environment-variable default.
+
+| Flag | Env | Default | |
+|---|---|---|---|
+| `--database-url` | `DATABASE_URL` | — | **Required.** PostgreSQL 17. The schema is created and migrated at boot. |
+| `--jwt-secret` | `JWT_SECRET` | — | **Required.** Signs access tokens; run tokens use a key derived from it. |
+| `--astromesh-url` | `ASTROMESH_URL` | — | **Required.** The runtime pool's base URL. |
+| `--astromesh-token` | `ASTROMESH_TOKEN` | — | Bearer token for the runtime, if it requires one. |
+| `--api-port` | — | `8080` | REST API and console. |
+| `--run-timeout` | `NEXUS_RUN_TIMEOUT` | `120s` | Ceiling for one agent turn. The caller (Herald, for example) has its own; the smaller one wins. |
+| `--operator-token` | `NEXUS_OPERATOR_TOKEN` | — | Static operator credential, at least 32 bytes. Empty is allowed: operators then use the role. |
+| `--connections-key` | `NEXUS_CONNECTIONS_KEY` | — | 32 bytes hex. Without it connections answer `503`; an invalid value is fatal. **Rotating it invalidates every stored connection.** |
+| `--herald-url`, `--herald-sender-key` | `HERALD_URL`, `HERALD_SENDER_KEY` | — | Both or neither. They enable proactive sends and per-run tokens. |
+| `--sweep-interval` | `NEXUS_SWEEP_INTERVAL` | `60s` | How often the stale-invocation sweep runs. |
+| `--sweep-max-age` | `NEXUS_SWEEP_MAX_AGE` | `300s` | An `in_progress` invocation older than this is closed `interrupted`. |
+| `--minute-counter-max-age` | `NEXUS_MINUTE_COUNTER_MAX_AGE` | `24h` | Retention of the per-minute rate counters. |
+
+`nexus` also needs a Kubernetes client at boot (in-cluster or a kubeconfig): tenant creation uses it.
+
+## Operator console
+
+The binary embeds a web console, served at `/`. It answers three daily questions: *is anything broken?*, *who is spending?* and *are we making money?*
+
+| Screen | What it shows |
+|---|---|
+| **Platform** | Totals, consumption by model, periods that should already be closed. |
+| **Customers** | Every tenant with its plan, caps, usage and margin. |
+| **Customer detail** | Plan and limit bars, subscriptions with their unit and credit counters, the statement with CSV download and "Marcar facturado". |
+| **Agent health** | Per-agent volume and error rate. |
+| **Invocations** | An explorer with composable filters and a detail view: usage by model, cost and error. |
+| **Plans & tariffs** | Create plans (with argo, units and features) and file tariffs, including the cached-input rate. |
+
+Sign in with a user that has the operator role.
+
+## `nexus-admin`
+
+A second binary, shipped in the same image, that talks straight to the database:
+
+```bash
+nexus-admin create-key --tenant <name> [--label <label>]   # mint an API key
+nexus-admin operator grant  <email>                          # give a user the operator role
+nexus-admin operator revoke <email>                          # take it away; revokes their refresh tokens
+nexus-admin operator list
+```
+
+All commands take `--database-url` (default `$DATABASE_URL`). The operator role starts closed: it can only be granted from here, by someone with database access.
+
+```bash
+kubectl exec -n nexus-dev deploy/nexus -- nexus-admin operator grant you@example.com
+```
+
+## Deploy and release
+
+The `deploy/` tree in the Nexus repository is Kustomize:
+
+| Path | |
+|---|---|
+| `deploy/base` | The `nexus` Deployment, Service, Ingress and `nexus-config` ConfigMap. |
+| `deploy/components/postgres` | In-cluster PostgreSQL StatefulSet. |
+| `deploy/components/redis` | Redis for the runtime's conversational memory: no volume, no password, `allkeys-lru`. It holds only turns with a TTL and is reachable only inside the namespace. |
+| `deploy/components/runtime-pool` | The Astromesh runtime, pinned to one image version, behind `astromesh-runtime:8000`. |
+| `deploy/overlays/{dev,mvp}` | One namespace and host per environment. |
+| `deploy/argocd` | One ArgoCD Application and one Image Updater config per environment. |
+
+Secrets stay out of git (`secrets.yaml` in each overlay is the template) and are created with `kubectl`, so ArgoCD neither manages nor overwrites them.
+
+| Channel | Trigger | Image tags | Rollout |
+|---|---|---|---|
+| **dev** | Push to `develop` | `:dev`, `:sha-<commit>` | Image Updater pins the new `:dev` digest. |
+| **mvp** | Move the `mvp` git tag (after merging to `main`) | `:X.Y.Z`, `:mvp` | Image Updater pins the new `:mvp` digest. |
+
+The version lives in the repository's `VERSION` file. CI fails a release whose tag does not match it, and `make verify-manifests` fails if an overlay passes a flag the binary does not define.
+
+<Aside type="caution" title="Runtime first, template after">
+A pool version bump is a Nexus release. A feature that an agent template depends on (a new tool type, an integration) reaches tenants only when the pool runs a runtime that has it. Bump the pool first, then publish the template that uses it.
+</Aside>
+
+## Backups
+
+Two scripts in `hack/` back the database up and prove the backup restores:
+
+| Script | |
+|---|---|
+| `backup.sh` | `pg_dump --format=custom`, verified with `pg_restore --list` before it is kept. Prunes dumps older than `KEEP_DAYS` (14). |
+| `restore-check.sh` | Restores the newest dump into a scratch database (`CHECK_DB`) and fails unless every accounting table came back, every `agent_versions` checksum recomputes from its spec, the append-only triggers are present and enabled, and the dump is fresh (`MAX_DUMP_AGE_SECONDS`, 48 h) and came from the expected server. |
+
+`restore-check.sh` refuses to run against the production database, including names that only collide after PostgreSQL truncates them to 63 bytes. A typical schedule runs the backup nightly and the restore check weekly:
+
+```cron
+0 3 * * *  . /etc/nexus-backup.env && /opt/nexus/hack/backup.sh
+0 4 * * 0  . /etc/nexus-backup.env && /opt/nexus/hack/restore-check.sh
+```
+
+Dumps contain password hashes, key hashes and the whole accounting, so they are written `chmod 600`.
+
+## Health and scaling
+
+- `/healthz` and `/readyz` are the liveness and readiness probes.
+- Several `nexus` replicas can boot against the same database: migrations run under an advisory lock, and the period close runs under its own.
+- The runtime pool runs one replica. Conversational memory is in Redis, but the confirmation gate's pending proposals live in the runtime's process memory, so scale the pool with that in mind.

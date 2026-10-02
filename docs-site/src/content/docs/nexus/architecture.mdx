@@ -1,192 +1,153 @@
 ---
 title: Architecture
-description: Control-plane components, the two reconcilers, the multi-tenant isolation model, and the v1alpha1 CRDs.
+description: Components, data model, the run path and the guarantees behind Nexus's multi-tenant control plane.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Nexus is a controller-runtime operator with an embedded REST API. The control plane lives in the `nexus-system` namespace; tenants and their nodes live in their own namespaces.
+Nexus is one Go binary (`nexus`, Gin on `:8080`) backed by PostgreSQL. It has no controllers and no Custom Resources. Agents run in a separate **runtime pool** of Astromesh pods, which Nexus reaches over HTTP.
 
-## Control-Plane Components
-
-| Component | Detail |
-|-----------|--------|
-| REST API | Gin HTTP server on `:8080`; turns client requests into custom resources |
-| SQLite store | `modernc.org/sqlite` — users, tenants, tenant↔user associations, API keys, refresh tokens |
-| Auth | JWT via `golang-jwt` (HMAC-SHA256), bcrypt password hashing (cost 12) |
-| NexusTenantReconciler | Provisions tenant namespaces, nodes, and services |
-| NexusAgentReconciler | Registers and deploys agents to tenant nodes |
-| Metrics | Prometheus endpoint on `:9090` |
-| Health probes | Manager liveness/readiness on `:8081` |
-
-Built with Go 1.25, Kubebuilder v4, and controller-runtime. The CRD API group is `nexus.astromesh.io/v1alpha1`.
+## Components
 
 ```mermaid
 flowchart TB
-    user["User / Cortex / Leia"]
-    subgraph cluster["Kubernetes Cluster"]
-        subgraph nexussys["nexus-system namespace"]
-            cp["`**Nexus Control Plane**
-            REST API (Gin :8080) · NexusTenantReconciler
-            SQLite Store · NexusAgentReconciler`"]
-        end
-        subgraph tenanta["tenant-a namespace"]
-            nodea["`astromesh-node (:8000)
-            agent-1, agent-2`"]
-        end
-        subgraph tenantb["tenant-b namespace"]
-            nodeb["`astromesh-node (:8000)
-            agent-a`"]
-        end
+    subgraph clients["Callers"]
+        API_C["API clients · Cortex · Leia"]
+        HER["Herald (channels)"]
+        OPS["Operators (console)"]
     end
-    user -->|"POST /api/v1/agents  (X-API-Key / Bearer JWT)"| cluster
+
+    subgraph nexus["nexus-api (one binary)"]
+        AUTH["Dual auth<br/>JWT · API key · run token"]
+        REG["Agent registry<br/>versions"]
+        INV["Invocation core<br/>admit → load → run → price"]
+        ADM["Operator plane<br/>/api/v1/admin"]
+        CON["Console SPA<br/>served at /"]
+        JOBS["Background jobs<br/>stale sweep · period close"]
+    end
+
+    DB[("PostgreSQL 17")]
+    POOL["runtime pool<br/>astromesh pods"]
+    REDIS[("Redis<br/>conversation memory")]
+
+    API_C --> AUTH
+    HER --> AUTH
+    OPS --> CON --> ADM
+    AUTH --> REG & INV
+    REG --> DB
+    INV --> DB
+    INV --> POOL
+    ADM --> DB
+    JOBS --> DB
+    POOL --> REDIS
+    POOL -->|"send_message · run token"| AUTH
+    INV -.->|"proactive sends"| HER
 ```
 
-## Reconcilers
+| Component | What it does |
+|---|---|
+| **Dual auth** | Resolves the tenant from a Bearer JWT (with `X-Tenant-ID`) or an `X-API-Key`. A third credential, the per-run token, is accepted only on `/api/v1/runs/*`. |
+| **Agent registry** | Stores specs and their append-only version history. |
+| **Invocation core** | The run path shared by the REST and WebSocket adaptors (below). |
+| **Operator plane** | Tariffs, plans, subscriptions, cross-tenant reads and billing, behind the operator role. Every mutation is audited. |
+| **Console** | A React SPA embedded in the binary and served at `/`. See [Operations](/astromesh/nexus/operations/#operator-console). |
+| **Background jobs** | The stale-invocation sweep and the monthly period close, both inside `nexus-api`. |
+| **Runtime pool** | Astromesh pods pinned to one runtime version. Agents are held in memory; conversational memory lives in Redis. |
 
-### NexusTenantReconciler
+## The run path
 
-Watches `NexusTenant` resources in `nexus-system`. Each reconcile loop:
+Every run, synchronous or streamed, goes through the same prologue:
 
-1. Adds a cleanup finalizer (`nexus.astromesh.io/tenant-cleanup`).
-2. Sets phase to `Provisioning`.
-3. Ensures the **tenant namespace** exists (labeled `nexus.astromesh.io/managed=true`).
-4. Ensures the **`astromesh-node` Deployment** (1 replica, container port `8000`, liveness/readiness probes on `/v1/health`). Resource limits are applied from `spec.resourceQuota`.
-5. Ensures the **`astromesh-node` Service** on port `8000`.
-6. Sets phase to `Ready`, records `status.namespace`, and sets `status.nodeEndpoint` to `http://astromesh-node.<namespace>.svc:8000`.
-7. Requeues after 60s.
+```mermaid
+sequenceDiagram
+    actor C as Client
+    participant N as nexus-api
+    participant DB as PostgreSQL
+    participant P as Runtime pool
 
-On deletion, the finalizer deletes the tenant namespace before it is removed. Errors set phase `Error` and requeue after 30s.
+    C->>N: POST /api/v1/agents/:name/run
+    N->>DB: Idempotency-Key replay?
+    N->>DB: resolve agent in caller's tenant (foreign → 404)
+    N->>DB: admit + register invocation (in_progress)
+    alt over a limit
+        N-->>C: 402 / 422 / 429 (recorded as rejected)
+    end
+    N->>N: prepare spec: namespace + clamp to plan
+    N->>P: load agent (only if its sha256 changed)
+    N->>P: run (query, session, context, connections)
+    P-->>N: answer + usage by model
+    N->>DB: price against tariffs, close invocation
+    N-->>C: answer, usage, credits, data / chain / propuestas
+```
 
-### NexusAgentReconciler
+1. **Idempotency.** An `Idempotency-Key` becomes the invocation id. A replayed key returns the existing invocation without dispatching; a key owned by another tenant is `409`.
+2. **Resolve and isolate.** The agent is looked up inside the caller's tenant only. An agent with no live version answers `422`.
+3. **Admit before executing.** The invocation is registered against the tenant's plan (and its subscription's plan, if any) in one transaction: concurrency, requests per minute and credits for the period. A rejection is recorded with its reason. See [Plans & Billing](/astromesh/nexus/billing/#admission).
+4. **Prepare the spec.** `metadata.name` becomes `t_<tenant>__<agent>`, and so do the names of agents referenced as `type: agent` tools. `max_tokens` and `max_iterations` are clamped to the plan's ceilings.
+5. **Load.** Nexus remembers the sha256 of the spec it last pushed per agent and serializes pushes with a per-agent lock. An unchanged spec is not pushed again, a restarted runtime (404) is reloaded, and referenced sub-agents are loaded too, up to 16 per invocation.
+6. **Run.** The runtime receives the query, the session id (namespaced as `t_<tenant>__<agent>__<session>`), the caller's `context`, the tenant's connection bundle and, when Herald is configured, a per-run token.
+7. **Price and close.** Per-model usage is priced against the tariffs in force when the run started. The invocation closes with its status, credits and costs.
 
-Watches `NexusAgent` resources in tenant namespaces. Each reconcile loop:
-
-1. Adds a cleanup finalizer (`nexus.astromesh.io/agent-cleanup`).
-2. Sets phase to `Deploying`.
-3. Resolves the tenant's node endpoint by listing `NexusTenant` CRs in `nexus-system` and matching the one whose `status.namespace` equals the agent's namespace and whose phase is `Ready`.
-4. Registers the agent: `POST {node}/v1/agents`.
-5. Deploys the agent: `POST {node}/v1/agents/{name}/deploy`.
-6. Sets phase to `Running`, `status.nodeAck = true`, and `status.lastSyncedAt = now`.
-7. Requeues after 60s.
-
-On deletion, the finalizer calls `DELETE {node}/v1/agents/{name}` (errors ignored — the node may already be gone). Errors set phase `Failed` and requeue after 30s.
-
-## Multi-Tenant Isolation Model
-
-- **One namespace per tenant.** The tenant's CR name is also its namespace name.
-- **One node per tenant.** Each namespace runs its own `astromesh-node`; agents never cross tenant boundaries.
-- **Scoped credentials.** API keys are tenant-scoped; JWT callers must own a tenant (verified via `UserOwnsTenant`) and pass `X-Tenant-ID` to act within it.
-- **Quota enforcement.** `spec.resourceQuota` drives the node's CPU/memory limits and a `maxAgents` ceiling.
+The **stale sweep** marks any invocation still `in_progress` after `--sweep-max-age` (default 300 s) as `interrupted`, so a crashed run never holds a concurrency slot forever.
 
 <Aside type="note">
-The REST API mints CR names of the form `tenant-<uuid>`. The sample manifests use a friendly name like `tenant-dev`. In both cases the CR name equals the tenant namespace name.
+A sub-agent called as a tool does not create a second invocation: the runtime runs it in-process inside the parent's run, and its usage is part of the parent's. What it did is in the parent's trace.
 </Aside>
 
-## Custom Resource Definitions
+## Invocation statuses
 
-API group: `nexus.astromesh.io/v1alpha1`.
+| Status | Meaning |
+|---|---|
+| `in_progress` | Admitted and running. |
+| `ok` | Finished; priced. |
+| `error` | The runtime or provider failed. |
+| `timeout` | Exceeded `--run-timeout` (default 120 s). |
+| `cancelled` | A streaming client closed its socket; charged zero credits. |
+| `rejected` | Refused at admission; `error_code` holds the reason. |
+| `interrupted` | Closed by the stale sweep. |
 
-### NexusTenant
+## Data model
 
-Namespaced, created in `nexus-system`.
+All state is in one PostgreSQL schema that `nexus` creates and migrates itself at boot. There is no migration job, and a second boot emits no DDL.
 
-**Spec**
+| Area | Tables |
+|---|---|
+| Identity | `users` (with `is_operator`), `refresh_tokens`, `tenants`, `user_tenants`, `api_keys` |
+| Registry | `agents`, `agent_versions` |
+| Execution | `invocations`, `invocation_model_usage`, `usage_counters` |
+| Pricing | `model_tariffs`, `plans` |
+| Subscriptions | `subscriptions`, `subscription_counters`, `usage_events` |
+| Billing | `billing_periods`, `charges` |
+| Connections | `connections` |
+| Audit | `operator_audit` |
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `displayName` | string | Human-readable tenant name |
-| `nodeProfile` | string | Node profile, e.g. `"full"` (passed to the node as `ASTROMESH_ROLE`) |
-| `resourceQuota.maxAgents` | int | Maximum number of agents |
-| `resourceQuota.cpu` | string | CPU limit for the node (e.g. `"4"`) |
-| `resourceQuota.memory` | string | Memory limit for the node (e.g. `"8Gi"`) |
+Invariants the database enforces itself, not the application:
 
-**Status**
+- **`agent_versions`, `model_tariffs`, `plans` and `charges` are append-only**, guarded by triggers on `UPDATE`, `DELETE` and `TRUNCATE`. Changing a price files a new tariff row with a later `effective_from`.
+- **Nothing is hard-deleted.** Tenants, agents and API keys are soft-deleted, so a version keeps its author and a past invocation keeps its agent. Deleting a tenant revokes its keys, removes its owners' access and cancels its active subscriptions in the same transaction.
+- **A version's checksum** is `sha256` of the spec as PostgreSQL stores it, so it can be recomputed from the row.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `phase` | enum | `Pending` \| `Provisioning` \| `Ready` \| `Error` |
-| `namespace` | string | Provisioned tenant namespace |
-| `nodeEndpoint` | string | In-cluster node URL (`http://astromesh-node.<ns>.svc:8000`) |
-| `agentCount` | int | Number of agents in the tenant |
-| `conditions` | []Condition | Standard Kubernetes conditions |
+## Agents and versions
 
-```yaml
-apiVersion: nexus.astromesh.io/v1alpha1
-kind: NexusTenant
-metadata:
-  name: tenant-dev
-  namespace: nexus-system
-spec:
-  displayName: "Development Tenant"
-  nodeProfile: full
-  resourceQuota:
-    maxAgents: 10
-    cpu: "4"
-    memory: "8Gi"
-```
+Publishing (`POST`/`PUT /api/v1/agents`) validates the spec against the `astromesh/v1` Agent schema, accepts YAML or JSON, and appends a version with its number, date, author (the user, or the API key that wrote it) and checksum. An agent's `status` is `draft` until it has a live version and `active` from then on.
 
-### NexusAgent
+Names are unique among a tenant's live agents only, so a retired name can be reused. The `by-id` routes address a version history unambiguously; `by-id` is therefore not a valid agent name.
 
-Namespaced, created in the tenant's namespace.
+## Tenant isolation
 
-**Spec**
+- Every read and write is scoped by the tenant the credential resolved. The tenant never comes from a request body or, for connections and sends, from the path.
+- An API key reaches its own tenant only. A JWT reaches the tenants its user owns, selected with `X-Tenant-ID`; an operator's JWT may name any tenant.
+- The run's connection bundle is built from the database for the resolved tenant, never from anything the caller sent.
+- Provider and infrastructure costs never appear in customer-facing responses; they are on the operator plane only.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `agentSpec` | RawExtension | A pass-through carrying a full `astromesh/v1` Agent spec (unknown fields preserved) |
+## Technology
 
-**Status**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `phase` | enum | `Pending` \| `Deploying` \| `Running` \| `Failed` \| `Stopped` |
-| `lastSyncedAt` | timestamp | Last successful sync with the node |
-| `nodeAck` | bool | Whether the node acknowledged the deploy |
-| `conditions` | []Condition | Standard Kubernetes conditions |
-
-```yaml
-apiVersion: nexus.astromesh.io/v1alpha1
-kind: NexusAgent
-metadata:
-  name: support-bot
-  namespace: tenant-dev
-spec:
-  agentSpec:
-    apiVersion: astromesh/v1
-    kind: Agent
-    metadata: { name: support-bot, version: "1.0.0" }
-    spec:
-      identity: { display_name: "Support Bot" }
-      model:
-        primary: { provider: ollama, model: "llama3.1:8b" }
-      orchestration: { pattern: react }
-```
-
-## State Machines
-
-### Tenant phases
-
-```mermaid
-stateDiagram-v2
-    Pending --> Provisioning
-    Provisioning --> Ready
-    Provisioning --> Error
-    Error --> Provisioning: requeue 30s
-```
-
-### Agent phases
-
-```mermaid
-stateDiagram-v2
-    Pending --> Deploying
-    Deploying --> Running
-    Deploying --> Failed
-    Failed --> Deploying: requeue 30s
-    state "Stopped — terminal / manual state" as Stopped
-```
-
-## What's Next
-
-- [Quickstart](/astromesh/nexus/quickstart/) — bootstrap on Kind and deploy an agent.
-- [API Reference](/astromesh/nexus/api-reference/) — endpoints and auth.
+| Component | Technology |
+|---|---|
+| API | Go 1.25, Gin |
+| Database | PostgreSQL 17 (JSONB) |
+| Console | React 19 + Vite, embedded with `go:embed` |
+| Runtime pool | The `astromesh` image, version pinned in `deploy/components/runtime-pool` (0.61.0 at Nexus 0.26.2) |
+| Conversation memory | Redis (`allkeys-lru`, no persistence) |
+| Deploy | Kustomize overlays, ArgoCD, ArgoCD Image Updater |
+| Logging | zerolog |

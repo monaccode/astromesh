@@ -1,185 +1,199 @@
 ---
 title: API Reference
-description: Authentication model, endpoints, and a curl walkthrough for the Nexus REST API.
+description: Every Nexus route, its credential, its request body and its errors.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-The Nexus REST API runs on Gin and listens on port `8080`. Base URL: `http://<host>:8080`.
+The API listens on `:8080`. Request and response bodies are JSON, except agent specs, which may also be YAML.
 
 <Aside type="caution">
-This is the `v1alpha1` API. Endpoint paths and request/response shapes may change before 1.0. Examples below labeled "representative" reflect current behaviour but are not a stability contract.
+Pre-1.0: paths and shapes can change between minor releases. Response fields not listed here may be added at any time.
 </Aside>
 
-## Authentication
+## Credentials
 
-`/auth/*` routes and the health probes are unauthenticated. Everything under `/api/v1/*` passes through **DualAuthMiddleware**, which accepts either credential type:
+| Credential | Header | Who uses it | Reaches |
+|---|---|---|---|
+| **JWT** | `Authorization: Bearer <access token>` | People (console, Cortex) | The user's tenants, picked with `X-Tenant-ID: <id>`. Required for tenant and key management. |
+| **API key** | `X-API-Key: <key>` | Programs, Herald | Its own tenant only. |
+| **Run token** | `Authorization: Bearer <token>` | An agent mid-run | `POST /api/v1/runs/messages/send` only. |
+| **Operator** | JWT of a user with the operator role, or `X-Operator-Token` | Operators | `/api/v1/admin/*`. An operator's JWT may also name any tenant in `X-Tenant-ID`. |
 
-| Method | Header | Use case | Scope |
-|--------|--------|----------|-------|
-| Bearer JWT | `Authorization: Bearer <jwt>` | Interactive sessions | User; add `X-Tenant-ID: <id>` to scope to a tenant |
-| API key | `X-API-Key: <key>` | Programmatic clients | Tenant-scoped |
+Access tokens last 15 minutes; refresh tokens 7 days. `/healthz`, `/readyz` and `/auth/*` are public.
 
-The middleware tries the Bearer JWT first; if absent or invalid, it falls back to `X-API-Key`. If neither is valid it returns `401`.
+## Auth
 
-- **Tenant and key management** (`POST/GET/DELETE /tenants`, `*/keys`) require a **JWT** — they act on behalf of a user.
-- **Agent and observability** routes work with either a JWT (scoped via `X-Tenant-ID`) or an API key (already tenant-scoped).
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| `POST` | `/auth/register` | `email`, `password` (≥ 8), `displayName` | `201` `accessToken`, `refreshToken`, `user` |
+| `POST` | `/auth/login` | `email`, `password` | `accessToken`, `refreshToken`, `user` |
+| `POST` | `/auth/refresh` | `refreshToken` | A new pair; the old refresh token is revoked |
+| `GET` | `/api/v1/me` | — | The current user: `id`, `email`, `displayName` |
 
-## Endpoints
+## Tenants and API keys
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| POST | `/auth/register` | none | Register a user |
-| POST | `/auth/login` | none | Login → access + refresh JWT |
-| POST | `/auth/refresh` | none | Rotate and refresh the access token |
-| GET | `/api/v1/me` | JWT/Key | Current user / tenant |
-| POST | `/api/v1/tenants` | JWT | Create tenant (+ namespace) |
-| GET | `/api/v1/tenants` | JWT | List tenants |
-| DELETE | `/api/v1/tenants/:id` | JWT | Delete tenant |
-| POST | `/api/v1/tenants/:id/keys` | JWT | Create API key |
-| GET | `/api/v1/tenants/:id/keys` | JWT | List API keys |
-| DELETE | `/api/v1/tenants/:id/keys/:hash` | JWT | Revoke API key |
-| POST | `/api/v1/agents` | JWT/Key | Create / register agent |
-| GET | `/api/v1/agents` | JWT/Key | List agents |
-| GET | `/api/v1/agents/:name` | JWT/Key | Get agent spec + status |
-| PUT | `/api/v1/agents/:name` | JWT/Key | Update agent |
-| DELETE | `/api/v1/agents/:name` | JWT/Key | Delete agent |
-| GET | `/api/v1/agents/:name/status` | JWT/Key | Phase, nodeAck, lastSyncedAt |
-| GET | `/api/v1/agents/:name/logs` | JWT/Key | Agent logs |
-| GET | `/api/v1/agents/:name/metrics` | JWT/Key | Agent metrics |
-| GET | `/healthz`, `/readyz` | none | Liveness / readiness probes |
+JWT only.
 
-## Walkthrough
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| `POST` | `/api/v1/tenants` | `displayName` | `201` `id`, `crName`, `displayName` |
+| `GET` | `/api/v1/tenants` | — | The user's tenants |
+| `DELETE` | `/api/v1/tenants/:id` | — | Soft-deletes the tenant: its keys stop validating, its agents are retired and its active subscriptions are cancelled |
+| `POST` | `/api/v1/tenants/:id/keys` | `label` | `201` `rawKey` (shown once), `label` |
+| `GET` | `/api/v1/tenants/:id/keys` | — | Keys by hash and label, never the raw key |
+| `DELETE` | `/api/v1/tenants/:id/keys/:hash` | — | Revokes the key (soft delete; versions it authored keep the attribution) |
 
-A full flow: register → login → create tenant → create API key → deploy an agent → check status.
+## Agents
 
-### 1. Register
+JWT or API key. The tenant comes from the credential.
 
-```bash
-API_URL="http://localhost:8080"
+| Method | Path | Notes |
+|---|---|---|
+| `POST` | `/api/v1/agents[?subscription_id=]` | Body: the `astromesh/v1` spec (YAML or JSON). Creates the agent and version 1. `201`. |
+| `GET` | `/api/v1/agents` | The tenant's live agents. |
+| `GET` | `/api/v1/agents/:name` | The agent and its current spec. |
+| `PUT` | `/api/v1/agents/:name[?subscription_id=]` | Appends a new version and makes it current. Without `subscription_id` the agent keeps the one it had. |
+| `DELETE` | `/api/v1/agents/:name` | Soft-deletes; history stays readable. |
+| `GET` | `/api/v1/agents/:name/versions` | Version summaries: number, date, author, checksum. |
+| `GET` | `/api/v1/agents/:name/versions/:number` | One version with its spec. `:number` must be canonical (`1`, not `01`). |
+| `GET` | `/api/v1/agents/by-id/:id/versions[/:number]` | The same, addressed by agent id: unambiguous even after a name is reused. |
 
-curl -sf -X POST "$API_URL/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"a-strong-password","displayName":"Admin"}'
-```
+A spec that fails validation returns `400` with `problems: [...]`. A body over the size limit is `413`, and a number that cannot be stored without changing its value is `400`. With `subscription_id`, a foreign or unknown subscription is `404` and a cancelled one `422`.
 
-Representative response (`201 Created`):
+## Runs
+
+### `POST /api/v1/agents/:name/run`
+
+| Field | Type | |
+|---|---|---|
+| `query` | string | Required. |
+| `session_id` | string | Conversation key. Reuse it to continue a conversation. |
+| `context` | object | Passed to the agent: prompt variables and caller data. Keys starting with `_` are reserved for the runtime. |
+
+Optional header `Idempotency-Key`: replaying a key returns the existing invocation without running it again.
 
 ```json
 {
-  "accessToken": "eyJ...",
-  "refreshToken": "...",
-  "user": { "id": "usr_...", "email": "admin@example.com", "displayName": "Admin" }
+  "invocation_id": "…",
+  "status": "ok",
+  "answer": "…",
+  "usage": { "tokens_in": 0, "tokens_out": 0, "by_model": [] },
+  "credits_charged_micros": 0,
+  "pricing_status": "priced",
+  "data": {},
+  "chain": {},
+  "propuestas": []
 }
 ```
 
-If the email already exists the endpoint returns `409`; log in instead.
+- `by_model[]` holds provider, model, role and tokens per model, including `tokens_cached`.
+- `data` is present when the agent declares `spec.output_schema` (`null` if the answer did not validate). `chain` is present when `spec.chain` fired. `propuestas` lists the writes that `mode: propose` tools recorded without executing. Each key is **omitted**, not `null`, when the runtime sent nothing.
+- At 80 % or more of the period's credit cap, the response carries `X-Nexus-Credit-Usage: <percent>`.
 
-### 2. Login and capture the JWT
+### `GET /api/v1/agents/:name/run/stream` (WebSocket)
 
-```bash
-TOKEN=$(curl -sf -X POST "$API_URL/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"a-strong-password"}' \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
-```
+The handshake is a `GET`, so `query` and `session_id` travel as URL parameters. Every HTTP-level check (auth, `404`, `422`, admission) happens before the upgrade. The socket relays the runtime's execution events and ends with one terminal event:
 
-### 3. Create a tenant
+- `{"type": "done", "invocation_id", "status": "ok", "answer", "usage", …}`, which carries the same fields as the synchronous response.
+- `{"type": "error", "invocation_id", "status", "error_code", "message"}`
 
-```bash
-TENANT=$(curl -sf -X POST "$API_URL/api/v1/tenants" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"displayName":"My Organisation","nodeProfile":"full"}')
+Closing the socket cancels the run on the server and records it `cancelled`, charged zero credits.
 
-TENANT_ID=$(echo "$TENANT" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-```
+### Run errors
 
-Representative response (`201 Created`):
+| Status | When |
+|---|---|
+| `400` | Missing `query` or a malformed body. |
+| `402` | `credit_budget_exhausted` or `subscription_credit_budget_exhausted`. |
+| `404` | No such agent in this tenant. |
+| `409` | The `Idempotency-Key` belongs to another tenant's invocation. |
+| `422` | The agent has no live version, or `subscription_inactive`. |
+| `429` | `concurrency_exceeded` or `rate_limited`. |
+| `502` | The runtime failed, or the agent could not be loaded. |
+| `503` | Nexus could not resolve the tenant's limits or record the invocation, and refuses to run unrecorded. |
+| `504` | The run exceeded the run timeout. |
 
-```json
-{ "id": "t_...", "crName": "tenant-...", "displayName": "My Organisation" }
-```
+Admission rejections are recorded as invocations with status `rejected` and the reason in `error_code`.
 
-### 4. Create an API key
+## Observability
 
-```bash
-KEY=$(curl -sf -X POST "$API_URL/api/v1/tenants/$TENANT_ID/keys" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"label":"ci"}')
+JWT or API key, scoped to the tenant. Provider and infrastructure costs are not included; they are on the operator plane only.
 
-API_KEY=$(echo "$KEY" | python3 -c "import sys,json; print(json.load(sys.stdin)['rawKey'])")
-```
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/api/v1/agents/:name/status` | Recent invocations with status, `session_id` and errors. |
+| `GET` | `/api/v1/agents/:name/logs` | The same recent invocations (a dedicated log stream does not exist yet). |
+| `GET` | `/api/v1/agents/:name/metrics[?period=YYYY-MM]` | Consumption for the month (current by default) and all-time, by model. |
+| `GET` | `/api/v1/agents/:name/invocations/:id` | One invocation: status, timing, error, usage by model. |
+| `GET` | `/api/v1/usage[?period=YYYY-MM]` | Tenant totals (current month and all-time) and a per-agent ranking by credits, including deleted agents. |
 
-Representative response (`201 Created`):
+## Catalog
 
-```json
-{ "rawKey": "...", "label": "ci" }
-```
+`GET /api/v1/catalog` lists the tools an agent can declare (builtins and integrations), read live from the runtime pool.
 
-<Aside type="caution">
-`rawKey` is returned only once. Store it securely. Keys are listed and revoked by their hash, not their raw value.
-</Aside>
+## Connections
 
-### 5. Deploy an agent with the API key
+A connection stores a credential for the tenant, such as an ERP key, an `api_<slug>` or an `mcp_<slug>`. Every run carries the tenant's connections to the runtime, where an integration tool resolves its credential. The tenant comes from the credential, never the path.
 
-The agent endpoints read the **agent spec YAML as the raw request body** (not a JSON wrapper). The agent name is extracted from the spec's `metadata.name`.
+| Method | Path | Body / returns |
+|---|---|---|
+| `PUT` | `/api/v1/connections/:name` | `base_url` (optional), `material` (object, required). Sealed with AES-256-GCM. |
+| `GET` | `/api/v1/connections` | Names, `base_url` and `updated_at`. Never the material. |
+| `DELETE` | `/api/v1/connections/:name` | Removes it. |
 
-```bash
-curl -sf -X POST "$API_URL/api/v1/agents" \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/yaml" \
-  --data-binary @support-bot.yaml
-```
+Without `NEXUS_CONNECTIONS_KEY` the routes answer `503` and runs go without credentials.
 
-Where `support-bot.yaml` is a full `astromesh/v1` Agent spec:
+## Messaging
 
-```yaml
-apiVersion: astromesh/v1
-kind: Agent
-metadata:
-  name: support-bot
-  version: "1.0.0"
-spec:
-  identity:
-    display_name: "Support Bot"
-  model:
-    primary:
-      provider: ollama
-      model: "llama3.1:8b"
-  orchestration:
-    pattern: react
-```
+Present only when Herald is configured.
 
-Representative response (`201 Created`):
+| Method | Path | Credential |
+|---|---|---|
+| `POST` | `/api/v1/messages/send` | JWT or API key. |
+| `POST` | `/api/v1/runs/messages/send` | The per-run token Nexus minted for the invocation. |
 
-```json
-{ "name": "support-bot", "namespace": "tenant-..." }
-```
+Body: `channel`, `recipient` (both required), `text`, `conversation_ref`. Returns `202` with `message_id` and `status`. The tenant always comes from the credential. The run token is how an agent's `send_message` tool posts back without the shared pool holding any tenant secret.
 
-### 6. Check status
+## Subscriptions and usage events
 
-```bash
-curl -sf -H "X-API-Key: $API_KEY" "$API_URL/api/v1/agents/support-bot/status"
-```
+With the tenant's credential. Creating and changing subscriptions is operator-only (below).
 
-The `status` endpoint proxies to the tenant's `astromesh-node` and returns its live view of the agent.
+| Method | Path | |
+|---|---|---|
+| `GET` | `/api/v1/subscriptions?argo=<code>` | The tenant's active subscription for that vertical, with its plan. |
+| `POST` | `/api/v1/usage/events` | `event_id`, `subscription_id`, `unidad`, `cantidad`, `ocurrido_en`. Idempotent per subscription and `event_id`. |
 
-## Response and Error Notes
+A usage event is rejected when its unit is not in the plan, when it falls outside the subscription's window or more than five minutes in the future, and with `409 period_closed` when its period is already closed. See [Plans & Billing](/astromesh/nexus/billing/#subscriptions).
 
-- **Content type.** `/auth/*`, tenant, and key endpoints use JSON. The agent `POST`/`PUT` endpoints take the raw agent spec **YAML** in the body.
-- **Errors.** Failures return `{ "error": "<message>" }` with the appropriate status:
-  - `400` — invalid body or agent spec validation failure.
-  - `401` — missing/invalid JWT or API key.
-  - `403` — authenticated but not authorized for the tenant.
-  - `404` — agent or user not found.
-  - `409` — email already registered.
-  - `502` — the upstream `astromesh-node` could not be reached (status/metrics).
-- **Token rotation.** `POST /auth/refresh` rotates the refresh token: the old one is revoked and a new access + refresh pair is issued.
-- **Agent listing.** `GET /api/v1/agents` returns a summary array (`name`, `phase`, `createdAt`); `GET /api/v1/agents/:name` returns the full spec plus `status.phase` and `status.nodeAck`.
+## Operator plane
 
-## What's Next
+Everything under `/api/v1/admin` requires the operator role or `X-Operator-Token`; without either the answer is `401`. Every mutation is audited.
 
-- [Quickstart](/astromesh/nexus/quickstart/) — end-to-end bootstrap and deploy.
-- [Architecture](/astromesh/nexus/architecture/) — the CRDs and reconcilers behind these endpoints.
+| Method | Path | |
+|---|---|---|
+| `POST` / `GET` | `/admin/tariffs[?at=RFC3339]` | File a tariff (append-only) / tariffs in force at an instant. |
+| `POST` / `GET` | `/admin/plans` | Create a plan (immutable once created) / list plans. |
+| `PUT` | `/admin/tenants/:id/plan` | `plan_id`: assign a tenant's base plan. |
+| `POST` / `GET` | `/admin/subscriptions[?tenant_id=&period=]` | Create (`tenant_id`, `argo_code`, `plan_id`, `desde`) / list with period counters. |
+| `PUT` | `/admin/subscriptions/:id/plan` | Schedule a plan change for the next period. |
+| `POST` | `/admin/subscriptions/:id/cancel` | Cancel. |
+| `GET` | `/admin/usage[?period=]` | Platform totals and consumption by model. |
+| `GET` | `/admin/tenants`, `/admin/tenants/:id` | Consumption per tenant with its plan, caps and margin. |
+| `GET` | `/admin/agents[?period=]` | Agent health, with error rate = errors ÷ (errors + ok). |
+| `GET` | `/admin/invocations` | Filters `tenant_id`, `agent_id`, `status`, `pricing_status`, `period`; paged with `cursor` and `limit`. |
+| `GET` | `/admin/invocations/:id` | Full detail, including provider and infrastructure cost. |
+| `GET` | `/admin/tenants/:id/statement[?period=]` | The tenant's statement for a period; `.csv` for one line per charge. |
+| `POST` | `/admin/billing-periods/:id/facturado` | Mark a closed period invoiced (once; `409` if already). |
+| `GET` | `/admin/billing-periods/overdue` | Periods past their grace that are not closed. |
+
+All paths in this table are under `/api/v1`.
+
+## Health
+
+| Path | |
+|---|---|
+| `GET /healthz` | Liveness. |
+| `GET /readyz` | Readiness. |
+
+Any other path that is not under `/api/` or `/auth/` serves the [operator console](/astromesh/nexus/operations/#operator-console).
