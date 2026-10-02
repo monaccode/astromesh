@@ -13,7 +13,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 
 | Component | What it does | Package / Repo | Version |
 |-----------|-------------|----------------|---------|
-| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 17 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.61.0 |
+| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 18 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.63.0 |
 | **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.3 |
 | **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.4.0 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.3.1 |
@@ -23,7 +23,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.21.0 |
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.4 |
 | **Prisma** | Turns your agent into a cloud's own native agent, running on that cloud's base resources (GCP: ADK on Agent Engine) | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | *in development* |
-| **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.23.1 |
+| **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.26.4 |
 | **Herald** | Communications gateway — WhatsApp, Telegram, Instagram and web chat messages reach agents, and agents reach people back through one outbox | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.11.0 |
 | **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.5.0 |
 | **Nebula** | Open-model foundry — trains, gates, and publishes the ecosystem's own models | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | v0.1.0 (preview) |

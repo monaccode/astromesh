@@ -1,89 +1,112 @@
 ---
 title: Astromesh Leia
-description: A Claude Code plugin that turns plain English into deployed AI agents on astromesh-nexus clusters.
+description: A Claude Code plugin that designs Astromesh agents from a plain-language description, tests them, and operates them on Nexus — and what works against which Nexus today.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution">
-**v0.4.0 · Claude Code plugin.** Leia is pre-1.0 and targets Nexus `0.3.x` with astromesh core `0.29`–`0.36.x`. Commands and template schemas may change between minor releases.
+**Astromesh Leia** is a [Claude Code](https://claude.com/claude-code) plugin. You describe the
+agent you need, in English or Spanish, and Leia designs a complete `astromesh/v1` manifest with
+a real system prompt, shows it to you, and can deploy it, test it and diagnose it on a
+[Nexus](/astromesh/nexus/introduction/) hub. It is named after a lemon beagle.
+
+<Aside type="caution" title="v0.5.0 targets an older Nexus">
+Leia's operations (deploy, status, logs, test, bootstrap, doctor) were written for **Nexus
+0.3.x**, when Nexus was a Kubernetes operator. Against the current managed Nexus (0.26.x) they
+do not work as written: Leia sends the API key as `Authorization: Bearer`, and Nexus only reads
+API keys from `X-API-Key`, so its API calls are refused. Its tenant checks also use resources
+that no longer exist. **Agent design, templates and the schema knowledge work regardless of
+Nexus.** See [Compatibility](#compatibility).
 </Aside>
 
-**Astromesh Leia** is a [Claude Code](https://claude.com/claude-code) plugin that gives you a natural-language interface — `/leia ...` slash commands — for creating, deploying, and managing AI agents on [astromesh-nexus](/astromesh/nexus/introduction/) Kubernetes clusters. The goal is simple: go from a business idea to a deployed WhatsApp agent in minutes, with no Kubernetes expertise required.
+## What Leia is
 
-Leia is named after a lemon beagle — approachable, loyal, and friendly. That personality carries into the plugin: you describe what you need in plain English, and Leia handles the cluster work behind the scenes.
+- **Prompts, not a program.** Leia is ten slash commands, five subagents, six templates and four
+  reference schemas, all Markdown and YAML. Claude Code runs them; the actual work happens
+  through `curl`, `kubectl` and `ollama` on your machine.
+- **An agent designer.** Its architect subagent knows the agent schema up to astromesh core
+  0.38.1: per-role models, the real orchestration patterns, `spec.chain`,
+  `spec.output_schema`, which tool types load, and the mistakes that make a runtime ignore a
+  section without saying so.
+- **A deploy-and-test loop** for a Nexus hub: publish, poll, chat with the agent, run scored
+  test scenarios, and walk a diagnostic checklist when something fails.
 
-## What Leia Is
+It is not a hosted service, a GUI or an agent framework. The agents it builds run on Nexus and
+the Astromesh runtime.
 
-- A **Claude Code plugin** you install once and drive through `/leia` slash commands.
-- A **conversational CLI**: describe what you want in natural language, or use explicit subcommands.
-- An **orchestrator** that designs agent manifests, talks to the Nexus REST API over `curl`, and runs `kubectl` for cluster operations.
-- A **batteries-included starter kit** with business-vertical templates, specialized subagents, and bundled `astromesh/v1` schemas.
-
-## What Leia Is NOT
-
-- It is **not a SaaS** — it runs locally inside your Claude Code CLI.
-- It is **not a no-code GUI** — it is a conversational command-line plugin.
-- It is **not an agent framework** — the agents it builds *run on* [Nexus](/astromesh/nexus/introduction/) and the Astromesh runtime, not inside Leia.
-
-## What's new
-
-Leia's value is the *knowledge* it carries: the architect subagent can only emit manifests as correct as the schemas bundled with the plugin. Each release syncs that knowledge to a newer core.
-
-### v0.4.0 — synced to core v0.36.0
-
-The largest knowledge jump so far, covering six core releases (v0.29 → v0.36):
-
-- **Tool-type clarity.** Only `builtin`, `agent` and `client` load from agent YAML. The architect now offers `client` tools as its primary recommendation and never emits the non-loadable types (`internal`, `webhook`, `rag`, `mcp_*`) it used to suggest.
-- **Model-block consumption matrix.** Which keys each source actually reads — Ollama's nested `options` and `num_predict`, `timeout` honoured on `openai_compat`, `litellm` ignoring `endpoint`. Unconsumed keys now produce a warning instead of being silently dropped.
-- **Streaming contract and usage accounting.** The on-wire `tool_call`/`tool_result` protocol and `usage.by_model` for per-model cost tracking within a run.
-- **Nexus API coverage.** RAG pipeline CRUD and the workflow-registration endpoint.
-
-### v0.3.0 — per-role models
-
-Taught the plugin the `spec.model.default` + `roles` shape, the `litellm` cloud multi-provider source, the role vocabulary each orchestration pattern requests, and `orchestration.role_map`. The architect can now bind a strong cloud planner to one role and a cheap local worker to another.
-
-### v0.2.1 — Moonshot / Kimi
-
-The Moonshot provider recipe via `openai_compat`, including the thinking-model behaviour and cache-aware pricing.
-
-## Architecture
-
-Leia lives inside Claude Code and drives a Nexus cluster. Its components — commands, subagents, templates, and schemas — turn your intent into manifests and API calls; Nexus fans those agents out to per-tenant `astromesh-nodes`, which connect to WhatsApp and to local or cloud language models.
+## How it works
 
 ```mermaid
-flowchart TB
-  subgraph cli["Claude Code CLI"]
-    plugin["`**astromesh-leia plugin**
-    Commands · Agents (subagents) · Templates · Schemas`"]
-  end
-  subgraph cluster["Kubernetes Cluster (astromesh-nexus)"]
-    nexus["Nexus API"] --> tenants["Tenant namespaces"] --> nodes["astromesh-nodes"]
-  end
-  plugin -- "curl REST + kubectl" --> nexus
-  nodes --> whatsapp["Meta WhatsApp"]
-  nodes --> ollama["Ollama"]
-  nodes --> cloud["Cloud LLMs"]
+flowchart LR
+  you["You<br/>/leia …"] --> interp["leia-interpreter<br/>intent + entities"]
+  interp --> arch["leia-architect<br/>YAML + system prompt"]
+  interp --> op["leia-operator<br/>curl · kubectl"]
+  interp --> test["leia-tester<br/>chat · scenarios"]
+  interp --> doc["leia-doctor<br/>checklist"]
+  arch -- "preview → yes" --> op
+  op --> nexus["Nexus API"]
+  test --> nexus
+  doc --> nexus
+  arch -. reads .-> kb["schemas/ · templates/"]
 ```
 
-### Component breakdown
+| Subagent | Model | Does |
+|---|---|---|
+| `leia-interpreter` | Sonnet | Turns a sentence into an intent (create, deploy, status, test, diagnose…) and entities (business, channel, name, tenant, vertical), then routes |
+| `leia-architect` | Opus | Reads the bundled schemas and the closest template, checks `ollama list`, picks a pattern, and writes the manifest |
+| `leia-operator` | Sonnet | Calls the Nexus API with `curl` and the cluster with `kubectl` |
+| `leia-tester` | Sonnet | Proxies a chat to the agent, or runs five scenarios and scores them |
+| `leia-doctor` | Sonnet | Walks a fixed checklist, stops at the first failure, and gives a root cause and the fix |
 
-| Layer | What it does |
-|-------|--------------|
-| **Commands** | The 10 `/leia ...` slash commands — your entry points for create, deploy, status, logs, test, and cluster lifecycle. |
-| **Agents (subagents)** | 5 specialized subagents (interpreter, architect, operator, tester, doctor) that natural language routes to. |
-| **Templates** | 6 complete `astromesh/v1` business-vertical agent manifests you can deploy as-is or customize. |
-| **Schemas** | Bundled references — the `astromesh/v1` agent spec (including **per-role models** on core `0.29.0+`: assign a different model/source per orchestration role such as `planner`/`worker`/`synthesizer`), orchestration patterns, WhatsApp config, and the Nexus API. |
-| **Nexus API** | The control plane Leia calls over REST + `kubectl` to provision tenants and sync agents. |
-| **astromesh-nodes** | The per-tenant runtimes where agents actually execute and connect to WhatsApp, Ollama, and cloud LLMs. |
+## Compatibility
 
-## Ecosystem Role
+| Part | Nexus 0.3.x (operator) | Nexus 0.26.x (managed hub) |
+|---|---|---|
+| `/leia create` (design, preview, write YAML) | Works | Works |
+| `/leia templates` | Works | Works |
+| `/leia config` | Works | Works |
+| Publishing (`create` → deploy, `/leia deploy`) | Works | **Refused (`401`)**: key sent as `Bearer` |
+| `/leia status`, `logs`, `test` | Works | **Refused (`401`)**; status also reads tenant CRDs |
+| `/leia bootstrap local`, `teardown` | Works | **Installs the old operator**: Nexus's `hack/bootstrap.sh` still does |
+| `/leia bootstrap remote` | Works | Auth check fails (`401`) |
+| `leia-doctor` checks 3–8 | Works | Use `kubectl` resources that no longer exist |
 
-Leia is the human-friendly front door to [Nexus](/astromesh/nexus/introduction/). You drive Leia; Leia drives Nexus; Nexus runs your agents on per-tenant nodes. See the [ecosystem overview](/astromesh/getting-started/ecosystem/) for how Leia, Nexus, and the nodes fit together.
+Until Leia is synced with the managed hub, design with Leia and publish the YAML with
+[Cortex](/astromesh/cortex/nexus/) or the [Nexus API](/astromesh/nexus/api-reference/):
 
-## What's Next
+```bash
+curl -X POST "$NEXUS_URL/api/v1/agents" \
+  -H "X-API-Key: $NEXUS_API_KEY" -H "Content-Type: application/yaml" \
+  --data-binary @agents/my-agent.yaml
+```
 
-- [Quickstart](/astromesh/leia/quickstart/) — install Leia and ship your first agent.
-- [Commands](/astromesh/leia/commands/) — the full `/leia` command reference.
-- [Templates & Subagents](/astromesh/leia/templates/) — the business templates and the agents that build them.
-- [Nexus introduction](/astromesh/nexus/introduction/) — the cluster Leia deploys to.
+| Leia | Nexus | Astromesh core knowledge |
+|---|---|---|
+| 0.5.x | 0.3.x | 0.29 – 0.38.x |
+| 0.4.x | 0.3.x | 0.29 – 0.36.x |
+| 0.2.x | 0.3.x | 0.18 – 0.28.9 |
+
+## What each release taught it
+
+Leia's value is what the architect knows, so each release is a knowledge sync with a core
+version.
+
+| Version | Synced to | Added |
+|---|---|---|
+| **0.5.0** | core 0.38.1 | `spec.chain` and `spec.output_schema`: when to offer them, that every agent in `on_complete` must be deployed first, and that an older runtime ignores both silently. The doctor checks chain declarations |
+| 0.4.0 | core 0.36.0 | Only `builtin`, `agent` and `client` tools load from YAML; which model keys each source reads; the streaming contract and `usage.by_model`; RAG pipeline and workflow endpoints |
+| 0.3.0 | core 0.29.0 | Per-role models (`default` + `roles`), `litellm`, the roles each pattern asks for |
+| 0.2.1 | core 0.28.9 | Moonshot / Kimi through `openai_compat` |
+| 0.2.0 | core 0.28.5, Nexus 0.3.0 | Fixed templates that the runtime silently ignored (flat `memory`, `limit` instead of `max_chars`) and invalid patterns; dual auth |
+
+<Aside type="note">
+The architect's knowledge stops at core 0.38.1. It does not know the `integration`, `api` and
+`mcp` tool types, `prefetch` or Glyph, which arrived later; for those, author in
+[Cortex](/astromesh/cortex/authoring/).
+</Aside>
+
+## Next steps
+
+- [Quick Start](/astromesh/leia/quickstart/) — install the plugin and design your first agent
+- [Command Reference](/astromesh/leia/commands/) — every command, step by step
+- [Templates & Agents](/astromesh/leia/templates/) — the templates, the subagents and the bundled schemas
