@@ -1,0 +1,98 @@
+---
+title: Coverage
+description: Every section of an Astromesh agent and RAG pipeline, what it becomes on GCP, and why some do not translate.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This matrix comes from the mapping registry, the same code that does the translation, so it
+cannot drift from it. When a manifest uses a section that is not fully supported,
+`/v1/translate` and `/reconcile` return a gap for it with the reason below.
+
+| Status | Means |
+|---|---|
+| **supported** | Translates with the same behaviour |
+| **emulated** | Reaches the same goal by a different mechanism |
+| **partial** | Translates, with a named difference |
+| **unsupported** | Dropped, and reported |
+
+## Agent
+
+### Identity, prompt and model
+
+| Section | Status | What happens |
+|---|---|---|
+| `identity` | supported | The Agent Engine: display name, description, labels, the ADK config |
+| `identity.other` | unsupported | Other identity keys (an avatar, say) have no place on an Agent Engine |
+| `prompts` | partial | The system prompt becomes the instruction. A prompt with braces goes out literally: Astromesh renders it as Jinja2, the native agent does not render it. Named `templates` are dropped |
+| `model` | partial | A Gemini model through litellm (`vertex_ai/gemini-…`, `gemini/gemini-…`) translates. Any other model is reported: Vertex would not serve it |
+| `model.fallback` | unsupported | The native agent calls only the first candidate |
+| `model.routing` | unsupported | Routing strategies and per-role models are dropped: one model answers every role |
+| `model.parameters` | partial | Sampling settings go to `generate_content_config`; any other parameter is named |
+
+### Orchestration
+
+| Section | Status | What happens |
+|---|---|---|
+| `orchestration` | partial | `react` translates. `pipeline` is emulated with a `SequentialAgent`. `plan_and_execute` runs as a plain tool-calling loop (ADK configs have no planner). `parallel_fan_out`, `supervisor`, `swarm` and `glyph` are unsupported |
+| `orchestration.limits` | unsupported | `max_iterations`, `timeout`, `narrate`, `max_repairs`: an ADK config has no iteration cap or timeout (ADK's `max_llm_calls`, 500 by default, is set by the caller) |
+
+### Memory and knowledge
+
+| Section | Status | What happens |
+|---|---|---|
+| `memory.conversational` | partial | Agent Engine Sessions. They send the whole history every turn, so `max_turns`-style tuning is not applied and token use grows with the conversation |
+| `memory.semantic` | partial | The engine's Memory Bank. After each turn an LLM extracts facts from the session, instead of storing embeddings of raw turns. `similarity_threshold` and `max_results` are not applied |
+| `memory.episodic` | unsupported | No Agent Engine homolog; the native agent has no event log |
+| `memory.backend` | partial | Declared backends (redis, postgres…) are replaced by Sessions and Memory Bank |
+| `knowledge` | emulated | RAG Engine retrieval over the pipeline's corpus. Astromesh injects context every turn; the native agent retrieves only when the model calls `rag_query`. Without `knowledge.top_k`, Vertex picks the count |
+
+### Tools
+
+| Section | Status | What happens |
+|---|---|---|
+| `tools.client` | supported | A long-running tool the caller answers |
+| `tools.builtin.grounded` | emulated | `web_search` becomes Google Search grounding: a server-side capability the loop does not see as a tool call, billed per query. Unsupported on non-Gemini models |
+| `tools.builtin.unmapped` | unsupported | Other builtins run Astromesh Python with no GCP counterpart |
+| `tools.agent` | unsupported | Calling another agent would need that agent inlined as a sub-agent, and each mapper sees one manifest at a time |
+| `tools.catalog` | unsupported | `integration`, `api` and `mcp` tools resolve credentials per run inside Astromesh, and a `writes: true` one proposes instead of executing. An ADK toolset would execute it, turning a proposal into an action |
+| `tools.unloadable` | unsupported | Types the core's loader skips (`internal`, `webhook`, `rag`, `mcp_*`…); a tool without `type` counts as `internal` |
+| `tools.rate_limit` | unsupported | The native agent has no per-tool limit |
+| `tools.other` | unsupported | Any unrecognized type |
+
+### Guardrails
+
+| Section | Status | What happens |
+|---|---|---|
+| `guardrails.pii_detection` | partial | A Model Armor template with Sensitive Data Protection, on the side the rule is declared |
+| `guardrails.pii_behavior` | partial | Model Armor **blocks** a message with PII; Astromesh redacts it and lets it through. ADK applies Model Armor only to Gemini models |
+| `guardrails.content_filter` | unsupported | Regex replacement with `[FILTERED]`; Model Armor classifies by category and has no pattern replacement |
+| `guardrails.topic_filter` | unsupported | The GCP homolog, a semantic governance policy, requires registering the agent in Agent Registry, which Prisma does not do yet |
+| `guardrails.max_length` | unsupported | No configurable GCP homolog |
+| `guardrails.cost_limit` | unsupported | `max_output_tokens` is the closest knob, but it caps every model call, tool calls included, so it is not set |
+| `guardrails.other` | unsupported | Any unrecognized guardrail type |
+
+### Observability and the rest
+
+| Section | Status | What happens |
+|---|---|---|
+| `observability.tracing` | supported | Agent Engine telemetry, turned on with a deploy-time flag |
+| `observability.metrics` | unsupported | Agent Engine exposes request count, latency and CPU/memory; token and cost metrics have no built-in |
+| `observability.otlp_export` | unsupported | Exporting to an arbitrary OTLP endpoint is not a supported GCP capability |
+| `observability.other` | unsupported | Unrecognized keys |
+| `spec.other` | unsupported | Any spec section no row above maps (for example `chain`, `output_schema`, `prefetch`) |
+
+## RAGPipeline
+
+| Section | Status | What happens |
+|---|---|---|
+| `corpus` | supported | A RAG Engine corpus, `<name>-corpus` |
+| `embeddings` | partial | Only Vertex-managed embedding models are accepted; another provider is reported |
+| `reranking` | partial | RAG Engine's ranking differs from Astromesh reranking |
+| `vector_store` | partial | Replaced by RAG Engine's managed store |
+
+<Aside type="note">
+The contract test copies the core's `agent.schema.json` (from core 0.61.0) and fails when a key in
+it reaches neither the native agent nor a named gap. Sections the core added later land in
+`spec.other` until Prisma decides on them.
+</Aside>

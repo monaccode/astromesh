@@ -194,7 +194,13 @@ export default defineConfig({
         {
           label: 'Astromesh Prisma',
           badge: { text: 'in dev', variant: 'caution' },
-          items: [{ label: 'Introduction', slug: 'prisma/introduction' }],
+          items: [
+            { label: 'Introduction', slug: 'prisma/introduction' },
+            { label: 'Quick Start', slug: 'prisma/quickstart' },
+            { label: 'Translation to GCP', slug: 'prisma/translation' },
+            { label: 'Coverage', slug: 'prisma/coverage' },
+            { label: 'API Reference', slug: 'prisma/api-reference' },
+          ],
         },
         {
           label: 'Astromesh Nexus',
