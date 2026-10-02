@@ -1,82 +1,142 @@
 ---
-title: Cortex Runtimes
-description: Manage Local, GCP (Orbit), and Nexus runtime targets from Cortex
+title: Runtimes & GCP
+description: The local runtime Cortex installs and supervises, provisioning a runtime on Google Cloud Run through Orbit, and where the Deploy button sends an agent.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 
-Cortex is a multi-runtime control plane. The same agent can be developed locally, provisioned to GCP Cloud Run, or deployed to the Nexus Kubernetes cloud — each managed from within the desktop app.
+Cortex works against three kinds of target:
 
-| Target | Endpoint | Managed by | Best for |
-|---|---|---|---|
-| **Local Runtime** | `:8000` | Cortex (`uv` venv + uvicorn) | Development & testing |
-| **GCP Cloud Run** | Provisioned URL | Orbit | Production on Google Cloud |
-| **Nexus** | `:8080` | Nexus control plane | Multi-tenant K8s cloud |
+| Target | What it is | How Cortex reaches it |
+|---|---|---|
+| **Local runtime** | Astromesh installed and run by Cortex on your machine | A `local` runtime connection, `http://localhost:8000` |
+| **Remote runtime** | Any runtime you can reach over HTTP, including a Cloud Run service | A `remote` runtime connection |
+| **Nexus hub** | A multi-tenant hub | A Nexus connection; see [Nexus Mode](/astromesh/cortex/nexus/) |
 
-## Local Runtime
+## The local runtime
 
-Cortex installs and supervises a self-contained Python runtime so you never touch a terminal to get going.
+The **Runtime** panel installs a complete runtime with its own Python, so nothing has to be
+installed by hand.
 
-- **Provisioning** — Cortex creates a Python virtual environment with `uv`, then runs `pip install astromesh[mesh] astromesh-cli astromesh-orbit[gcp]` and spawns uvicorn on `:8000`.
-- **Lifecycle** — Install, start, stop, update, and uninstall are all one click, with continuous health polling.
+**Install & Start** runs eight steps:
 
-### Editable dev install
+1. Download `uv`.
+2. Install Python 3.12 with `uv`.
+3. Create a virtual environment.
+4. Install `astromesh[mesh]`.
+5. Install `astromesh-cli`.
+6. Install `astromesh-orbit[gcp]` and `google-cloud-storage`.
+7. Download OpenTofu 1.9.0, used by Orbit.
+8. Check that `astromesh` imports.
 
-If you're hacking on the Astromesh monorepo itself, point Cortex at your local source with the `ASTROMESH_LOCAL_SOURCE` environment variable:
+Everything goes under Cortex's user-data folder, in `local-runtime/`, and uninstalling deletes
+that folder.
+
+| Action | Behaviour |
+|---|---|
+| **Start** | Runs `uvicorn astromesh.api.main:app` on `127.0.0.1:8000`, with the active environment's variables plus `PYTHONUTF8=1` and `ASTROMESH_CORS_ORIGINS=*`. Waits up to 30 s for `/v1/health` |
+| **Health** | `/v1/health` every 3 s; three failures in a row mark it as errored. The panel shows latency and uptime |
+| **Logs** | The process output, last 500 lines |
+| **Stop** | Terminates the process; Cortex also stops it when it quits |
+| **Restart** | Stop and start, picking up the current environment |
+| **Update** | Upgrades `astromesh[mesh]` (CLI and Orbit stay as they are). Start it again afterwards |
+| **Uninstall** | Removes the whole installation. Only while stopped |
+
+The panel shows the versions of `uv`, Python and astromesh.
+
+<Aside type="note">
+The port can be changed while the runtime is stopped, but the setting lasts until Cortex
+closes. On macOS and Linux, a port already in use is reported as an error instead of being
+freed.
+</Aside>
+
+### Running your own astromesh checkout
+
+To work on astromesh itself, start Cortex with `ASTROMESH_LOCAL_SOURCE` pointing at the
+monorepo root:
 
 ```bash
-ASTROMESH_LOCAL_SOURCE=/path/to/astromesh
+ASTROMESH_LOCAL_SOURCE=/path/to/astromesh npm run dev
 ```
 
-When set, Cortex performs an editable install (`pip install -e`) against your monorepo and surfaces a **`local -e`** badge so you know the runtime is tracking your working tree.
+The install then uses editable installs (`pip install -e`) of the core, the CLI and Orbit from
+that checkout, and the panel shows a `local -e` badge. A path without a `pyproject.toml` stops
+the install instead of falling back to PyPI. Update skips `--upgrade`, since source changes
+apply directly.
 
-<Aside type="note">
-  On Windows, Cortex forces `PYTHONUTF8=1` for the runtime process to avoid encoding issues. Active environment variables from your workspace are injected into the runtime process when it starts.
-</Aside>
+## Google Cloud Run
 
-## GCP Cloud Run (via Orbit)
+The **GCP Deployments** panel provisions an Astromesh runtime on Cloud Run with
+[Orbit](/astromesh/orbit/introduction/), using the `astromeshctl` and OpenTofu installed with
+the local runtime. Install the local runtime first.
 
-Cortex embeds [Orbit](/astromesh/orbit/introduction/) to provision a production-ready stack on Google Cloud through a guided **4-step ProvisionWizard**:
+### Credentials
 
-1. **Auth** — Authenticate via `gcloud` or a service-account key.
-2. **Configure** — Choose project, region, and environment.
-3. **Plan** — Preview the resources Orbit will create.
-4. **Apply** — Provision with live logs streaming into Cortex.
+Choose one method and save the project and region (default `us-central1`):
 
-The wizard writes an `orbit.yaml` (`apiVersion: astromesh/v1`, `kind: OrbitDeployment`) and manages roughly ten GCP resources:
+- **gcloud**: uses the account and project gcloud is logged into.
+- **Service account**: a JSON key file. Cortex passes it to Orbit as
+  `GOOGLE_APPLICATION_CREDENTIALS`.
 
-| Resource | Purpose |
+**How to set up GCP credentials** opens a guide listing the roles and APIs the account needs.
+
+### Provisioning
+
+**Provision Runtime** opens a four-step wizard.
+
+<Steps>
+
+1. **Auth** — checks the credentials and shows the project, region and method.
+
+2. **Configure** — with a live preview of the resulting `orbit.yaml`:
+
+   | Field | Default |
+   |---|---|
+   | Environment | `production` (or `develop`, `staging`) |
+   | Inject variables | One of the workspace's environments, passed to Cloud Run |
+   | CPU, memory, max instances | `2`, `2Gi`, `5` (minimum instances is 1) |
+   | Runtime image | `fulfarodev/astromesh:latest` |
+   | Database tier | `db-f1-micro`, `db-g1-small` or `db-custom-1-3840` (PostgreSQL 16) |
+   | RAG documents bucket, object versioning | On |
+   | Artifact Registry | On, with an optional repository name |
+   | Cloud Monitoring dashboard | On |
+   | Distributed tracing (OTel sidecar) | Off; collector image configurable |
+   | Export traces (OTLP) | Off. Turned on, it sets `ASTROMESH_OTLP_ENABLED=1` when the sidecar is off |
+
+3. **Plan** — writes `orbit.yaml` at the workspace root and runs
+   `astromeshctl orbit plan`, streaming the output.
+
+4. **Deploy** — runs `astromeshctl orbit apply --auto-approve`. When it succeeds, Cortex
+   reads the Cloud Run URL from the output, saves it as a runtime connection named
+   `GCP Runtime (<region>)` and makes it active.
+
+</Steps>
+
+From then on, the Cloud Run runtime is a remote runtime like any other: the agent panels,
+console and Deploy all work against it.
+
+### Operating it
+
+| Action | What it does |
 |---|---|
-| Cloud Run | Runs the Astromesh service |
-| Cloud SQL | Managed PostgreSQL |
-| Redis / Memorystore | Managed cache |
-| VPC + connector | Private networking |
-| Service Account | Workload identity |
-| Secrets | Secret Manager entries |
-| GCS bucket | Object storage |
-| IAM | Roles and bindings |
+| **Logs** | `orbit logs`, with editable limit (50) and window (1 h) |
+| **Status** | `orbit status` |
+| **Upgrade** | `orbit upgrade` without `--apply`: a read-only diff of the infrastructure templates against the installed Orbit |
+| **Redeploy** | Creates a new Cloud Run revision so it pulls the latest image, without touching the infrastructure |
+| **Update** | Reopens the wizard to change the configuration |
+| **View Infrastructure** | A map of the resources (Cloud Run, Cloud SQL, Redis, VPC, connector, peering, service account, secrets, state bucket, IAM) with their live status |
+| **Link Connection** | Recreates the runtime connection from `.orbit/orbit.env`, for infrastructure provisioned without one saved |
+| **Destroy** | Asks you to type the project id, deletes every agent on the runtime, then runs `orbit destroy` and removes the connection |
 
-Once applied, the provisioned **Cloud Run URL is saved as a remote runtime connection** in your workspace. Cortex also supports **force redeploy** and **destroy** flows — destroy removes agents first before tearing down infrastructure.
+## Deploy targets
 
-<Aside type="note">
-  Orbit sets `GOOGLE_APPLICATION_CREDENTIALS` for the GCP provisioning service. See the [Orbit docs](/astromesh/orbit/introduction/) for the full resource mapping and `orbit.yaml` schema.
-</Aside>
+The editor's **Deploy** button is split. Its menu offers:
 
-## Nexus (Kubernetes cloud)
+| Entry | Deploying does |
+|---|---|
+| **Runtime** | `POST /v1/agents/{name}/deploy` on the active runtime connection |
+| Each **GCP runtime** connection | Makes it the active runtime, then deploys there |
+| **Nexus Cloud** → each Nexus connection | Publishes the agent's YAML to that hub as a new version, in the connection's tenant (the first tenant when it has none) |
 
-Switch into **Nexus mode** to connect Cortex to the [Nexus](/astromesh/nexus/introduction/) Kubernetes cloud at `:8080`.
-
-- **Connect** — Sign in with email and password; Cortex receives a JWT and stores it encrypted.
-- **Tenant-scoped agents** — Manage agents through the tenant-scoped API at `/api/v1/tenants/:id/agents/:name` (full CRUD).
-- **Nexus UI** — The activity bar exposes **Cluster**, **Workloads**, **Observability**, and **Catalog** views, plus tenant and API-key management.
-
-## Deploy Split-Button & Target Persistence
-
-The **Deploy split-button** deploys to the persisted target for the current tab — **Runtime**, **Nexus**, or **GCP**. Each tab remembers its own target and shows it as a badge, so you can keep a local dev tab and a production tab open side by side without re-selecting where each one ships.
-
-## What's Next
-
-- [Quick Start](/astromesh/cortex/quickstart/) — Install Cortex and run a local agent
-- [Workspaces](/astromesh/cortex/workspaces/) — Connections, environments, and the workspace file model
-- [Orbit](/astromesh/orbit/introduction/) — Deep dive on GCP provisioning
-- [Nexus](/astromesh/nexus/introduction/) — The Kubernetes control plane
+The chosen target is remembered per tab while Cortex is open. The visual builder's Deploy
+always uses the active runtime.

@@ -154,7 +154,7 @@ export const COMPONENTS: Component[] = [
     released: '2026-09-28',
     tagline: 'Desktop IDE that also connects to every runtime you own — local, cloud, or a managed hub.',
     latest: 'Proposed writes show which sub-agent made them (core 0.61 `via`), on top of parity with core 0.59: tenant api/mcp tools, the integrations catalog, prefetch and glyph programs.',
-    install: 'Download the desktop app',
+    install: 'git clone …/astromesh-cortex && npm install && npm run dev',
     href: '/astromesh/cortex/introduction/',
     repo: 'https://github.com/monaccode/astromesh-cortex',
   },

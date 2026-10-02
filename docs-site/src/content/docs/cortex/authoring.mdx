@@ -1,0 +1,149 @@
+---
+title: Authoring Agents
+description: Write agents in Cortex — the schema-aware YAML editor, the visual builder, the six tool types, prefetch, Glyph programs, knowledge, templates, RAG pipelines and workflows.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Cortex edits three kinds of resource, each with its own schema:
+
+| Resource | Kind | Editors |
+|---|---|---|
+| Agent | `Agent` | YAML editor and visual builder |
+| RAG pipeline | `RAGPipeline` | YAML editor and visual builder |
+| Workflow | `Workflow` | YAML editor |
+
+Everything is read from and saved to the active runtime (`/v1/agents`, `/v1/rag/pipelines`,
+`/v1/workflows`). Cortex keeps no local copy.
+
+## The YAML editor
+
+Monaco with validation, completion and hover against the
+[agent schema](/astromesh/configuration/agent-yaml/). Errors show as you type, and saving sends
+the YAML to the runtime, which has the final word.
+
+**Snippets** change with where the cursor is:
+
+| Cursor in | Offered |
+|---|---|
+| An empty document | `agent-skeleton` (or the RAG or workflow skeleton, by file) |
+| `spec:` | `identity`, `model`, `knowledge`, `prompts`, `orchestration`, `output_schema`, `chain`, `tools`, `prefetch`, `glyph-program`, `memory`, `guardrails`, `permissions`. Sections already present are not offered again |
+| `tools:` | `tool-entry`, `tool-integration`, `tool-api`, `tool-mcp` |
+| `chain:` | `chain-link`, `chain-link-default` |
+| `guardrails:` | `guardrail-rule` |
+
+**Helper** opens a side panel with one card per section: what it is for, a snippet to copy or
+append, and its keys. A check marks the sections the agent already has; click one to jump to
+it.
+
+**Toolbar:** Save, Deploy (see [deploy targets](/astromesh/cortex/runtimes/#deploy-targets)),
+Pause, Test (opens the console on this agent), Helper, channel messages, Visual, Delete.
+
+## The visual builder
+
+The agent sits at the centre of a canvas, and each spec section is a block around it. Drag a
+block from the palette to add the section; select one and press `Delete` to remove it.
+
+| Block | Inspector |
+|---|---|
+| **Model** | The `default` role and any named roles (`planner`, `worker`, `reasoner`, `synthesizer`, `supervisor`, `stage:<name>`…). Each role has a strategy and a ranked list of candidates: `source` (`ollama`, `openai`, `openai_compat`, `azure_openai`, `litellm`) and model, or a `providerRef`, plus endpoint, API key variable and temperature |
+| **Prompts** | The system prompt |
+| **Orchestration** | Pattern (ReAct, Plan & Execute, Fan Out, Pipeline, Supervisor, Swarm, Glyph), iterations and timeout. Sub-agents for Fan Out and Pipeline. With Glyph, the [program](/astromesh/configuration/glyph/) |
+| **Tools** | The six tool types, below |
+| **Knowledge** | The RAG pipeline to query and `top_k` |
+| **Prefetch** | Lookups run before the model (see below) |
+| **Memory**, **Guardrails**, **Permissions** | Basic editors; see the caution below |
+
+Save writes the whole agent back to the runtime. Sections and keys the builder does not edit
+(`identity`, `output_schema`, `chain`, `channels`, a candidate's `contract`…) are kept as they
+were.
+
+The builder and the YAML editor are two views of the agent stored in the runtime, not a
+live mirror. After saving in one, reopen the other to see the change.
+
+<Aside type="caution">
+The Memory, Guardrails and Permissions inspectors, and the prompt *templates* list, write
+shapes older than the current schema: for example `guardrails.input` as named keys instead of
+a list of rules. Edit these sections in YAML, where the schema validates them.
+</Aside>
+
+### Migrations on open
+
+Opening an agent in the visual builder upgrades two legacy formats and marks the tab as
+modified, so saving keeps the upgrade:
+
+- `model.primary` / `fallback` / `routing` become `model.default` with ranked candidates, and
+  `provider` becomes `source`.
+- An inline `type: rag` tool becomes `spec.knowledge`. Its chunking and embedding settings
+  belong to the RAG pipeline, so they are dropped from the agent.
+
+The YAML editor shows the agent exactly as stored and migrates nothing.
+
+## Tools
+
+| Type | What it is | Editor |
+|---|---|---|
+| `builtin` | A runtime built-in | Picked from the runtime's list |
+| `agent` | Another agent called as a tool | Picked from the agent list; Cortex always sets `agent:`, which the runtime needs to load it |
+| `client` | Announced to the model, executed by the caller | Name and description; `parameters` in YAML |
+| `integration` | Actions of a catalog integration through a tenant connection | Slug from the runtime's catalog, connection, actions (writes are marked) and which writes need confirmation |
+| `api` | A tenant's own HTTP API | Connection, auth (`header`, `bearer`, `basic`, `query`) and operations: name, description, `GET`/`POST`, path, and whether it writes |
+| `mcp` | Tools of a tenant's MCP server | Connection, path, auth (`bearer`, `header`) and a snapshot of its tools with their input schema |
+
+For `api` and `mcp`, an operation or tool that writes is marked `writes: true` with
+`mode: propose`: the agent proposes the write and the run returns it as a proposal instead
+of executing it (see [proposals](/astromesh/cortex/console/#proposed-writes)).
+
+The editors check the rules the runtime enforces when it loads the agent: kebab-case names
+(30 characters at most for MCP), snake_case operations, final tool names of 64 characters at
+most, at least one operation, no repeated operations, a description on every operation, paths
+starting with `/`, no `headers` in the request (auth goes in `auth`), MCP headers that are not
+reserved, and `input_schema` of type `object`.
+
+If the runtime's integration catalog is unavailable, the integration editor falls back to free
+text for slug, actions and connection.
+
+## Prefetch
+
+`spec.prefetch` runs read-only lookups before the model is called and puts their results in
+the prompt. Each entry has a `name`, a `tool` (an integration action or an `api` read
+operation, suggested from the agent's own tools), optional `arguments` (Jinja2) and an
+optional `when` condition. Only reads that are not in `confirm` are allowed; the runtime
+rejects the rest at load time.
+
+## Glyph programs
+
+With the `glyph` pattern, the agent can carry a fixed program in `spec.program`, edited from
+the Orchestration inspector. A program on any other pattern stops the runtime from loading the
+agent, so the inspector warns and offers to delete it. See [Glyph](/astromesh/configuration/glyph/).
+
+## Creating agents
+
+| From | What you get |
+|---|---|
+| **Blank Agent** | Name, display name, description, model source and model. Creates a ReAct agent with one default candidate and opens it in YAML |
+| **From Template…** | The runtime's templates, searchable and filtered by category. Fill in the template's variables and Cortex creates the agent (not deployed) and opens it |
+
+<Aside type="tip">
+The blank-agent form writes the Ollama endpoint (`http://localhost:11434`) into the candidate
+whatever source you choose. For another source, fix `endpoint` in YAML before deploying.
+</Aside>
+
+## RAG pipelines
+
+**RAG Pipelines → New Pipeline** asks for a name, a vector store (`pgvector`, `qdrant`,
+`chroma`, `faiss`) and an embeddings provider (`ollama`, `hf`, `sentence_transformer`), and
+opens the pipeline in the visual builder. Its blocks are **Chunking**, **Embeddings**,
+**Vector Store**, **Reranking** and **Retrieval**. Agents use a pipeline through
+`spec.knowledge`.
+
+## Workflows
+
+**Workflows → New Workflow** opens a `*.workflow.yaml` editor with a three-step skeleton: an
+agent step, an approval step and a tool step.
+
+- **Run** runs the workflow named in `metadata.name`.
+- **Register blueprint** registers the workflow on the runtime. The agents and pipelines it
+  references must already exist there.
+
+Runs and approvals are covered in [Console & Traces](/astromesh/cortex/console/#workflows-and-approvals).

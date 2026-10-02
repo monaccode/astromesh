@@ -1,88 +1,121 @@
 ---
-title: Cortex Workspaces
-description: The workspace model, editor, console, channels, and shortcuts in Cortex
+title: Workspaces & Layout
+description: The Cortex workspace file, the Runtime-mode layout, environments, the embedded terminal and the keyboard shortcuts.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Everything in Cortex is organized around a **workspace** — a project folder that holds your agents, connections, environments, and UI state. Workspaces are designed to live in git so a whole team shares the same control-plane setup.
+## The workspace
 
-## The Workspace Model
-
-A workspace is a folder containing a `.cortex/` directory with two files:
-
-| File | Committed? | Holds |
-|---|---|---|
-| `.cortex/workspace.json` | Yes | Connections, environments, UI state |
-| `.cortex/local.json` | No (auto-gitignored) | Secrets and API keys |
+A workspace is a folder with a `.cortex/` directory. Cortex can live inside any git
+repository, next to your agents and your code.
 
 ```text
 my-project/
 ├── .cortex/
-│   ├── workspace.json   # committed: connections, environments, UI state
-│   └── local.json       # gitignored: API keys, secrets
-└── agents/
-    └── my-agent.yaml
+│   ├── workspace.json   # commit it
+│   └── local.json       # gitignored on creation
+└── orbit.yaml           # written by the GCP wizard, if you use it
 ```
 
-<Aside type="tip">
-  Commit `workspace.json` so teammates inherit your runtime connections and environment definitions. Cortex keeps secrets out of git by writing them to `local.json` and gitignoring it automatically.
+`workspace.json` holds:
+
+| Field | Content |
+|---|---|
+| `connections.runtime[]` | Runtime connections: name, `local` or `remote`, URL |
+| `connections.nexus[]` | Nexus connections: name, hub URL, auth mode, optional tenant id |
+| `activeRuntimeId`, `activeNexusId` | Which connection each mode uses |
+| `environments`, `activeEnvironment` | Named sets of variables (see below) |
+| `gcp` | Project, region and auth method for the GCP panel |
+| `whatsapp` | The WhatsApp wizard's settings |
+| `ui.lastMode` | The mode the workspace reopens in |
+
+Cortex saves the file half a second after any change, and reloads it when it changes on disk
+(after a `git pull`, say) unless you have unsaved changes. The Welcome page keeps the last 20
+workspaces.
+
+<Aside type="caution">
+`workspace.json` is meant to be committed, and it stores environment variables and the
+WhatsApp wizard's tokens **in plain text**. Do not put real secrets in environments of a
+workspace you push, or keep `workspace.json` out of the repository. Nexus credentials are
+different: they are kept by the operating system's encryption, outside the workspace.
 </Aside>
 
-## Dual-Shell Modes
+## Runtime-mode layout
 
-Cortex has two shells you toggle with `Ctrl+M`:
+| Area | Contents |
+|---|---|
+| **Activity bar** | Explorer · Agents · RAG Pipelines · Workflows · Runtime · GCP Deployments · Channels · Channel Activity · Settings |
+| **Sidebar** | The selected panel. Click the active icon to hide it; drag the edge to resize |
+| **Editor area** | Tabs: agent YAML, visual builder, RAG pipeline, workflow, workflow run, GCP wizard, infrastructure map |
+| **Right panel** | The [console](/astromesh/cortex/console/) |
+| **Bottom panel** | Terminal · Activity (every API request Cortex made, filterable) · Output |
+| **Status bar** | Mode switch, active connection with its health, runtime version and agent count, active environment |
 
-- **Runtime mode** — Local development against the Local Runtime (or a saved remote connection).
-- **Nexus mode** — Cloud operations against the Nexus Kubernetes control plane, with Cluster, Workloads, Observability, and Catalog views.
+| Panel | What it does |
+|---|---|
+| **Explorer** | Runtime status (version, uptime, agents) and a tree of agents, templates and built-in tools |
+| **Agents** | Agents with their status (deployed, draft, paused) and load errors; new agent, visual editor, deploy, pause, delete |
+| **RAG Pipelines** | Pipelines on the runtime; open as YAML or in the visual builder |
+| **Workflows** | Run workflows, follow runs, approve or reject pending steps |
+| **Runtime** | Install and control the [local runtime](/astromesh/cortex/runtimes/#the-local-runtime) |
+| **GCP Deployments** | [Provision and operate](/astromesh/cortex/runtimes/#google-cloud-run) a Cloud Run runtime |
+| **Channels** · **Channel Activity** | [WhatsApp setup and live channel traffic](/astromesh/cortex/channels/) |
+| **Settings** | Runtime connections, environments, dev tunnel |
 
-## Editor & Visual Builder
+[Nexus mode](/astromesh/cortex/nexus/) has its own activity bar.
 
-You author agents two ways, kept in **bidirectional sync**:
+## Runtime connections
 
-- **Agent YAML editor** — Monaco Editor with schema validation and autocomplete against the Astromesh agent schema (via monaco-yaml).
-- **Visual agent builder** — An `@xyflow` drag-and-drop canvas. Inspectors let you configure **model**, **tools**, **memory**, **guardrails**, **permissions**, and **orchestration** without leaving the canvas.
+**Settings → Runtime Connections** lists the runtimes this workspace knows. Each has a name, a
+type and a URL; click one to make it active. Every Runtime-mode panel talks to the active
+connection.
 
-## Console & Traces
-
-- **Agent Console / playground** — An interactive chat to test running agents directly.
-- **Trace timeline** — Hierarchical spans showing per-step latency, inputs, and outputs.
-- **Terminal** — An embedded xterm.js terminal.
-- **Activity log** — A running record of what Cortex and the runtime are doing.
-
-## Channels
-
-Cortex helps you wire agents up to messaging channels:
-
-- **WhatsApp setup wizard** — A 4-step flow integrating with the Meta Graph API: create the app → configure tokens → auto-register the webhook → send a test message.
-- **Channel Activity panel** — A live SSE stream of channel events across all your agents.
-- **Telegram** — Coming soon.
-
-## Dev Tunnel
-
-To receive webhooks during local development, Cortex manages an **ngrok** or **cloudflared** tunnel for you: it auto-downloads the binaries, starts and stops the tunnel, and exposes a public URL. In the WhatsApp wizard, the webhook URL switches between the **tunnel (DEV)** and the **runtime (PRODUCTION)** target.
+- `local` is the runtime Cortex installs. It counts as up when Cortex's own process manager
+  reports it running.
+- `remote` is any other runtime, a Cloud Run service included. Its health is checked against
+  `/health` every 15 seconds.
 
 ## Environments
 
-Each workspace can define named **environments** with key/value variables — edit inline and clone an environment to spin up a variant.
+An environment is a named set of variables. Every workspace starts with `default`.
 
-- The **active environment's** variables are injected into the local runtime process when it starts.
-- Environments are also selectable when provisioning Cloud Run via Orbit.
+- Add, remove, clone and rename environments in **Settings → Environments**. Click a value to
+  edit it in place.
+- Choose the active one from the status bar (`env: …`) or with **Activate**.
+- The active environment's variables are passed to the **local runtime** when it starts or
+  restarts. Changing environments does not restart a running runtime.
+- The GCP wizard can inject an environment's variables into the Cloud Run service.
 
-## Keyboard Shortcuts
+## The terminal
 
-| Shortcut | Action |
+The bottom panel's terminal is an `astromeshctl`-style command line over the active runtime's
+API. It is not a system shell.
+
+| Command | Does |
 |---|---|
-| `Ctrl+S` | Save |
-| `Ctrl+B` | Toggle sidebar |
-| `Ctrl+J` | Toggle bottom panel |
-| `Ctrl+M` | Toggle Runtime / Nexus mode |
+| `status`, `doctor`, `version`, `services` | Runtime status, health checks, version, enabled services |
+| `agents` | Agents and their status |
+| `tools` | Built-in tools |
+| `traces list <agent>`, `trace <id>` | Recent traces and one trace's summary |
+| `metrics` | Counters and histograms |
+| `mesh status` | Mesh summary |
+| `run <agent> <query>` | Runs an agent and prints the answer |
+| `workflows list`, `workflows run <name> [query]` | Lists and runs workflows |
+| `approvals`, `approve <run_id> [comment]`, `reject <run_id> [comment]` | The human-in-the-loop queue |
+| `help`, `clear` | |
+
+`Tab` completes, `↑`/`↓` walk the history, and the **?** button shows a clickable reference.
+
+## Keyboard shortcuts
+
+| Keys | Action |
+|---|---|
 | `Ctrl+Shift+P` | Command palette |
-
-Cortex also supports **tabs**, **resizable panels**, and the **deploy split-button** with per-tab target persistence.
-
-## What's Next
-
-- [Quick Start](/astromesh/cortex/quickstart/) — Install Cortex and ship your first agent
-- [Runtimes](/astromesh/cortex/runtimes/) — Local, GCP (Orbit), and Nexus targets in depth
-- [Introduction](/astromesh/cortex/introduction/) — How Cortex fits in the Astromesh ecosystem
+| `Ctrl/Cmd+M` | Switch between Runtime and Nexus mode |
+| `Ctrl/Cmd+S` | Save the active tab |
+| `Ctrl/Cmd+B` | Show or hide the sidebar |
+| `Ctrl/Cmd+J` | Show or hide the bottom panel |
+| `Ctrl/Cmd+F4` | Close the active tab (asks if it has unsaved changes) |
+| `Enter` / `Shift+Enter` | Send / new line, in the console |
+| `Ctrl/Cmd+Enter` | Send, in the Nexus run panel |

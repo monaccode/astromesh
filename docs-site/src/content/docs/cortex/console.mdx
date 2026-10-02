@@ -1,0 +1,102 @@
+---
+title: Console & Traces
+description: Run agents from Cortex and see what happened — live tool calls, proposed writes, per-model cost, chain links, traces, test connections, workflow runs and approvals.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The console is the right-hand panel in Runtime mode. Open it with **Test** in an agent's
+toolbar, or **Toggle Console** in the command palette. It lists the active runtime's deployed
+agents; pick one and write.
+
+## How a run travels
+
+The console first opens a WebSocket to the runtime, `/v1/ws/agent/{name}`, which streams the
+run as it happens. It falls back to `POST /v1/agents/{name}/run` when:
+
+- the runtime is older than core 0.34 and its WebSocket only echoes,
+- the socket closes before anything arrives, or
+- you supplied [test connections](#test-connections), which only the HTTP run accepts.
+
+**Stop** closes the socket, and the runtime cancels the run. A blocking HTTP run cannot be
+stopped.
+
+Each conversation has a session id, so the agent's memory carries over between messages. The
+reset button starts a new session. Transcripts live in memory and are gone when Cortex
+closes.
+
+## While it runs
+
+- **Tool calls** appear as they start, then turn into ✓ or ✗ with the result.
+- **Narration**: the model's reasoning between iterations, in italics. It is not the answer
+  and is not kept once the answer arrives.
+
+## What each answer shows
+
+| Section | Content | Available on |
+|---|---|---|
+| **Steps** | Number of steps, duration, tokens; expandable | HTTP runs |
+| **View Trace** | Opens the trace (below) | HTTP runs |
+| **Proposed writes** | Writes the agent proposed but did not execute | Both |
+| **Chain** | The `spec.chain` links that ran, nested, with state and duration, and those that did not, with why | HTTP runs, core ≥ 0.38.1 |
+| **By model** | Provider, model, role, calls, tokens in, cached tokens, tokens out, cost | Both, core ≥ 0.36 |
+
+The footer adds up the session: tokens in and out, time and number of messages.
+
+### Proposed writes
+
+An `api` or `mcp` operation marked `writes: true` with `mode: propose` is not executed by the
+run. It is returned as a proposal: type, target, operation and
+arguments. When a sub-agent made the proposal, it reads `vía <sub-agent>` (core ≥ 0.61). The
+console only shows proposals; executing one is up to whoever consumes the run.
+
+### Chain links that did not fire
+
+A link that did not run is shown greyed with its reason: condition false, cycle, maximum
+depth, or cut before. That answers "why didn't the follow-up agent run?" without opening the
+trace.
+
+## Traces
+
+**View Trace** splits the console: chat above, trace below. The trace header has the trace id,
+total duration, tokens and cost. Below it is the span tree, each span marked OK or ERR, with
+chips for output, tool calls, events, errors and guardrails.
+
+Selecting a span opens its detail, with tabs **Overview** (model, provider, latency, cost and
+the thought, action, observation and result), **Input**, **Output**, **Tool Calls**,
+**Guardrails**, **Events** and **Raw**.
+
+## Test connections
+
+Agents with `integration`, `api` or `mcp` tools need connections: base URLs and credentials
+that a tenant normally stores in Nexus. To test them against a local runtime, open
+**Connections (JSON)** under the message box and paste them:
+
+```json
+{ "erp": { "base_url": "https://erp.example.com", "token": "…" } }
+```
+
+They travel with that run only, over HTTP, so the run is not streamed.
+
+<Aside type="caution">
+Use test credentials here. The JSON stays in the console while Cortex is open.
+</Aside>
+
+## Workflows and approvals
+
+The **Workflows** panel lists the runtime's workflows.
+
+- **▶** runs one, with an optional query. The run opens in its own tab, showing the current
+  step, the output, any error, and whether it is waiting for approval. Refresh it by hand.
+- **Runs** lists the runs launched in this session, coloured by status.
+- **Approvals** shows the steps waiting for a human, refreshed every 15 seconds. Enter your
+  name as approver once, add an optional comment, and **Approve** or **Reject**.
+
+The [terminal](/astromesh/cortex/workspaces/#the-terminal) has the same actions:
+`workflows run`, `approvals`, `approve`, `reject`.
+
+## Activity log
+
+The bottom panel's **Activity** tab lists every request Cortex made to the runtime, with
+filters by type, a search box and errors highlighted. It is the first place to look when a
+panel shows nothing.

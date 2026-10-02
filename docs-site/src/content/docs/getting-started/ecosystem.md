@@ -5,7 +5,7 @@ description: How the core runtime, Glyph, ADK, CLI, Node, OS, Forge, Cortex, Orb
 
 Astromesh is not a single tool — it's an **ecosystem** designed to cover the full lifecycle of AI agents: **define, build, run, deploy, and manage**. The core runtime is the foundation, and a set of satellite projects extend it for specific use cases.
 
-You can use just the core runtime with YAML config files, or combine it with the ADK for Python-first development, Forge or Cortex for visual building, the CLI and Node for system-level operation, OS for a hardened appliance, Orbit and Nexus for cloud, Herald to reach people on WhatsApp, or Leia for a natural-language workflow.
+You can use just the core runtime with YAML config files, or combine it with the ADK for Python-first development, Forge or Cortex for visual building, the CLI and Node for system-level operation, OS for a hardened appliance, Orbit and Nexus for cloud, Herald to reach people on WhatsApp, Telegram, Instagram and web chat, or Leia for a natural-language workflow.
 
 Nothing here ships on the same clock. Each package carries its own version and its own changelog; a core release does not bump anything else, and a component that has not changed keeps its number.
 
@@ -84,7 +84,7 @@ Both build agents visually, but they are **distinct, coexisting products** with 
 | | **Forge** | **Cortex** |
 |---|---|---|
 | Form factor | Web SPA (Vite + React) | Desktop app (Electron) |
-| Where it runs | Embedded in a node at `/forge`, or `npx astromesh-forge` | Installed locally as a native IDE |
+| Where it runs | Embedded in a node at `/forge`, or `npx astromesh-forge` | On your machine, run from source (no installer yet) |
 | Backend | None — pure client against one node's `/v1/*` API | Manages local runtime, GCP (Orbit), and Nexus connections |
 | Scope | Quick visual building & a developer console for one node | Full IDE + multi-runtime control plane and ops console |
 | Best for | Fast, zero-install agent building inside a running node | Day-to-day development, testing, channels, and deployment |
