@@ -1,178 +1,118 @@
 ---
 title: Astromesh Herald
-description: The communications gateway — inbound channel messages reach an agent, and agents reach people back, through one outbox.
+description: The communications gateway — messages from WhatsApp, Telegram, Instagram and web chat reach an agent behind Nexus, and agents reach people back through one outbox.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-**Astromesh Herald** connects messaging channels — WhatsApp today, Telegram, web chat and
-email reserved — to agents running behind [Astromesh Nexus](/astromesh/nexus/introduction/).
+**Astromesh Herald** connects messaging channels to agents running behind
+[Astromesh Nexus](/astromesh/nexus/introduction/). A person writes on WhatsApp, Telegram,
+Instagram or a web chat. Herald works out which tenant and which agent the message belongs to,
+runs that agent through Nexus, and delivers the answer on the same channel.
+
 It carries traffic in both directions:
 
-- **Herald → Nexus.** An inbound channel message invokes an agent through
-  `POST /api/v1/agents/:name/run`, with an `Idempotency-Key` and a stable `session_id` per
-  channel conversation.
-- **Nexus → Herald.** Nexus — and therefore agents — send proactive messages through Herald's
-  own REST API, delivered asynchronously through the same outbox pipeline as agent replies.
+- **Channel → agent.** An inbound message runs an agent through Nexus
+  (`POST /api/v1/agents/:name/run`), with a stable `session_id` per conversation and an
+  `Idempotency-Key` per message.
+- **Agent → channel.** An agent, a scheduler or an operator queues a message through Herald's
+  send API. It leaves through the same outbox as every agent reply.
 
 <Aside type="note">
-**v0.1.0 · first release.** Go 1.25, Gin, pgx/v5, PostgreSQL. Lives in its own repository:
-[monaccode/astromesh-herald](https://github.com/monaccode/astromesh-herald).
+**v0.11.0.** Go 1.25, Gin, pgx/v5, PostgreSQL 17. Lives in its own repository,
+[monaccode/astromesh-herald](https://github.com/monaccode/astromesh-herald), and is released
+from `main` (the `mvp` tag) with an immutable `:X.Y.Z` image per version.
 </Aside>
 
-## What Herald is not
+## What Herald does
 
-Herald **never talks to the Astromesh runtime**, and it never decides on its own whether an
-agent exists or who may run it. That is Nexus's call, checked when a binding is created and
-again on every run. Herald holds channel credentials and conversation state; it holds no
-opinion about agents.
-
-It is also not a WhatsApp SDK. WhatsApp is one adapter behind a channel port, and the
-provider's policies — the 24-hour window, template approval — are deliberately kept inside
-that adapter rather than pushed into the core contract.
+| Area | What it gives you |
+|---|---|
+| **Four live channels** | WhatsApp (Meta Cloud API), Telegram (Bot API), Instagram (Messaging API) and web chat, plus an `echo` channel for development. |
+| **Routing** | The first message of a conversation goes to the binding's **entry agent**, which can hand the conversation to another agent or decline to open one. Later messages go straight to the agent that owns the conversation. |
+| **One outbox** | Agent replies, proactive sends and webhook forwards are all rows in one Postgres table, retried with exponential backoff and claimed with `FOR UPDATE SKIP LOCKED`. |
+| **Answers in several messages** | An agent that writes `[[+]]` between parts gets each part delivered as its own message, with a pause between them. |
+| **Never silence** | A failed agent run sends the binding's fallback message. A photo, an audio or a shared contact without text still reaches the agent as a short description. |
+| **Proactive sends** | Text, one media attachment by URL, or a WhatsApp template, queued per tenant or on behalf of any tenant. Agents use it through the `send_message` tool. |
+| **Channel identity** | On Telegram a person can share their own phone number with one tap; Herald stores it as a verified identity and passes it to the agent. |
+| **Webhook forwarding** | A binding can skip Nexus and POST every inbound message, media included, to an external HTTPS endpoint signed with HMAC-SHA256. |
+| **Emulators** | WhatsApp and Instagram lines can be emulated, so a whole product flow runs end to end without a Meta account. |
+| **Operator console** | A React console embedded in the binary: overview, conversations, outbox, routing rules and channel accounts. |
 
 ## The path a message takes
 
 ```mermaid
 flowchart LR
-    person["Person<br/>(WhatsApp)"]
-    hook["POST /webhooks/:channel<br/>HMAC-SHA256 verified"]
-    route["Routing<br/>existing conversation?<br/>else the entry agent decides"]
+    person["Person<br/>WhatsApp · Telegram<br/>Instagram · web chat"]
+    hook["Webhook<br/>signature verified<br/>200 at once"]
+    queue["Inbound queue<br/>10 workers"]
+    route["Account → tenant<br/>binding → agent"]
     nexus["Nexus<br/>POST /agents/:name/run"]
-    outbox[("Postgres outbox<br/>FOR UPDATE SKIP LOCKED")]
-    send["Channel API<br/>Graph API send"]
+    outbox[("Postgres outbox")]
+    send["Channel API"]
+    ext["External webhook<br/>HMAC-signed"]
 
-    person --> hook --> route --> nexus
-    nexus -- "reply" --> outbox
+    person --> hook --> queue --> route
+    route -- "agent binding" --> nexus -- "answer" --> outbox
+    route -- "callback binding" --> outbox
     outbox --> send --> person
-    proactive["Proactive send<br/>agent mid-run, scheduler, workflow"] --> outbox
+    outbox --> ext
+    proactive["Proactive send<br/>agent · scheduler · operator"] --> outbox
 ```
 
-Replies and proactive sends share one queue on purpose. There is a single delivery path to
-reason about, a single retry budget, and a single place to look when a message did not arrive.
-
-## Inbound routing, two ways
-
-When a message arrives, Herald asks one question first: does a conversation already exist for
-`(tenant, channel, external_user)`?
-
-**It does.** The message goes to that conversation's agent, under its existing `session_id`.
-Nothing else is decided.
-
-**It does not.** The binding's **entry agent** gets the message and decides, answering with a
-documented convention in `data.route`:
-
-```json
-{
-  "answer": "Te ayudo con tu reclamo.",
-  "data": {
-    "route": { "start_session": true, "handoff_agent": "reclamos" }
-  }
-}
-```
-
-| `data.route` | What Herald does |
-|---|---|
-| `start_session: true` | Persists the conversation, owned by `handoff_agent` if given, else the entry agent |
-| `start_session: false` | Persists nothing — the agent's answer (a courtesy refusal, say) is still delivered |
-| absent | Defaults to starting the session with the entry agent |
-
-This is what keeps a wrong-number message from costing a conversation row and a session that
-lives forever. The agent that greets is allowed to decide that there is nothing to greet.
-
-## The outbox
-
-Every outgoing message — an agent's reply, a proactive send, an operator's test — is a row in
-one Postgres outbox, drained by a polling worker.
-
-| Property | Behaviour |
-|---|---|
-| Claiming | `FOR UPDATE SKIP LOCKED`, so N replicas can drain the same queue safely |
-| Backoff | Exponential, `30s × 2ⁿ` |
-| Give-up | After 10 attempts |
-| Guarantee | At-least-once |
-| Poll interval | 2s (`--outbox-poll-interval`) |
-
-Because delivery is asynchronous, a `202` from the send API means **queued**, not delivered.
-Poll `GET /api/v1/messages/:id` for the real status.
+The webhook answers `200` before the agent runs, because Meta's delivery timeout is shorter
+than an LLM call. Everything after that happens in a worker pool. Every outgoing message,
+whatever produced it, is a row in one outbox: one delivery path, one retry budget, and one
+place to look when a message did not arrive.
 
 ## Channels
 
-| Channel | State | Notes |
-|---|---|---|
-| **WhatsApp** | Live | Meta Cloud API: `hub.challenge` handshake, `X-Hub-Signature-256` verification, text/image/audio/video/document parsing, Graph API sends, template sends, media download |
-| **Echo** | Development | The whole pipeline with no provider account. Unauthenticated, so it only registers behind `--enable-echo` |
-| **Telegram** | Reserved | Full `ports.ChannelAdapter` implementation returning `ErrNotImplemented` |
-| **Web chat** | Reserved | Reserves the channel; needs a WebSocket endpoint to activate |
-| **SMTP** | Reserved | Outbound only, by design |
+| Channel | Status | How the account is identified | Notes |
+|---|---|---|---|
+| [**WhatsApp**](/astromesh/herald/whatsapp/) | Live | `phone_number_id` in the payload | Templates for cold contacts, 24-hour window, emulator |
+| [**Telegram**](/astromesh/herald/telegram/) | Live | Bot id in the webhook URL | Herald registers the webhook itself; contact-sharing button; quoted replies reach the agent |
+| [**Instagram**](/astromesh/herald/instagram/) | Live; real traffic needs Meta App Review | Instagram account id in the payload | No templates, so no cold contacts; emulator |
+| [**Web chat**](/astromesh/herald/webchat/) | Live, opt-in | Slug minted by CLARUS | CLARUS fronts the browser; Herald stores the thread |
+| **Echo** | Development | `account_id` in the payload | No authentication at all, so it only exists behind `--enable-echo` |
+| SMTP | Not registered | — | A package with the port's shape; it is not wired into the binary |
 
-A reserved channel is a real port implementation that refuses work. The contract exists; the
-provider integration does not. See [WhatsApp setup](/astromesh/herald/whatsapp/) for the only
-one you can put in front of customers today.
+A channel without its credentials is not registered: its webhook is a `404`, and a send queued
+for it never reaches a provider.
 
-## Architecture
+## What Herald is not
 
-Hexagonal — ports and adapters — with interfaces defined by their consumers, not their
-implementations.
+- **It does not decide about agents.** Whether an agent exists and who may run it is Nexus's
+  call, checked when a binding is written and again on every run. Herald holds channel
+  credentials and conversation state.
+- **It never talks to the Astromesh runtime.** Agents run behind Nexus. Herald only knows the
+  Nexus API.
+- **It does not store files.** Media goes out by public URL and comes in as a provider
+  reference. A forward downloads it right before delivery and passes it along as base64.
+- **It is not a provider SDK.** Each provider's rules — Meta's 24-hour window, Telegram's
+  per-bot webhook — live inside that channel's adapter, not in the core contract.
 
-```
-cmd/herald/            composition root: manual wiring, flags with env defaults
-pkg/heraldclient/      public Go client of the send API (stdlib only — Nexus imports this)
-internal/
-  domain/              Message, Conversation, Binding, RouteDecision, OutboxEntry + backoff
-  ports/               ChannelAdapter, AgentClient, segregated stores, use cases
-  app/                 receive (two-way routing), send, dispatch worker
-  adapters/
-    channel/whatsapp/  Meta Cloud API
-    channel/echo/      development channel, behind --enable-echo
-    channel/telegram/  stub
-    channel/webchat/   stub
-    channel/smtp/      stub, outbound-only by design
-    agentclient/nexus/ HTTP client: /run, X-API-Key, Idempotency-Key, 30s, 5xx retry
-    store/postgres/    plain SQL over pgx, JSONB, AES-GCM-encrypted credentials
-  crypto/              AES-GCM sealing of channel-account secrets (HERALD_ENC_KEY)
-  server/              Gin: /webhooks/:channel, /api/v1/messages/*, /admin/*, /ui/*
-  webui/               go:embed tree of the built operator console
+## Where it fits
+
+```mermaid
+flowchart LR
+    channels["WhatsApp · Telegram<br/>Instagram · web chat"] <--> herald["Herald"]
+    clarus["CLARUS<br/>web chat · schedulers"] --> herald
+    herald -- "run agent" --> nexus["Nexus"]
+    nexus -- "send-on-behalf<br/>(send_message tool)" --> herald
+    nexus --> pool["Astromesh runtime pool"]
 ```
 
-**Absent credential, absent route.** Every credential is optional and its absence unregisters
-its surface: no `--admin-token` means no `/admin`, no `--send-keys` means no send API, no
-WhatsApp pair means `/webhooks/whatsapp` is a 404. A misconfigured deployment does not expose
-a half-authenticated endpoint — it exposes nothing.
-
-## The operator console
-
-Herald embeds a React console in the binary (`go:embed`), served at `/ui/`. The static files
-carry no data: every number comes from the token-guarded `/admin` API, so signing in is
-pasting the admin token. Disable it with `--ui=false`.
-
-Five screens: an overview (active conversations, outbox state, messages per day and per
-channel), a conversation list with its message thread, an outbox monitor showing how much of
-each entry's 10-attempt budget is spent, plus routing-rule and channel-account CRUD. The
-operator test send lives on the outbox screen, because that is where its result shows up.
-
-Channel-account credentials are AES-GCM sealed at rest and masked (`•••` + last 4) in every
-response, including the ones the console reads.
-
-## How agents reach people
-
-An agent can now start a conversation instead of only answering one. The
-[`send_message`](/astromesh/reference/core/builtin-tools/) builtin tool, shipped in astromesh
-**v0.40.0**, goes out through Nexus (`POST /api/v1/runs/messages/send`), which queues in
-Herald's outbox and answers with an id.
-
-The credential is the interesting part. The runtime pool is shared between tenants, so giving
-it per-tenant secrets would gather every tenant's key into one process. Instead Nexus mints a
-token **per invocation**, valid for one tenant, one capability and one run, and drops it into
-the run context as `_nexus_run_token`. It dies with the run. There is nothing to rotate.
-
-<Aside type="caution">
-Herald's own README still describes this tool as blocked. It was, until the per-run credential
-landed in Nexus **v0.11.0** and astromesh **v0.40.0**. The mechanism above is the current one.
-</Aside>
+- **[Nexus](/astromesh/nexus/introduction/)** runs the agents Herald routes to, and calls
+  Herald back when an agent uses the `send_message` tool.
+- **[The Astromesh runtime](/astromesh/reference/core/builtin-tools/)** provides the
+  `send_message` builtin tool that agents use to reach a person mid-run.
+- **CLARUS** publishes web chat links, runs schedulers that send on behalf of tenants, and
+  resolves verified identities.
 
 ## Next steps
 
-- [Quick Start](/astromesh/herald/quickstart/) — the whole pipeline running locally, no provider account
-- [WhatsApp Setup](/astromesh/herald/whatsapp/) — Meta Cloud API, the 24-hour window, templates
-- [API Reference](/astromesh/herald/api-reference/) — send API, operator plane, `heraldclient`, every flag
+- [Architecture](/astromesh/herald/architecture/) — the inbound pipeline, the outbox and the data model
+- [Quick Start](/astromesh/herald/quickstart/) — the whole pipeline locally, no provider account
+- [Building Agents for Herald](/astromesh/herald/agents/) — what the agent receives and how it answers
+- [API Reference](/astromesh/herald/api-reference/) — every route
+- [Operations](/astromesh/herald/operations/) — configuration, console, deploy

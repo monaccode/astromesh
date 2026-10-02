@@ -189,12 +189,12 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Herald',
     short: 'Herald',
     group: 'reach',
-    version: '0.7.4',
-    released: '2026-09-08',
+    version: '0.11.0',
+    released: '2026-09-20',
     tagline:
-      'Communications gateway. Inbound WhatsApp messages reach an agent; agents reach people back through the same outbox.',
+      'Communications gateway. WhatsApp, Telegram, Instagram and web chat messages reach an agent behind Nexus; agents reach people back through one outbox.',
     latest:
-      'One answer can leave as several messages with a pause between them. The pause is a row in the outbox, not a sleep, so a pod restart picks the batch up where it was.',
+      'A failed run now always sends the binding\'s fallback instead of silence, and a photo, audio or shared contact with no text reaches the agent as a short description.',
     install: 'docker compose -f deploy/docker-compose.yaml up',
     href: '/astromesh/herald/introduction/',
     repo: 'https://github.com/monaccode/astromesh-herald',

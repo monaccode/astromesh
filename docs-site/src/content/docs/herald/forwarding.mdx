@@ -1,0 +1,121 @@
+---
+title: Webhook Forwarding
+description: Route a channel account's inbound messages to your own HTTPS endpoint instead of a Nexus agent — the signed request, media handling, delivery guarantees and how to answer.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A binding can skip Nexus. With `callback_url` in its config, every inbound message on that
+account is POSTed to your endpoint, signed, through the same outbox as every other delivery.
+No agent runs. This is for a service that owns the conversation itself: a kiosk auditor
+scoring photos, a legacy bot, an integration that only needs the messages.
+
+A binding either runs an agent or forwards. It never does both, so a person is never
+answered twice.
+
+## Configure a forwarding binding
+
+```sh
+curl -X POST localhost:8081/admin/bindings \
+  -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"tenant_id":"tenant-1","channel":"whatsapp","account_id":"<account id>",
+       "config":{"callback_url":"https://consumer.example.com/herald",
+                 "callback_secret":"<random secret>"}}'
+```
+
+- `entry_agent` is not required, and no agent is checked against Nexus.
+- `callback_url` must use `https`, have a host, and not be `localhost` or a loopback,
+  private, link-local or unspecified literal IP. A trailing dot does not get past the check.
+- A hostname whose DNS points at a private address is **not** caught. The callback is set by
+  the operator, not by tenants.
+- Responses mask `callback_secret` and `nexus_api_key`. An update merges into the stored
+  config instead of replacing it, so changing one key leaves the others alone.
+
+## The request
+
+```http
+POST <callback_url>
+Content-Type: application/json
+X-Herald-Signature-256: sha256=<hex HMAC-SHA256 of the raw body, keyed by callback_secret>
+
+{
+  "message_id": "wamid.HBgM…",
+  "from": "5491100000001",
+  "text": "12",
+  "channel": "whatsapp",
+  "contact_name": "Kiosco Don José",
+  "timestamp": "2026-08-08T04:10:00Z",
+  "media": [
+    { "kind": "image", "mime_type": "image/jpeg", "data_base64": "/9j/4AAQ…" }
+  ]
+}
+```
+
+| Field | Content |
+|---|---|
+| `message_id` | The provider's message id. Use it to deduplicate |
+| `from` | The sender's channel address |
+| `text` | The text or caption. It can be empty |
+| `channel` | The channel the message arrived on |
+| `contact_name` | Omitted when the channel reports none |
+| `timestamp` | When **Herald** received the webhook, not when the person sent it |
+| `media` | Omitted when there is none. Each item has `kind`, and either `mime_type` + `data_base64`, or `unavailable: true` |
+
+### Verify the signature
+
+Compute the HMAC over the raw body, before parsing it, and compare in constant time. It is
+the same scheme Meta uses for `X-Hub-Signature-256`, in the opposite direction.
+
+```python
+import hashlib, hmac
+
+def valid(raw_body: bytes, header: str, secret: str) -> bool:
+    expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, header)
+```
+
+## Media
+
+Herald does not store files. Attachments are downloaded **at delivery time**, right before
+the POST, so a slow or failing download gets the outbox's retries instead of delaying the
+provider's webhook:
+
+| Outcome | What the consumer sees |
+|---|---|
+| Downloaded | `data_base64` with the bytes and `mime_type` |
+| Permanently unavailable (expired, deleted, over 8 MiB) | `{"kind": "image", "unavailable": true}` |
+| The channel cannot download media | `unavailable: true` |
+| A temporary failure (rate limit, network) | Nothing yet: the whole delivery is retried |
+
+An unavailable attachment still appears in `media`, so you can tell "no photo was sent" from
+"a photo was sent and Herald could not fetch it".
+
+## Delivery guarantees
+
+| Property | Behaviour |
+|---|---|
+| Success | Any `2xx`. The row is marked `sent` only after your endpoint answers |
+| Retries | The outbox's: 30 s, 1 min, 2 min… up to 10 attempts |
+| Redirects | Never followed; a `3xx` counts as a failure |
+| Timeout | 30 s per attempt |
+| Config | `callback_url` and `callback_secret` are read from the binding at each attempt, so a change applies to rows already waiting |
+| Missing config | If the binding no longer has both, the row fails permanently |
+| Guarantee | At least once, and not necessarily in order |
+
+<Aside type="caution">
+Deduplicate by `message_id` and do not assume order. A retry after a timeout delivers the
+same message again, and replicas can claim rows out of order.
+</Aside>
+
+## Answering the person
+
+Your endpoint replies through the send API, like any proactive sender:
+
+```sh
+curl -X POST https://<herald>/api/v1/messages/send \
+  -H "X-Herald-Key: <tenant key>" -H "Content-Type: application/json" \
+  -d '{"channel":"whatsapp","recipient":"5491100000001","text":"Recibido, gracias."}'
+```
+
+On WhatsApp, a reply within 24 hours of the person's last message can be free text. After
+that it needs a template.

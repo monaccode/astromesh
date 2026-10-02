@@ -1,0 +1,30 @@
+{
+  "voz": {"backend": "say", "voice": "Eddy (Spanish (Mexico))", "rate": 180},
+  "pausa": 0.3,
+  "escenas": [
+    {"min": 4, "lineas": [
+      "No todo lo que hace un agente debería pasar por el modelo."
+    ]},
+    {"min": 9, "lineas": [
+      "En Astromesh, cada cosa va en su capa.",
+      "El modelo razona y decide: es lo único que cuesta tokens.",
+      "Los caminos calientes de CPU van en Rust, con un respaldo en Python siempre listo."
+    ]},
+    {"min": 9, "lineas": [
+      "Primer ejemplo: prefetch.",
+      "Un viaje al modelo, solo para decidir buscar, tardaba unos cinco segundos.",
+      "La búsqueda directa, cincuenta y cinco milisegundos.",
+      "Así que el runtime la hace antes."
+    ]},
+    {"min": 9, "lineas": [
+      "Segundo ejemplo: Glyph.",
+      "Medimos que, como patrón de runtime, costaba más que ReAct.",
+      "Lo usamos donde sí sirve: el modelo escribe el programa una vez y una persona lo revisa.",
+      "Después corre sin llamar al modelo."
+    ]},
+    {"min": 6, "lineas": [
+      "Medir antes de contar.",
+      "Eso es llevar IA real a una empresa: decidir, capa por capa, qué hace el modelo y qué no."
+    ]}
+  ]
+}

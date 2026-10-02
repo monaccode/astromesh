@@ -24,7 +24,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.4 |
 | **Prisma** | Turns your agent into a cloud's own native agent, running on that cloud's base resources (GCP: ADK on Agent Engine) | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | *in development* |
 | **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.23.1 |
-| **Herald** | Communications gateway — channel messages reach agents, and agents reach people back, optionally as several paced messages per answer | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.7.4 |
+| **Herald** | Communications gateway — WhatsApp, Telegram, Instagram and web chat messages reach agents, and agents reach people back through one outbox | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.11.0 |
 | **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.5.0 |
 | **Nebula** | Open-model foundry — trains, gates, and publishes the ecosystem's own models | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | v0.1.0 (preview) |
 
@@ -118,7 +118,7 @@ The ecosystem forms a layered stack. You choose your entry point at each layer:
 ```mermaid
 flowchart TB
     l5["`**Layer 5: Reach**
-    Channels → Herald (WhatsApp, echo; Telegram/web/SMTP reserved)`"]
+    Channels → Herald (WhatsApp, Telegram, Instagram, web chat)`"]
     l4["`**Layer 4**
     Multi-tenant plane → Nexus (managed control plane)
     Infrastructure → Orbit (Terraform)

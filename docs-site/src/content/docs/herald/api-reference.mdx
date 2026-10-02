@@ -1,162 +1,257 @@
 ---
-title: Herald API Reference
-description: The send API, the operator plane, the Go client, and every flag Herald accepts.
+title: API Reference
+description: Every Herald route — credentials, webhooks, the send API, sending on behalf of a tenant, identity lookup, the operator plane, the emulator and web chat routes, and the Go client.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Three credentials guard three separate surfaces, and each one's absence unregisters its routes
-rather than leaving them half-open.
+Herald listens on `:8081`. Errors are `{"error": "<message>"}`.
 
-| Credential | Header | Guards |
-|---|---|---|
-| `--send-keys` (`tenant:key,…`) | `X-Herald-Key` | `/api/v1/messages/*` for that one tenant |
-| `--trusted-sender-key` | `X-Herald-Sender-Key` | `/api/v1/messages/send-on-behalf` for any tenant |
-| `--admin-token` | `X-Admin-Token` | `/admin/*` and the operator console |
+## Credentials
+
+Three credentials guard three separate route groups. A credential that is not configured
+leaves its routes **unregistered** (`404`), never open.
+
+| Credential | Header | Guards | Configured with |
+|---|---|---|---|
+| Tenant send key | `X-Herald-Key` | `/api/v1/messages/send`, `/api/v1/messages/:id`, for the tenant the key maps to | `HERALD_SEND_KEYS` (`tenant:key,tenant:key`) |
+| Trusted sender key | `X-Herald-Sender-Key` | `send-on-behalf` and `identities/resolve`, for any tenant named in the request | `HERALD_TRUSTED_SENDER_KEY` (32+ bytes) |
+| Admin token | `X-Admin-Token` | Everything under `/admin`, and the data behind the console | `HERALD_ADMIN_TOKEN` (32+ bytes) |
+
+No credential works on another plane. A tenant key sent to `send-on-behalf` is `401`,
+because that route trusts the `tenant_id` in the body. The trusted sender key carries no
+bindings, accounts or conversation contents, which is why it is not the admin token.
+
+## Routes
+
+| Method | Path | Auth | Registered when |
+|---|---|---|---|
+| GET | `/healthz` | — | Always |
+| GET | `/webhooks/:channel` | — | At least one channel |
+| POST | `/webhooks/:channel` | Channel signature | At least one channel |
+| POST | `/webhooks/:channel/:cuenta` | Channel signature | At least one channel |
+| POST | `/api/v1/messages/send` | Tenant key | Send keys set |
+| GET | `/api/v1/messages/:id` | Tenant key | Send keys set |
+| POST | `/api/v1/messages/send-on-behalf` | Trusted sender | Trusted sender key set |
+| GET | `/api/v1/identities/resolve` | Trusted sender | Trusted sender key set |
+| POST, GET | `/admin/accounts` | Admin | Admin token set |
+| DELETE | `/admin/accounts/:id` | Admin | Admin token set |
+| POST, GET | `/admin/bindings` | Admin | Admin token set |
+| PUT, DELETE | `/admin/bindings/:id` | Admin | Admin token set |
+| GET | `/admin/stats` | Admin | Admin token set |
+| GET | `/admin/conversations` | Admin | Admin token set |
+| GET | `/admin/conversations/:id/messages` | Admin | Admin token set |
+| GET | `/admin/outbox` | Admin | Admin token set |
+| POST | `/admin/send` | Admin | Admin token set |
+| POST | `/admin/emulator/inbound` | Admin | A channel is emulating |
+| GET | `/admin/emulator/outbox` | Admin | A channel is emulating |
+| POST | `/admin/webchat/inbound` | Admin | `--enable-webchat` |
+| GET | `/admin/webchat/hilo` | Admin | `--enable-webchat` |
+| GET | `/`, `/ui/*` | — | `--ui` (on by default) |
+
+## Webhooks
+
+### `GET /webhooks/:channel`
+
+The subscription handshake. Channels with one (WhatsApp, Instagram) return `hub.challenge`
+only when `hub.verify_token` matches, and `403` otherwise. Other channels echo any
+`hub.challenge`, or answer `{"status":"ok"}`.
+
+### `POST /webhooks/:channel` and `/webhooks/:channel/:cuenta`
+
+A provider's delivery. The second form carries the account in the URL, for channels whose
+payload does not name it (Telegram).
+
+| Status | Meaning |
+|---|---|
+| `200 {"queued": n}` | Every message was queued. Processing happens afterwards |
+| `503 {"queued": n, "total": m}` | The inbound queue was full; the provider should retry |
+| `400` | The payload could not be parsed |
+| `401` | The signature did not verify |
+| `404` | The channel is not registered |
 
 ## Send API
 
 ### `POST /api/v1/messages/send`
 
-Queues a message for the tenant the key maps to. The tenant is never read from the body.
+Queues a message for the tenant the key maps to. The tenant never comes from the body.
 
 ```sh
 curl -X POST localhost:8081/api/v1/messages/send \
   -H "X-Herald-Key: <tenant key>" -H "Content-Type: application/json" \
-  -d '{"channel":"whatsapp","recipient":"+549110000001",
-       "text":"Su reclamo fue actualizado."}'
-# → 202 {"message_id":"...","status":"pending"}
+  -d '{"channel":"whatsapp","recipient":"5491100000001","text":"Su reclamo fue actualizado."}'
+# → 202 {"message_id":"…","status":"pending"}
 ```
 
 | Field | Notes |
 |---|---|
-| `channel` | `whatsapp`, `echo`, … — must have a registered account for this tenant |
-| `recipient` | Channel-native address |
-| `text` | The message body |
-| `conversation_ref` | Optional. Pins channel and recipient to an existing conversation and rides its open window |
+| `channel` | `whatsapp`, `telegram`, `instagram`, `webchat`, `echo` |
+| `recipient` | The channel address: phone, chat id, Instagram-scoped id, visitor id |
+| `account_id` | Optional. Which of the tenant's accounts it leaves from. Without it, the tenant's oldest account on that channel |
+| `text` | The message |
+| `media` | Optional list of `{kind, url, mime_type, caption}`. `kind` is `image`, `audio`, `video` or `document`; `url` must be public. Only the first item is sent |
+| `template` | Optional `{name, language, params}`. WhatsApp only |
+| `conversation_ref` | Optional conversation id. Its channel and person replace `channel` and `recipient` |
 
-`202` means **queued**. Delivery is asynchronous through the outbox.
+At least one of `text`, `media` or `template` is required. A template needs `name` and
+`language`. No field may contain a NUL byte.
+
+| Status | Meaning |
+|---|---|
+| `202` | Queued. Delivery is asynchronous |
+| `400` | Invalid request; the message says what to fix |
+| `404` | The conversation or the account does not exist for this tenant. An account of another tenant is reported the same way |
+| `500` | Storage failure; details stay in Herald's log |
 
 ### `GET /api/v1/messages/:id`
 
-The real status of a queued message, including how much of its 10-attempt retry budget is spent.
+The real outcome of a queued message, for the tenant that owns it.
+
+```json
+{ "message_id": "…", "status": "sent", "attempts": 0, "last_error": "" }
+```
+
+`status` is `pending`, `sending`, `sent` or `failed`. `attempts` counts failed deliveries,
+out of 10. Another tenant's message is `404`.
 
 ### `POST /api/v1/messages/send-on-behalf`
 
-For a multi-tenant caller like Nexus. The credential does not identify a tenant, so the request
-must:
+The same body plus `tenant_id`, authenticated with the trusted sender key. This is the route
+Nexus uses when an agent calls `send_message`, and the route CLARUS's schedulers use.
 
 ```sh
 curl -X POST localhost:8081/api/v1/messages/send-on-behalf \
-  -H "X-Herald-Sender-Key: $HERALD_TRUSTED_SENDER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"tenant_id":"tenant-1","channel":"whatsapp",
-       "recipient":"+549110000001","text":"Su reclamo fue actualizado."}'
+  -H "X-Herald-Sender-Key: $HERALD_TRUSTED_SENDER_KEY" -H "Content-Type: application/json" \
+  -d '{"tenant_id":"tenant-1","channel":"whatsapp","recipient":"5491100000001",
+       "text":"Su reclamo fue actualizado."}'
 ```
 
-<Aside type="caution">
-This is its own route group with its own header, and a tenant's `X-Herald-Key` is rejected here
-with `401` rather than accepted. One credential reaching a route that trusts the body's
-`tenant_id` is exactly the escalation the separation exists to prevent.
+Herald has no tenant registry: a tenant is whatever has accounts. An unknown `tenant_id`
+fails where it would anyway, with no matching account (`404`).
 
-It is also not the admin token: this key grants sending and nothing else, while the admin token
-also carries bindings, accounts and every conversation's contents.
-</Aside>
+### `GET /api/v1/identities/resolve`
 
-Herald does not validate `tenant_id` against a registry, deliberately — it has none. A tenant
-is whatever a configured key maps to, and inventing a registry here would create a second source
-of truth for tenant identity. An unknown tenant fails where it already does: no channel account
-matches.
+Which channel address verified a phone, for one tenant. Used to find a person's Telegram
+chat from their phone number.
+
+```sh
+curl "localhost:8081/api/v1/identities/resolve?tenant_id=tenant-1&channel=telegram&phone=%2B5491100000001" \
+  -H "X-Herald-Sender-Key: $HERALD_TRUSTED_SENDER_KEY"
+```
+
+URL-encode `phone`: a raw `+` arrives as a space and never matches.
+
+| Case | Status | Body |
+|---|---|---|
+| One address verified this phone | `200` | `{"external_user": "<address>"}` |
+| None did | `200` | `{"external_user": null}` |
+| More than one did | `409` | `{"error": …}` |
+| A parameter is missing | `400` | `{"error": …}` |
+
+"None" is `200` on purpose, so that a `404` still means the route does not exist.
 
 ## Operator plane
 
-All behind `X-Admin-Token`. Listings default to `limit=50`, max 200, clamped.
+Everything below requires `X-Admin-Token`.
 
-| Endpoint | Description |
+### Channel accounts
+
+| Request | Behaviour |
 |---|---|
-| `GET /admin/stats?tenant=&days=` | Messages per day and per channel, active conversations, outbox by status. `days` defaults to 7, max 90 |
-| `GET /admin/conversations?tenant=&channel=&limit=&offset=` | Conversations, `last_message_at` DESC, with `total` |
-| `GET /admin/conversations/:id/messages?limit=&offset=` | One conversation's thread, chronological |
-| `GET /admin/outbox?status=&channel=&tenant=&limit=&offset=` | Outbox monitor, `created_at` DESC, with `total` |
-| `POST /admin/send` | Operator test send — the send API's body plus an explicit `tenant_id` |
-| `POST/GET/PUT/DELETE /admin/bindings…` | Routing-rule CRUD, validated against Nexus |
-| `POST/GET/DELETE /admin/accounts…` | Channel-account CRUD; credentials masked (`•••` + last 4) in every response |
+| `POST /admin/accounts` | `{tenant_id, channel, external_id, credentials, emulated}`. `201` when created; `200` when that tenant already had the account, with its credentials refreshed and `emulated` updated. On Telegram it registers the webhook first (`502` if that fails) |
+| `GET /admin/accounts?tenant_id=` | `{"accounts": […]}`. `tenant_id` is required |
+| `DELETE /admin/accounts/:id` | Deletes the account and its binding |
 
-## Webhooks
+Credentials per channel:
 
-`GET/POST /webhooks/:channel` is served generically. Signature verification and payload parsing
-belong to the adapter, not the HTTP layer. Channels with a subscription handshake (Meta's)
-additionally implement `ports.ChallengeVerifier`, an optional interface the handler picks up by
-type assertion — so adding one does not change any existing adapter.
+| Channel | `external_id` | `credentials` |
+|---|---|---|
+| WhatsApp | `phone_number_id` | `{"access_token": …}` |
+| Telegram | Bot id | `{"bot_token": …}` |
+| Instagram | Instagram account id | `{"access_token": …}` |
+| Web chat | Slug | `{}` |
+| Echo | Any id | `{}` |
+
+Credentials are sealed at rest and come back as `•••` plus the last four characters.
+
+### Bindings
+
+A binding is the routing rule for one account. Each account has at most one.
+
+| Field | Notes |
+|---|---|
+| `tenant_id`, `channel`, `account_id` | Fixed once created. Changing them means deleting and creating |
+| `entry_agent` | The agent that answers new conversations. Required unless `config.callback_url` is set |
+| `fallback_message` | Sent when a run fails. Empty sends nothing |
+| `config.nexus_api_key` | The tenant's Nexus key used for every run and for validation |
+| `config.callback_url`, `config.callback_secret` | Forward instead of running an agent. See [Webhook Forwarding](/astromesh/herald/forwarding/) |
+| `config.pedir_contacto` | Telegram: offer the contact-sharing button. See [Telegram](/astromesh/herald/telegram/#identity) |
+
+| Request | Behaviour |
+|---|---|
+| `POST /admin/bindings` | `201`. `422` if the account does not exist, or if Nexus does not know the agent or rejects the key. `409` if the account already has a binding. `502` if Nexus could not be asked |
+| `GET /admin/bindings?tenant_id=` | `{"bindings": […]}`, secrets in `config` masked |
+| `PUT /admin/bindings/:id` | Updates `entry_agent` and `fallback_message` when given, and **merges** `config`. The agent is checked again |
+| `DELETE /admin/bindings/:id` | `{"deleted": true}` |
+
+A duplicate binding is a `409` and is not merged into the existing one: it carries its own
+entry agent, and taking over the existing row would hand this caller's traffic to someone
+else's agent. Masked values (`•••…`) are refused on write.
+
+### Reads
+
+Listings take `limit` (default 50, maximum 200, larger values clamped) and `offset`.
+
+| Request | Returns |
+|---|---|
+| `GET /admin/stats?tenant=&days=` | `messages_per_day`, `messages_by_channel`, `active_conversations` (activity within the window), `outbox_by_status`. `days` defaults to 7, maximum 90 |
+| `GET /admin/conversations?tenant=&channel=` | `{conversations, total, limit, offset}`, most recent activity first |
+| `GET /admin/conversations/:id/messages` | `{messages, limit, offset}`, oldest first |
+| `GET /admin/outbox?tenant=&status=&channel=` | `{entries, total, limit, offset}`, newest first |
+
+`tenant` is optional on reads; without it they cover every tenant.
+
+### `POST /admin/send`
+
+An operator's test send: the send API body plus `tenant_id`, with the same answers. It has
+no `account_id`, so it always leaves from the tenant's oldest account on the channel.
+
+### Emulator
+
+Registered when the WhatsApp or Instagram emulator is on.
+
+| Request | Behaviour |
+|---|---|
+| `POST /admin/emulator/inbound` | `{canal, cuenta, desde, texto, nombre}`. `canal` defaults to `whatsapp`, `cuenta` to the first configured emulated id. `desde` and `texto` are required. `202 {"encolado": true, "channel_message_id": …}` |
+| `GET /admin/emulator/outbox?canal=&cuenta=&ultimos=` | `{total, mensajes}`, each with `cuando`, `cuenta`, `destino`, `contenido`. Oldest first, last 500 kept in memory |
+
+### Web chat
+
+See [Web Chat](/astromesh/herald/webchat/) for `POST /admin/webchat/inbound` and
+`GET /admin/webchat/hilo`.
 
 ## The Go client
 
-Any Go service that already knows which tenant it is acting for can import the public client.
-It depends only on the standard library.
+`pkg/heraldclient` is a client of the tenant send API with no dependencies outside the
+standard library.
 
 ```go
 import "github.com/monaccode/astromesh-herald/pkg/heraldclient"
 
-hc := heraldclient.New(heraldURL, tenantHeraldKey, &http.Client{Timeout: 10 * time.Second})
+hc := heraldclient.New(heraldURL, tenantSendKey, &http.Client{Timeout: 10 * time.Second})
 
 resp, err := hc.Send(ctx, heraldclient.SendRequest{
     Channel:   "whatsapp",
-    Recipient: "+549110000001",
+    Recipient: "5491100000001",
     Text:      "Su reclamo fue actualizado.",
-    // ConversationRef: "<conversation id>", // continue an existing conversation
+    // Media:           []heraldclient.MediaAttachment{{Kind: "image", URL: "https://…"}},
+    // ConversationRef: "<conversation id>",
 })
 
 status, err := hc.GetMessageStatus(ctx, resp.MessageID)
 ```
 
-Without `conversation_ref` the send is a cold contact — on WhatsApp those only deliver inside
-the [24-hour window](/astromesh/herald/whatsapp/#the-24-hour-window) as free text, and need a
-template outside it.
-
-## Configuration
-
-Every flag defaults from an environment variable.
-
-| Flag | Env | Default | Notes |
-|---|---|---|---|
-| `--database-url` | `DATABASE_URL` | — | Required |
-| `--nexus-url` | `NEXUS_URL` | — | Required |
-| `--enc-key` | `HERALD_ENC_KEY` | — | Required. AES-GCM key sealing account secrets |
-| `--admin-token` | `HERALD_ADMIN_TOKEN` | empty | Empty leaves `/admin` unregistered; ≥32 bytes if set |
-| `--send-keys` | `HERALD_SEND_KEYS` | empty | `tenant:key,tenant:key`. Empty leaves the send API unregistered |
-| `--trusted-sender-key` | `HERALD_TRUSTED_SENDER_KEY` | empty | Empty leaves `send-on-behalf` unregistered; ≥32 bytes if set |
-| `--addr` | — | `:8081` | |
-| `--outbox-poll-interval` | — | `2s` | |
-| `--whatsapp-app-secret` | `WHATSAPP_APP_SECRET` | empty | Set with the verify token, or neither |
-| `--whatsapp-verify-token` | `WHATSAPP_VERIFY_TOKEN` | empty | |
-| `--whatsapp-graph-base-url` | `WHATSAPP_GRAPH_BASE_URL` | `https://graph.facebook.com/v21.0` | For Meta version bumps and tests |
-| `--enable-echo` | `HERALD_ENABLE_ECHO` | `false` | Unauthenticated development channel |
-| `--ui` | `HERALD_UI` | `true` | Embedded operator console at `/ui/` |
-
-## Adding a channel
-
-1. Implement `ports.ChannelAdapter` — `Name`, `VerifyRequest`, `ParseIncoming`, `SendText`,
-   `SendMedia` — in `internal/adapters/channel/<name>/`.
-2. Add a `domain.Channel<Name>` constant.
-3. Register the adapter in the map in `cmd/herald/main.go`, behind its configuration. No
-   config means no registration means the webhook is a `404`.
-
-## Deployment
-
-Kustomize base with `dev` and `mvp` overlays, ArgoCD Applications and Image Updater configs,
-GHCR publishing.
-
-```sh
-deploy/bootstrap.sh <dev|mvp>
-```
-
-Prepares a channel namespace in one command: the four out-of-git Secrets, then the Application
-and the Image Updater. It refuses to touch `herald-secrets` once it exists — `enc-key` seals
-every stored channel credential and there is no re-encryption path.
-
-## Not in v0.1.0
-
-Telegram, web chat and SMTP adapters (contract stubs are in place; each package documents its
-activation steps), FCM push, Twilio voice and SMS, streaming WebSocket runs toward Nexus,
-port-level template support for cold contacts, metrics and OTel, and multi-replica worker
-coordination beyond `FOR UPDATE SKIP LOCKED`.
+<Aside type="note">
+The Go client covers `channel`, `recipient`, `text`, `media` and `conversation_ref`. For
+`account_id` or `template`, call the HTTP API directly.
+</Aside>
