@@ -40,8 +40,8 @@ spec:
     memory_gb: 1                   # Redis memory allocation
 
   secrets:
-    provider_keys: true            # Create empty Secret Manager entries for LLM API keys
-    jwt_secret: true               # Auto-generate JWT secret on first deploy
+    provider_keys: true            # Create an empty <name>-fernet-key secret
+    jwt_secret: true               # Generate <name>-jwt-secret on first deploy
 
   images:
     runtime: fulfarodev/astromesh:latest
@@ -75,7 +75,7 @@ The `runtime` compute service accepts the fields below. With no `compute.runtime
 |---|---|---|---|
 | `min_instances` | int | 1 | Minimum running instances. Set to `0` to enable scale-to-zero. |
 | `max_instances` | int | 3 | Maximum instances Cloud Run will scale to under load. |
-| `cpu` | string | `"1"` | vCPUs per instance. Valid values: `"1"`, `"2"`, `"4"`. |
+| `cpu` | string | `"1"` | vCPUs per instance, passed to Cloud Run as is (for example `"1"`, `"2"`, `"4"`). |
 | `memory` | string | `"1Gi"` | Memory per instance. Examples: `"512Mi"`, `"1Gi"`, `"2Gi"`, `"4Gi"`. |
 
 ### `spec.database`
@@ -83,7 +83,7 @@ The `runtime` compute service accepts the fields below. With no `compute.runtime
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `tier` | string | `db-f1-micro` | Cloud SQL machine tier. See [GCP pricing](https://cloud.google.com/sql/pricing). |
-| `version` | string | `POSTGRES_16` | PostgreSQL version. Supported: `POSTGRES_15`, `POSTGRES_16`. |
+| `version` | string | `POSTGRES_16` | Cloud SQL database version, passed as is (for example `POSTGRES_15`, `POSTGRES_16`). |
 | `storage_gb` | int | 10 | Disk storage in GB. Auto-grows when needed. |
 | `high_availability` | bool | false | Enable regional HA with automatic failover. Roughly doubles the database cost. |
 
@@ -98,8 +98,12 @@ The `runtime` compute service accepts the fields below. With no `compute.runtime
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `provider_keys` | bool | true | Creates empty Secret Manager entries for LLM provider API keys. You populate them via GCP Console or `gcloud`. |
-| `jwt_secret` | bool | true | Auto-generates a random JWT secret on first deploy. Subsequent deploys reuse the existing value. |
+| `provider_keys` | bool | true | Creates one empty Secret Manager secret, `<name>-fernet-key`, with no version. Add a value with `gcloud secrets versions add`. |
+| `jwt_secret` | bool | true | Creates `<name>-jwt-secret` with a random 64-character value. It is generated once and kept in Terraform state, so later applies reuse it. |
+
+<Aside type="caution">
+Neither secret is passed to the runtime container: the Cloud Run service does not mount or reference them. They are created for you to wire, through `spec.env` or by editing the ejected Terraform.
+</Aside>
 
 ### `spec.images`
 
@@ -154,7 +158,7 @@ spec:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `env` | map of string → string | `{}` | Extra environment variables set on the runtime Cloud Run container. |
+| `env` | map of string → string | `{}` | Extra environment variables set on the runtime Cloud Run container, after the ones Orbit sets (see [GCP Provider](/astromesh/orbit/gcp-provider/#what-the-runtime-receives)). Values are written into the rendered Terraform and the Cloud Run configuration in plain text, so do not put secrets here. |
 
 There is no `logging` field — Cloud Run ships container logs to Cloud Logging automatically. See [GCP Provider](/astromesh/orbit/gcp-provider/) for how `orbit logs` reads them.
 
@@ -250,10 +254,6 @@ spec:
 
 `metadata.environment` does not change resource names. Most resources are prefixed with `metadata.name` (and the Terraform state uses it as its prefix), but the Cloud Run service (`astromesh-runtime`) and the service account (`astromesh-orbit`) have fixed names, so two deployments in one GCP project collide. Use a GCP project per environment.
 
-<Aside type="caution">
-  The `init` wizard offers `dev`, which the schema rejects — change it to `develop` in the generated file.
-</Aside>
-
 <Aside type="tip">
   You can maintain multiple `orbit.yaml` files for different environments (e.g., `orbit.dev.yaml`, `orbit.prod.yaml`) and pass them explicitly: `astromeshctl orbit apply --config orbit.prod.yaml`.
 </Aside>
@@ -266,23 +266,9 @@ After `orbit init` and a first `orbit plan`/`apply`, your project will have:
 your-project/
 ├── orbit.yaml           # Committed to git
 └── .orbit/              # Gitignored
-    ├── generated/       # .tf files (regenerated on every plan/apply)
-    │   └── .terraform/  # Terraform cache and plugins
-    └── orbit.env        # Terraform outputs (written after apply)
-```
-
-## Roadmap Fields
-
-`spec.storage` (v0.3.0) and `spec.observability` (v0.4.0) are implemented today — see [`spec.storage`](#specstorage) and [`spec.observability`](#specobservability) above. The following `spec` sections are still planned for future Orbit versions and are not yet implemented:
-
-```yaml
-  # v0.5.0 — GPU & Inference
-  # gpu:
-  #   vllm:
-  #     machine_type: g2-standard-4
-
-  # v0.6.0 — Enterprise
-  # custom_domain: agents.mycompany.com
+    ├── generated/       # .tf files (re-rendered on every plan/apply)
+    │   └── .terraform/  # provider plugins and backend config
+    └── orbit.env        # Terraform outputs, upper-cased (written after apply)
 ```
 
 ## What's Next
