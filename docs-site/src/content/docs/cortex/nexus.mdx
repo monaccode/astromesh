@@ -1,0 +1,139 @@
+---
+title: Nexus Mode
+description: Operate agents on a Nexus hub from Cortex — connecting, publishing and versioning agents, running them with streaming, consumption, the catalog, API keys and the operator's tariffs and plans.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Nexus mode turns Cortex into a console for a [Nexus](/astromesh/nexus/introduction/) hub.
+Switch to it from the status bar or with `Ctrl+M`.
+
+## Connecting
+
+**Accesos → Connections** holds the workspace's hub connections:
+
+| Field | Notes |
+|---|---|
+| Name | Any label |
+| Hub URL | Presets for local (`http://localhost:8080`) and the hosted environments |
+| Tenant ID | Optional |
+| Auth | **API key** (sent as `X-API-Key`; the key already belongs to one tenant) or **Email + contraseña** (a JWT session, which can see every tenant of that user) |
+
+A connection is saved only after it works: an API key is checked against
+`GET /api/v1/tenants`, and an email connection asks you to sign in. JWT sessions refresh
+themselves on a `401`; if the refresh fails, Cortex signs you out.
+
+Credentials are not stored in the workspace. Cortex keeps them encrypted with the operating
+system's keychain, one set per machine, so switching to a connection with a different key
+replaces the stored one.
+
+<Aside type="note">
+Cortex signs in with an existing user. Register users and create tenants through the hub
+itself (the console or the API).
+</Aside>
+
+## The Nexus layout
+
+| Activity | Panel |
+|---|---|
+| **Tenants** | The tenants this connection can see |
+| **Agentes** | The tenant's agents with their status; click one to open it |
+| **Uso** | Consumption, by month, agent and invocation |
+| **Catalog** | The hub's built-in tools and integrations |
+| **Admin** | Tariffs and plans, with an operator token |
+| **Accesos** | API keys and connections |
+
+A tenant selector at the top of the sidebar sets the tenant every panel works on. The right
+panel is the run panel.
+
+## Agents
+
+### Publishing
+
+An agent reaches the hub from the Runtime-mode editor: **Deploy → Nexus Cloud → \<connection\>**
+sends its YAML to `POST /api/v1/agents` and reports `Publicado: <name> (v<n>)`. Every publish
+is a new version.
+
+### Editing
+
+Opening an agent from **Agentes** shows its current spec as YAML, validated against the same
+agent schema. **Save** publishes the edited spec as a new version; the trash icon deletes the
+agent after confirmation.
+
+### Versions
+
+**Versiones** opens the agent's history: number, date, author and checksum, with the current
+version marked.
+
+- **Ver** shows a version's spec read-only.
+- **Comparar** picks two versions and shows a side-by-side diff of their specs.
+- **Revertir** republishes an old version's spec as a new current version. History is kept;
+  nothing is deleted.
+
+## Running agents
+
+The run panel lists the tenant's agents and preselects the one open in the editor. Write a
+query and press **Enviar** or `Ctrl/Cmd+Enter`.
+
+- **Streaming.** Cortex opens the hub's run stream (`/api/v1/agents/{name}/run/stream`) and
+  shows tool calls as they happen. **Stop** cancels the run; the hub records it as cancelled
+  and charges nothing. Against a hub without the stream route, Cortex falls back to a blocking
+  run, which cannot be stopped.
+- **Sessions.** **Nueva sesión** starts a new conversation.
+- **Transcripts** are kept per tenant on this machine, up to 50 finished turns per agent,
+  and come back when you return to the tenant.
+
+Each answer shows its status, invocation id, tokens and credits, then one row per model:
+provider, model, role, calls, credits and cached tokens, with a mark when the model is the
+platform's own. [Proposed writes](/astromesh/cortex/console/#proposed-writes) appear as in
+the runtime console, including `vía <sub-agent>`.
+
+Hub errors are shown in plain words:
+
+| Hub answer | Cortex says |
+|---|---|
+| `402` | The tenant ran out of credits |
+| `404` | Agent not found |
+| `422` | The agent has no published version |
+| `429` | Concurrency or rate limit exceeded |
+| `502` | The runtime is unavailable |
+| `504` | Timed out (120 s) |
+
+## Consumption
+
+**Uso** reads the hub's [observability endpoints](/astromesh/nexus/api-reference/) in three
+levels:
+
+| Level | Shows |
+|---|---|
+| **Tenant** | For the chosen month (last 12): invocations, credits, tokens in and out; all-time totals; agents ranked by credits, deleted ones marked |
+| **Agent** | Invocations and credits in the month; recent invocations with status and credits |
+| **Invocation** | Tokens, credits, duration, error, usage per model (with cached tokens) and its sub-invocations |
+
+## Catalog
+
+**Catalog** lists the hub's built-in tools and integrations, with each integration's actions
+and which ones write. **Copiar YAML** copies a ready tool entry to paste into an agent: a
+builtin entry, or an integration entry with its read-only actions selected. If every action
+writes, it lists them all with a reminder to review `confirm`.
+
+## API keys
+
+**Accesos → API Keys** lists the tenant's keys by label and hash. Create one with a label;
+the raw key is shown **once**, so copy it then. The trash icon revokes a key immediately.
+
+## Operator: tariffs and plans
+
+**Admin** is for a hub operator. It asks for the hub's operator token, sent only as
+`X-Operator-Token` and kept apart from tenant credentials.
+
+| Section | What you can do |
+|---|---|
+| **Tarifas vigentes** | Read current tariffs: model, credits per 1k tokens in and out, own-model mark |
+| **+ tarifa** | Add a tariff: provider, model, effective-from instant, credits per 1k in and out, cost in USD per 1k in and out, infrastructure cost, own model. Tariffs are append-only: a correction is a new row |
+| **Planes** | Read plans with their included credits and limits |
+| **+ plan** | Create a plan: minimum fee, included credits, extra-credit price, activation price, and limits on active agents, concurrency, rpm, credits per period, tokens per call and iterations. **An empty limit means no limit; `0` means blocked** |
+| **Asignar plan** | Assign a plan to a tenant by id |
+
+Amounts are entered in dollars and sent to the hub in micros. See
+[Plans & Billing](/astromesh/nexus/billing/) for what each field does.

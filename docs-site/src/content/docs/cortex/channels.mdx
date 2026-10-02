@@ -1,0 +1,74 @@
+---
+title: Channels
+description: Connect a runtime agent to WhatsApp from Cortex, watch channel traffic live, and expose a local runtime to webhooks with a dev tunnel.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+These tools wire an agent to WhatsApp through the **runtime's own channel adapter**: Meta
+calls the runtime directly. For channels in front of agents on a Nexus hub, use
+[Herald](/astromesh/herald/introduction/) instead.
+
+## WhatsApp setup
+
+**Channels → WhatsApp Business** walks through four steps.
+
+<Steps>
+
+1. **Meta app.** A link opens the Meta developer portal. Enter the app's **App ID** and
+   **App Secret**.
+
+2. **Tokens.** A link opens the WhatsApp console. Choose the agent, and enter the **Access
+   Token** and **Phone Number ID**. Cortex generates a **Verify Token**; you can regenerate it.
+
+3. **Webhook.** Cortex shows the callback URL,
+   `<base>/v1/agents/<agent>/channels/whatsapp/webhook`, and the verify token. Paste both into
+   Meta's WhatsApp configuration and subscribe to `messages`. `<base>` is the
+   [dev tunnel](#dev-tunnel)'s public URL when one is running (marked **DEV TUNNEL**), and the
+   active runtime's URL otherwise (marked **PRODUCTION**).
+
+4. **Test and deploy.** **Send Test Message** runs the agent with a test query, so you can
+   check it answers. **Save & Deploy**:
+   - writes `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET` and
+     `WHATSAPP_VERIFY_TOKEN` into the active [environment](/astromesh/cortex/workspaces/#environments);
+   - sets the agent's `spec.channels` to one WhatsApp channel that reads those variables,
+     replacing any channels it had;
+   - saves and deploys the agent.
+
+</Steps>
+
+The card then shows the channel as active, with the agent, phone and webhook URL.
+**Reconfigure** starts over.
+
+Restart the local runtime after **Save & Deploy** so it picks up the new variables.
+
+<Aside type="caution">
+The wizard keeps the tokens in `workspace.json` and in the environment, both in plain text.
+Keep that workspace out of public repositories.
+</Aside>
+
+## Channel activity
+
+**Channel Activity** follows the runtime's channel events live (`/v1/channels/events`): each
+message in or out, and system events such as delivery receipts, with time, agent, channel,
+sender and text or media. Filter by agent or channel, and click a row to see its JSON. The
+last 200 events are kept, and the stream reconnects by itself.
+
+The agent editor has the same stream filtered to that agent, behind the **Channel Messages**
+button.
+
+## Dev tunnel
+
+Meta can only deliver to a public HTTPS URL. **Settings → Dev Tunnel** exposes the local
+runtime with a tunnel:
+
+| Setting | Notes |
+|---|---|
+| Provider | `cloudflared` (default) or `ngrok` |
+| ngrok token | Optional; applied with `ngrok config add-authtoken` |
+| Start / Stop | Downloads the binary on first use, then runs `cloudflared tunnel --url …` or `ngrok http …` against the local runtime's port |
+| Tunnel URL | The public URL, with a copy button |
+
+While a tunnel is running, the WhatsApp wizard uses its URL for the webhook.
+
+Telegram is listed as coming soon.

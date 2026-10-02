@@ -1,110 +1,89 @@
 ---
 title: Astromesh Cortex
-description: The desktop IDE and multi-runtime control plane for AI agents
+description: The desktop IDE for Astromesh agents — author, run and debug against a local runtime, provision one on GCP, and operate agents on a Nexus hub from the same window.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution" title="Currently in v0.17.0">
-  Astromesh Cortex is in active development. The Local Runtime and GCP (via Orbit) targets are fully supported; Nexus cloud mode is evolving alongside the Nexus control plane.
+**Astromesh Cortex** is a desktop application for building and operating Astromesh agents. You
+write an agent in a schema-aware YAML editor or a visual builder, run it in a console that
+shows every tool call and every model's cost, and ship it to the runtime you want: one that
+Cortex installs on your machine, one it provisions on Google Cloud, or a
+[Nexus](/astromesh/nexus/introduction/) hub.
+
+<Aside type="note">
+**v0.21.0.** Electron 41, React 19. Agent schema at parity with astromesh core 0.59, plus the
+`via` field of core 0.61. Lives in its own repository,
+[monaccode/astromesh-cortex](https://github.com/monaccode/astromesh-cortex). There is no
+installer yet: Cortex runs from source (see the [Quick Start](/astromesh/cortex/quickstart/)).
 </Aside>
 
-Astromesh Cortex is a native desktop IDE and control plane for designing, testing, and deploying AI agents. Built on Electron, it gives you a full-screen "Mission Control" surface: a schema-aware YAML editor, a drag-and-drop visual builder, an interactive agent console, and one-click lifecycle management across three runtime targets — a local Python runtime, GCP Cloud Run (via Orbit), and the Nexus Kubernetes cloud.
+## Two modes
 
-Cortex is **not** a web SPA, **not** a backend service, and **not** a monitoring-only dashboard. It is a standalone desktop application that owns the full author → test → deploy → operate loop from a single window.
+A Cortex window works in one of two modes, switched from the status bar or with `Ctrl+M`.
 
-## Cortex vs Forge
-
-Both Cortex and [Forge](/astromesh/forge/introduction/) let you build agents visually, but they serve different needs and coexist within the Astromesh ecosystem.
-
-| | Astromesh Forge | Astromesh Cortex |
+| Mode | Talks to | What you do there |
 |---|---|---|
-| **Form factor** | Web SPA embedded in an Astromesh node at `/forge` | Standalone desktop app (Electron) |
-| **Backend** | None — pure client, runs in the browser | Native main process with system access |
-| **Scope** | Quick in-node visual building | Full IDE + multi-runtime ops console |
-| **Runtime lifecycle** | — | Installs & manages a local Python runtime |
-| **Cloud provisioning** | — | GCP via Orbit, Nexus cloud connection |
-| **Use it for** | Fast, lightweight edits inside a running node | Designing, testing, and deploying across environments |
+| **Runtime** | An Astromesh runtime: local, remote, or a Cloud Run service | Author agents, RAG pipelines and workflows; run and trace them; install the local runtime; provision GCP; wire WhatsApp |
+| **Nexus** | A Nexus hub | Publish and version agents per tenant, run them, read consumption, manage API keys, browse the catalog, and (as an operator) manage tariffs and plans |
 
-<Aside type="tip">
-  Use **Forge** when you want to tweak an agent quickly inside a live node from your browser. Use **Cortex** when you want a full desktop IDE that can spin up runtimes, provision cloud infrastructure, and operate fleets of agents.
-</Aside>
+Both modes share the editor area. A tab that belongs to the other mode stays open but
+disabled until you switch back.
+
+## What Cortex does
+
+| Area | What you get |
+|---|---|
+| **Workspaces** | A project is a folder with `.cortex/workspace.json`: connections, environments and UI state, committed with your code |
+| **YAML editor** | Monaco with validation, completion and hover against the agent, RAG pipeline and workflow schemas; context-aware snippets and a section helper |
+| **Visual builder** | A canvas with one block per spec section, and inspectors for models with per-role routing, all six tool types, prefetch, knowledge and the Glyph program |
+| **Console** | Live runs over WebSocket: each tool call and its verdict, the model's reasoning, writes proposed but not executed, cached tokens, per-model cost, chain links, and the full trace |
+| **RAG and workflows** | A visual builder for RAG pipelines; a workflow editor, run tracking and the human-in-the-loop approval queue |
+| **Local runtime** | A one-click install of the runtime with its own Python, plus start, stop, update and health |
+| **GCP** | A four-step wizard that provisions a Cloud Run runtime through [Orbit](/astromesh/orbit/introduction/), and then logs, status, redeploy, an infrastructure map and destroy |
+| **Nexus** | Publish, version, compare and revert agents, run them with streaming and cancel, consumption by month, agent and invocation, the hub's catalog, and the operator's tariffs and plans |
+| **Channels** | A WhatsApp setup wizard, live channel traffic, and an ngrok or cloudflared tunnel for local webhooks |
+| **Terminal** | An `astromeshctl`-style command line over the active runtime's API |
 
 ## Architecture
 
-Cortex is a standard Electron application: a React renderer talks to the main process over an IPC bridge, and the main process hosts the services that drive each runtime target.
-
 ```mermaid
-flowchart TB
+flowchart LR
   subgraph cortex["Cortex (Electron)"]
-    renderer["`**Renderer (React)**
-    Editor · Console · Deploy`"]
-    main["Main Process (IPC Bridge)"]
-    services["`**Services**
-    LocalRuntime · Orbit (GCP) · Nexus (Cloud)`"]
-    renderer --- main
-    main --- services
+    renderer["Renderer (React)<br/>editors · console · panels"]
+    main["Main process<br/>files · processes · secrets · HTTP/WS"]
+    renderer -- "typed IPC" --- main
   end
-  services --> local["Local Runtime (:8000)"]
-  services --> nexus["Nexus (K8s Cloud) (:8080)"]
-  services --> gcp["GCP Cloud Run (Orbit)"]
+  main --> local["Local runtime<br/>uvicorn :8000"]
+  renderer --> remote["Remote / Cloud Run runtime<br/>/v1/*"]
+  main --> nexus["Nexus hub<br/>/api/v1/*"]
+  main --> orbit["astromeshctl orbit<br/>→ OpenTofu → GCP"]
 ```
 
-### Component breakdown
+- **The renderer** draws everything and calls the runtime API (`/v1/*`) directly for the
+  active runtime connection.
+- **The main process** does everything privileged: workspace files, installing and running the
+  local runtime, running Orbit, downloading tunnel binaries, every Nexus call (including the
+  run stream, whose handshake needs auth headers), and secrets kept with the operating
+  system's encryption (`safeStorage`).
 
-- **Renderer (React)** — The UI layer: the Monaco-based agent editor, the visual builder canvas, the agent console and trace timeline, and the deploy controls. Pure presentation and interaction; it never touches the OS directly.
-- **Main Process (IPC Bridge)** — The Electron main process. It mediates every privileged operation — file system access, process spawning, network calls — between the renderer and the services over a typed IPC bridge.
-- **Services** — The control-plane logic. `LocalRuntime` installs and supervises a local Python runtime; `Orbit` provisions and manages GCP Cloud Run deployments; `Nexus` authenticates with and operates the Kubernetes cloud.
+## Cortex, Forge and Leia
 
-## What's new
+| | [Forge](/astromesh/forge/introduction/) | Cortex | [Leia](/astromesh/leia/introduction/) |
+|---|---|---|---|
+| Form | Web app inside a runtime node | Desktop app | Claude Code plugin |
+| Reaches | That node | Any runtime, GCP, any Nexus hub | Runtimes and Nexus, by conversation |
+| Best for | A quick edit on a running node | Building, debugging and operating across environments | Doing the same in natural language |
 
-### v0.17.0 — per-model usage breakdown
+Agents created by any of them, or by the ADK or the CLI, appear in Cortex's Agents panel,
+because they all live in the same runtime API.
 
-Agent run results now show a per-model consumption table (provider / model / role / calls / tokens in-out / cost), collapsed beneath the run's total token count. It reads `usage.by_model` from astromesh core v0.36.0+; older runtimes simply omit the field without breaking the contract.
+## Next steps
 
-### v0.16.0 — operator Admin panel
-
-A read-only view of the hub's current tariffs and plans, authenticated with an operator token stored per connection through `safeStorage`. Distinct from the tenant dual-auth, and hidden behind an empty state until a token is set.
-
-### v0.15.0 — the "Uso" observability panel
-
-A three-level view over the hub's observability endpoints: tenant overview (month totals with a month selector, all-time totals, and a per-agent ranking with soft-deleted agents flagged), per-agent drill-down (metrics plus recent invocations), and invocation detail (per-model breakdown plus sub-invocations). It replaces the earlier Metrics / Logs / Cost stubs.
-
-### v0.14.0 — live streaming, cancellation, persistent transcripts
-
-The Nexus run panel streams a run over the hub's WebSocket route, showing tool-call activity live, with a **Stop** button that cancels the run in flight (the hub records it `cancelled` and charges nothing). Transcripts persist per tenant and reload on tenant activation. It falls back to the synchronous run when the hub lacks the stream route.
-
-### v0.13.0 — Nexus run panel and version comparison
-
-The Nexus shell runs agents against the hub directly, keeping an in-memory transcript per agent and session and rendering each result's usage breakdown. The versions drawer gained a **Compare** mode: pick two versions and read a side-by-side Monaco diff of their specs, each side labelled with its number and checksum.
-
-Earlier in the same line: a versions drawer in the agent editor (history with per-version view and revert), agent-version client methods, and support for `type: client` tools from astromesh core v0.35.0.
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Desktop shell** | Electron 41 |
-| **UI** | React 19 + Tailwind CSS 4 |
-| **Editor** | Monaco Editor + monaco-yaml |
-| **Visual builder** | @xyflow/react |
-| **State** | Zustand |
-| **Build** | electron-vite + Vite 8 |
-| **Tests** | Vitest |
-
-## Key Capabilities
-
-- **Workspace-centric projects** — A workspace is just a folder with a `.cortex/workspace.json` you commit to git; secrets stay in a gitignored `.cortex/local.json`.
-- **Dual-shell modes** — A Runtime mode for local development and a Nexus mode for cloud operations, toggled with `Ctrl+M`.
-- **Schema-aware YAML editor** — Monaco with validation and autocomplete against the Astromesh agent schema.
-- **Visual agent builder** — A drag-and-drop `@xyflow` canvas with bidirectional YAML sync and inspectors for model, tools, memory, guardrails, permissions, and orchestration.
-- **Agent console & traces** — An interactive chat playground to test running agents, plus a hierarchical trace timeline with per-span latency, inputs, and outputs.
-- **Three runtime targets** — Local Python runtime (`:8000`), GCP Cloud Run via Orbit, and the Nexus Kubernetes cloud (`:8080`).
-- **Channels & dev tunnel** — A WhatsApp setup wizard, a live Channel Activity stream, and ngrok/cloudflared tunnel management for webhook testing.
-
-## What's Next
-
-- [Quick Start](/astromesh/cortex/quickstart/) — Install Cortex and ship your first agent to a local runtime
-- [Runtimes](/astromesh/cortex/runtimes/) — Local, GCP (Orbit), and Nexus targets in depth
-- [Workspaces](/astromesh/cortex/workspaces/) — The workspace model, editor, console, channels, and shortcuts
-- [The Astromesh Ecosystem](/astromesh/getting-started/ecosystem/) — How Cortex fits alongside Forge, Nexus, and Orbit
+- [Quick Start](/astromesh/cortex/quickstart/) — from source to a running agent
+- [Workspaces & Layout](/astromesh/cortex/workspaces/) — the project file, environments, shortcuts
+- [Authoring Agents](/astromesh/cortex/authoring/) — YAML editor, visual builder, tools, RAG, workflows
+- [Console & Traces](/astromesh/cortex/console/) — running and debugging
+- [Runtimes & GCP](/astromesh/cortex/runtimes/) — the local runtime and Cloud Run
+- [Nexus Mode](/astromesh/cortex/nexus/) — operating agents on a hub
+- [Channels](/astromesh/cortex/channels/) — WhatsApp, channel activity and the dev tunnel

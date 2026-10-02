@@ -164,8 +164,12 @@ export default defineConfig({
           items: [
             { label: 'Introduction', slug: 'cortex/introduction' },
             { label: 'Quick Start', slug: 'cortex/quickstart' },
-            { label: 'Runtimes & Connections', slug: 'cortex/runtimes' },
-            { label: 'Workspaces & Editor', slug: 'cortex/workspaces' },
+            { label: 'Workspaces & Layout', slug: 'cortex/workspaces' },
+            { label: 'Authoring Agents', slug: 'cortex/authoring' },
+            { label: 'Console & Traces', slug: 'cortex/console' },
+            { label: 'Runtimes & GCP', slug: 'cortex/runtimes' },
+            { label: 'Nexus Mode', slug: 'cortex/nexus' },
+            { label: 'Channels', slug: 'cortex/channels' },
           ],
         },
         {
