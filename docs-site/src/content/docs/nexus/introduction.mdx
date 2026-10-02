@@ -6,7 +6,7 @@ description: The multi-tenant control plane that publishes, runs, meters and bil
 import { Aside } from '@astrojs/starlight/components';
 
 <Aside type="caution">
-**v0.26.2 · pre-1.0.** Endpoints and data shapes can still change between minor releases.
+**v0.26.4 · pre-1.0.** Endpoints and data shapes can still change between minor releases.
 </Aside>
 
 **Astromesh Nexus** is the control plane of the agent cloud. It publishes, executes, meters and bills the agents that run on the Astromesh runtime, for many tenants at once.
@@ -53,7 +53,7 @@ The pool is a cache, not a registry: Nexus pushes a tenant's agent into it on fi
 
 | | |
 |---|---|
-| [**Astromesh runtime**](/astromesh/getting-started/what-is-astromesh/) | What the pool runs. Each Nexus release pins one runtime version (astromesh 0.61.0 at Nexus 0.26.2). |
+| [**Astromesh runtime**](/astromesh/getting-started/what-is-astromesh/) | What the pool runs. Each Nexus release pins one runtime version (astromesh 0.63.0 at Nexus 0.26.4). |
 | [**Herald**](/astromesh/herald/introduction/) | The messaging gateway. Herald invokes agents through Nexus; Nexus sends proactive messages through Herald. |
 | [**Cortex**](/astromesh/cortex/introduction/) | The desktop console. It connects to Nexus as a managed hub to publish agents. |
 | [**Leia**](/astromesh/leia/introduction/) | The same operations in natural language, from Claude Code. |

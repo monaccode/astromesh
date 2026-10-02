@@ -1,279 +1,201 @@
 ---
-title: Leia Command Reference
-description: Every /leia slash command — usage, arguments, and examples.
+title: Command Reference
+description: Every Leia command — what it asks, what it runs, and what it needs from the cluster.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Leia exposes **10 slash commands**. The top-level `/leia` is a conversational entry point; the rest are explicit subcommands. You can always describe what you want in plain English instead of remembering exact flags.
-
-## Natural-language dispatch
-
-When you pass natural language to `/leia` (anything that is not a known subcommand), Leia dispatches the [`leia-interpreter`](/astromesh/leia/templates/) subagent to figure out your intent, then routes to the right flow — typically create, deploy, status, test, or logs. So both of these work:
-
-```bash
-/leia create a WhatsApp bot for a pizza restaurant
-/leia I need a customer support bot for my coffee shop
-```
-
-## Command summary
-
-| Command | Description | Key args |
-|---------|-------------|----------|
-| `/leia` | Conversational entry point; routes natural language or shows the welcome menu | `[description or subcommand]` |
-| `/leia create` | Create an agent from natural language or a guided wizard | `[description]` (wizard if empty) |
-| `/leia deploy` | Deploy an agent YAML to the nexus cluster | `<yaml-file> [--tenant <name>]` |
-| `/leia status` | Dashboard: cluster health, tenants, agents (or one agent's detail) | `[agent-name] [--tenant <name>]` |
-| `/leia logs` | View agent logs; follow mode | `<agent-name> [--follow] [--lines <n>]` |
-| `/leia test` | Interactive chat or automated test scenarios | `<agent-name> [--auto]` |
-| `/leia templates` | Browse or preview business templates | `[template-name]` |
-| `/leia config` | Manage nexus connection contexts | `[list\|use\|add\|show\|set] [args]` |
-| `/leia bootstrap` | Set up a nexus cluster (local Kind or remote) | `[local\|remote]` |
-| `/leia teardown` | Destroy a local cluster or disconnect a remote | `[context-name]` |
-
----
-
-### /leia
-
-The conversational entry point. With no arguments it shows the welcome menu of available commands. With natural language, it dispatches the interpreter and routes to the appropriate flow.
-
-**Usage**
-
-```bash
-/leia [natural language description or subcommand]
-```
-
-**Example**
-
-```bash
-/leia                                          # show the welcome menu
-/leia I need a WhatsApp bot for my restaurant  # route to create
-```
-
----
-
-### /leia create
-
-Create a new agent. With a description, Leia parses it ([`leia-interpreter`](/astromesh/leia/templates/)), designs the manifest ([`leia-architect`](/astromesh/leia/templates/)), previews the generated `astromesh/v1` YAML, and offers to deploy. With no arguments it runs a guided wizard instead.
-
-**Usage**
-
-```bash
-/leia create [description of what you need]
-```
-
-**Arguments**
-
-- `[description]` — natural-language description. If omitted, Leia runs a step-by-step wizard.
-
-**Example**
-
-```bash
-/leia create a WhatsApp bot for a pizza restaurant that handles reservations
-/leia create        # guided wizard
-```
-
----
-
-### /leia deploy
-
-Deploy an existing agent YAML file to the cluster. Leia validates the file (`apiVersion: astromesh/v1`, `kind: Agent`, an RFC 1123 `metadata.name`), then dispatches [`leia-operator`](/astromesh/leia/templates/) to POST it to the Nexus API and poll until it is ready.
-
-**Usage**
-
-```bash
-/leia deploy <yaml-file> [--tenant <name>]
-```
-
-**Arguments**
-
-- `<yaml-file>` — path to the agent YAML to deploy (positional).
-- `--tenant <name>` — optional tenant namespace; injected or overrides `metadata.namespace` before deploy.
-
-**Example**
-
-```bash
-/leia deploy ./my-restaurant.agent.yaml --tenant acme
-```
-
----
-
-### /leia status
-
-Show a dashboard of cluster health, tenants, and agents — or detail for a single agent. Backed by [`leia-operator`](/astromesh/leia/templates/), which queries the Nexus health endpoints, the agents list, and tenants via `kubectl`.
-
-**Usage**
-
-```bash
-/leia status [agent-name] [--tenant <name>]
-```
-
-**Arguments**
-
-- `[agent-name]` — optional; show detail for one agent instead of the full dashboard.
-- `--tenant <name>` — optional; filter to a single tenant.
-
-**Example**
-
-```bash
-/leia status                       # full dashboard
-/leia status my-restaurant         # one agent's detail
-```
-
----
-
-### /leia logs
-
-Fetch and display logs for a deployed agent, with an optional follow mode that polls for new lines.
-
-**Usage**
-
-```bash
-/leia logs <agent-name> [--follow] [--lines <n>]
-```
-
-**Arguments**
-
-- `<agent-name>` — the agent to read logs for (positional).
-- `--follow`, `-f` — continuously poll for new log lines until you say stop.
-- `--lines <n>`, `-n <n>` — number of lines to fetch (default: 50).
-
-**Example**
-
-```bash
-/leia logs my-restaurant --follow
-/leia logs my-restaurant --lines 200
-```
-
----
-
-### /leia test
-
-Test a deployed agent. Leia first checks the agent is `Ready`, then dispatches [`leia-tester`](/astromesh/leia/templates/) in interactive mode (a proxy chat session) or, with `--auto`, runs predefined scenarios scored on relevance, tone, accuracy, channel compliance, and boundary respect.
-
-**Usage**
-
-```bash
-/leia test <agent-name> [--auto]
-```
-
-**Arguments**
-
-- `<agent-name>` — the agent to test (positional).
-- `--auto` — run automated test scenarios instead of interactive chat.
-
-**Example**
-
-```bash
-/leia test my-restaurant          # interactive chat
-/leia test my-restaurant --auto   # automated scenarios
-```
-
----
-
-### /leia templates
-
-Browse the bundled business templates, or preview one in detail. See [Templates & Subagents](/astromesh/leia/templates/) for the full catalog.
-
-**Usage**
-
-```bash
-/leia templates [template-name]
-```
-
-**Arguments**
-
-- `[template-name]` — optional; preview a specific template. If omitted, lists all templates.
-
-**Example**
-
-```bash
-/leia templates                    # list all
-/leia templates restaurant-booking # preview one
-```
-
----
-
-### /leia config
-
-Manage Nexus connection contexts stored in `~/.astromesh-leia/config.yaml`. Each context holds a `nexus-url`, `api-key`, `cluster-type`, and `cluster-name`; the file also tracks `current-context` and `defaults`.
-
-**Usage**
-
-```bash
-/leia config [list|use|add|show|set] [args]
-```
-
-**Subcommands**
-
-| Input | Action |
-|-------|--------|
-| *(empty)* or `show` | Show the current config |
-| `list` | List all contexts |
-| `use <name>` | Switch the current context |
-| `add <name>` | Add a new context interactively |
-| `set <key> <value>` | Set a config value using dot notation |
-
-**Example**
-
-```bash
-/leia config list
-/leia config use local
-/leia config set defaults.tenant acme
-```
-
----
-
-### /leia bootstrap
-
-Set up a Nexus cluster. `local` creates a Kind cluster, deploys Nexus, and saves the context; `remote` connects to an existing cluster by URL and API key. With no argument, Leia asks which mode you want.
-
-**Usage**
-
-```bash
-/leia bootstrap [local|remote]
-```
-
-**Arguments**
-
-- `local` — create a local Kind cluster and save the context.
-- `remote` — connect to an existing remote cluster.
-
-**Example**
-
-```bash
-/leia bootstrap local
-/leia bootstrap remote
-```
-
----
-
-### /leia teardown
-
-Destroy a local Kind cluster, or disconnect a remote context.
-
-<Aside type="danger">
-For a **Kind** context this is **destructive** — it destroys the cluster, deletes all data, and removes the context. Leia requires explicit confirmation. For a **remote** context, only the local connection config is removed; the remote cluster is untouched.
+Leia has ten commands. `/leia` is the conversational entry point; the other nine are separate
+commands that Claude Code lists under the plugin's namespace (`/astromesh-leia:create`,
+`/astromesh-leia:deploy`…). Writing `/leia create …` or `/leia deploy …` also works, because
+`/leia` routes anything it receives by intent.
+
+| Command | Arguments | Needs a cluster |
+|---|---|---|
+| [`/leia`](#leia) | `[description or subcommand]` | Depends on the intent |
+| [`create`](#create) | `[description]`, or nothing for the wizard | Only to deploy |
+| [`deploy`](#deploy) | `[<file>] [--tenant <name>]` | Yes |
+| [`status`](#status) | `[<agent>] [--tenant <name>]` | Yes |
+| [`logs`](#logs) | `[<agent>] [--follow] [--lines <n>]` | Yes |
+| [`test`](#test) | `[<agent>] [--auto]` | Yes |
+| [`templates`](#templates) | `[<template>]` | No |
+| [`config`](#config) | `[show\|list\|use\|add\|set] …` | No |
+| [`bootstrap`](#bootstrap) | `[local\|remote]` | Creates or connects one |
+| [`teardown`](#teardown) | `[<context>]` | Yes |
+
+Every command that talks to a cluster reads `~/.astromesh-leia/config.yaml` first. Against
+the current Nexus, see [Compatibility](/astromesh/leia/introduction/#compatibility).
+
+## /leia
+
+With no arguments it prints the welcome menu. With anything else, `leia-interpreter` classifies
+the request and routes it:
+
+| You say something like | Intent | Goes to |
+|---|---|---|
+| create, build, make, set up, new agent | `create` | architect, then preview and deploy |
+| deploy, launch, push, ship | `deploy` | operator |
+| delete, remove | `delete` | operator, after confirmation |
+| list, show agents | `list` | operator |
+| status, how is, check on | `status` | operator |
+| logs, output | `logs` | operator |
+| test, try, talk to, chat with | `test` | tester |
+| diagnose, debug, fix, what's wrong | `diagnose` | doctor |
+| health, ping · metrics, stats · tenants | `health` · `metrics` · `tenants` | operator |
+| bootstrap · teardown | | operator |
+
+It keeps your language for the extracted values (Spanish stays Spanish), never invents a name
+or tenant you did not give, and asks one question when the intent is unclear. Diagnosis has no
+command of its own: describe the problem to `/leia` and it goes to the doctor.
+
+## create
+
+**With a description**, it runs the interpreter, then the architect, then shows the preview.
+**Without one**, it asks, one at a time:
+
+1. Agent type: one of the six [templates](/astromesh/leia/templates/) or custom.
+2. Channel: WhatsApp (default) or web.
+3. Business or project name, which becomes the agent's name.
+4. What the agent should do, in a sentence or two.
+5. Two or three questions specific to the template, such as cuisine and hours for a
+   restaurant, or the qualification criteria for a lead qualifier.
+
+The architect then:
+
+- reads the bundled schemas and the closest template;
+- runs `ollama list` and picks the best local model (llama3, then mistral, then phi3), or falls
+  back to `llama3` and tells you to pull it. It uses a cloud provider only if you give a key or
+  ask for one; with a cloud key and a pattern with separate roles, it can put a strong cloud
+  model on `planner` or `supervisor` and a local one on `worker`;
+- picks one of the six real patterns (`react` by default) and, only when your description calls
+  for it, `spec.output_schema` or `spec.chain`;
+- applies channel defaults:
+
+| | WhatsApp | Web |
+|---|---|---|
+| Max response | 1,600 characters | 4,096 characters |
+| Max tokens | 1,024 | 2,048 |
+| Timeout | 30 s | 120 s |
+| Memory turns | 10 | 20 |
+| Temperature | 0.7 | 0.7 |
+
+- writes a real system prompt with the business name, the task, the tone and the boundaries,
+  with comments on non-obvious choices;
+- saves `agents/<name>.yaml` and shows a summary of name, model, pattern, channel, chaining
+  and assumptions.
+
+Answer `yes` to deploy, `no` to stop with the file kept, or `edit` to redesign. A deploy polls
+the agent every 5 seconds for up to 60, waiting for `Ready`.
+
+<Aside type="note">
+WhatsApp is not configured in the manifest. The architect labels the agent
+`channel: whatsapp` and tells you which variables the runtime needs and the webhook path,
+`/v1/agents/<name>/channels/whatsapp/webhook`.
 </Aside>
 
-**Usage**
+## deploy
 
-```bash
-/leia teardown [context-name]
-```
+`deploy <file>` reads the file and checks `apiVersion: astromesh/v1`, `kind: Agent` and an
+RFC 1123 `metadata.name`. `--tenant` overrides `metadata.namespace`. It then `POST`s the YAML
+to `/api/v1/agents` and polls as above.
 
-**Arguments**
+Without a file, it lists the `*.agent.yaml` files in the current directory and asks which one.
+The architect writes `agents/<name>.yaml`, which that search does not match, so pass the path.
 
-- `[context-name]` — optional; the context to tear down. Defaults to the current context.
+| Error | Means |
+|---|---|
+| Connection refused | The cluster is not reachable |
+| `401` | The key in the config is wrong, or sent in a header the hub does not read |
+| `400` | The hub rejected the YAML; the body says why |
+| `409` | An agent with that name exists |
 
-**Example**
+## status
 
-```bash
-/leia teardown
-/leia teardown nexus-local
-```
+With no agent: a cluster line (health from `/healthz` and `/readyz`), a tenants table (from
+`kubectl get nexustenant`), and an agents table with tenant, phase, channel and last sync.
+`--tenant` filters it.
 
-## What's Next
+With an agent: its tenant, phase, channel, creation and last sync, node acknowledgement and
+conditions.
 
-- [Quickstart](/astromesh/leia/quickstart/) — the end-to-end flow.
-- [Templates & Subagents](/astromesh/leia/templates/) — what the commands build with.
+## logs
+
+Fetches `GET /api/v1/agents/<agent>/logs`, 50 lines by default (`--lines`). `--follow` polls
+every 5 seconds until you say stop. Without an agent, it lists the deployed ones and asks.
+
+## test
+
+Checks that the agent is `Ready`, then hands it to `leia-tester`.
+
+- **Interactive** (default): every message you write goes to `POST /api/v1/agents/<agent>/run`
+  with a session id `test-<timestamp>`. Say `exit`, `quit`, `done` or `stop` to get a summary:
+  messages, average response time, errors, and observations such as "stayed in character".
+- **`--auto`**: five scenarios for the agent's template (greeting, FAQ, complaint, escalation
+  and out-of-scope for support; reserve, cancel, menu, full capacity and allergy for a
+  restaurant…). Each answer is scored:
+
+| Criterion | Scale | Gates the pass |
+|---|---|---|
+| Relevance | 0–10 | ≥ 7 |
+| Tone | 0–10 | ≥ 7 |
+| Accuracy | 0–10 | No (the agent may not have real data) |
+| Channel compliance | pass/fail | Yes (for example, 1,600 characters on WhatsApp) |
+| Boundary respect | pass/fail | Yes (no invented capabilities) |
+
+  The result is a table, `X/5 passed`, and concrete changes to the YAML for each failure.
+
+## templates
+
+With no arguments, a table of the bundled templates. With a name, the full YAML and a
+plain-language explanation: what it does, why its pattern, the system prompt, and what to
+change to make it yours. Details in [Templates & Agents](/astromesh/leia/templates/).
+
+## config
+
+| Subcommand | Does |
+|---|---|
+| `show` (default) | Current context, its URL and type, and the defaults |
+| `list` | All contexts, the current one marked `*` |
+| `use <name>` | Switches the current context |
+| `add <name>` | Asks for URL, API key, type (`kind` or `remote`), cluster name and, for kind, the Nexus repo path |
+| `set <key> <value>` | Sets any value by dot path, such as `defaults.channel whatsapp` |
+
+The file and its folder are created on first use.
+
+## bootstrap
+
+**`local`**: checks for a Kind cluster named `nexus-local`, finds the Nexus repository (from the
+config, or asks), runs its `hack/bootstrap.sh`, waits up to five minutes for `/healthz`,
+creates an API key with `nexus-admin` inside the cluster, and saves a `local` context. The
+context is written only if every step succeeded.
+
+**`remote`**: asks for the URL, checks `/healthz`, asks for an API key (`nxk_…`), checks it
+against `/api/v1/tenants`, and saves the context under a name you choose.
+
+## teardown
+
+For a `kind` context, after an explicit confirmation: runs the Nexus repository's
+`hack/teardown.sh` and removes the context. For a `remote` context it only removes the local
+context; the remote cluster is not touched. If the removed context was current, the first
+remaining one becomes current.
+
+## The doctor
+
+Describe a problem to `/leia` and `leia-doctor` checks, in order, stopping at the first
+failure:
+
+1. Nexus API reachable (`/healthz`)
+2. API key accepted
+3. Tenant exists and is ready
+4. Agent resource exists
+5. Node pod running
+6. Node health (`/v1/health`)
+7. Model available (`ollama list`)
+8. WhatsApp variables set, if the agent uses WhatsApp
+9. Chain declarations: a missing target, a cycle or excessive depth stops the node from
+   booting; a runtime older than core 0.38.1 ignores the chain silently. It uses
+   `GET /v1/agents/<name>/chain` and the `chain.links` of a run to tell a false condition from
+   an upstream failure
+
+It reports a table of PASS / FAIL / SKIP, one root cause in a sentence, and the exact
+commands to fix it.
