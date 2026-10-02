@@ -239,8 +239,13 @@ const rows: Row[] = [
     name: 'astromesh-prisma',
     group: 'ship',
     href: '/astromesh/prisma/introduction/',
-    note: 'Private repository, and in development — no release to point a version badge at.',
+    note: 'Private repository, in development — v0.2.1 is a GitHub release, not on PyPI yet.',
     items: [
+      shield(
+        `badge/version-v${version('prisma')}-${hex(accent('ship'))}`,
+        'Prisma version',
+        '/astromesh/prisma/introduction/',
+      ),
       shield(
         'badge/status-in%20development-6e7681?labelColor=161b22',
         'In development',

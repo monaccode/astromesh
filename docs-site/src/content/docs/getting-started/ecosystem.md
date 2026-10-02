@@ -22,7 +22,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.24.1 |
 | **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.21.0 |
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.4 |
-| **Prisma** | Turns your agent into a cloud's own native agent, running on that cloud's base resources (GCP: ADK on Agent Engine) | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | *in development* |
+| **Prisma** | Turns your agent into a cloud's own native agent, running on that cloud's base resources (GCP: ADK on Agent Engine) | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | v0.2.1 *(in development)* |
 | **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.26.4 |
 | **Herald** | Communications gateway — WhatsApp, Telegram, Instagram and web chat messages reach agents, and agents reach people back through one outbox | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.11.0 |
 | **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.5.0 |
@@ -74,7 +74,7 @@ flowchart LR
 - **Orbit** provisions cloud infrastructure with Terraform; **Nexus** is the multi-tenant managed control plane — it keeps agent specs in PostgreSQL with versioning and dispatches runs to a shared runtime pool, metering and billing what each one consumes.
 - **[Herald](/astromesh/herald/introduction/)** sits *in front* of Nexus: an inbound WhatsApp message invokes an agent, and an agent can reach a person back through the same outbox. It never talks to the runtime — whether an agent exists and who may run it is Nexus's call.
 - **[Glyph](/astromesh/glyph/introduction/)** sits *inside* the runtime: it is an orchestration pattern where the plan is a program rather than a loop. Reach for it when an agent chains five or more tools every time; not when it needs to see the data before deciding what to do next.
-- **[Prisma](/astromesh/prisma/introduction/)** is the other answer to "put this on a cloud": where Orbit provisions infrastructure *you* operate the runtime on, Prisma hands the workload to the cloud's own managed AI service and writes down what that service cannot host. It is in development — nothing to install yet.
+- **[Prisma](/astromesh/prisma/introduction/)** is the other answer to "put this on a cloud": where Orbit provisions infrastructure *you* operate the runtime on, Prisma hands the workload to the cloud's own managed AI service and writes down what that service cannot host. It is in development: v0.2.1 translates an agent and reconciles it against an in-memory gateway, but provisions nothing in a real cloud yet, and its repository is private and not on PyPI.
 - **[Nebula](/astromesh/nebula/introduction/)** sits *upstream* of the runtime: it's the open-model foundry that trains, gates, and publishes the ecosystem's own models (the [Models](/astromesh/models/) catalog the runtime routes to).
 
 ## Forge vs Cortex

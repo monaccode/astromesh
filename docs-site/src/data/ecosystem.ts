@@ -234,8 +234,8 @@ export const COMPONENTS: Component[] = [
     tagline:
       'Turns your agent into the cloud’s own native agent, on that cloud’s base resources — and writes down what does not carry over.',
     latest:
-      'An agent becomes an ADK agent config on Agent Engine, bound to Sessions, Memory Bank, the RAG corpus and Model Armor. Nothing is provisioned yet.',
-    install: 'uv sync --extra dev',
+      'An agent becomes an ADK agent config on Agent Engine, bound to Sessions, Memory Bank, the RAG corpus and Model Armor, with every gap reported. Translates and reconciles against an in-memory gateway; nothing is provisioned yet, and it is not on PyPI.',
+    install: 'uv sync && uv run uvicorn astromesh_prisma.app:app',
     href: '/astromesh/prisma/introduction/',
     repo: 'https://github.com/monaccode/astromesh-prisma',
     inDevelopment: true,
