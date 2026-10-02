@@ -1,0 +1,164 @@
+---
+title: Operations
+description: Running Herald — every flag, what an absent setting turns off, the operator console, Kubernetes deploy and release channels, and the failure modes worth knowing.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Configuration
+
+Every flag takes its default from an environment variable. `herald --help` prints the list.
+
+| Flag | Environment | Default | Notes |
+|---|---|---|---|
+| `--database-url` | `DATABASE_URL` | — | Required |
+| `--nexus-url` | `NEXUS_URL` | — | Required. Every inbound message runs an agent behind it |
+| `--enc-key` | `HERALD_ENC_KEY` | — | Required. Seals channel credentials; create once, never rotate |
+| `--admin-token` | `HERALD_ADMIN_TOKEN` | empty | Empty: no `/admin`. Set: at least 32 bytes |
+| `--send-keys` | `HERALD_SEND_KEYS` | empty | `tenant:key,tenant:key`. Empty: no tenant send API. A malformed or repeated pair stops the boot |
+| `--trusted-sender-key` | `HERALD_TRUSTED_SENDER_KEY` | empty | Empty: no `send-on-behalf` or identity lookup. Set: at least 32 bytes |
+| `--addr` | — | `:8081` | |
+| `--outbox-poll-interval` | — | `500ms` | Must stay below the 1.5 s pause between fragments |
+| `--agent-run-timeout` | `HERALD_AGENT_RUN_TIMEOUT` | `120s` | One whole agent turn. An unparseable value falls back to the default |
+| `--public-base-url` | `HERALD_PUBLIC_BASE_URL` | empty | Herald's public root, for channels that register their webhook (Telegram) |
+| `--whatsapp-app-secret` | `WHATSAPP_APP_SECRET` | empty | With the verify token, turns WhatsApp on |
+| `--whatsapp-verify-token` | `WHATSAPP_VERIFY_TOKEN` | empty | |
+| `--whatsapp-graph-base-url` | `WHATSAPP_GRAPH_BASE_URL` | `…/v21.0` | |
+| `--whatsapp-emulated-number` | `HERALD_WHATSAPP_EMULATED_NUMBER` | empty | Comma-separated ids to emulate |
+| `--telegram-webhook-secret` | `TELEGRAM_WEBHOOK_SECRET` | empty | Turns Telegram on |
+| `--telegram-api-base-url` | `TELEGRAM_API_BASE_URL` | `https://api.telegram.org` | |
+| `--instagram-app-secret` | `HERALD_INSTAGRAM_APP_SECRET` | empty | With the verify token, turns Instagram on |
+| `--instagram-verify-token` | `HERALD_INSTAGRAM_VERIFY_TOKEN` | empty | |
+| `--instagram-graph-base-url` | `HERALD_INSTAGRAM_GRAPH_BASE_URL` | `…/v21.0` | |
+| `--instagram-emulated-account` | `HERALD_INSTAGRAM_EMULATED_ACCOUNT` | empty | Comma-separated ids to emulate |
+| `--enable-echo` | `HERALD_ENABLE_ECHO` | `false` | Unauthenticated development channel |
+| `--enable-webchat` | `HERALD_ENABLE_WEBCHAT` | `false` | Web chat channel and its admin routes |
+| `--ui` | `HERALD_UI` | `true` | Embedded console at `/ui/` |
+
+Boolean variables only count as on with `true` or `1`. Anything else, including a typo, is
+off, because echo and web chat open routes that run agents.
+
+### What an absent setting turns off
+
+Herald treats a missing setting as a decision. Before debugging a `404`, check this table.
+
+| Missing | Effect |
+|---|---|
+| `admin-token` | No `/admin`, and the console has nothing to read |
+| `send-keys` | No `/api/v1/messages/send` or status route |
+| `trusted-sender-key` | No `send-on-behalf`: agents' `send_message` calls fail at Nexus |
+| Both WhatsApp secrets | `/webhooks/whatsapp` is `404`; other channels still work |
+| One WhatsApp or Instagram secret | The process **exits at boot** |
+| `telegram-webhook-secret` | `/webhooks/telegram` is `404` |
+| `public-base-url` | Creating a Telegram account is refused |
+| `enc-key`, `database-url`, `nexus-url` | The process does not start |
+
+## The operator console
+
+A React console embedded in the binary, served at `/ui/` (`/` redirects there). Its files
+carry no data; everything it shows comes from the token-protected `/admin` API, so signing
+in means pasting the admin token. A tenant filter and a time window apply across screens.
+
+| Screen | Shows |
+|---|---|
+| **Overview** | Messages per day and per channel, active conversations, outbox by status |
+| **Conversations** | Conversations by latest activity, and each one's message thread |
+| **Outbox** | Every delivery with its status, attempts out of 10 and last error; the operator test send |
+| **Bindings** | Routing rules: create, edit (config is merged), delete; webhook-only bindings without an agent |
+| **Accounts** | Channel accounts with masked credentials: create, delete |
+
+## Deploy
+
+Kustomize base plus two overlays, each an ArgoCD Application with an Image Updater. There
+is no production overlay yet.
+
+| Overlay | Namespace | Image | Notes |
+|---|---|---|---|
+| `dev` | `herald-dev` | `:dev`, rebuilt on every push to `develop` | WhatsApp and Instagram emulators on, web chat on, run timeout 300 s |
+| `mvp` | `herald-mvp` | `:mvp` and immutable `:X.Y.Z`, built when the `mvp` tag moves | WhatsApp emulator on, web chat on |
+
+Both include an in-cluster PostgreSQL component. The image is multi-stage
+(`node` for the console, `go`, then `alpine`) and runs as non-root.
+
+**How a change reaches a cluster.** On `dev`, a push to `develop` publishes `:dev`; Image
+Updater sees the new digest and pins it into the Application, and ArgoCD rolls out. Nothing
+is committed back to git. On `mvp`, `/deploy-mvp` merges `develop` into `main` and moves the
+`mvp` tag. CI publishes `:mvp` and `:X.Y.Z`, and the same mechanism rolls it out. The tag is
+the gate: until it moves, `mvp` stays where it was. Use `/deploy-dev` to cut a release and
+`/deploy-mvp` to promote it.
+
+### First-time setup
+
+```sh
+deploy/bootstrap.sh dev        # or mvp
+```
+
+It creates four Secrets outside git, then applies the Application and the Image Updater:
+
+| Secret | Contents |
+|---|---|
+| `herald-postgres` | PostgreSQL user and password |
+| `herald-db` | `database-url`, pointing at the in-namespace PostgreSQL |
+| `herald-secrets` | `enc-key`, `admin-token`, `send-keys`, `trusted-sender-key`. Channel secrets (WhatsApp, Telegram, Instagram) are patched in afterwards |
+| `ghcr-pull` | Registry credentials for the private image |
+
+The script is idempotent and **never modifies `herald-secrets` once it exists**, because
+regenerating `enc-key` would strand every stored channel credential. It prints the admin
+token once, only when it created it. To read it later:
+
+```sh
+kubectl -n herald-dev get secret herald-secrets -o jsonpath='{.data.admin-token}' | base64 -d; echo
+```
+
+<Aside type="note">
+Expect one or two restarts on a brand-new namespace. Herald exits if it cannot reach
+PostgreSQL at boot, and on the first sync the database Service may not have DNS yet. A
+crash loop in the first minute is that; past the database becoming Ready, read the logs.
+</Aside>
+
+### Before a manifest ships
+
+```sh
+make verify-manifests   # renders both overlays and checks every flag exists in the binary
+```
+
+The Lint workflow runs it too, so a broken overlay fails CI instead of `kubectl apply`.
+
+## Things that bite
+
+- **Herald must be reachable from the internet.** Meta and Telegram deliver over HTTPS
+  only, so the Ingress host and its certificate are required. Changing the host means
+  updating Meta's callback URL and re-registering Telegram bots.
+- **Nexus lives in another namespace.** `NEXUS_URL` must be the cross-namespace name
+  (`http://nexus.nexus-dev.svc.cluster.local:8080`). A Herald that cannot reach Nexus still
+  accepts webhooks and answers every one with the fallback message.
+- **Emulators on an environment with real traffic.** `mvp` turns the WhatsApp emulator on
+  to validate flows before production. Clear it the day `mvp` takes real customers.
+- **Health is liveness only.** Both probes use `/healthz`, which says the process serves
+  HTTP, not that PostgreSQL or Nexus are reachable.
+- **`manifestTargets` in the Image Updater manifests is required.** Without it the updater
+  reports success every cycle while the Deployment keeps the mutable tag.
+
+## Development
+
+```sh
+make build            # bin/herald
+make ui-build         # builds the console into internal/webui/dist
+make test             # unit tests; PostgreSQL tests run when HERALD_TEST_DATABASE_URL is set
+make lint             # golangci-lint, pinned into bin/
+make docker-build     # astromesh-herald:<VERSION>
+```
+
+The end-to-end tests run the whole inbound pipeline against the echo channel, a fake Nexus
+and an in-memory store. The WhatsApp adapter's tests replay Meta's own webhook examples. The
+forwarding test uses the real WhatsApp adapter and the real webhook client against fake
+Graph and consumer servers that recompute the signature independently.
+
+## Limits today
+
+- Agents receive text only: inbound media reaches them as a description, not as a file.
+- One media attachment per outbound message.
+- Templates on WhatsApp only, with body parameters only.
+- `reply_to` on Telegram only.
+- No metrics endpoint and no OpenTelemetry. Logs are structured JSON on stdout.
+- SMTP, push notifications and SMS are not channels.

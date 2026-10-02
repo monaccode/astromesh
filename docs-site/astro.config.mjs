@@ -207,9 +207,21 @@ export default defineConfig({
           label: 'Astromesh Herald',
           items: [
             { label: 'Introduction', slug: 'herald/introduction' },
+            { label: 'Architecture', slug: 'herald/architecture' },
             { label: 'Quick Start', slug: 'herald/quickstart' },
-            { label: 'WhatsApp Setup', slug: 'herald/whatsapp' },
+            { label: 'Building Agents', slug: 'herald/agents' },
+            {
+              label: 'Channels',
+              items: [
+                { label: 'WhatsApp', slug: 'herald/whatsapp' },
+                { label: 'Telegram', slug: 'herald/telegram' },
+                { label: 'Instagram', slug: 'herald/instagram' },
+                { label: 'Web Chat', slug: 'herald/webchat' },
+              ],
+            },
+            { label: 'Webhook Forwarding', slug: 'herald/forwarding' },
             { label: 'API Reference', slug: 'herald/api-reference' },
+            { label: 'Operations', slug: 'herald/operations' },
           ],
         },
         {

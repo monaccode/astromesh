@@ -1,0 +1,172 @@
+---
+title: Building Agents for Herald
+description: What an agent behind Herald receives on every message, how it routes a conversation, splits an answer into several messages, and reaches a person on its own.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+An agent behind Herald is an ordinary Astromesh agent published in
+[Nexus](/astromesh/nexus/introduction/). Herald calls it once per inbound message. This page
+covers what that call carries and the conventions the agent can use in its answer.
+
+## What the agent receives
+
+Each inbound message becomes one run:
+
+```json
+{
+  "query": "hola, quiero saber mi saldo",
+  "session_id": "telegram__123456789",
+  "context": {
+    "channel": "telegram",
+    "sender": "123456789",
+    "sender_phone": "+5491100000001",
+    "message_id": "123456789:42",
+    "is_new_conversation": true,
+    "contact_name": "Ana Pérez",
+    "fecha": "2026-09-20",
+    "recibido_en": "2026-09-20T14:03:11Z",
+    "reply_to": null
+  }
+}
+```
+
+### `query`
+
+The message text, or the media caption on WhatsApp and Telegram. A message with no text does not reach
+the agent empty, because an empty user turn makes the model provider reject the whole
+request. It becomes a short bracketed description instead:
+
+| What arrived | `query` |
+|---|---|
+| A contact the person shared about themselves | `[el usuario compartió su número de contacto]` |
+| An image, audio, video or document with no text | `[el usuario envió una imagen, sin texto]` (and so on for each kind) |
+| Anything else with no text | `[el usuario envió un mensaje sin texto]` |
+
+<Aside type="caution">
+This is not attachment support. The agent never receives the file itself. What it gets is
+enough to say that it cannot read it. To process media, forward the binding to an external
+service instead (see [Webhook Forwarding](/astromesh/herald/forwarding/)).
+</Aside>
+
+### `session_id`
+
+`<channel>__<external_user>`, for example `whatsapp__5491100000001`. It stays the same for
+every message in the conversation, so the agent's conversational memory carries over.
+
+### `context`
+
+| Key | Content |
+|---|---|
+| `channel` | `whatsapp`, `telegram`, `instagram`, `webchat` or `echo` |
+| `sender` | The channel address of the person: a phone on WhatsApp, a chat id on Telegram, an Instagram-scoped id, a visitor id on web chat |
+| `sender_phone` | A phone the agent can rely on. On WhatsApp it is the sender itself. On other channels it is the phone the person verified, or an empty string |
+| `message_id` | The provider's message id (`chat_id:message_id` on Telegram) |
+| `is_new_conversation` | `true` when no conversation existed and the entry agent is answering |
+| `contact_name` | The name the channel reports for the sender, when it has one |
+| `fecha` | The UTC date the message arrived, `YYYY-MM-DD` |
+| `recibido_en` | The UTC instant it arrived, RFC 3339 |
+| `reply_to` | The message being quoted, or `null`. Always present |
+
+`fecha` and `recibido_en` exist because a model has no clock. Use them for "today" instead of
+guessing.
+
+### `reply_to`
+
+When someone uses Telegram's "reply" on a message, `reply_to` describes the quoted one:
+
+```json
+{
+  "texto": "¿Cuántas unidades vendiste ayer?",
+  "message_id": "123456789:40",
+  "del_bot": true,
+  "enviado_el": "2026-09-20T13:58:02Z"
+}
+```
+
+With several questions open, "10" alone does not say which one it answers; the quoted text
+does. Check `del_bot`: a person quoting their own message is not answering one of yours.
+
+`reply_to` is only filled on Telegram. WhatsApp sends just the quoted message id, and Herald
+does not keep outbound ids yet, so it stays `null` there and on Instagram.
+
+## Routing a new conversation
+
+When `is_new_conversation` is `true`, the agent answering is the binding's **entry agent**.
+It decides what happens next by returning `data.route` alongside its answer:
+
+```json
+{
+  "answer": "Te paso con el área de reclamos.",
+  "data": {
+    "route": { "start_session": true, "handoff_agent": "reclamos" }
+  }
+}
+```
+
+| `data.route` | What Herald does |
+|---|---|
+| Absent | Opens the conversation with the entry agent |
+| `start_session: true` | Opens it, owned by `handoff_agent` if given, else by the entry agent |
+| `start_session: false` | Opens nothing. The answer is still delivered, and the next message goes to the entry agent again |
+
+The agent named in `handoff_agent` answers from the **next** message on. This turn's answer
+is the entry agent's.
+
+`start_session: false` is how an entry agent answers a wrong number or a message it will not
+handle without opening a conversation that would last forever.
+
+## Answering in several messages
+
+Write `[[+]]` between the parts of an answer and each part is delivered as its own message,
+1.5 seconds apart:
+
+```text
+¡Hola Ana! [[+]] Tu saldo al día de hoy es de $12.400. [[+]] ¿Querés que te mande el detalle?
+```
+
+- It is one model call and one answer. The split happens in Herald.
+- Empty parts are dropped. From the sixth part on, everything is joined into the fifth
+  message.
+- An agent that never writes the marker sends one message, as always.
+
+Turn it on in the agent's prompt; there is no configuration for it.
+
+## When the agent fails
+
+If the run fails for any reason, the person receives the binding's `fallback_message`, so a
+model provider outage or a deleted agent does not mean silence. A binding without a fallback
+message sends nothing in that case. Set one on every binding that faces customers.
+
+## Reaching a person mid-run
+
+An agent can start a conversation, or write again later, with the
+[`send_message`](/astromesh/reference/core/builtin-tools/) builtin tool:
+
+```
+agent (send_message)
+  → runtime  POST /api/v1/runs/messages/send          on Nexus, with the run token
+  → Nexus    POST /api/v1/messages/send-on-behalf     on Herald, with X-Herald-Sender-Key
+  → Herald   outbox → channel adapter → the person
+```
+
+Nexus mints a token per invocation, valid for one tenant and one run, and puts it in the run
+context as `_nexus_run_token`. The shared runtime pool never holds a tenant secret. Herald
+answers with a message id as soon as the message is queued.
+
+On WhatsApp, a free-text message only reaches someone who wrote in the last 24 hours. A cold
+contact needs a pre-approved template (see [WhatsApp](/astromesh/herald/whatsapp/#the-24-hour-window)).
+
+## Telegram identity
+
+On Telegram, `sender` is a chat id, not a phone. An agent that looks people up by phone
+finds nobody until the person shares their number. With `pedir_contacto: true` in the
+binding's config, every reply goes out with a **📱 Compartir mi número** button until Herald
+holds a verified phone for that person. The contact counts only when it is the person's
+own account, so nobody can verify someone else's number. From then on it arrives in
+`sender_phone`. See [Telegram](/astromesh/herald/telegram/#identity).
+
+## Next steps
+
+- [Architecture](/astromesh/herald/architecture/) — what happens around the run call
+- [WhatsApp](/astromesh/herald/whatsapp/) · [Telegram](/astromesh/herald/telegram/) · [Instagram](/astromesh/herald/instagram/) · [Web Chat](/astromesh/herald/webchat/)

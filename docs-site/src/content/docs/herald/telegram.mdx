@@ -1,0 +1,145 @@
+---
+title: Telegram
+description: Connect Telegram bots to Herald — one secret per deployment, a bot token per account, webhook registration on account creation, verified phone identity and quoted replies.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Telegram works differently from Meta's channels in four ways that shape its setup:
+
+- **Herald registers the webhook itself.** Telegram's webhook is set per bot, so creating
+  the channel account calls `setWebhook`. There is no dashboard step.
+- **The bot is named in the URL.** A Telegram update names the chat, never the bot it
+  reached, so each bot delivers to `/webhooks/telegram/<bot id>`.
+- **Authentication is a shared secret** that Herald chooses and Telegram echoes back on
+  every delivery in `X-Telegram-Bot-Api-Secret-Token`. It is not an HMAC of the body.
+- **No 24-hour window and no templates.** Any message can be sent at any time.
+
+## Setup
+
+<Steps>
+
+1. **Create the bot** with [@BotFather](https://t.me/BotFather) (`/newbot`) and note its
+   token. The bot id is the number before the `:` in the token.
+
+2. **Start Herald with the channel on.**
+
+   ```sh
+   HERALD_PUBLIC_BASE_URL="https://<your-herald-host>" \
+   TELEGRAM_WEBHOOK_SECRET="<a secret only Herald and Telegram know>" \
+   ./bin/herald   # plus the required settings from the Quick Start
+   ```
+
+   The secret alone registers the channel. `HERALD_PUBLIC_BASE_URL` must be Herald's real
+   public HTTPS root, because that is what Telegram is told to call.
+
+3. **Register the bot as a channel account.** This one call also points the bot at Herald.
+
+   ```sh
+   curl -X POST localhost:8081/admin/accounts \
+     -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" -H "Content-Type: application/json" \
+     -d '{"tenant_id":"tenant-1","channel":"telegram",
+          "external_id":"<bot id>",
+          "credentials":{"bot_token":"<bot token>"}}'
+   ```
+
+   Herald calls `setWebhook` **before** saving the account, with
+   `url = <public base>/webhooks/telegram/<bot id>`, the secret and
+   `allowed_updates: ["message"]`. If Telegram refuses, the request fails with `502` and
+   nothing is saved, so a `201` means the bot is already live. Without a public base URL or
+   a secret, account creation is refused instead of leaving a bot that never receives.
+
+4. **Bind it to an entry agent**, the same way as [on WhatsApp](/astromesh/herald/whatsapp/#setup)
+   but with `"channel":"telegram"`.
+
+</Steps>
+
+## What arrives
+
+| Update | Reaches the agent as |
+|---|---|
+| Text | The text |
+| Photo, document, voice note, audio, video | The caption, or a bracketed description when there is none. Photos keep the largest size |
+| A contact the person shared about themselves | `[el usuario compartió su número de contacto]`, and the phone is stored as verified |
+| A reply to an earlier message | The text, plus the quoted message in `context.reply_to` |
+| Edited messages, joins, polls… | Not requested from Telegram |
+
+`sender` is the chat id. The message id is `chat_id:message_id`, because Telegram numbers
+messages per chat. `contact_name` is the sender's first and last name, or their username.
+
+### Quoted replies
+
+When someone answers with Telegram's "reply", the agent receives the quoted message:
+
+| Field | Content |
+|---|---|
+| `texto` | The quoted message's text or caption |
+| `message_id` | `chat_id:message_id` of the quoted message |
+| `del_bot` | Whether the quoted message was the bot's |
+| `enviado_el` | When it was sent, UTC |
+
+See [Building Agents](/astromesh/herald/agents/#reply_to) for how to use it.
+
+## Identity
+
+On Telegram, `sender` is a chat id, so an agent that looks people up by phone finds nobody.
+The only way to learn the phone without inventing authentication is Telegram's
+`request_contact` button: the person taps it and Telegram attaches the number of **their
+own** account.
+
+Turn it on per binding:
+
+```sh
+curl -X PUT localhost:8081/admin/bindings/<binding id> \
+  -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"config":{"pedir_contacto":true}}'
+```
+
+With `pedir_contacto` on, every text reply to someone without a verified phone carries a
+**📱 Compartir mi número** button. When they tap it:
+
+1. Herald accepts the contact only if `contact.user_id` matches the sender. Otherwise anyone
+   could verify someone else's number by forwarding a contact.
+2. The phone is normalised with a leading `+` and stored for `(tenant, channel, chat id)`.
+3. The agent runs with the bracketed query above and the phone in `sender_phone`, and so
+   does every later message from that person.
+4. The button stops appearing.
+
+It is off by default because the button replaces the person's keyboard. A catalogue or an
+FAQ bot that never needs to identify anyone should leave it off.
+
+Another service can ask which chat verified a phone with
+[`GET /api/v1/identities/resolve`](/astromesh/herald/api-reference/#get-apiv1identitiesresolve).
+
+## Sending
+
+| Send | Bot API method |
+|---|---|
+| Text | `sendMessage` |
+| Image, document, video, audio | `sendPhoto`, `sendDocument`, `sendVideo`, `sendAudio` by public URL, with an optional caption |
+| Template | Not supported; fails permanently |
+
+The recipient is the chat id. Inbound files are fetched with `getFile`, up to 8 MiB, only
+when a forwarding binding needs them.
+
+A `4xx` from the Bot API is treated as permanent, except `401`, `403`, `408` and `429`,
+which are retried. The bot token is part of every Bot API URL, so Herald strips URLs from
+network errors before they are stored in the outbox.
+
+<Aside type="caution">
+`setWebhook` replaces any previous webhook for that bot. Registering the same bot in two
+Herald environments leaves only the last one receiving.
+</Aside>
+
+## Configuration
+
+| Flag | Environment | Default |
+|---|---|---|
+| `--telegram-webhook-secret` | `TELEGRAM_WEBHOOK_SECRET` | empty (channel off) |
+| `--public-base-url` | `HERALD_PUBLIC_BASE_URL` | empty |
+| `--telegram-api-base-url` | `TELEGRAM_API_BASE_URL` | `https://api.telegram.org` |
+
+## Next steps
+
+- [Building Agents for Herald](/astromesh/herald/agents/) — `reply_to`, `sender_phone` and the rest of the context
+- [API Reference](/astromesh/herald/api-reference/) — accounts, bindings and identity lookup

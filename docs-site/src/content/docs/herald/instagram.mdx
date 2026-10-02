@@ -1,0 +1,115 @@
+---
+title: Instagram
+description: Connect Instagram direct messages to Herald through Meta's Messaging API — what Meta must approve first, setup, what arrives, and the emulator for testing before approval.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Instagram is a Meta channel, so it follows WhatsApp's pattern: one Meta app per Herald
+deployment, a process-level app secret and verify token, and one channel account per
+Instagram professional account with its own access token. It differs from WhatsApp in three
+ways:
+
+- **No templates.** There is no way to write outside Meta's 24-hour window, so a cold
+  contact is impossible on Instagram, not just harder.
+- **Messenger-shaped payloads** (`entry[].messaging[]`), not WhatsApp's.
+- **Inbound media is an expiring CDN URL**, not a media id. Herald downloads it only when a
+  forwarding binding needs it.
+
+## Before you start
+
+Three things outside Herald must be true before real traffic flows. None of them is Herald
+configuration:
+
+1. An Instagram **professional** account linked to a Facebook page.
+2. The `instagram_manage_messages` permission **approved in Meta's App Review**, which can
+   take weeks.
+3. The Meta app subscribed to the Instagram webhook, pointing at Herald.
+
+Until App Review clears, the [emulator](#the-emulator) is the way to test the channel end to
+end.
+
+## Setup
+
+<Steps>
+
+1. **Configure the Meta app.** Add the Instagram product, note the **App secret** and invent
+   a **verify token**.
+
+2. **Start Herald with the channel on.**
+
+   ```sh
+   HERALD_INSTAGRAM_APP_SECRET="<app secret>" \
+   HERALD_INSTAGRAM_VERIFY_TOKEN="<your invented token>" \
+   ./bin/herald   # plus the required settings from the Quick Start
+   ```
+
+   Set both or neither; one without the other stops the boot.
+
+3. **Subscribe the webhook** in Meta's dashboard with the callback URL
+   `https://<your-herald-host>/webhooks/instagram` and the same verify token.
+
+4. **Register the professional account** as a channel account:
+
+   ```sh
+   curl -X POST localhost:8081/admin/accounts \
+     -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" -H "Content-Type: application/json" \
+     -d '{"tenant_id":"tenant-1","channel":"instagram",
+          "external_id":"<Instagram account id>",
+          "credentials":{"access_token":"<access token>"}}'
+   ```
+
+5. **Bind it to an entry agent**, the same way as [on WhatsApp](/astromesh/herald/whatsapp/#setup)
+   but with `"channel":"instagram"`.
+
+</Steps>
+
+## What arrives
+
+| Event | Reaches the agent as |
+|---|---|
+| A text message | The text |
+| Image, audio, video or file | A bracketed description, unless the message also has text |
+| A story mention or a shared post | Treated as an image |
+| Echoes of the account's own messages, reads, deliveries | Ignored |
+
+`sender` is the Instagram-scoped id of the person, and it is also the recipient for any
+reply. Instagram does not report a name or a phone, so `contact_name` and `sender_phone` are
+empty, and `reply_to` is always `null`.
+
+## Sending
+
+Text and one attachment per message (`image`, `audio`, `video` or `file`, by public URL) go
+to `POST /<account id>/messages` on the Graph API with the account's access token as a
+Bearer token. Templates fail permanently.
+
+## The emulator
+
+`HERALD_INSTAGRAM_EMULATED_ACCOUNT` takes one Instagram account id, or a comma-separated
+list, whose sends are recorded instead of reaching Meta. The rules are the same as
+[WhatsApp's emulator](/astromesh/herald/whatsapp/#the-emulator), including the per-account
+`emulated` flag and the environment gate. Pass `"canal":"instagram"` to the emulator routes:
+
+```sh
+curl -X POST localhost:8081/admin/emulator/inbound \
+  -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"canal":"instagram","cuenta":"<emulated account id>","desde":"<igsid>","texto":"hola"}'
+
+curl "localhost:8081/admin/emulator/outbox?canal=instagram&cuenta=<emulated account id>" \
+  -H "X-Admin-Token: $HERALD_ADMIN_TOKEN"
+```
+
+<Aside type="note">
+The Instagram adapter was built from Meta's documentation and exercised through the
+emulator. Some payload details are marked in the code as still to be confirmed against a
+real delivery once App Review clears.
+</Aside>
+
+## Configuration
+
+| Flag | Environment | Default |
+|---|---|---|
+| `--instagram-app-secret` | `HERALD_INSTAGRAM_APP_SECRET` | empty |
+| `--instagram-verify-token` | `HERALD_INSTAGRAM_VERIFY_TOKEN` | empty |
+| `--instagram-graph-base-url` | `HERALD_INSTAGRAM_GRAPH_BASE_URL` | `https://graph.facebook.com/v21.0` |
+| `--instagram-emulated-account` | `HERALD_INSTAGRAM_EMULATED_ACCOUNT` | empty (emulator off) |
