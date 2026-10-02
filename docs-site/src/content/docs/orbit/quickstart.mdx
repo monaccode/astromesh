@@ -1,73 +1,63 @@
 ---
 title: Quick Start
-description: Deploy Astromesh to GCP in under 10 minutes
+description: Provision an Astromesh runtime on Google Cloud with Orbit — install, configure, plan, apply, verify and clean up.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-Get from zero to a production Astromesh stack on GCP in under 10 minutes.
+**You need:**
 
-**Prerequisites:**
 - Python 3.12+
-- [Terraform](https://developer.hashicorp.com/terraform/install) installed and on `PATH`
-- A GCP project with billing enabled
-- `gcloud` CLI authenticated (`gcloud auth login`)
+- [OpenTofu](https://opentofu.org/docs/intro/install/) or Terraform. Orbit uses `$TOFU_PATH`,
+  then `tofu`, then `terraform` from your `PATH`.
+- A GCP project with billing enabled.
+- Credentials: `gcloud auth login`, **or** `GOOGLE_APPLICATION_CREDENTIALS` pointing at a
+  service-account key. With a key, Orbit also sets up the private services access Cloud SQL
+  needs; with `gcloud` you set it up once yourself (see
+  [GCP Provider](/astromesh/orbit/gcp-provider/#private-services-access)).
 
 <Steps>
 
-1. ## Install Orbit
-
-   Install `astromesh-orbit` with the GCP provider extra, next to `astromesh-cli` (which provides `astromeshctl`; Orbit plugs into it):
+1. ## Install
 
    ```bash
    pip install astromesh-cli "astromesh-orbit[gcp]"
-   ```
-
-   Verify the installation:
-
-   ```bash
    astromeshctl orbit --help
    ```
 
-   ```
-   Usage: astromeshctl orbit [OPTIONS] COMMAND [ARGS]...
+   The `gcp` extra brings the Google client libraries used for validation, the state bucket
+   and VPC peering.
 
-   Cloud-native deployment for Astromesh.
+2. ## Enable the APIs
 
-   Commands:
-     init     Interactive setup — generates orbit.yaml.
-     plan     Preview infrastructure changes.
-     apply    Deploy infrastructure to the cloud.
-     status   Show deployment status.
-     logs     Read the runtime service's logs from Cloud Logging.
-     destroy  Destroy all provisioned infrastructure.
-     eject    Export standalone Terraform files.
-     upgrade  Re-render Terraform templates (after an Orbit package update) and show what changes.
+   ```bash
+   gcloud services enable run.googleapis.com sqladmin.googleapis.com redis.googleapis.com \
+     secretmanager.googleapis.com vpcaccess.googleapis.com storage.googleapis.com \
+     artifactregistry.googleapis.com monitoring.googleapis.com cloudtrace.googleapis.com \
+     logging.googleapis.com --project my-project-123
    ```
 
-2. ## Initialize Configuration
+   Orbit checks these ten but never enables them for you.
 
-   Run the interactive wizard to generate your `orbit.yaml`:
+3. ## Write orbit.yaml
 
    ```bash
    astromeshctl orbit init
    ```
 
-   The wizard asks for the project, region, deployment name, environment and preset (`starter` ~$15/mo or `pro` ~$80/mo), then writes `orbit.yaml` and adds `.orbit/` to `.gitignore`.
+   The wizard asks for the project, the region, a deployment name, the environment
+   (`develop`, `staging` or `production`) and a preset: `starter` (about $15/month) or `pro`
+   (about $80/month, with HA database and cache). It writes `orbit.yaml` and adds `.orbit/` to
+   `.gitignore`. `--preset starter` skips that question.
 
-   <Aside type="note">
-     The environment is `develop`, `staging` or `production`. Orbit before **v0.4.3** offered `dev`, which the schema rejects — change it to `develop` in a file written by an older wizard.
-   </Aside>
-
-3. ## Preview Changes
-
-   Run `orbit plan` to validate your configuration and preview what Terraform will create:
+4. ## Plan
 
    ```bash
    astromeshctl orbit plan
    ```
 
-   Orbit checks your credentials, the project and the required APIs, creates the Terraform state bucket if needed, renders `.orbit/generated/` and runs `terraform plan`:
+   Orbit validates credentials, project and APIs, creates the state bucket if needed, renders
+   `.orbit/generated/` and runs `plan`:
 
    ```
      Orbit Deployment Plan
@@ -75,61 +65,55 @@ Get from zero to a production Astromesh stack on GCP in under 10 minutes.
      Validating... OK
      OK State bucket created: gs://my-project-123-astromesh-orbit-state
 
-     Resources to create: 19
-     Resources to update: 0
-     Resources to destroy: 0
+     Resources to create: …
    ```
 
-   <Aside type="tip">
-     If a required GCP API is not enabled, validation fails and prints the `gcloud services enable` command to run. See [GCP Provider](/astromesh/orbit/gcp-provider/#required-gcp-apis) for the full list.
+   A failed check prints the command that fixes it and exits with code 1.
+
+   <Aside type="note">
+   The three counts come from scanning the plan's text and include attribute lines, so they
+   run high. For the exact plan, run `tofu plan` in `.orbit/generated/`.
    </Aside>
 
-4. ## Deploy
-
-   Apply the plan to provision your stack:
+5. ## Apply
 
    ```bash
    astromeshctl orbit apply
    ```
 
-   `apply` does not prompt — it runs `terraform apply -auto-approve` — so review the plan first. When it finishes it prints the runtime URL and writes `.orbit/orbit.env` with the Terraform outputs.
+   It asks before creating billable resources (`--auto-approve` skips the question, for CI),
+   then validates again and applies. The first apply takes several minutes; Cloud SQL and
+   Memorystore are the slow ones. At the end it prints the runtime URL and writes
+   `.orbit/orbit.env`.
 
-5. ## Verify
-
-   Check the status of your deployment:
+6. ## Verify
 
    ```bash
    astromeshctl orbit status
+   curl "$(grep RUNTIME_URL .orbit/orbit.env | cut -d= -f2)/v1/health"
    ```
 
-   It lists the `astromesh-runtime` Cloud Run service with its status and URL, and the state bucket.
+   `status` lists `astromesh-runtime` with its URL. `orbit logs --since 10m` shows what the
+   container printed.
 
-   Test the runtime health endpoint:
+   To use the runtime from [Cortex](/astromesh/cortex/runtimes/#google-cloud-run), add its URL
+   as a remote runtime connection.
 
-   ```bash
-   curl https://astromesh-runtime-abc123.run.app/v1/health
-   ```
-
-   ```json
-   {"status": "ok", "version": "0.59.0"}
-   ```
-
-6. ## Clean Up (optional)
-
-   When you are done, tear down everything:
+7. ## Clean up
 
    ```bash
    astromeshctl orbit destroy
    ```
 
-   <Aside type="note">
-     The state bucket is not deleted by `orbit destroy` — it contains the record of what was destroyed. You can remove it manually with `gsutil rm -r gs://my-project-123-astromesh-orbit-state` after confirming everything is torn down.
-   </Aside>
+   It asks first, then destroys everything Orbit created. The RAG bucket is created with
+   `force_destroy = false`, so empty it before destroying or the destroy stops there. The state
+   bucket is kept: delete it by hand once you are sure, with
+   `gsutil rm -r gs://my-project-123-astromesh-orbit-state`.
 
 </Steps>
 
-## What's Next
+## Next steps
 
-- [Configuration](/astromesh/orbit/configuration/) — Customize every aspect of your deployment
-- [GCP Provider](/astromesh/orbit/gcp-provider/) — Understand the GCP resource mapping
-- [CLI Reference](/astromesh/orbit/cli-reference/) — Full command documentation
+- [Configuration](/astromesh/orbit/configuration/) — tune compute, database, cache, storage and observability
+- [GCP Provider](/astromesh/orbit/gcp-provider/) — what each resource is and what the runtime receives
+- [CLI Reference](/astromesh/orbit/cli-reference/)

@@ -12,7 +12,7 @@ astromeshctl orbit <command> [options]
 ```
 
 <Aside type="note">
-  `plan`, `apply`, `destroy` and `status` shell out to Terraform, which must be installed and on your `PATH`. If it is not found, the command prints installation instructions and exits with code 1.
+  `plan`, `apply`, `destroy`, `status` and `upgrade` need OpenTofu or Terraform. Orbit uses `$TOFU_PATH` if it points at a file, then `tofu`, then `terraform` from your `PATH`. Every command runs it with `-lock=false`.
 </Aside>
 
 Every command that reads a config exits with code 1 and `orbit.yaml not found. Run 'astromeshctl orbit init' first.` when the file is missing.
@@ -97,10 +97,13 @@ astromeshctl orbit plan
   Validating... OK
   OK State bucket exists: gs://my-project-123-astromesh-orbit-state
 
-  Resources to create: 19
-  Resources to update: 0
-  Resources to destroy: 0
+  Resources to create: …
+  Resources to update: …
+  Resources to destroy: …
 ```
+
+The counts come from scanning the plan's text and include attribute lines, so they run high. For
+the exact plan, run `tofu plan` in `.orbit/generated/`.
 
 **Failure example — API not enabled:**
 
@@ -170,6 +173,7 @@ astromeshctl orbit apply --config orbit.prod.yaml
 - Creates the Terraform state bucket if needed
 - Writes `.orbit/orbit.env` with the Terraform outputs
 - Idempotent — safe to re-run after a partial failure
+- Validates again before applying; with a service-account key, also sets up private services access
 
 ---
 
@@ -204,7 +208,7 @@ astromeshctl orbit status
   State bucket: my-project-123-astromesh-orbit-state
 ```
 
-The status is `running` when the `runtime_url` output exists and `not_found` otherwise; it does not query each cloud resource.
+The status is `running` when the `runtime_url` output exists and `not_found` otherwise; it does not query the service or any other resource. It reads the outputs from `.orbit/generated/`, so run it from the project where you applied.
 
 **Side effects:**
 - Reads Terraform outputs (read-only)
