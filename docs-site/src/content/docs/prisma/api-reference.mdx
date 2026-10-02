@@ -1,0 +1,80 @@
+---
+title: API Reference
+description: Prisma's HTTP routes — submit, list, read, translate and reconcile manifests.
+---
+
+Prisma is a FastAPI app (`astromesh_prisma.app:app`). Every route takes or returns JSON; a manifest
+travels as its YAML text in a `yaml` field. There is no authentication.
+
+| Method | Route | Does |
+|---|---|---|
+| `POST` | `/v1/specs` | Submit a manifest |
+| `GET` | `/v1/specs` | List submitted manifests |
+| `GET` | `/v1/specs/{kind}/{name}` | Return one submitted manifest |
+| `POST` | `/v1/specs/{kind}/{name}/reconcile` | Drive the cloud toward it |
+| `POST` | `/v1/translate` | Show what a manifest becomes, without storing it |
+
+`kind` is `Agent` or `RAGPipeline`. Submitted manifests are kept in memory.
+
+## `POST /v1/specs`
+
+```json
+{"yaml": "apiVersion: astromesh/v1\nkind: Agent\nmetadata:\n  name: support-agent\n…"}
+```
+
+Returns `{"kind": "Agent", "name": "support-agent"}`. Submitting the same `(kind, name)` again
+replaces it. A manifest that does not parse or validate is `422` with the error.
+
+## `GET /v1/specs`
+
+```json
+{"specs": [{"kind": "Agent", "name": "support-agent"}, {"kind": "RAGPipeline", "name": "help-center"}]}
+```
+
+## `GET /v1/specs/{kind}/{name}`
+
+Returns `{"kind", "name", "yaml"}`: the manifest as submitted. `404` if unknown.
+
+## `POST /v1/specs/{kind}/{name}/reconcile`
+
+Maps the manifest, observes what the cloud has under `{kind}/{name}`, and applies the
+difference:
+
+```json
+{
+  "kind": "Agent", "name": "support-agent",
+  "created": ["support-agent", "support-agent-model-armor"],
+  "updated": [],
+  "deleted": [],
+  "gaps": ["model candidate(s) llama3.1:8b are dropped: the native agent calls only the first one"]
+}
+```
+
+- A resource that is missing is created; one whose config changed is updated; one the manifest no
+  longer produces is deleted.
+- Reconciling an unchanged manifest again changes nothing.
+- `gaps` here are the detail strings. `/v1/translate` returns them structured.
+
+`404` if the manifest was not submitted; `422` for a kind with no registry.
+
+## `POST /v1/translate`
+
+Same body as `/v1/specs`. Nothing is stored or reconciled.
+
+```json
+{
+  "kind": "Agent", "name": "support-agent", "provider": "gcp",
+  "resources": [
+    {"resource_type": "vertex.agent_engine", "name": "support-agent",
+     "source_section": "identity", "config": {"…": "…"}},
+    {"resource_type": "modelarmor.template", "name": "support-agent-model-armor",
+     "source_section": "guardrails.pii_detection", "config": {"sdp": "basic", "screens": ["input"]}}
+  ],
+  "gaps": [
+    {"section": "model.fallback", "coverage": "unsupported", "detail": "…"}
+  ]
+}
+```
+
+Every `coverage` value and `section` is listed in [Coverage](/astromesh/prisma/coverage/), and the
+resource configs in [Translation to GCP](/astromesh/prisma/translation/).

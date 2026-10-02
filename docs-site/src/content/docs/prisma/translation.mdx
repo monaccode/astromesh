@@ -1,0 +1,128 @@
+---
+title: Translation to GCP
+description: How Prisma turns an Astromesh Agent into an Agent Engine running an ADK agent config, and a RAGPipeline into a RAG Engine corpus — section by section.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A manifest becomes a list of **native resources**. Three resource types exist on GCP:
+
+| Resource | From | What it carries |
+|---|---|---|
+| `vertex.agent_engine` | An `Agent` | The ADK agent config, Memory Bank, tracing flag, labels and bindings |
+| `vertex.rag_corpus` | A `RAGPipeline` | Chunking, embeddings and retrieval settings |
+| `modelarmor.template` | An `Agent` with a `pii_detection` guardrail | The template the agent's model calls go through |
+
+Tools are not resources. On GCP, what an agent can call lives inside its config.
+
+## The Agent Engine
+
+The resource follows the real `ReasoningEngine` shape. The agent is deployed declaratively, from
+config, through `spec.sourceCodeSpec.agentConfigSource.adkConfig.jsonConfig`:
+
+```json
+{
+  "display_name": "Support Agent",
+  "description": "…",
+  "labels": {"team": "cx"},
+  "spec": {
+    "agent_framework": "google-adk",
+    "source_code_spec": {"agent_config_source": {
+      "adk_config": {"json_config": {"agent_class": "LlmAgent", "name": "support_agent", "…": "…"}},
+      "inline_source": {"files": {"prisma_tools.py": "<sha256>"}}
+    }}
+  },
+  "context_spec": {"memory_bank_config": {}},
+  "bindings": ["prisma://RAGPipeline/help-center/vertex.rag_corpus/help-center-corpus"]
+}
+```
+
+| Field | From |
+|---|---|
+| `display_name` | `identity.display_name`, or the manifest name |
+| `description` | `identity.description` (also set on the ADK agent) |
+| `labels` | `metadata.labels` |
+| `context_spec.memory_bank_config` | Present when `memory.semantic` is declared: one bank per agent |
+| `deployment_spec.env` | `GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true` when tracing is on |
+| `inline_source.files` | `prisma_tools.py`, when the config uses one of its tools or callbacks |
+| `inline_source.agent_configs` | The sub-agent configs of a pipeline |
+| `bindings` | Every `prisma://` reference the config makes |
+
+A change to the prompt, the tools or anything else in the config changes `json_config`, so the
+reconcile loop marks the engine for update.
+
+## The ADK agent config
+
+| ADK field | From | Notes |
+|---|---|---|
+| `agent_class` | — | `LlmAgent`, or `SequentialAgent` for `pipeline` |
+| `name` | `metadata.name` | Made a valid identifier: `-` becomes `_`, a leading digit gets `_`, and `user` (reserved by ADK) becomes `user_agent` |
+| `model` | The first model candidate | `vertex_ai/gemini-…` and `gemini/gemini-…` become the bare Gemini name; anything else is passed through and reported as a gap |
+| `instruction` / `static_instruction` | `prompts.system` | A prompt containing `{` goes in `static_instruction`, which ADK sends literally. In `instruction`, ADK would try to fill `{name}` from session state and fail on every call, including on Jinja's `{{ }}` |
+| `generate_content_config` | Sampling keys | `temperature`, `max_tokens`→`max_output_tokens`, `top_p`, `top_k`, `frequency_penalty`, `presence_penalty`, `stop`→`stop_sequences` |
+| `generate_content_config.model_armor_config` | `pii_detection` | `prompt_template_name` for an input rule, `response_template_name` for an output rule |
+| `tools` | Tools, knowledge, semantic memory | See below |
+| `after_agent_callbacks` | `memory.semantic` | `prisma_tools.save_session_to_memory` |
+
+### The model
+
+A native agent calls **one** model: the first candidate the runtime would try. The other
+candidates and the routing strategy are reported as gaps. The core has no `gemini` source; Gemini
+reaches Astromesh through litellm, so that is what Prisma recognizes.
+
+### Tools
+
+| Astromesh | In the ADK config |
+|---|---|
+| `type: client` | `prisma_tools.client_tool` with the name, description and parameters (YAML shorthand normalized to JSON Schema, exactly as the core does). Long-running: the call goes back to the caller, who answers with the function response |
+| `builtin` `web_search` | `google.adk.tools.google_search_tool.GoogleSearchTool` with `bypass_multi_tools_limit: true`, so search can share a request with other tools. Only on a Gemini model; otherwise it is reported unsupported |
+| `knowledge.pipeline` | `prisma_tools.rag_retrieval` named `rag_query`, bound to the pipeline's corpus, with `similarity_top_k` from `knowledge.top_k` |
+| `memory.semantic` | `preload_memory`, which reads Memory Bank before each turn |
+
+`prisma_tools.py` ships next to the config as the engine's inline source. It exists because ADK's
+generic config loader cannot build the client tool (it drops a `dict` argument, so the tool would
+lose its schema) or the RAG retrieval (it raises on `VertexAiRagRetrieval`). It also holds the
+callback that writes each turn to Memory Bank: `preload_memory` only reads.
+
+### Pipeline
+
+`orchestration.pattern: pipeline` becomes a `SequentialAgent` with three sub-agents,
+`<name>_analyze`, `<name>_process` and `<name>_synthesize`: the stages the core's pipeline runs
+when built from YAML. Each one is a full `LlmAgent` with the agent's tools and prompt, plus a line
+naming its stage. They travel as files next to the root config. Unlike in Astromesh, each stage
+sees the whole session, not only the previous stage's output.
+
+### Guardrails
+
+A `pii_detection` rule creates the `<name>-model-armor` template and wires it only on the side the
+rule is declared on. The template enables only what the manifest asked for. Model Armor **blocks**
+a message with PII, while Astromesh can redact it, so that is reported as partial.
+
+## Bindings
+
+A reference to a resource whose full name only exists once it is created is written as:
+
+```
+prisma://{kind}/{manifest}/{resource_type}/{name}
+```
+
+for example `prisma://RAGPipeline/help-center/vertex.rag_corpus/help-center-corpus` or
+`prisma://Agent/support-agent/modelarmor.template/support-agent-model-armor`. The engine lists
+them in `bindings`. Resolving them to real names at deploy time is the real gateway's job.
+
+## RAG pipelines
+
+A `RAGPipeline` becomes a `vertex.rag_corpus` named `<pipeline>-corpus`, carrying its chunking,
+embeddings and retrieval settings.
+
+| Section | Status | Why |
+|---|---|---|
+| Corpus | Supported | |
+| `embeddings` | Partial | RAG Engine accepts only Vertex-managed embedding models; any other provider is reported |
+| `reranking` | Partial | RAG Engine's ranking differs from Astromesh reranking |
+| `vector_store` | Partial | Replaced by RAG Engine's managed store |
+
+<Aside type="note">
+Astromesh injects the knowledge context on every turn. The native agent retrieves only when the
+model decides to call `rag_query`, which is why `knowledge` is reported as emulated.
+</Aside>

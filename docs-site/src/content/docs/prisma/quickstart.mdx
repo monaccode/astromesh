@@ -1,0 +1,93 @@
+---
+title: Quick Start
+description: Run Prisma locally against its in-memory gateway, translate an agent and a RAG pipeline, and reconcile them.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="note">
+The repository is private and the package is not on PyPI yet. This guide is for people with
+access to [monaccode/astromesh-prisma](https://github.com/monaccode/astromesh-prisma). Nothing
+here touches a real cloud.
+</Aside>
+
+<Steps>
+
+1. **Run it.**
+
+   ```bash
+   git clone https://github.com/monaccode/astromesh-prisma.git
+   cd astromesh-prisma
+   uv sync --extra dev
+   uv run uvicorn astromesh_prisma.app:app --port 8100
+   ```
+
+   `astromesh_prisma.app:app` is the app with the GCP registry and the in-memory gateway, as the
+   Dockerfile runs it. The GCP client libraries are an extra (`--extra gcp`) that the tests do
+   not need.
+
+2. **Translate an agent.** `/v1/translate` shows what a manifest becomes without storing it:
+
+   ```bash
+   curl -s localhost:8100/v1/translate -H 'content-type: application/json' \
+     -d "$(jq -Rs '{yaml: .}' support-agent.agent.yaml)" | jq
+   ```
+
+   The answer has the native resources (here a `vertex.agent_engine` with its ADK config, and a
+   `modelarmor.template` if the agent redacts PII) and the gaps:
+
+   ```json
+   {
+     "kind": "Agent", "name": "support-agent", "provider": "gcp",
+     "resources": [
+       {"resource_type": "vertex.agent_engine", "name": "support-agent",
+        "source_section": "identity", "config": {"…": "…"}}
+     ],
+     "gaps": [
+       {"section": "model.fallback", "coverage": "unsupported",
+        "detail": "model candidate(s) llama3.1:8b are dropped: the native agent calls only the first one"}
+     ]
+   }
+   ```
+
+   For a model the native agent can call, use Gemini the way the core reaches it, through
+   litellm: `source: litellm`, `model: vertex_ai/gemini-2.5-flash`.
+
+3. **Translate its knowledge pipeline**, if the agent has `spec.knowledge`. The agent refers to
+   the corpus through a binding; the pipeline's own manifest is what provisions it:
+
+   ```bash
+   curl -s localhost:8100/v1/translate -H 'content-type: application/json' \
+     -d "$(jq -Rs '{yaml: .}' help-center.rag.yaml)" | jq '.resources[].resource_type'
+   # "vertex.rag_corpus"
+   ```
+
+4. **Submit and reconcile.**
+
+   ```bash
+   curl -s localhost:8100/v1/specs -H 'content-type: application/json' \
+     -d "$(jq -Rs '{yaml: .}' support-agent.agent.yaml)"
+   # {"kind": "Agent", "name": "support-agent"}
+
+   curl -s -X POST localhost:8100/v1/specs/Agent/support-agent/reconcile
+   # {"created": ["support-agent"], "updated": [], "deleted": [], "gaps": ["…"]}
+   ```
+
+   Reconcile again without changes and nothing is created or updated. Change the prompt or a tool,
+   submit, reconcile, and the engine shows up in `updated`.
+
+</Steps>
+
+## Run the tests
+
+```bash
+uv run pytest -v
+```
+
+The suite runs offline. It includes the contract test against the core's agent schema and the test
+that runs a generated agent inside ADK.
+
+## Next steps
+
+- [Translation to GCP](/astromesh/prisma/translation/) — what is in that ADK config
+- [Coverage](/astromesh/prisma/coverage/) — every gap Prisma can report
