@@ -200,9 +200,9 @@ const S5: React.FC = () => {
   );
 };
 
-export const NexusReel: React.FC<{music: boolean}> = ({music}) => (
+export const NexusReel: React.FC<{music: boolean; musica?: string}> = ({music, musica = 'music.mp3'}) => (
   <AbsoluteFill style={{background: C.bg}}>
     {[S1, S2, S3, S4, S5].map((S, i) => <Sequence key={i} from={START[i]} durationInFrames={D[i]}><S /></Sequence>)}
-    {music && <Audio src={staticFile('music.mp3')} volume={(f) => interpolate(f, [0, 30, NEXUS_FRAMES - 60, NEXUS_FRAMES], [0, 0.6, 0.6, 0], clamp)} />}
+    {music && <Audio src={staticFile(musica)} loop volume={(f) => interpolate(f, [0, 30, NEXUS_FRAMES - 60, NEXUS_FRAMES], [0, 0.6, 0.6, 0], clamp)} />}
   </AbsoluteFill>
 );

@@ -10,7 +10,10 @@ Produce un post listo para publicar: **texto + láminas + carpeta archivada** en
 ## Flujo
 
 1. **Entender el tema.** Si nombra un producto (Nexus, Cortex, Herald, Orbit…), lee su `README.md`, `CHANGELOG.md` y docs en `../astromesh-<producto>/` o este repo. Nunca inventes capacidades: cada afirmación debe salir del código/docs. Si algo es una frase retórica y no un dato medido, dilo al entregar.
-2. **Formato — ofrécelo siempre.** Antes de producir, pregunta (AskUserQuestion) si quiere **solo post** (texto), **post + carrusel** (texto + 4 láminas, lo habitual), **solo carrusel** o **video** (reel/short 9:16). Si elige video, pregunta también el **modo**: sin voz (por defecto), con su **voz clonada**, o con **avatar** (ver Video). Si ya lo dijo en el pedido, no vuelvas a preguntar.
+2. **Formato — ofrécelo siempre.** Antes de producir, pregunta (AskUserQuestion) si quiere **solo post** (texto), **post + carrusel** (texto + 4 láminas, lo habitual), **solo carrusel** o **video** (reel/short 9:16). **Si el formato incluye video, pregunta SIEMPRE (AskUserQuestion, en la misma tanda) dos cosas por separado, aunque el pedido no las mencione:**
+   - **Voz en off**: sin voz (solo subtítulos) · su voz grabada (`archivo`) · su voz clonada (`elevenlabs`) · provisional para probar tiempos (`say`, no publicable).
+   - **Avatar**: sin avatar · avatar nivel 1 (ilustrado, local) · niveles superiores (requieren servicios y cuentas suyas; ver Video).
+   El avatar solo tiene sentido con voz; si elige avatar sin voz, avísale. Solo omite estas preguntas si en el mismo pedido ya dijo qué quiere para voz y avatar.
    **Ángulo.** Elige UNA idea central (un gancho, no un resumen del producto). Pregunta solo si hay una decisión real (ángulo técnico vs. negocio); si no, elige y propón variantes al final.
    **Ofrecimiento proactivo:** cuando termines un release, feature o doc relevante de Astromesh/Nexus/etc. (aunque no hable de redes), cierra tu respuesta ofreciendo crear un post o un carrusel sobre ello. Una línea, sin insistir.
 3. **Texto** en `post.md` (ver Voz y Estructura).
@@ -26,19 +29,31 @@ Proyecto Remotion compartido en `social/_video/` (`npm install` una vez; `npx re
 - **Guion = el contenido del post**, no láminas animadas: una idea visual por escena (partículas, pipeline, contadores, constelación). Subtítulos grandes siempre (se ve sin sonido). Zona segura de Reels: nada importante en los 250 px superiores ni en los 380 inferiores.
 - **Datos ilustrativos** (créditos, hashes) se rotulan como tales en pantalla.
 - **Render**: `npx remotion render src/index.ts <Id> ../AAAA/<carpeta>/video.mp4 --codec=h264` (añade `--props='{"music":true}'` si hay música). Antes revisa cuadros clave con `npx remotion still … --frame=N` y mira el PNG.
-- **Música**: la elige/descarga Juan Carlos (licencia libre: Pixabay, Mixkit, etc.; anota licencia y fuente en `post.md`). Se guarda como `social/_video/public/music.mp3`. **No descargues archivos sin pedirle permiso** (nombre, fuente, tamaño).
+- **Música — una pista por video, alineada con el contenido.** Se puede cambiar la música de cualquier post por otra pista **pública y de licencia libre**. Juan Carlos dio permiso permanente para buscarla y descargarla desde el navegador **siempre que sea pública**; igual informa nombre, fuente, tamaño y licencia al entregar.
+  - **Elegirla por el tono del post**, no por defecto: técnico/reflexivo → ambient o minimal sobrio; disruptivo/campaña → pulso marcado, más energía; cierre emocional o de marca → piano/ambient cálido. Sin voces cantadas que compitan con el texto; ≥ duración del video (o que cicle bien).
+  - **Fuentes**: Mixkit, Pixabay Music o similares con licencia de uso libre. Preferir licencias **sin atribución**; si pide atribución, va en `post.md` y en el primer comentario. Lee los términos de la licencia en la página (no asumir); si no se pueden leer, dilo y márcalo "verificar términos". Nada de pistas comerciales, con Content ID o "sin copyright" de origen dudoso.
+  - **Archivo**: `social/_video/public/musica/<slug-del-post>.mp3` (recortada/normalizada con ffmpeg si hace falta). Render con `--props='{"music":true,"musica":"musica/<slug>.mp3"}'`; todos los reels aceptan `musica` (por defecto `music.mp3`) y la ciclan si es corta. En videos narrados la música queda bajo la voz (~0.12).
+  - **Registrar** en el frontmatter de `post.md`: `music: "<título> · <fuente> (<url>) · <licencia>"`.
 
-### Voz clonada (cuando haga falta su voz)
+### Voz en off (narración)
 
-Solo la voz **de Juan Carlos**, con su consentimiento explícito y para su contenido. Flujo: guion de narración (primera persona, frases cortas, ~150 palabras/min) → audio → `<Audio src={staticFile('voz.mp3')}/>` y subtítulos sincronizados con los tiempos reales → mezcla con música a volumen bajo (`volume` ~0.15 bajo la voz).
-- Opción con servicio (mejor calidad): ElevenLabs u otro TTS con clonación; requiere que **él** cree la cuenta, grabe/suba sus muestras y entregue la API key como variable de entorno. Nunca pegues keys en archivos del repo; no subas sus grabaciones a ningún servicio sin su OK en ese momento.
-- Opción local (sin cuentas): modelo abierto de clonación (p. ej. XTTS / F5-TTS) con una muestra limpia de 30–60 s suya; calidad variable, siempre dar a escuchar antes de usar.
-- Guarda la muestra fuente fuera del repo; en `social/` solo va el audio final de cada video.
+Flujo ya implementado y probado con `CapasNarrado` (post `2026-10-01-cada-cosa-en-su-capa`):
+1. **Guion** en la carpeta del post: `guion.json` con `voz` (backend), `pausa` y `escenas[]` (`min` en segundos + `lineas`: frases cortas, primera persona, una idea por línea; los números escritos como se dicen).
+2. **Voz**: `cd social/_video && npm run narrar -- ../AAAA/<post>/guion.json <id>` → `public/voz/<id>/` (`voz.wav` + `timeline.json`; ignorado por git). Cada escena dura lo que su narración (o su `min`).
+3. **Composición narrada** `<Reel>Narrado`: el reel acepta `durs` (frames por escena) y se envuelve en `<NoCaps.Provider value>`; encima va `<Narracion timeline avatar>` (`avatar={false}` = voz en off sin avatar) (`src/voz.tsx`: pista de voz, avatar, subtítulos sincronizados y etiqueta de transparencia). La duración sale de `calculateMetadata` con `cargarTimeline`. La música baja a ~0.12 bajo la voz.
+4. Render como siempre; el archivo final es `video-narrado.mp4` en la carpeta del post.
+
+Backends (`guion.voz.backend`), solo con la voz **de Juan Carlos** y su consentimiento:
+- `say`: voz de macOS, **provisional** para probar tiempos; en pantalla dice "voz provisional · sintética". No publicar con esta voz como si fuera la suya.
+- `archivo`: sus grabaciones línea por línea (`<post>/grabaciones/01.wav`…). Es su voz real, sin clonar.
+- `elevenlabs`: voz clonada. Él crea la cuenta, sube su muestra y exporta `ELEVENLABS_API_KEY`; `voz.voice_id` en el guion. Nunca pegues la key en archivos. En pantalla dice "voz generada". (Implementado, sin probar contra la API real.)
+- Modelo local (XTTS/F5-TTS): pendiente; requiere descargar modelos pesados, pedir permiso antes.
+La muestra para clonar se graba con `social/_video/tools/muestra-de-voz.md` y **no se versiona**.
 
 ### Avatar de Juan Carlos (de menos a más realista)
 
 Mismo principio: solo su imagen, con su consentimiento, y él crea las cuentas/entrega credenciales. Sube de nivel solo si el anterior ya funciona.
-1. **Ilustrado/estilizado** (nivel base, 100% local): avatar 2D en Remotion (SVG) con boca animada por la amplitud del audio y gestos simples. Sin foto ni servicios. Se integra como un componente más de `kit.tsx`.
+1. **Ilustrado/estilizado** (nivel base, 100% local) — **implementado**: `Avatar` en `src/voz.tsx`, SVG con boca movida por la amplitud de la voz, parpadeo y leve movimiento de cabeza. Sus rasgos (`RASGOS`: piel, pelo, peinado, barba, lentes, ropa) son provisionales hasta que Juan Carlos los confirme o mande una foto de referencia.
 2. **Estilizado 3D**: avatar 3D tipo caricatura con `@remotion/three`, sincronía labial básica con la voz.
 3. **Foto animada (talking head)**: servicio que anima una foto suya con su voz clonada (HeyGen, D-ID, etc.). El clip se compone sobre las escenas de Remotion.
 4. **Clon de video realista**: avatar entrenado con una grabación suya (HeyGen/Synthesia u otro), con la verificación de consentimiento que exija el proveedor. El más realista: usarlo solo en piezas donde se aclare que es un avatar generado.

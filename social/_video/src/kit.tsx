@@ -1,5 +1,5 @@
 // Mission Control: tokens y piezas compartidas de todos los videos.
-import React from 'react';
+import React, {createContext, useContext} from 'react';
 import {AbsoluteFill, Easing, interpolate, useCurrentFrame} from 'remotion';
 import {loadFont as loadSans} from '@remotion/google-fonts/DMSans';
 import {loadFont as loadMono} from '@remotion/google-fonts/JetBrainsMono';
@@ -41,9 +41,13 @@ export const Scene: React.FC<{d: number; children: React.ReactNode}> = ({d, chil
   );
 };
 
+// Con narración, los subtítulos salen del timeline de la voz y estos se apagan.
+export const NoCaps = createContext(false);
+
 // Subtítulo grande, fuera de la zona que tapa la UI de Reels.
 export const Cap: React.FC<{from: number; to: number; children: React.ReactNode}> = ({from, to, children}) => {
   const f = useCurrentFrame();
+  if (useContext(NoCaps)) return null;
   return (
     <div style={{
       position: 'absolute', left: 70, right: 70, top: 1290, display: 'flex', justifyContent: 'center',

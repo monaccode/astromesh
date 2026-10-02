@@ -8,7 +8,7 @@ status: draft        # draft | published
 url:                 # link al post al publicarlo
 images: [01, 02, 03, 04]
 video: true          # video.mp4, sin voz
-music: "Minimal Techno 01 · Mixkit (mixkit.co/free-stock-music/tech-house/) · Mixkit License, gratis; verificar términos"
+music: "Minimal Techno 01 · Mixkit (mixkit.co/free-stock-music/tech-house/) · Mixkit Stock Music Free License (verificada 2026-10-02: uso comercial y en videos de redes, sin atribución; no CD/DVD, TV/radio, videojuegos ni registrarla como propia)"
 ---
 
 Hacer un agente de IA es el 10% del trabajo.
