@@ -84,6 +84,9 @@ def _make_agent(pattern, tool_impl=None, model_content="thinking"):
     agent._knowledge = None
     agent._system_prompt = "you are a test agent"
     agent._prefetch = []
+    agent._context_window = 32000
+    agent._context_window_source = "default"
+    agent._response_tokens = 0
 
     router = MagicMock()
     router.route = AsyncMock(return_value=FakeResponse(content=model_content))
@@ -101,7 +104,7 @@ def _make_agent(pattern, tool_impl=None, model_content="thinking"):
     agent._tools = tools
 
     memory = MagicMock()
-    memory.build_context = AsyncMock(return_value="")
+    memory.build_context = AsyncMock(return_value={})
     memory.persist_turn = AsyncMock()
     agent._memory = memory
 

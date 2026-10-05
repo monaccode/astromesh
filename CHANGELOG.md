@@ -22,11 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Una falla del resumen ya no rompe `persist_turn`.
 - **`strategy: summary` resume de verdad**, con el rol `summarizer` del agente (o `default`).
   Una vez superado `max_turns` resume en cada turno: una llamada al modelo por turno.
+- **El historial llega al modelo como mensajes, con presupuesto real.** El presupuesto es la
+  ventana del modelo menos el system prompt, las tools y la respuesta (antes 4096 fijos). Los
+  agentes con `memory.conversational` cuyo system prompt no usa `memory.conversation`
+  **empiezan a recordar** la conversación (antes no la recibían), y el system prompt queda
+  igual entre turnos, así que el caché de prompts puede actuar. Los templates que meten
+  `memory.conversation` en el system prompt siguen andando igual y emiten un warning al
+  cargar.
 
 ### Changed
 
 - Con conteos reales, `persist_turn` guarda en la memoria semántica las respuestas de más de
   50 tokens cuando el agente tiene semántica cableada (antes nunca ocurría).
+- Sólo los patrones `react` y `glyph` consumen el historial como mensajes; los demás siguen
+  como antes.
 
 ### Removed
 

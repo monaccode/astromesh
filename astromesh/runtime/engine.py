@@ -12,7 +12,7 @@ from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
 from astromesh.core.schema import InvalidToolParameters, normalize_tool_parameters
-from astromesh.core.tokens import DEFAULT_CONTEXT_WINDOW, resolve_context_window
+from astromesh.core.tokens import DEFAULT_CONTEXT_WINDOW, estimate_tokens, resolve_context_window
 from astromesh.core.tools import ToolRegistry
 from astromesh.errors import AgentConfigError
 from astromesh.integrations import default_catalog
@@ -130,6 +130,28 @@ def _public_caller_context(context: dict | None) -> dict:
     if not isinstance(context, dict):
         return {}
     return {k: v for k, v in context.items() if not k.startswith("_")}
+
+
+_SUMMARY_PREFIX = "[Resumen de la conversación anterior]"
+
+
+def _history_messages(memory_context: dict) -> list[dict]:
+    """El historial ya recortado, como mensajes para el patrón.
+
+    Sin resumen adelante, se descartan los `assistant` iniciales: el recorte
+    puede cortar en medio de un par, y hay proveedores que exigen que el primer
+    mensaje sea del usuario.
+    """
+    turns = list(memory_context.get("conversation") or [])
+    summary = memory_context.get("conversation_summary")
+    messages = []
+    if summary:
+        messages.append({"role": "user", "content": f"{_SUMMARY_PREFIX}\n{summary}"})
+    else:
+        while turns and turns[0].role == "assistant":
+            turns.pop(0)
+    messages.extend({"role": t.role, "content": t.content} for t in turns)
+    return messages
 
 
 def _truncate(text: str | None, limit: int) -> str:
@@ -1409,6 +1431,14 @@ class Agent:
         self._orchestration_config = orchestration_config
         self._prefetch = prefetch or []
 
+    def _render_system(self, variables):
+        prompt = self._prompt_engine.render(self._system_prompt, variables)
+        if self._output_schema:
+            # Ningún provider del repo soporta response_format/json_schema, así
+            # que la forma se pide por prompt y se parsea de la respuesta.
+            prompt += schema_prompt_block(self._output_schema)
+        return prompt
+
     async def run(
         self,
         query,
@@ -1462,9 +1492,9 @@ class Agent:
             root_span.set_attribute("query", query_text[:5000])
 
             mem_span = tracing.start_span("memory_build")
-            memory_context = await self._memory.build_context(
-                session_id, query_text, max_tokens=4096
-            )
+            # Sin presupuesto acá: se recorta más abajo, cuando ya están medidos
+            # el system prompt y las tools (`context_fit`).
+            memory_context = await self._memory.build_context(session_id, query_text)
             tracing.finish_span(mem_span)
 
             rag_span = tracing.start_span("rag_build")
@@ -1526,23 +1556,60 @@ class Agent:
                 parent_span_id=root_span.span_id,
             )
 
+            tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
+
             prompt_span = tracing.start_span("prompt_render")
-            rendered_prompt = self._prompt_engine.render(
-                self._system_prompt,
-                {
-                    **(context or {}),
-                    "memory": memory_context,
-                    "knowledge": knowledge_context,
-                    "prefetch": prefetch_resultados,
-                },
+            variables = {
+                **(context or {}),
+                "memory": memory_context,
+                "knowledge": knowledge_context,
+                "prefetch": prefetch_resultados,
+            }
+            # Base: el system prompt SIN historial. Es lo que viaja si el historial
+            # va como mensajes, y así el prefijo es el mismo en cada turno (caché).
+            rendered_prompt = self._render_system(
+                {**variables, "memory": {**memory_context, "conversation": []}}
             )
-            if self._output_schema:
-                # Ningún provider del repo soporta response_format/json_schema, así
-                # que la forma se pide por prompt y se parsea de la respuesta.
-                rendered_prompt += schema_prompt_block(self._output_schema)
+
+            fit_span = tracing.start_span("context_fit")
+            base_tokens = (
+                estimate_tokens(rendered_prompt)
+                + estimate_tokens(json.dumps(tool_schemas, default=str))
+                + self._response_tokens
+            )
+            budget = max(0, int(self._context_window * 0.9) - base_tokens)
+            if budget == 0:
+                logger.warning(
+                    "agent %s: el system prompt, las tools y la respuesta (%d tokens) no "
+                    "dejan lugar para historial en una ventana de %d",
+                    self.name,
+                    base_tokens,
+                    self._context_window,
+                )
+            stats = self._memory.fit_history(memory_context, budget)
+            # Camino legado: el template mete `memory.conversation` en el system
+            # prompt (manifiestos de OFFICIUM/Clarus). Se respeta y NO se mandan
+            # mensajes, o el modelo vería el historial dos veces.
+            history_in_template = "memory.conversation" in (self._system_prompt or "")
+            if history_in_template:
+                rendered_prompt = self._render_system(variables)
+            else:
+                memory_context["_history_messages"] = _history_messages(memory_context)
+            for key, value in {
+                "context.window": self._context_window,
+                "context.window_source": self._context_window_source,
+                "context.base_tokens": base_tokens,
+                "history.budget": budget,
+                "history.turns_kept": stats["turns_kept"],
+                "history.turns_dropped": stats["turns_dropped"],
+                "history.tokens": stats["tokens"],
+                "history.delivery": "template" if history_in_template else "messages",
+                "history.summary_used": stats["summary_used"],
+            }.items():
+                fit_span.set_attribute(key, value)
+            tracing.finish_span(fit_span)
             tracing.finish_span(prompt_span)
 
-            tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
             max_iterations = self._orchestration_config.get("max_iterations", 10)
             logger.debug(
                 "agent.run %s pattern=%s max_iterations=%d tools=%d query_chars=%d",

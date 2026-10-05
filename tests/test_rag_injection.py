@@ -17,7 +17,10 @@ class _StubPattern:
 
 class _StubMemory:
     async def build_context(self, *a, **k):
-        return ""
+        return {}
+
+    def fit_history(self, context, budget):
+        return {"turns_kept": 0, "turns_dropped": 0, "tokens": 0, "summary_used": False}
 
     async def persist_turn(self, *a, **k):
         return None

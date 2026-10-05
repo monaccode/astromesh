@@ -138,3 +138,102 @@ async def test_summary_usa_el_rol_summarizer(tmp_path):
 async def test_sin_strategy_summary_no_se_cablea_resumidor(tmp_path):
     agente = await _agente(tmp_path, _manifest())
     assert agente._memory._summarize is None
+
+
+async def test_historial_llega_como_mensajes(tmp_path):
+    agente = await _agente(
+        tmp_path, _manifest(), turns=[_t("user", "me llamo Ana"), _t("assistant", "hola Ana")]
+    )
+    llamadas = _capturar(agente)
+    await agente.run("¿cómo me llamo?", session_id="s1")
+    assert llamadas[0][1:] == [
+        {"role": "user", "content": "me llamo Ana"},
+        {"role": "assistant", "content": "hola Ana"},
+        {"role": "user", "content": "¿cómo me llamo?"},
+    ]
+
+
+async def test_template_legado_no_duplica_historial(tmp_path):
+    system = "sos un agente\n{% for t in memory.conversation %}[{{ t.role }}] {{ t.content }}\n{% endfor %}"
+    agente = await _agente(
+        tmp_path,
+        _manifest(system=system),
+        turns=[_t("user", "me llamo Ana"), _t("assistant", "hola Ana")],
+    )
+    llamadas = _capturar(agente)
+    await agente.run("¿cómo me llamo?", session_id="s1")
+    assert len(llamadas[0]) == 2
+    assert "[user] me llamo Ana" in llamadas[0][0]["content"]
+    assert llamadas[0][1] == {"role": "user", "content": "¿cómo me llamo?"}
+
+
+async def test_template_legado_avisa_al_cargar(tmp_path, caplog):
+    import logging
+
+    system = "{% for t in memory.conversation %}{{ t.content }}{% endfor %}"
+    with caplog.at_level(logging.WARNING):
+        await _agente(tmp_path, _manifest(system=system))
+    avisos = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert any("mem-agent" in m and "rompe el caché de prompts" in m for m in avisos), avisos
+
+
+async def test_presupuesto_recorta_y_conserva_lo_ultimo(tmp_path):
+    model = {
+        "primary": {
+            "provider": "ollama",
+            "model": "llama3",
+            "context_window": 2000,
+            "max_tokens": 100,
+        }
+    }
+    turns = [_t("user" if i % 2 == 0 else "assistant", f"t{i:02d} " + "x" * 396) for i in range(40)]
+    agente = await _agente(tmp_path, _manifest(model=model, max_turns=40), turns=turns)
+    llamadas = _capturar(agente)
+    await agente.run("q", session_id="s1")
+    historial = llamadas[0][1:-1]
+    assert 0 < len(historial) < 40
+    assert historial[-1]["content"].startswith("t39")
+
+
+async def test_base_mayor_que_la_ventana_no_lanza(tmp_path):
+    model = {"primary": {"provider": "ollama", "model": "llama3", "context_window": 50}}
+    agente = await _agente(
+        tmp_path, _manifest(system="x" * 4000, model=model), turns=[_t("user", "viejo")]
+    )
+    llamadas = _capturar(agente)
+    await agente.run("q", session_id="s1")
+    assert llamadas[0][1:] == [{"role": "user", "content": "q"}]
+
+
+async def test_historial_recortado_no_empieza_con_assistant(tmp_path):
+    agente = await _agente(
+        tmp_path,
+        _manifest(),
+        turns=[_t("assistant", "a0"), _t("user", "u1"), _t("assistant", "a1")],
+    )
+    llamadas = _capturar(agente)
+    await agente.run("q", session_id="s1")
+    assert llamadas[0][1]["role"] == "user"
+    assert llamadas[0][1]["content"] == "u1"
+
+
+async def test_resumen_es_el_primer_mensaje(tmp_path):
+    agente = await _agente(
+        tmp_path, _manifest(strategy="summary"), turns=[_t("user", "u1"), _t("assistant", "a1")]
+    )
+    agente._memory._conversation.summary = "Ana pidió un turno"
+    llamadas = _capturar(agente)
+    await agente.run("q", session_id="s1")
+    assert llamadas[0][1] == {
+        "role": "user",
+        "content": "[Resumen de la conversación anterior]\nAna pidió un turno",
+    }
+
+
+async def test_system_prompt_estable_entre_turnos(tmp_path):
+    agente = await _agente(tmp_path, _manifest())
+    llamadas = _capturar(agente)
+    await agente.run("primero", session_id="s1")
+    await agente.run("segundo", session_id="s1")
+    assert llamadas[0][0] == llamadas[1][0]
+    assert {"role": "user", "content": "primero"} in llamadas[1]
