@@ -88,8 +88,9 @@ migración de datos.
 4. **Selección:**
    - `sliding_window`: los últimos `max_turns` y después el recorte por presupuesto.
    - `token_budget`: sólo el recorte por presupuesto.
-   - `summary`: el recorte por presupuesto. Si quedaron turnos afuera y hay un resumen
-     guardado, entra como primer mensaje (`role: user`, prefijo
+   - `summary`: el recorte por presupuesto. Si hay un resumen guardado (sólo existe cuando
+     el historial ya superó `max_turns`, así que siempre cubre turnos que quedaron afuera),
+     entra como primer mensaje (`role: user`, prefijo
      `[Resumen de la conversación anterior]`), y sus tokens se descuentan antes de elegir
      los turnos.
    - El recorte usa `TokenBudgetStrategy` (ruta Rust incluida), que pasa a ser el único
@@ -145,7 +146,8 @@ Ningún paso de contexto hace fallar una corrida, con el mismo criterio que
 
 ## Observabilidad
 
-Atributos en el span `memory_build`:
+Atributos en un span nuevo, `context_fit`, hijo de `prompt_render`. No van en `memory_build`
+porque el recorte ocurre después de medir el system prompt:
 
 `context.window`, `context.window_source`, `context.base_tokens`, `history.budget`,
 `history.turns_kept`, `history.turns_dropped`, `history.tokens`, `history.delivery`
