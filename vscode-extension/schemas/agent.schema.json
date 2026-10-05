@@ -142,6 +142,10 @@
             "system": {
               "type": "string",
               "description": "System prompt. Supports Jinja2 template syntax."
+            },
+            "context": {
+              "type": "string",
+              "description": "Template Jinja de lo que cambia en cada turno (RAG, prefetch). Se antepone al mensaje del usuario actual para que system, tools e historial sean un prefijo estable para el caché del proveedor."
             }
           }
         },
@@ -660,6 +664,11 @@
           "type": "integer",
           "description": "Maximum tokens to generate (top-level shorthand).",
           "minimum": 1
+        },
+        "context_window": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Tokens de entrada que acepta el modelo. Fija el presupuesto del historial conversacional. Sin esto: num_ctx (Ollama), litellm, o 32000."
         },
         "parameters": {
           "type": "object",

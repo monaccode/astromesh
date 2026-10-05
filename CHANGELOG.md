@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.64.0] - 2026-10-05
+
+### Added (Backend)
+
+- **`prompts.context`**: template opcional para lo que cambia en cada turno (RAG, prefetch).
+  Se antepone al mensaje del usuario actual, así system, tools e historial quedan como
+  prefijo estable y el caché automático del proveedor (Kimi/Moonshot) los sirve. El turno
+  guardado en memoria sigue siendo la query original. Con patrones que no lo separan
+  (`plan_and_execute`, etc.) va al final del system, con un warning al cargar.
+- Warning al cargar cuando `prompts.system` usa `knowledge`, `prefetch` o
+  `memory.semantic`/`episodic` dentro de bloques Jinja (`{{ }}`/`{% %}`), no en prosa: rompe
+  el caché; moverlo a `prompts.context`.
+- `cache.hit_ratio` en el span `llm.complete` (`cached_tokens / input_tokens`).
+- Patrones `react` y `glyph`: anteponen el contexto del turno (`_turn_context`) al mensaje del
+  usuario actual, al final de la conversación, para que lo anterior sea prefijo cacheable.
+- `astromesh/core/tokens.py`: conteo de tokens (litellm si está instalado, si no `len/4`) y
+  resolución de la ventana de contexto del modelo, sin dependencias nuevas en el core.
+- `context_window` en el candidato del modelo: fija la ventana de contexto. Sin él se usa
+  `num_ctx` (Ollama) o lo que sepa litellm; con varios candidatos gana la más chica. Si la
+  ventana es desconocida (sin `context_window`, sin `num_ctx` y litellm no conoce el modelo)
+  el historial **no** se recorta por presupuesto, sólo por `max_turns`, y el agente avisa al
+  cargar: declará `context_window` para activar el presupuesto.
+
+### Fixed
+
+- **Memoria conversacional: los turnos se guardan con `token_count`** (antes siempre 0, así
+  que `token_budget` metía el historial entero). Las filas viejas se estiman al leerlas.
+  Una falla del resumen ya no rompe `persist_turn`.
+- **`strategy: summary` resume de verdad**, con el rol `summarizer` del agente (o `default`).
+  El resumen es incremental: una vez superado `max_turns`, tras cada respuesta del assistant
+  (una vez por intercambio) integra al resumen anterior los turnos que acaban de salir de la
+  ventana verbatim, sin solaparse con ella ni perder turnos. Corre inline: suma la latencia
+  de una llamada al rol `summarizer` a esa corrida.
+- **El historial llega al modelo como mensajes, con presupuesto real.** El presupuesto es la
+  ventana del modelo menos el system prompt, las tools y la respuesta (antes 4096 fijos). Los
+  agentes con `memory.conversational` cuyo system prompt no usa `memory.conversation`
+  **empiezan a recordar** la conversación (antes no la recibían), y el system prompt queda
+  igual entre turnos, así que el caché de prompts puede actuar. Los templates que meten
+  `memory.conversation` en el system prompt siguen andando igual y emiten un warning al
+  cargar.
+
+### Changed
+
+- Con conteos reales, `persist_turn` guarda en la memoria semántica las respuestas de más de
+  50 tokens cuando el agente tiene semántica cableada (antes nunca ocurría).
+- Sólo los patrones `react` y `glyph` consumen el historial como mensajes; los demás siguen
+  como antes.
+- `MemoryManager.build_context` sin `max_tokens` ya no recorta (lo usa el ADK); con
+  `strategy: summary` devuelve hasta `max_turns` turnos más el resumen (antes 5).
+
+### Removed
+
+- `astromesh/memory/strategies/sliding_window.py` y `summary.py`: no los usaba nadie.
+
 ### Added (Astromesh Node)
 
 - **Tarball para Mac Intel.** El release de macOS se arma dos veces, en `macos-latest` (Apple

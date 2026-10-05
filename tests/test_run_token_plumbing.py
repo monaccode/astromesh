@@ -92,6 +92,10 @@ def _agent(tools: ToolRegistry, pattern) -> Agent:
     agent._knowledge = None
     agent._system_prompt = "you are a test agent"
     agent._prefetch = []
+    agent._context_window = 32000
+    agent._context_window_source = "default"
+    agent._response_tokens = 0
+    agent._context_prompt = ""
     agent._tools = tools
 
     router = MagicMock()

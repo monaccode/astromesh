@@ -62,7 +62,7 @@ async def test_lo_que_propone_el_especialista_de_clarus_llega_al_empleado_con_vi
     # La memoria del empleado es el Redis del cluster (`spec.memory` de la
     # fixture); acá no hay Redis. El especialista no tiene memoria.
     memoria = MagicMock()
-    memoria.build_context = AsyncMock(return_value=[])
+    memoria.build_context = AsyncMock(return_value={})
     memoria.persist_turn = AsyncMock()
     runtime._agents[empleado]._memory = memoria
 

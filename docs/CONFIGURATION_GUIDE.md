@@ -302,6 +302,42 @@ invierte, la decisión de hacerlo declarativo hay que revisarla.
 | `supervisor` | Task delegation | Delegates sub-tasks to worker agents. |
 | `swarm` | Multi-agent conversations | Agents hand off to each other based on context. |
 
+### Prompts
+
+**`prompts.system` — el prefijo estable.** El system prompt define la identidad y el estilo del agente.
+Se envía en cada mensaje y debe ser idéntico entre turnos para que el caché de prompts
+actúe (Kimi/Moonshot, OpenAI, vLLM). No uses `memory.conversation`, `knowledge` o `prefetch` acá;
+moverlos a `prompts.context` activa el caché automático.
+
+**`prompts.context` — lo que cambia en cada turno.** Todo lo que depende de la query (RAG,
+`prefetch`) va acá y no en `prompts.system`. El runtime lo antepone al mensaje del usuario
+actual, así el prompt queda en este orden:
+
+system → tools → historial → **contexto + query**
+
+Todo lo anterior al último mensaje es idéntico entre llamadas, y el caché automático del
+proveedor (Kimi/Moonshot, OpenAI, vLLM) lo sirve a precio reducido. Si el system usa
+`knowledge` o `prefetch`, cambia en cada query y no se cachea nada: el runtime lo avisa al
+cargar el agente.
+
+```yaml
+prompts:
+  system: |
+    Sos Lucía, analista comercial. Respondé con los datos que te paso.
+  context: |
+    {% if knowledge %}DOCUMENTOS RELEVANTES:
+    {{ knowledge }}{% endif %}
+    {% if prefetch.stock %}STOCK ACTUAL: {{ prefetch.stock }}{% endif %}
+```
+
+El turno que se guarda en memoria es la query original, sin el contexto. Los patrones
+`react` y `glyph` lo separan; con los demás va al final del system prompt. El span
+`llm.complete` trae `cache.hit_ratio` para medir si el caché está pegando.
+
+El prefijo es estable mientras el historial entra con margen en el presupuesto: un `prompts.context` muy variable en tamaño puede hacer que entre o salga el turno más viejo. Mantenelo acotado.
+
+No iteres `memory.conversation` en `prompts.context`: el historial ya viaja como mensajes y el modelo lo vería dos veces (además, el contexto se renderiza antes de recortar el historial y vería el historial completo).
+
 ### Memory Strategies
 
 | Strategy | Description | Use When |
@@ -309,6 +345,26 @@ invierte, la decisión de hacerlo declarativo hay que revisarla.
 | `sliding_window` | Keep the last N turns | Simple conversations with bounded context |
 | `summary` | Compress older turns into summaries | Long conversations that need full history |
 | `token_budget` | Fit as many turns as possible within a token limit | Need precise control over context size |
+
+**Presupuesto del historial.** El runtime toma la ventana del modelo — `context_window` en el
+candidato, o `parameters.num_ctx` en Ollama, o lo que sepa litellm si está instalado — y le
+resta el system prompt, los schemas de las tools y `max_tokens` de la respuesta (con 10% de
+margen). El historial entra hasta ese tope, de lo más nuevo a lo más viejo. Con varios
+candidatos se usa la ventana más chica. Si no hay forma de saber la ventana, el historial no
+se recorta por presupuesto, sólo por `max_turns`, y el agente avisa al cargar: declará
+`context_window` para activar el presupuesto.
+
+```yaml
+model:
+  primary:
+    provider: ollama
+    model: llama3
+    context_window: 8192
+```
+
+El historial viaja como mensajes. No lo metas en el system prompt con
+`{% for t in memory.conversation %}`: funciona, pero cambia el prompt en cada turno y anula
+el caché de prompts.
 
 ### Guardrail Types
 

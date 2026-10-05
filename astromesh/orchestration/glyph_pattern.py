@@ -25,7 +25,7 @@ from astromesh_glyph import (
     parse,
 )
 
-from astromesh.orchestration.patterns import AgentStep, OrchestrationPattern
+from astromesh.orchestration.patterns import AgentStep, OrchestrationPattern, with_turn_context
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,8 @@ class GlyphPattern(OrchestrationPattern):
     executor, misma forma de resultado (`{"answer", "steps", "glyph"}`).
     """
 
+    consumes_turn_context = True
+
     def __init__(
         self, max_repairs: int = 2, narrate: bool = True, program: str | None = None
     ) -> None:
@@ -145,6 +147,7 @@ class GlyphPattern(OrchestrationPattern):
         catalog = capabilities.list_capabilities()
         history = context.get("_history_messages", []) if isinstance(context, dict) else []
         caller_context = context.get("_caller_context", {}) if isinstance(context, dict) else {}
+        turn_context = context.get("_turn_context") if isinstance(context, dict) else None
         # Las dos variables que ve un programa. Van siempre, aunque el programa no
         # las use: el compilador las acepta como predefinidas y no cuesta nada.
         # `query` se aplana: la guía promete "el texto crudo de la consulta" y una
@@ -177,7 +180,7 @@ class GlyphPattern(OrchestrationPattern):
             messages = [
                 *list(history),
                 {"role": "user", "content": block},
-                {"role": "user", "content": query},
+                {"role": "user", "content": with_turn_context(query, turn_context)},
             ]
             # max_iterations describe vueltas de ReAct; acá no hay loop, así que
             # se reinterpreta como techo de intentos.
@@ -259,7 +262,7 @@ class GlyphPattern(OrchestrationPattern):
         final = await model_fn(
             [
                 *list(history),
-                {"role": "user", "content": query},
+                {"role": "user", "content": with_turn_context(query, turn_context)},
                 {"role": "assistant", "content": f"Ejecuté este programa:\n{source}"},
                 {
                     "role": "user",

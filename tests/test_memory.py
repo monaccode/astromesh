@@ -105,7 +105,7 @@ async def test_build_context_sliding_window_uses_max_turns_limit():
 
 @pytest.mark.asyncio
 async def test_memory_manager_persist_turn():
-    """MemoryManager.persist_turn saves turn and checks history length."""
+    """MemoryManager.persist_turn saves the turn; without a summarizer it never reads history."""
     turn = ConversationTurn(
         role="user", content="Hi", timestamp=datetime(2026, 1, 1), token_count=5
     )
@@ -120,4 +120,4 @@ async def test_memory_manager_persist_turn():
     await manager.persist_turn(session_id="sess-1", turn=turn)
 
     conversation.save_turn.assert_called_once_with("sess-1", turn)
-    conversation.get_history.assert_called_once_with("sess-1")
+    conversation.get_history.assert_not_called()

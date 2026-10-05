@@ -16,6 +16,21 @@ def _loads(text):
     return json_mod.loads(text)
 
 
+def with_turn_context(query, turn_context):
+    """La query del usuario con el contexto del turno adelante, o intacta si no hay.
+
+    El contexto (`prompts.context`: RAG, prefetch) cambia en cada query, así que va
+    al FINAL de la conversación, pegado al mensaje actual: todo lo anterior queda
+    como prefijo estable para el caché del proveedor. Una query multimodal es una
+    lista de partes; el contexto entra como una parte de texto más, adelante.
+    """
+    if not turn_context:
+        return query
+    if isinstance(query, list):
+        return [{"type": "text", "text": turn_context}, *query]
+    return f"{turn_context}\n\n{query}"
+
+
 @dataclass
 class AgentStep:
     thought: str | None = None
@@ -35,9 +50,15 @@ class OrchestrationPattern(ABC):
 class ReActPattern(OrchestrationPattern):
     """Thought -> Action -> Observation loop."""
 
+    consumes_turn_context = True
+
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
         history = context.get("_history_messages", []) if isinstance(context, dict) else []
-        messages = [*list(history), {"role": "user", "content": query}]
+        turn_context = context.get("_turn_context") if isinstance(context, dict) else None
+        messages = [
+            *list(history),
+            {"role": "user", "content": with_turn_context(query, turn_context)},
+        ]
         steps: list[AgentStep] = []
         for _ in range(max_iterations):
             response = await model_fn(messages, tools, role="reasoner")
