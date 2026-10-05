@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.64.0] - 2026-10-05
+
 ### Added (Backend)
 
 - **`prompts.context`**: template opcional para lo que cambia en cada turno (RAG, prefetch).
