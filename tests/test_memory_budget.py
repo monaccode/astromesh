@@ -108,12 +108,92 @@ async def test_presupuesto_cero_deja_historial_vacio():
 
 
 async def test_falla_del_resumen_no_rompe_persist():
-    async def explota(turns):
+    async def explota(turns, previous):
         raise RuntimeError("rol caído")
 
     backend = Fake([_t("user", "x") for _ in range(30)])
     mgr = MemoryManager(
         "a", {"conversational": {"max_turns": 20}}, conversation=backend, summarize_fn=explota
     )
-    await mgr.persist_turn("s", _t("user", "y"))  # no lanza
+    await mgr.persist_turn("s", _t("assistant", "y"))  # no lanza
     assert backend.saved_summary is None
+
+
+def _resumidor():
+    llamadas = []
+
+    async def summarize(turns, previous):
+        llamadas.append((list(turns), previous))
+        return f"R{len(llamadas)}"
+
+    return summarize, llamadas
+
+
+async def test_summary_con_max_turns_default_resume_lo_que_sale_de_la_ventana():
+    turns = [_t("user" if i % 2 == 0 else "assistant", f"m{i}") for i in range(51)]
+    backend = Fake(turns)
+    summarize, llamadas = _resumidor()
+    mgr = MemoryManager(
+        "a",
+        {"conversational": {"strategy": "summary"}},
+        conversation=backend,
+        summarize_fn=summarize,
+    )
+    await mgr.persist_turn("s", _t("assistant", "m51"))
+    assert len(llamadas) == 1
+    assert llamadas[0][0] == turns[:2]  # los que quedan fuera de los últimos 50
+    assert backend.saved_summary == "R1"
+
+
+async def test_persistir_turno_user_no_resume():
+    backend = Fake([_t("user", f"m{i}") for i in range(60)])
+    summarize, llamadas = _resumidor()
+    mgr = MemoryManager(
+        "a",
+        {"conversational": {"strategy": "summary", "max_turns": 4}},
+        conversation=backend,
+        summarize_fn=summarize,
+    )
+    await mgr.persist_turn("s", _t("user", "otro"))
+    assert llamadas == []
+
+
+async def test_resumen_anterior_se_integra_y_se_reemplaza():
+    backend = Fake([_t("user", f"m{i}") for i in range(10)], summary="VIEJO")
+    summarize, llamadas = _resumidor()
+    mgr = MemoryManager(
+        "a",
+        {"conversational": {"strategy": "summary", "max_turns": 4}},
+        conversation=backend,
+        summarize_fn=summarize,
+    )
+    await mgr.persist_turn("s", _t("assistant", "a"))
+    assert llamadas[0][1] == "VIEJO"
+    assert backend.saved_summary == "R1"
+
+
+async def test_resumidos_y_ventana_verbatim_no_se_solapan():
+    backend = Fake([_t("user", f"m{i}") for i in range(10)])
+    summarize, llamadas = _resumidor()
+    mgr = MemoryManager(
+        "a",
+        {"conversational": {"strategy": "summary", "max_turns": 4}},
+        conversation=backend,
+        summarize_fn=summarize,
+    )
+    await mgr.persist_turn("s", _t("assistant", "a"))
+    ctx = await mgr.build_context("s", "q")
+    resumidos = {id(t) for t in llamadas[0][0]}
+    assert len(resumidos) == 2
+    assert resumidos.isdisjoint(id(t) for t in ctx["conversation"])
+    # los resumidos son justo los anteriores a la ventana
+    assert llamadas[0][0] == backend.turns[-6:-4]
+
+
+async def test_fit_history_sin_presupuesto_no_recorta():
+    turns = [_t("user", "x" * 400) for _ in range(30)]
+    mgr = MemoryManager("a", {"conversational": {}}, conversation=Fake(turns))
+    ctx = await mgr.build_context("s", "q")
+    stats = mgr.fit_history(ctx, None)
+    assert len(ctx["conversation"]) == 30
+    assert stats == {"turns_kept": 30, "turns_dropped": 0, "tokens": 3000, "summary_used": False}

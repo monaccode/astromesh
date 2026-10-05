@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import uuid
 from pathlib import Path
 
@@ -135,18 +136,28 @@ def _public_caller_context(context: dict | None) -> dict:
 _SUMMARY_PREFIX = "[Resumen de la conversación anterior]"
 
 
+def _history_in_template(system_prompt: str | None) -> bool:
+    """Camino legado: el template usa `memory.conversation` (no `_summary`)."""
+    return re.search(r"memory\.conversation\b", system_prompt or "") is not None
+
+
 def _history_messages(memory_context: dict) -> list[dict]:
     """El historial ya recortado, como mensajes para el patrón.
 
-    Sin resumen adelante, se descartan los `assistant` iniciales: el recorte
-    puede cortar en medio de un par, y hay proveedores que exigen que el primer
-    mensaje sea del usuario.
+    Se omiten turnos sin texto (Anthropic rechaza bloques vacíos). Sin resumen
+    adelante, se descartan los `assistant` iniciales: el recorte puede cortar en
+    medio de un par, y hay proveedores que exigen que el primer mensaje sea del
+    usuario. El resumen se fusiona con el primer turno si es `user`, para no
+    mandar dos `user` seguidos.
     """
-    turns = list(memory_context.get("conversation") or [])
+    turns = [t for t in memory_context.get("conversation") or [] if (t.content or "").strip()]
     summary = memory_context.get("conversation_summary")
     messages = []
     if summary:
-        messages.append({"role": "user", "content": f"{_SUMMARY_PREFIX}\n{summary}"})
+        head = f"{_SUMMARY_PREFIX}\n{summary}"
+        if turns and turns[0].role == "user":
+            head = f"{head}\n\n{turns.pop(0).content}"
+        messages.append({"role": "user", "content": head})
     else:
         while turns and turns[0].role == "assistant":
             turns.pop(0)
@@ -303,8 +314,10 @@ _CONSUMED_KEYS["azure_openai"] = _CONSUMED_KEYS["openai_compat"]
 DEFAULT_RESPONSE_TOKENS = 1024
 
 _SUMMARY_PROMPT = (
-    "Resumí la conversación que sigue en pocas líneas. Conservá nombres, datos, "
-    "cifras, pedidos y compromisos; descartá saludos y relleno. Respondé sólo el resumen."
+    "Resumí la conversación que sigue en pocas líneas. Si hay un resumen anterior, "
+    "integrá en él los turnos nuevos y devolvé un único resumen actualizado. Conservá "
+    "nombres, datos, cifras, pedidos y compromisos; descartá saludos y relleno. "
+    "Respondé sólo el resumen."
 )
 
 
@@ -312,8 +325,10 @@ def _summarizer(routers: dict):
     """`summarize_fn` de MemoryManager: el rol `summarizer` si existe, si no `default`."""
     router = routers.get("summarizer") or routers["default"]
 
-    async def summarize(turns):
+    async def summarize(turns, previous_summary=None):
         texto = "\n".join(f"[{t.role}] {t.content}" for t in turns)
+        if previous_summary:
+            texto = f"Resumen anterior:\n{previous_summary}\n\nTurnos nuevos:\n{texto}"
         response = await router.route(
             [{"role": "system", "content": _SUMMARY_PROMPT}, {"role": "user", "content": texto}]
         )
@@ -851,18 +866,18 @@ class AgentRuntime:
             for b in self._normalize_model_spec(model_spec)["default"]["candidates"]
         ]
         context_window, context_window_source = resolve_context_window(default_candidates)
-        if context_window_source == "default":
+        if context_window_source == "default" and conv_spec:
             logger.warning(
-                "agent %r: no pude determinar la ventana de contexto del modelo; uso %d "
-                "tokens. Declará `context_window` en el candidato.",
+                "agent %r: no pude determinar la ventana de contexto del modelo; el "
+                "historial NO se recorta por presupuesto (sólo `max_turns`) hasta que "
+                "declares `context_window` en el candidato.",
                 metadata["name"],
-                context_window,
             )
         primary = default_candidates[0] if default_candidates else {}
         response_tokens = int(
             (_model_parameters(primary) or {}).get("max_tokens") or DEFAULT_RESPONSE_TOKENS
         )
-        if conv_spec and "memory.conversation" in (spec.get("prompts") or {}).get("system", ""):
+        if conv_spec and _history_in_template((spec.get("prompts") or {}).get("system")):
             logger.warning(
                 "agent %r: historial en el system prompt (`memory.conversation`): rompe el "
                 "caché de prompts; migrá a mensajes quitándolo del template.",
@@ -1577,7 +1592,11 @@ class Agent:
                 + estimate_tokens(json.dumps(tool_schemas, default=str))
                 + self._response_tokens
             )
-            budget = max(0, int(self._context_window * 0.9) - base_tokens)
+            # Ventana desconocida: no se recorta por presupuesto (sólo `max_turns`),
+            # o la flota con modelos que litellm no conoce perdería historial en silencio.
+            budget = None
+            if self._context_window_source != "default":
+                budget = max(0, int(self._context_window * 0.9) - base_tokens)
             if budget == 0:
                 logger.warning(
                     "agent %s: el system prompt, las tools y la respuesta (%d tokens) no "
@@ -1590,7 +1609,7 @@ class Agent:
             # Camino legado: el template mete `memory.conversation` en el system
             # prompt (manifiestos de OFFICIUM/Clarus). Se respeta y NO se mandan
             # mensajes, o el modelo vería el historial dos veces.
-            history_in_template = "memory.conversation" in (self._system_prompt or "")
+            history_in_template = _history_in_template(self._system_prompt)
             if history_in_template:
                 rendered_prompt = self._render_system(variables)
             else:
@@ -1599,7 +1618,7 @@ class Agent:
                 "context.window": self._context_window,
                 "context.window_source": self._context_window_source,
                 "context.base_tokens": base_tokens,
-                "history.budget": budget,
+                "history.budget": -1 if budget is None else budget,
                 "history.turns_kept": stats["turns_kept"],
                 "history.turns_dropped": stats["turns_dropped"],
                 "history.tokens": stats["tokens"],

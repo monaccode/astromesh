@@ -12,8 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `astromesh/core/tokens.py`: conteo de tokens (litellm si está instalado, si no `len/4`) y
   resolución de la ventana de contexto del modelo, sin dependencias nuevas en el core.
 - `context_window` en el candidato del modelo: fija la ventana de contexto. Sin él se usa
-  `num_ctx` (Ollama), lo que sepa litellm, o 32000 con un warning. Con varios candidatos
-  gana la más chica.
+  `num_ctx` (Ollama) o lo que sepa litellm; con varios candidatos gana la más chica. Si la
+  ventana es desconocida (sin `context_window`, sin `num_ctx` y litellm no conoce el modelo)
+  el historial **no** se recorta por presupuesto, sólo por `max_turns`, y el agente avisa al
+  cargar: declará `context_window` para activar el presupuesto.
 
 ### Fixed
 
@@ -21,7 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   que `token_budget` metía el historial entero). Las filas viejas se estiman al leerlas.
   Una falla del resumen ya no rompe `persist_turn`.
 - **`strategy: summary` resume de verdad**, con el rol `summarizer` del agente (o `default`).
-  Una vez superado `max_turns` resume en cada turno: una llamada al modelo por turno.
+  El resumen es incremental: una vez superado `max_turns`, tras cada respuesta del assistant
+  (una vez por intercambio) integra al resumen anterior los turnos que acaban de salir de la
+  ventana verbatim, sin solaparse con ella ni perder turnos. Corre inline: suma la latencia
+  de una llamada al rol `summarizer` a esa corrida.
 - **El historial llega al modelo como mensajes, con presupuesto real.** El presupuesto es la
   ventana del modelo menos el system prompt, las tools y la respuesta (antes 4096 fijos). Los
   agentes con `memory.conversational` cuyo system prompt no usa `memory.conversation`
@@ -36,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   50 tokens cuando el agente tiene semántica cableada (antes nunca ocurría).
 - Sólo los patrones `react` y `glyph` consumen el historial como mensajes; los demás siguen
   como antes.
+- `MemoryManager.build_context` sin `max_tokens` ya no recorta (lo usa el ADK); con
+  `strategy: summary` devuelve hasta `max_turns` turnos más el resumen (antes 5).
 
 ### Removed
 

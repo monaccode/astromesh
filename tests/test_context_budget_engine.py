@@ -129,10 +129,32 @@ async def test_summary_usa_el_rol_summarizer(tmp_path):
         return _resp("RESUMEN")
 
     agente._routers["summarizer"].route = route
-    await agente._memory.persist_turn("s1", _t("user", "otro"))
+    await agente._memory.persist_turn("s1", _t("assistant", "otro"))
     assert len(pedidos) == 1
-    assert "m0" in pedidos[0][-1]["content"]
+    # 13 turnos, ventana de 4: salen de la ventana m7 y m8 (los anteriores ya se resumieron).
+    assert pedidos[0][-1]["content"] == "[user] m7\n[user] m8"
     assert agente._memory._conversation.summary == "RESUMEN"
+
+
+async def test_summarizer_integra_el_resumen_anterior(tmp_path):
+    agente = await _agente(
+        tmp_path,
+        _manifest(strategy="summary", max_turns=4),
+        turns=[_t("user", f"m{i}") for i in range(12)],
+    )
+    agente._memory._conversation.summary = "VIEJO"
+    pedidos = []
+
+    async def route(messages, requirements=None, **kwargs):
+        pedidos.append(messages)
+        return _resp("NUEVO")
+
+    agente._routers["default"].route = route
+    await agente._memory.persist_turn("s1", _t("assistant", "otro"))
+    assert pedidos[0][-1]["content"] == (
+        "Resumen anterior:\nVIEJO\n\nTurnos nuevos:\n[user] m7\n[user] m8"
+    )
+    assert agente._memory._conversation.summary == "NUEVO"
 
 
 async def test_sin_strategy_summary_no_se_cablea_resumidor(tmp_path):
@@ -219,7 +241,7 @@ async def test_historial_recortado_no_empieza_con_assistant(tmp_path):
 
 async def test_resumen_es_el_primer_mensaje(tmp_path):
     agente = await _agente(
-        tmp_path, _manifest(strategy="summary"), turns=[_t("user", "u1"), _t("assistant", "a1")]
+        tmp_path, _manifest(strategy="summary"), turns=[_t("assistant", "a0"), _t("user", "u1")]
     )
     agente._memory._conversation.summary = "Ana pidió un turno"
     llamadas = _capturar(agente)
@@ -228,6 +250,79 @@ async def test_resumen_es_el_primer_mensaje(tmp_path):
         "role": "user",
         "content": "[Resumen de la conversación anterior]\nAna pidió un turno",
     }
+    assert llamadas[0][2] == {"role": "assistant", "content": "a0"}
+
+
+async def test_resumen_se_fusiona_con_el_primer_turno_user(tmp_path):
+    agente = await _agente(
+        tmp_path, _manifest(strategy="summary"), turns=[_t("user", "u1"), _t("assistant", "a1")]
+    )
+    agente._memory._conversation.summary = "Ana pidió un turno"
+    llamadas = _capturar(agente)
+    await agente.run("q", session_id="s1")
+    assert llamadas[0][1:] == [
+        {
+            "role": "user",
+            "content": "[Resumen de la conversación anterior]\nAna pidió un turno\n\nu1",
+        },
+        {"role": "assistant", "content": "a1"},
+        {"role": "user", "content": "q"},
+    ]
+
+
+async def test_turnos_vacios_no_se_mandan(tmp_path):
+    agente = await _agente(
+        tmp_path,
+        _manifest(),
+        turns=[_t("user", "u1"), _t("assistant", "  "), _t("user", ""), _t("assistant", "a1")],
+    )
+    llamadas = _capturar(agente)
+    await agente.run("q", session_id="s1")
+    assert llamadas[0][1:] == [
+        {"role": "user", "content": "u1"},
+        {"role": "assistant", "content": "a1"},
+        {"role": "user", "content": "q"},
+    ]
+
+
+async def test_ventana_desconocida_no_recorta(tmp_path):
+    turns = [
+        _t("user" if i % 2 == 0 else "assistant", f"t{i:02d} " + "x" * 4000) for i in range(40)
+    ]
+    agente = await _agente(tmp_path, _manifest(max_turns=40), turns=turns)
+    assert agente._context_window_source == "default"
+    llamadas = _capturar(agente)
+    await agente.run("q", session_id="s1")
+    assert len(llamadas[0][1:-1]) == 40
+
+
+async def test_ventana_desconocida_avisa_que_no_recorta(tmp_path, caplog):
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        await _agente(tmp_path, _manifest())
+    avisos = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert any("mem-agent" in m and "NO se recorta" in m for m in avisos), avisos
+
+
+async def test_solo_conversation_summary_en_template_manda_mensajes(tmp_path):
+    system = "sos un agente\n{{ memory.conversation_summary }}"
+    agente = await _agente(
+        tmp_path,
+        _manifest(system=system),
+        turns=[_t("user", "me llamo Ana"), _t("assistant", "hola Ana")],
+    )
+    llamadas = _capturar(agente)
+    await agente.run("¿cómo me llamo?", session_id="s1")
+    assert llamadas[0][1:] == [
+        {"role": "user", "content": "me llamo Ana"},
+        {"role": "assistant", "content": "hola Ana"},
+        {"role": "user", "content": "¿cómo me llamo?"},
+    ]
+
+
+async def test_system_null_carga(tmp_path):
+    await _agente(tmp_path, _manifest(system=None))  # _agente asierta que cargó
 
 
 async def test_system_prompt_estable_entre_turnos(tmp_path):

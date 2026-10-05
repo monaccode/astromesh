@@ -18,6 +18,7 @@ def _litellm():
         import litellm
     except ImportError:
         return None
+    litellm.suppress_debug_info = True  # sin el banner "Provider List" por modelo desconocido
     return litellm
 
 

@@ -138,6 +138,7 @@ class MemoryManager:
 
         El resumen se cuenta primero; si solo no entra, se descarta. Los turnos
         se eligen de lo más nuevo a lo más viejo con TokenBudgetStrategy.
+        `budget=None` no recorta nada: sólo devuelve las cifras (ventana desconocida).
         """
         # Import local: token_budget.py importa ConversationTurn de este módulo.
         from astromesh.memory.strategies.token_budget import TokenBudgetStrategy
@@ -145,6 +146,13 @@ class MemoryManager:
         turns = context.get("conversation") or []
         summary = context.get("conversation_summary")
         summary_tokens = estimate_tokens(summary)
+        if budget is None:
+            return {
+                "turns_kept": len(turns),
+                "turns_dropped": 0,
+                "tokens": summary_tokens + sum(t.token_count for t in turns),
+                "summary_used": bool(summary),
+            }
         if summary_tokens > budget:
             context["conversation_summary"] = summary = None
             summary_tokens = 0
@@ -166,19 +174,25 @@ class MemoryManager:
             if not turn.token_count:
                 turn.token_count = estimate_tokens(turn.content)
             await self._conversation.save_turn(session_id, turn)
-            history = await self._conversation.get_history(session_id)
             max_turns = self.config.get("conversational", {}).get("max_turns", 50)
-            if len(history) > max_turns and self._summarize:
-                try:
-                    summary = await self._summarize(history[:-10])
-                    await self._conversation.save_summary(session_id, summary)
-                except Exception:
-                    logger.warning(
-                        "memory.summary falló para agent=%s session=%s; queda el resumen anterior",
-                        self.agent_id,
-                        session_id,
-                        exc_info=True,
-                    )
+            # Resumen incremental, una vez por intercambio (tras el assistant): se
+            # resumen los turnos que acaban de salir de la ventana verbatim
+            # (`build_context` trae los últimos `max_turns`) junto al resumen anterior.
+            if turn.role == "assistant" and self._summarize:
+                history = await self._conversation.get_history(session_id, limit=max_turns + 2)
+                if len(history) > max_turns:
+                    try:
+                        previous = await self._conversation.get_summary(session_id)
+                        summary = await self._summarize(history[:-max_turns], previous)
+                        await self._conversation.save_summary(session_id, summary)
+                    except Exception:
+                        logger.warning(
+                            "memory.summary falló para agent=%s session=%s; "
+                            "queda el resumen anterior",
+                            self.agent_id,
+                            session_id,
+                            exc_info=True,
+                        )
 
         if self._semantic and self._embed and turn.role == "assistant" and turn.token_count > 50:
             emb = await self._embed(turn.content)
