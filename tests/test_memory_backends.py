@@ -245,32 +245,6 @@ def test_faiss_store_and_search():
 # ===================== Memory strategies tests =====================
 
 
-def test_sliding_window():
-    from astromesh.memory.strategies.sliding_window import SlidingWindowStrategy
-
-    turns = [
-        ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
-        for i in range(20)
-    ]
-    strategy = SlidingWindowStrategy()
-    result = strategy.apply(turns, max_turns=5)
-    assert len(result) == 5
-    # Should be the last 5 turns
-    assert result[0].content == "msg15"
-    assert result[-1].content == "msg19"
-
-
-def test_sliding_window_under_limit():
-    from astromesh.memory.strategies.sliding_window import SlidingWindowStrategy
-
-    turns = [
-        ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now()) for i in range(3)
-    ]
-    strategy = SlidingWindowStrategy()
-    result = strategy.apply(turns, max_turns=5)
-    assert len(result) == 3
-
-
 def test_token_budget():
     from astromesh.memory.strategies.token_budget import TokenBudgetStrategy
 
@@ -291,32 +265,3 @@ def test_token_budget_empty():
     strategy = TokenBudgetStrategy()
     result = strategy.apply([], budget=1000)
     assert len(result) == 0
-
-
-def test_summary_strategy():
-    from astromesh.memory.strategies.summary import SummaryStrategy
-
-    turns = [
-        ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now())
-        for i in range(10)
-    ]
-
-    def mock_summary_fn(older_turns):
-        return f"Summary of {len(older_turns)} turns"
-
-    strategy = SummaryStrategy()
-    result = strategy.apply(turns, summary_fn=mock_summary_fn, recent_count=3)
-    assert result["summary"] == "Summary of 7 turns"
-    assert len(result["recent"]) == 3
-
-
-def test_summary_strategy_short_history():
-    from astromesh.memory.strategies.summary import SummaryStrategy
-
-    turns = [
-        ConversationTurn(role="user", content=f"msg{i}", timestamp=datetime.now()) for i in range(2)
-    ]
-    strategy = SummaryStrategy()
-    result = strategy.apply(turns, summary_fn=lambda x: "unused", recent_count=5)
-    assert result["summary"] is None
-    assert len(result["recent"]) == 2

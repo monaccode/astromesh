@@ -1,6 +1,7 @@
 import os
 
 from astromesh.core.memory import ConversationTurn
+from astromesh.core.tokens import estimate_tokens
 
 try:
     from astromesh._native import RustTokenBudget
@@ -21,7 +22,7 @@ class TokenBudgetStrategy:
         selected: list[ConversationTurn] = []
         used = 0
         for turn in reversed(history):
-            cost = turn.token_count if turn.token_count > 0 else len(turn.content.split())
+            cost = turn.token_count if turn.token_count > 0 else estimate_tokens(turn.content)
             if used + cost > budget:
                 break
             selected.insert(0, turn)

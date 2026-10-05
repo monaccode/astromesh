@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `astromesh/core/tokens.py`: conteo de tokens (litellm si está instalado, si no `len/4`) y
   resolución de la ventana de contexto del modelo, sin dependencias nuevas en el core.
 
+### Fixed
+
+- **Memoria conversacional: los turnos se guardan con `token_count`** (antes siempre 0, así
+  que `token_budget` metía el historial entero). Las filas viejas se estiman al leerlas.
+  Una falla del resumen ya no rompe `persist_turn`.
+
+### Changed
+
+- Con conteos reales, `persist_turn` guarda en la memoria semántica las respuestas de más de
+  50 tokens cuando el agente tiene semántica cableada (antes nunca ocurría).
+
+### Removed
+
+- `astromesh/memory/strategies/sliding_window.py` y `summary.py`: no los usaba nadie.
+
 ### Added (Astromesh Node)
 
 - **Tarball para Mac Intel.** El release de macOS se arma dos veces, en `macos-latest` (Apple
