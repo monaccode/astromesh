@@ -302,6 +302,40 @@ invierte, la decisión de hacerlo declarativo hay que revisarla.
 | `supervisor` | Task delegation | Delegates sub-tasks to worker agents. |
 | `swarm` | Multi-agent conversations | Agents hand off to each other based on context. |
 
+### Prompts
+
+**`prompts.system` — el prefijo estable.** El system prompt define la identidad y el estilo del agente.
+Se envía en cada mensaje y debe ser idéntico entre turnos para que el caché de prompts
+actúe (Kimi/Moonshot, OpenAI, vLLM). No uses `memory.conversation`, `knowledge` o `prefetch` acá;
+moverlos a `prompts.context` activa el caché automático.
+
+**`prompts.context` — lo que cambia en cada turno.** Todo lo que depende de la query (RAG,
+`prefetch`) va acá y no en `prompts.system`. El runtime lo antepone al mensaje del usuario
+actual, así el prompt queda en este orden:
+
+system → tools → historial → **contexto + query**
+
+Todo lo anterior al último mensaje es idéntico entre llamadas, y el caché automático del
+proveedor (Kimi/Moonshot, OpenAI, vLLM) lo sirve a precio reducido. Si el system usa
+`knowledge` o `prefetch`, cambia en cada query y no se cachea nada: el runtime lo avisa al
+cargar el agente.
+
+```yaml
+prompts:
+  system: |
+    Sos Lucía, analista comercial. Respondé con los datos que te paso.
+  context: |
+    {% if knowledge %}DOCUMENTOS RELEVANTES:
+    {{ knowledge }}{% endif %}
+    {% if prefetch.stock %}STOCK ACTUAL: {{ prefetch.stock }}{% endif %}
+```
+
+El turno que se guarda en memoria es la query original, sin el contexto. Los patrones
+`react` y `glyph` lo separan; con los demás va al final del system prompt. El span
+`llm.complete` trae `cache.hit_ratio` para medir si el caché está pegando.
+
+`prompts.context` se renderiza antes de recortar el historial: si itera `memory.conversation`, ve el historial completo.
+
 ### Memory Strategies
 
 | Strategy | Description | Use When |
