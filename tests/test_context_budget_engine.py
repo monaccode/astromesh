@@ -496,6 +496,8 @@ async def test_warning_por_variables_de_query_en_el_system(tmp_path, caplog):
         "sem": "{{ memory.semantic }}",
         "kbid": "base {{ knowledge_base_id }}",
         "summ": "{{ memory.conversation_summary }}",
+        "prosa": "Use the knowledge base to answer",
+        "bloque": "{% if knowledge %}x{% endif %}",
     }
     avisados = {}
     for clave, system in sistemas.items():
@@ -507,7 +509,21 @@ async def test_warning_por_variables_de_query_en_el_system(tmp_path, caplog):
             for r in caplog.records
             if r.levelno >= logging.WARNING
         )
-    assert avisados == {"rag": True, "pref": True, "sem": True, "kbid": False, "summ": False}
+    assert avisados == {
+        "rag": True,
+        "pref": True,
+        "sem": True,
+        "kbid": False,
+        "summ": False,
+        "prosa": False,
+        "bloque": True,
+    }
+
+
+async def test_prompts_null_carga(tmp_path):
+    manifest = _manifest()
+    manifest["spec"]["prompts"] = None
+    await _agente(tmp_path, manifest)
 
 
 async def test_ssti_en_el_contexto_hace_fallar_la_corrida(tmp_path):

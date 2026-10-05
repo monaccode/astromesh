@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   guardado en memoria sigue siendo la query original. Con patrones que no lo separan
   (`plan_and_execute`, etc.) va al final del system, con un warning al cargar.
 - Warning al cargar cuando `prompts.system` usa `knowledge`, `prefetch` o
-  `memory.semantic`/`episodic`: rompe el caché; moverlo a `prompts.context`.
+  `memory.semantic`/`episodic` dentro de bloques Jinja (`{{ }}`/`{% %}`), no en prosa: rompe
+  el caché; moverlo a `prompts.context`.
 - `cache.hit_ratio` en el span `llm.complete` (`cached_tokens / input_tokens`).
 - Patrones `react` y `glyph`: anteponen el contexto del turno (`_turn_context`) al mensaje del
   usuario actual, al final de la conversación, para que lo anterior sea prefijo cacheable.

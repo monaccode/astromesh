@@ -143,10 +143,9 @@ def _history_in_template(system_prompt: str | None) -> bool:
 
 def _per_query_vars_in(system_prompt: str | None) -> bool:
     """El system usa algo que cambia en cada query: rompe el prefijo del caché."""
-    return (
-        re.search(r"\b(knowledge|prefetch)\b|memory\.(semantic|episodic)\b", system_prompt or "")
-        is not None
-    )
+    # sólo dentro de bloques Jinja: la prosa ("use the knowledge base") no cuenta
+    inside = " ".join(re.findall(r"\{[{%](.*?)[%}]\}", system_prompt or "", re.DOTALL))
+    return re.search(r"\b(knowledge|prefetch)\b|memory\.(semantic|episodic)\b", inside) is not None
 
 
 def _history_messages(memory_context: dict) -> list[dict]:
@@ -885,7 +884,8 @@ class AgentRuntime:
         response_tokens = int(
             (_model_parameters(primary) or {}).get("max_tokens") or DEFAULT_RESPONSE_TOKENS
         )
-        if conv_spec and _history_in_template((spec.get("prompts") or {}).get("system")):
+        prompts_spec = spec.get("prompts") or {}
+        if conv_spec and _history_in_template(prompts_spec.get("system")):
             logger.warning(
                 "agent %r: historial en el system prompt (`memory.conversation`): rompe el "
                 "caché de prompts; migrá a mensajes quitándolo del template.",
@@ -1158,7 +1158,6 @@ class AgentRuntime:
         pattern = self._build_pattern(
             spec, tools.get_tool_schemas(spec.get("permissions", {}).get("allowed_actions"))
         )
-        prompts_spec = spec.get("prompts") or {}
         if _per_query_vars_in(prompts_spec.get("system")):
             logger.warning(
                 "agent %r: el system prompt usa algo que cambia en cada query (knowledge, "
@@ -1172,8 +1171,7 @@ class AgentRuntime:
                 "prompt y no hay ganancia de caché.",
                 metadata["name"],
             )
-        prompts = spec.get("prompts", {})
-        for name, tmpl in prompts.get("templates", {}).items():
+        for name, tmpl in (prompts_spec.get("templates") or {}).items():
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
         # Después de registrar TODAS las tools: el prefetch nombra una por su
         # nombre registrado (`<slug>_<acción>`).
@@ -1189,7 +1187,7 @@ class AgentRuntime:
             memory=memory,
             tools=tools,
             pattern=pattern,
-            system_prompt=prompts.get("system", ""),
+            system_prompt=prompts_spec.get("system", ""),
             prompt_engine=self._prompt_engine,
             guardrails=spec.get("guardrails", {}),
             permissions=spec.get("permissions", {}),
@@ -1200,7 +1198,7 @@ class AgentRuntime:
             context_window=context_window,
             context_window_source=context_window_source,
             response_tokens=response_tokens,
-            context_prompt=prompts.get("context") or "",
+            context_prompt=prompts_spec.get("context") or "",
         )
 
     def _build_pattern(self, spec: dict, tool_schemas: list[dict] | None = None):

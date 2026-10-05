@@ -334,7 +334,9 @@ El turno que se guarda en memoria es la query original, sin el contexto. Los pat
 `react` y `glyph` lo separan; con los demás va al final del system prompt. El span
 `llm.complete` trae `cache.hit_ratio` para medir si el caché está pegando.
 
-`prompts.context` se renderiza antes de recortar el historial: si itera `memory.conversation`, ve el historial completo.
+El prefijo es estable mientras el historial entra con margen en el presupuesto: un `prompts.context` muy variable en tamaño puede hacer que entre o salga el turno más viejo. Mantenelo acotado.
+
+No iteres `memory.conversation` en `prompts.context`: el historial ya viaja como mensajes y el modelo lo vería dos veces (además, el contexto se renderiza antes de recortar el historial y vería el historial completo).
 
 ### Memory Strategies
 
