@@ -310,6 +310,24 @@ invierte, la decisión de hacerlo declarativo hay que revisarla.
 | `summary` | Compress older turns into summaries | Long conversations that need full history |
 | `token_budget` | Fit as many turns as possible within a token limit | Need precise control over context size |
 
+**Presupuesto del historial.** El runtime toma la ventana del modelo — `context_window` en el
+candidato, o `parameters.num_ctx` en Ollama, o lo que sepa litellm si está instalado, o
+32000 — y le resta el system prompt, los schemas de las tools y `max_tokens` de la
+respuesta (con 10% de margen). El historial entra hasta ese tope, de lo más nuevo a lo más
+viejo. Con varios candidatos se usa la ventana más chica.
+
+```yaml
+model:
+  primary:
+    provider: ollama
+    model: llama3
+    context_window: 8192
+```
+
+El historial viaja como mensajes. No lo metas en el system prompt con
+`{% for t in memory.conversation %}`: funciona, pero cambia el prompt en cada turno y anula
+el caché de prompts.
+
 ### Guardrail Types
 
 | Type | Direction | Description |
