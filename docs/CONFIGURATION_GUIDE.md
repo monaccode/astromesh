@@ -311,10 +311,12 @@ invierte, la decisión de hacerlo declarativo hay que revisarla.
 | `token_budget` | Fit as many turns as possible within a token limit | Need precise control over context size |
 
 **Presupuesto del historial.** El runtime toma la ventana del modelo — `context_window` en el
-candidato, o `parameters.num_ctx` en Ollama, o lo que sepa litellm si está instalado, o
-32000 — y le resta el system prompt, los schemas de las tools y `max_tokens` de la
-respuesta (con 10% de margen). El historial entra hasta ese tope, de lo más nuevo a lo más
-viejo. Con varios candidatos se usa la ventana más chica.
+candidato, o `parameters.num_ctx` en Ollama, o lo que sepa litellm si está instalado — y le
+resta el system prompt, los schemas de las tools y `max_tokens` de la respuesta (con 10% de
+margen). El historial entra hasta ese tope, de lo más nuevo a lo más viejo. Con varios
+candidatos se usa la ventana más chica. Si no hay forma de saber la ventana, el historial no
+se recorta por presupuesto, sólo por `max_turns`, y el agente avisa al cargar: declará
+`context_window` para activar el presupuesto.
 
 ```yaml
 model:

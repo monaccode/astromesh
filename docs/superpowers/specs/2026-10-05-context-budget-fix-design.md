@@ -55,7 +55,11 @@ primero de estos que dé un valor:
 2. `parameters.num_ctx` si `provider: ollama`.
 3. `litellm.get_model_info(model)["max_input_tokens"]` si el extra `litellm` está instalado.
    Cualquier excepción se trata como «no dio valor».
-4. Default `32_000`, con un warning una sola vez por agente.
+4. Si ninguno da valor, la ventana es **desconocida**: el historial NO se recorta por
+   presupuesto (sólo por `max_turns`, como antes del fix) y el agente emite un warning al
+   cargar (si declara `memory.conversational`) pidiendo declarar `context_window`. Se aparta
+   del default de 32k original para no recortar en silencio a modelos que litellm no conoce
+   (p. ej. `kimi-*` vía `openai_compat`).
 
 La ventana efectiva del agente es la **mínima** entre los candidatos de `default`, para que un
 fallback más chico no desborde. Se guardan el valor y la fuente del candidato que la fijó.
@@ -165,7 +169,8 @@ Cada uno falla contra el `develop` actual:
    el warning.
 5. `strategy: summary` llama al rol `summarizer`, y el resumen es el primer mensaje cuando
    hay turnos recortados.
-6. Resolución de la ventana: YAML > `num_ctx` > litellm > 32k, y el mínimo entre candidatos.
+6. Resolución de la ventana: YAML > `num_ctx` > litellm > desconocida (sin recorte por
+   presupuesto), y el mínimo entre candidatos.
 7. Si la base supera la ventana, no hay excepción y el historial queda vacío.
 8. El system prompt enviado es idéntico entre el turno 1 y el turno 2 de un agente que recibe
    el historial por mensajes (prefijo estable para el caché).
