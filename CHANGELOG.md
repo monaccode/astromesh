@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Backend)
 
+- Patrones `react` y `glyph`: anteponen el contexto del turno (`_turn_context`) al mensaje del
+  usuario actual, al final de la conversación, para que lo anterior sea prefijo cacheable.
 - `astromesh/core/tokens.py`: conteo de tokens (litellm si está instalado, si no `len/4`) y
   resolución de la ventana de contexto del modelo, sin dependencias nuevas en el core.
 - `context_window` en el candidato del modelo: fija la ventana de contexto. Sin él se usa
