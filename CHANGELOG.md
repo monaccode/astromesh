@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- `astromesh/core/tokens.py`: conteo de tokens (litellm si está instalado, si no `len/4`) y
+  resolución de la ventana de contexto del modelo, sin dependencias nuevas en el core.
+
 ### Added (Astromesh Node)
 
 - **Tarball para Mac Intel.** El release de macOS se arma dos veces, en `macos-latest` (Apple
