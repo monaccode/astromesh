@@ -11,12 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `astromesh/core/tokens.py`: conteo de tokens (litellm si está instalado, si no `len/4`) y
   resolución de la ventana de contexto del modelo, sin dependencias nuevas en el core.
+- `context_window` en el candidato del modelo: fija la ventana de contexto. Sin él se usa
+  `num_ctx` (Ollama), lo que sepa litellm, o 32000 con un warning. Con varios candidatos
+  gana la más chica.
 
 ### Fixed
 
 - **Memoria conversacional: los turnos se guardan con `token_count`** (antes siempre 0, así
   que `token_budget` metía el historial entero). Las filas viejas se estiman al leerlas.
   Una falla del resumen ya no rompe `persist_turn`.
+- **`strategy: summary` resume de verdad**, con el rol `summarizer` del agente (o `default`).
+  Una vez superado `max_turns` resume en cada turno: una llamada al modelo por turno.
 
 ### Changed
 

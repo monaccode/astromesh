@@ -12,6 +12,7 @@ from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
 from astromesh.core.schema import InvalidToolParameters, normalize_tool_parameters
+from astromesh.core.tokens import DEFAULT_CONTEXT_WINDOW, resolve_context_window
 from astromesh.core.tools import ToolRegistry
 from astromesh.errors import AgentConfigError
 from astromesh.integrations import default_catalog
@@ -253,7 +254,9 @@ def _normalize_tool_calls(raw_calls: list) -> list[dict]:
 # bugs survived 35 releases: the schema accepted them and nobody said a word.
 # `temperature`/`max_tokens` are the documented top-level shorthand, folded into
 # `parameters` by _model_parameters() for the sources that take parameters.
-_SELECTOR_KEYS = frozenset({"source", "provider", "model", "providerRef"})
+# `context_window` no lo consume el provider sino el runtime (presupuesto del
+# historial, `core/tokens.py`), para cualquier fuente.
+_SELECTOR_KEYS = frozenset({"source", "provider", "model", "providerRef", "context_window"})
 _SHORTHAND_KEYS = ("temperature", "max_tokens")
 _PARAMETER_KEYS = frozenset({"parameters", "timeout", *_SHORTHAND_KEYS})
 _CONSUMED_KEYS: dict[str, frozenset[str]] = {
@@ -273,6 +276,28 @@ _CONSUMED_KEYS: dict[str, frozenset[str]] = {
 }
 _CONSUMED_KEYS["openai"] = _CONSUMED_KEYS["openai_compat"]
 _CONSUMED_KEYS["azure_openai"] = _CONSUMED_KEYS["openai_compat"]
+
+
+DEFAULT_RESPONSE_TOKENS = 1024
+
+_SUMMARY_PROMPT = (
+    "Resumí la conversación que sigue en pocas líneas. Conservá nombres, datos, "
+    "cifras, pedidos y compromisos; descartá saludos y relleno. Respondé sólo el resumen."
+)
+
+
+def _summarizer(routers: dict):
+    """`summarize_fn` de MemoryManager: el rol `summarizer` si existe, si no `default`."""
+    router = routers.get("summarizer") or routers["default"]
+
+    async def summarize(turns):
+        texto = "\n".join(f"[{t.role}] {t.content}" for t in turns)
+        response = await router.route(
+            [{"role": "system", "content": _SUMMARY_PROMPT}, {"role": "user", "content": texto}]
+        )
+        return response.content
+
+    return summarize
 
 
 def _model_parameters(block: dict) -> dict | None:
@@ -790,11 +815,37 @@ class AgentRuntime:
         # con `memory.conversational` bien declarado en su manifiesto y Redis
         # arriba y alcanzable. La memoria conversacional era código muerto:
         # `build_conversation_backend` no lo llamaba NADIE.
+        conv_spec = memory_spec.get("conversational") or {}
         memory = MemoryManager(
             agent_id=metadata["name"],
             config=memory_spec,
             conversation=self._conversation_backend(metadata["name"], memory_spec),
+            # Sólo con `strategy: summary`: resumir es una llamada al modelo por
+            # turno, y un agente que no la pidió no la paga.
+            summarize_fn=_summarizer(routers) if conv_spec.get("strategy") == "summary" else None,
         )
+        default_candidates = [
+            resolve_block(b, self._provider_registry)
+            for b in self._normalize_model_spec(model_spec)["default"]["candidates"]
+        ]
+        context_window, context_window_source = resolve_context_window(default_candidates)
+        if context_window_source == "default":
+            logger.warning(
+                "agent %r: no pude determinar la ventana de contexto del modelo; uso %d "
+                "tokens. Declará `context_window` en el candidato.",
+                metadata["name"],
+                context_window,
+            )
+        primary = default_candidates[0] if default_candidates else {}
+        response_tokens = int(
+            (_model_parameters(primary) or {}).get("max_tokens") or DEFAULT_RESPONSE_TOKENS
+        )
+        if conv_spec and "memory.conversation" in (spec.get("prompts") or {}).get("system", ""):
+            logger.warning(
+                "agent %r: historial en el system prompt (`memory.conversation`): rompe el "
+                "caché de prompts; migrá a mensajes quitándolo del template.",
+                metadata["name"],
+            )
         rag = self._resolve_rag(spec)
         tools = ToolRegistry()
         from astromesh.tools import ToolLoader
@@ -1087,6 +1138,9 @@ class AgentRuntime:
             rag=rag,
             output_schema=normalize_output_schema(spec.get("output_schema")),
             prefetch=prefetch,
+            context_window=context_window,
+            context_window_source=context_window_source,
+            response_tokens=response_tokens,
         )
 
     def _build_pattern(self, spec: dict, tool_schemas: list[dict] | None = None):
@@ -1330,7 +1384,13 @@ class Agent:
         rag=None,
         output_schema=None,
         prefetch=None,
+        context_window=DEFAULT_CONTEXT_WINDOW,
+        context_window_source="default",
+        response_tokens=DEFAULT_RESPONSE_TOKENS,
     ):
+        self._context_window = context_window
+        self._context_window_source = context_window_source
+        self._response_tokens = response_tokens
         self.name = name
         self.version = version
         self.namespace = namespace

@@ -661,6 +661,11 @@
           "description": "Maximum tokens to generate (top-level shorthand).",
           "minimum": 1
         },
+        "context_window": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Tokens de entrada que acepta el modelo. Fija el presupuesto del historial conversacional. Sin esto: num_ctx (Ollama), litellm, o 32000."
+        },
         "parameters": {
           "type": "object",
           "description": "Additional model parameters passed verbatim to the provider.",
