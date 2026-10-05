@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Backend)
 
+- **`prompts.context`**: template opcional para lo que cambia en cada turno (RAG, prefetch).
+  Se antepone al mensaje del usuario actual, así system, tools e historial quedan como
+  prefijo estable y el caché automático del proveedor (Kimi/Moonshot) los sirve. El turno
+  guardado en memoria sigue siendo la query original. Con patrones que no lo separan
+  (`plan_and_execute`, etc.) va al final del system, con un warning al cargar.
+- Warning al cargar cuando `prompts.system` usa `knowledge`, `prefetch` o
+  `memory.semantic`/`episodic`: rompe el caché; moverlo a `prompts.context`.
+- `cache.hit_ratio` en el span `llm.complete` (`cached_tokens / input_tokens`).
 - Patrones `react` y `glyph`: anteponen el contexto del turno (`_turn_context`) al mensaje del
   usuario actual, al final de la conversación, para que lo anterior sea prefijo cacheable.
 - `astromesh/core/tokens.py`: conteo de tokens (litellm si está instalado, si no `len/4`) y

@@ -141,6 +141,14 @@ def _history_in_template(system_prompt: str | None) -> bool:
     return re.search(r"memory\.conversation\b", system_prompt or "") is not None
 
 
+def _per_query_vars_in(system_prompt: str | None) -> bool:
+    """El system usa algo que cambia en cada query: rompe el prefijo del caché."""
+    return (
+        re.search(r"\b(knowledge|prefetch)\b|memory\.(semantic|episodic)\b", system_prompt or "")
+        is not None
+    )
+
+
 def _history_messages(memory_context: dict) -> list[dict]:
     """El historial ya recortado, como mensajes para el patrón.
 
@@ -1150,6 +1158,20 @@ class AgentRuntime:
         pattern = self._build_pattern(
             spec, tools.get_tool_schemas(spec.get("permissions", {}).get("allowed_actions"))
         )
+        prompts_spec = spec.get("prompts") or {}
+        if _per_query_vars_in(prompts_spec.get("system")):
+            logger.warning(
+                "agent %r: el system prompt usa algo que cambia en cada query (knowledge, "
+                "prefetch o memory.semantic/episodic): rompe el caché de prompts; movelo a "
+                "`prompts.context`.",
+                metadata["name"],
+            )
+        if prompts_spec.get("context") and not getattr(pattern, "consumes_turn_context", False):
+            logger.warning(
+                "agent %r: su patrón no separa `prompts.context`; va al final del system "
+                "prompt y no hay ganancia de caché.",
+                metadata["name"],
+            )
         prompts = spec.get("prompts", {})
         for name, tmpl in prompts.get("templates", {}).items():
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
@@ -1178,6 +1200,7 @@ class AgentRuntime:
             context_window=context_window,
             context_window_source=context_window_source,
             response_tokens=response_tokens,
+            context_prompt=prompts.get("context") or "",
         )
 
     def _build_pattern(self, spec: dict, tool_schemas: list[dict] | None = None):
@@ -1424,7 +1447,9 @@ class Agent:
         context_window=DEFAULT_CONTEXT_WINDOW,
         context_window_source="default",
         response_tokens=DEFAULT_RESPONSE_TOKENS,
+        context_prompt="",
     ):
+        self._context_prompt = context_prompt
         self._context_window = context_window
         self._context_window_source = context_window_source
         self._response_tokens = response_tokens
@@ -1586,9 +1611,18 @@ class Agent:
                 {**variables, "memory": {**memory_context, "conversation": []}}
             )
 
+            # Lo que cambia por query (RAG, prefetch) va al final, pegado a la query:
+            # system → tools → historial quedan como prefijo estable para el caché.
+            # Mismo sandbox que el system; sin el bloque de output_schema.
+            turn_context = ""
+            if self._context_prompt:
+                turn_context = self._prompt_engine.render(self._context_prompt, variables).strip()
+            turn_context_tokens = estimate_tokens(turn_context)
+
             fit_span = tracing.start_span("context_fit")
             base_tokens = (
                 estimate_tokens(rendered_prompt)
+                + turn_context_tokens
                 + estimate_tokens(json.dumps(tool_schemas, default=str))
                 + self._response_tokens
             )
@@ -1614,6 +1648,14 @@ class Agent:
                 rendered_prompt = self._render_system(variables)
             else:
                 memory_context["_history_messages"] = _history_messages(memory_context)
+            if not turn_context:
+                turn_context_delivery = "none"
+            elif getattr(self._pattern, "consumes_turn_context", False):
+                memory_context["_turn_context"] = turn_context
+                turn_context_delivery = "message"
+            else:
+                rendered_prompt = f"{rendered_prompt}\n\n{turn_context}"
+                turn_context_delivery = "system"
             for key, value in {
                 "context.window": self._context_window,
                 "context.window_source": self._context_window_source,
@@ -1624,6 +1666,8 @@ class Agent:
                 "history.tokens": stats["tokens"],
                 "history.delivery": "template" if history_in_template else "messages",
                 "history.summary_used": stats["summary_used"],
+                "turn_context.tokens": turn_context_tokens,
+                "turn_context.delivery": turn_context_delivery,
             }.items():
                 fit_span.set_attribute(key, value)
             tracing.finish_span(fit_span)
@@ -1691,6 +1735,13 @@ class Agent:
                         llm_span.set_attribute(
                             "cached_tokens",
                             response.usage.get("cache_read_input_tokens", 0),
+                        )
+                        input_tokens = response.usage.get("input_tokens", 0) or 0
+                        cached = response.usage.get("cache_read_input_tokens", 0) or 0
+                        # La métrica de si el prefijo estable está pegando en el caché.
+                        llm_span.set_attribute(
+                            "cache.hit_ratio",
+                            round(cached / input_tokens, 3) if input_tokens else 0,
                         )
                     llm_span.set_attribute("model", response.model)
                     llm_span.set_attribute("provider", response.provider)

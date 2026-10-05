@@ -198,6 +198,7 @@ async def test_a_client_tool_reaches_a_consumer_live_and_in_steps():
     agent._context_window = 32000
     agent._context_window_source = "default"
     agent._response_tokens = 0
+    agent._context_prompt = ""
 
     router = MagicMock()
     router.route = AsyncMock(return_value=_FakeResponse(content="narrando"))
