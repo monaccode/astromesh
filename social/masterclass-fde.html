@@ -1,0 +1,657 @@
+<title>Masterclass FDE Astromesh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: documento de curso tipo "consola de misión" — índice fijo a la izquierda en desktop, módulos como bitácora de vuelo. Design system Mission Control de Astromesh. */
+:root {
+  --bg: #f4f8fb; --surface: #ffffff; --fg: #0b1824; --muted: #4f6474; --line: #d5e1ea;
+  --accent: #0284a8; --accent-soft: #e0f4fa; --amber: #b45309; --amber-soft: #fdf3e2;
+  --f-display: "DM Sans", system-ui, sans-serif; --f-body: "DM Sans", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #060d15; --surface: #0b1622; --fg: #e3edf5; --muted: #8aa0b2; --line: #1a2a3a;
+  --accent: #00d4ff; --accent-soft: #071825; --amber: #fbbf24; --amber-soft: #1d1608; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #060d15; --surface: #0b1622; --fg: #e3edf5; --muted: #8aa0b2; --line: #1a2a3a;
+  --accent: #00d4ff; --accent-soft: #071825; --amber: #fbbf24; --amber-soft: #1d1608; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--f-body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px;
+  display: grid; grid-template-columns: 220px minmax(0,1fr); gap: 48px; }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start;
+  font: 13px/1.5 var(--f-mono); display: grid; gap: 6px; }
+nav.toc a { color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); }
+nav.toc .lbl { color: var(--fg); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; margin-top: 8px; }
+main { min-width: 0; display: grid; gap: 56px; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0,1fr); gap: 24px; } nav.toc { display: none; } }
+
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; letter-spacing: -.02em; }
+h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -.01em; }
+h3 { font-size: 1.12rem; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+section { display: grid; gap: 18px; scroll-margin-top: 24px; }
+code, .mono { font-family: var(--f-mono); font-size: .86em; }
+ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; max-width: 68ch; }
+
+/* Hero */
+.hero { display: grid; gap: 20px; padding-bottom: 32px; border-bottom: 1px solid var(--line); }
+.hero .lede { font-size: 1.2rem; color: var(--muted); max-width: 60ch; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { font: 12px/1 var(--f-mono); padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); background: var(--surface); }
+.chip b { color: var(--fg); font-weight: 600; }
+
+/* Telemetry strip */
+.telemetry { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.telemetry div { background: var(--surface); padding: 14px 16px; display: grid; gap: 4px; }
+.telemetry .n { font: 600 1.5rem/1 var(--f-mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+.telemetry .k { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+
+/* Table */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14.5px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11px/1.3 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface); }
+tr:last-child td { border-bottom: 0; }
+
+/* Modules */
+.mod { display: grid; grid-template-columns: 72px minmax(0,1fr); gap: 20px; padding-top: 28px; border-top: 1px solid var(--line); }
+.mod .idx { font: 600 13px/1 var(--f-mono); color: var(--accent); display: grid; gap: 8px; align-content: start; }
+.mod .idx span { color: var(--muted); font-weight: 400; }
+.mod .body { min-width: 0; display: grid; gap: 14px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; min-width: 0; }
+.box h4 { margin: 0; font: 600 11px/1.3 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.box.live { border-color: var(--accent); background: var(--accent-soft); }
+.box.live h4 { color: var(--accent); }
+.src { font: 12px/1.5 var(--f-mono); color: var(--muted); overflow-wrap: anywhere; }
+@media (max-width: 560px) { .mod { grid-template-columns: minmax(0,1fr); gap: 8px; } .mod .idx { grid-auto-flow: column; justify-content: start; gap: 12px; } }
+
+/* Superinteligencia moments */
+.si { border: 1px solid var(--amber); background: var(--amber-soft); border-radius: 8px; padding: 16px 18px; display: grid; gap: 8px; }
+.si .eyebrow { color: var(--amber); }
+
+/* Pipeline */
+.pipe { display: flex; flex-wrap: wrap; gap: 6px; font: 12.5px/1 var(--f-mono); }
+.pipe span { padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+.pipe i { color: var(--accent); font-style: normal; align-self: center; }
+pre { margin: 0; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font: 13px/1.55 var(--f-mono); }
+
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.flow div { display: grid; gap: 4px; padding: 12px 14px; border-top: 2px solid var(--accent); background: var(--surface); }
+.flow b { font: 600 13px/1.3 var(--f-mono); }
+.flow span { font-size: 14px; color: var(--muted); }
+.req { font: 600 10px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--amber); border: 1px solid var(--amber); border-radius: 4px; padding: 3px 5px; margin-left: 4px; white-space: nowrap; }
+.tally { display: flex; flex-wrap: wrap; gap: 20px; }
+.tally div { display: grid; gap: 2px; }
+.tally .n { font: 600 1.6rem/1 var(--f-mono); color: var(--accent); }
+.tally .k { font-size: 12.5px; color: var(--muted); }
+.eq { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font: 600 1.15rem/1 var(--f-mono); }
+.eq span { padding: 10px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.eq .hl { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.eq i { font-style: normal; color: var(--muted); }
+.anat .ring { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; padding: 14px; border: 2px dashed var(--accent); border-radius: 12px; font: 12.5px/1.3 var(--f-mono); }
+.anat .ring > span { padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); text-align: center; }
+.anat .core { grid-column: 1 / -1; display: grid; gap: 4px; justify-items: center; padding: 18px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.anat .core b { font-size: 1.1rem; } .anat .core small { color: var(--muted); }
+@media (max-width: 560px) { .anat .ring { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+tr.am td { background: var(--accent-soft); }
+section > h3 { margin-top: 10px; }
+.warn { border-left: 3px solid var(--amber); padding-left: 14px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 20px; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+<nav class="toc" aria-label="Índice">
+  <span class="lbl">Masterclass</span>
+  <a href="#formato">Formato</a>
+  <a href="#tesis">Tesis</a>
+  <a href="#que-es">¿Qué es un harness?</a>
+  <a href="#comparativa">Frameworks y librerías</a>
+  <a href="#lineas">Líneas para LinkedIn</a>
+  <a href="#herramientas">Herramientas</a>
+  <a href="#postulacion">Postulación</a>
+  <a href="#rol">SWE → FDE</a>
+  <span class="lbl">Módulos</span>
+  <a href="#m0">0 · El rol</a>
+  <a href="#m1">1 · Nacimiento</a>
+  <a href="#m2">2 · El loop</a>
+  <a href="#m3">3 · CLARUS</a>
+  <a href="#m4">4 · Compuertas y capas</a>
+  <a href="#m5">5 · Ecosistema</a>
+  <a href="#m6">6 · Paralelos en la nube</a>
+  <a href="#m7">7 · El oficio</a>
+  <span class="lbl">Trabajo</span>
+  <a href="#harness">El harness, por pasos</a>
+  <a href="#verdad">Qué no vamos a decir</a>
+  <a href="#abierto">Para iterar</a>
+</nav>
+
+<main>
+<header class="hero">
+  <span class="eyebrow">Astromesh · Masterclass en vivo · Borrador v0.7 · 2026-10-05</span>
+  <h1>De Software Engineer a Forward Deployed Engineer</h1>
+  <p class="lede">Construimos un harness de agentes desde cero, en vivo, para entender qué hay adentro de un agente y de un ecosistema agéntico. Después lo comparamos con lo que ofrecen las nubes y con un producto real: CLARUS, construido sobre Astromesh.</p>
+  <div class="facts" id="formato">
+    <span class="chip"><b>Por postulación</b> · se evalúa el perfil de LinkedIn</span>
+    <span class="chip"><b>12</b> seleccionados · <b>9</b> pagan · <b>3</b> gratis por sorteo</span>
+    <span class="chip"><b>En vivo</b> · foro cerrado</span>
+    <span class="chip"><b>Práctica</b> con cada participante</span>
+    <span class="chip"><b>Claude Code · Codex · Kimi Code</b> · o la IA que prefieras</span>
+  </div>
+</header>
+
+<section id="tesis">
+  <span class="eyebrow">La tesis</span>
+  <h2>Hacer un agente de IA es el 10% del trabajo</h2>
+  <p>Cualquiera arma un agente en un notebook. El FDE es quien lo pone frente a un cliente, decide qué hace el modelo y qué no, mide cuánto cuesta cada conversación y responde cuando algo se rompe un lunes a las 3 de la mañana. Ese otro 90% lo contamos con lo que funcionó, lo que medimos y lo que salió mal mientras construíamos Astromesh y lo poníamos a atender clientes en CLARUS.</p>
+  <p>Por eso no vamos a enseñar a usar un framework. Cada participante construye su propio harness, pieza por pieza, y en cada paso lo contrastamos con cómo lo resolvió Astromesh. Al final ese mismo agente corre también en la nube, y medimos qué se gana y qué se pierde.</p>
+  <div class="telemetry" aria-label="Lo que medimos">
+    <div><span class="n">USD 0,084</span><span class="k">costo de una sesión real de PRESTO, 5 invocaciones</span></div>
+    <div><span class="n">2,6%</span><span class="k">error del replay al predecir ese costo</span></div>
+    <div><span class="n">12 / 12</span><span class="k">corridas cumplidas, 0 confirmaciones falsas</span></div>
+    <div><span class="n">55 ms</span><span class="k">prefetch, contra ~5 s de un viaje al LLM</span></div>
+    <div><span class="n">+164%</span><span class="k">a +2839%: lo que costó Glyph frente a ReAct</span></div>
+    <div><span class="n">10 · 17 · 7</span><span class="k">equivalentes, parciales y sin homólogo frente a GCP</span></div>
+    <div><span class="n">86–88%</span><span class="k">del prompt servido desde caché cuando el prefijo es estable</span></div>
+  </div>
+  <div class="telemetry" aria-label="Astromesh en números">
+    <div><span class="n">7</span><span class="k">meses: del primer commit (2026-03-06) a hoy</span></div>
+    <div><span class="n">v0.63.0</span><span class="k">versión actual del core</span></div>
+    <div><span class="n">1.044</span><span class="k">commits · 151 tags</span></div>
+    <div><span class="n">2.027</span><span class="k">tests en el core</span></div>
+    <div><span class="n">14</span><span class="k">componentes en el ecosistema</span></div>
+    <div><span class="n">v1.197</span><span class="k">CLARUS, construida sobre Astromesh</span></div>
+  </div>
+</section>
+
+<section id="que-es">
+  <span class="eyebrow">Antes de empezar</span>
+  <h2>¿Qué es un harness?</h2>
+  <p><b>Un harness es todo el código que rodea al modelo y convierte lo que el modelo dice en acciones útiles, seguras y medibles.</b> El modelo solo recibe texto y devuelve texto. No ejecuta nada, no recuerda nada entre llamadas y no sabe cuánto cuesta. Todo eso lo hace el harness.</p>
+  <p>La palabra viene del inglés y significa arnés. Un caballo tiene la fuerza, pero sin arnés no tira de ningún carro: la fuerza no llega a ningún lado, o llega a donde no debe. El arnés no le agrega fuerza; la dirige. Con un modelo de lenguaje pasa lo mismo.</p>
+  <div class="eq" aria-label="Agente igual a modelo más harness">
+    <span>Agente</span><i>=</i><span>Modelo</span><i>+</i><span class="hl">Harness</span>
+  </div>
+  <div class="anat" aria-label="El modelo en el centro, rodeado por las piezas del harness">
+    <div class="ring">
+      <span>Loop</span><span>Herramientas</span><span>Memoria</span><span>Contexto y prompt</span>
+      <div class="core"><b>Modelo</b><small>entiende, razona y decide</small></div>
+      <span>Compuertas</span><span>Router de modelos</span><span>Costos y trazas</span><span>Canales y tenants</span>
+    </div>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Pieza del harness</th><th>Qué hace</th><th>Lo construimos en</th></tr></thead>
+    <tbody>
+      <tr><td><b>Loop</b></td><td>Llama al modelo, ejecuta la herramienta que pidió, le devuelve el resultado y repite hasta que responde. Corta si se pasa de vueltas.</td><td>M2</td></tr>
+      <tr><td><b>Herramientas</b></td><td>Le describe al modelo qué puede hacer y ejecuta de verdad esas acciones: buscar un producto, crear un presupuesto.</td><td>M2</td></tr>
+      <tr><td><b>Memoria</b></td><td>Guarda la conversación y decide cuánto de ella vuelve a entrar en cada llamada.</td><td>M2</td></tr>
+      <tr><td><b>Contexto y prompt</b></td><td>Arma lo que el modelo lee: instrucciones, datos del cliente, documentos relevantes.</td><td>M2 · M4</td></tr>
+      <tr><td><b>Compuertas</b></td><td>Frenan lo que no debe pasar: pedir un sí antes de escribir, tapar datos personales, cortar si se pasa de costo.</td><td>M4</td></tr>
+      <tr><td><b>Capas deterministas</b></td><td>Hacen sin el modelo lo que no necesita razonamiento: búsquedas previas, cálculos de dinero.</td><td>M4</td></tr>
+      <tr><td><b>Router de modelos</b></td><td>Elige qué modelo usar y cambia a otro si el primero falla o lo retiran.</td><td>M4</td></tr>
+      <tr><td><b>Costos y trazas</b></td><td>Registra qué pasó en cada corrida y cuánto costó.</td><td>M4 · M5</td></tr>
+      <tr><td><b>Canales y tenants</b></td><td>Trae los mensajes desde WhatsApp o un webchat y separa a cada cliente con sus límites.</td><td>M5</td></tr>
+    </tbody>
+  </table></div>
+  <div class="cols">
+    <div class="box"><h4>Un ejemplo de CLARUS</h4>
+      <p>Cuando PRESTO pregunta "¿Te armo el presupuesto con esto?", esa frase la escribe el modelo. Pero que el presupuesto no se cree hasta que el cliente diga que sí lo garantiza el harness. Si dependiera solo del modelo, un día se lo saltearía.</p></div>
+    <div class="box"><h4>Lo que un harness no es</h4>
+      <ul>
+        <li>No es un prompt más largo: un prompt pide, el harness garantiza.</li>
+        <li>No es el modelo: si mañana cambiás de modelo, el harness queda.</li>
+        <li>No es lo mismo que un framework: un framework es un harness genérico. Uno a la medida está hecho para un proceso y un cliente.</li>
+      </ul></div>
+    <div class="box"><h4>Y Astromesh, ¿qué es?</h4>
+      <p>Un harness que se volvió runtime: las piezas de esta tabla, hechas configurables para que cada agente nuevo no las reescriba. Vamos a construir las nuestras a mano para entender qué resuelve cada una antes de usar algo hecho.</p></div>
+  </div>
+  <p class="muted">En software el término ya existía: un <em>test harness</em> es el código que rodea a una pieza para ejecutarla y observarla. La idea es la misma.</p>
+</section>
+
+<section id="comparativa">
+  <span class="eyebrow">Mapa del terreno</span>
+  <h2>Astromesh frente a los frameworks y librerías populares</h2>
+  <p>Un FDE no elige herramientas por moda. Para cada pieza del harness hay que decidir si se construye, se adopta una librería o se usa un servicio gestionado. Esta comparación acompaña cada módulo: primero construimos la pieza a mano, después vemos qué la resuelve en el mercado y cómo la resolvió Astromesh.</p>
+
+  <h3>Frameworks de agentes</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Framework</th><th>En qué es fuerte</th><th>Qué le queda afuera a un FDE</th></tr></thead>
+    <tbody>
+      <tr><td><b>LangChain + LangGraph</b></td><td>La comunidad e integraciones más grandes. LangGraph modela el agente como grafo con estado.</td><td>La durabilidad requiere configurar un checkpointer. Canales, tenants y facturación quedan por tu cuenta.</td></tr>
+      <tr><td><b>LlamaIndex</b></td><td>RAG: ingesta, índices y consulta sobre documentos.</td><td>Nació para datos; el agente y la operación son secundarios.</td></tr>
+      <tr><td><b>CrewAI</b></td><td>Equipos de agentes con roles, rápido de prototipar.</td><td>Poco control fino sobre compuertas y costo por corrida.</td></tr>
+      <tr><td><b>AutoGen / Semantic Kernel</b></td><td>Conversación entre agentes y ecosistema Microsoft.</td><td>Atado en la práctica al stack de Microsoft y Azure.</td></tr>
+      <tr><td><b>OpenAI Agents SDK</b></td><td>Loop mínimo, handoffs entre agentes, guardrails y trazas integradas.</td><td>Pensado alrededor de los modelos y la plataforma de OpenAI.</td></tr>
+      <tr><td><b>Google ADK</b></td><td>Agentes secuenciales, paralelos y en loop, con despliegue en Vertex AI Agent Engine.</td><td>Lo medimos con Prisma: 10 equivalentes, 17 parciales y 7 sin homólogo frente a Astromesh.</td></tr>
+      <tr><td><b>Claude Agent SDK</b></td><td>El harness de Claude Code como librería: herramientas, contexto y permisos.</td><td>Centrado en modelos de Anthropic y en agentes que trabajan sobre archivos y terminal.</td></tr>
+      <tr><td><b>Pydantic AI</b></td><td>Tipado fuerte, salida estructurada validada, buena experiencia en Python.</td><td>Es una librería de agente; el runtime y la operación los ponés vos.</td></tr>
+      <tr class="am"><td><b>Astromesh</b></td><td>Agente como YAML, 7 patrones, modelo por rol con fallback, compuertas que el modelo no puede saltear, y despliegue propio: nodo, appliance, Kubernetes, multi-tenant.</td><td>Comunidad chica y siete meses de vida. Menos integraciones listas que LangChain.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Librerías por pieza del harness</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Pieza</th><th>Opciones populares</th><th>Cómo lo resuelve Astromesh</th><th>Módulo</th></tr></thead>
+    <tbody>
+      <tr><td><b>Loop y orquestación</b></td><td>LangGraph, CrewAI, OpenAI Agents SDK, Google ADK</td><td>7 patrones y cadenas declarativas que se compilan a un workflow al arrancar</td><td>M2 · M5</td></tr>
+      <tr><td><b>Acceso a modelos</b></td><td>LiteLLM, OpenRouter, Portkey</td><td>ModelRouter con proveedores propios y LiteLLM como fuente; circuit breaker por rol</td><td>M4</td></tr>
+      <tr><td><b>Salida estructurada</b></td><td>Instructor, Pydantic AI, Outlines</td><td><code>output_schema</code> en el YAML del agente</td><td>M2</td></tr>
+      <tr><td><b>Herramientas</b></td><td>MCP, function calling nativo, Composio</td><td>9 tipos de tool, MCP como cliente y como servidor, 18 incluidas</td><td>M2</td></tr>
+      <tr><td><b>Memoria</b></td><td>Mem0, Zep, Letta</td><td>Conversacional, semántica y episódica; el presupuesto del historial sale de la ventana del modelo y el resumen lo hace un rol del agente</td><td>M2</td></tr>
+      <tr><td><b>RAG y vectores</b></td><td>LlamaIndex, Haystack · pgvector, Qdrant, Chroma, FAISS, Pinecone</td><td>Pipeline propio: 4 chunkers, 4 vector stores, reranking</td><td>M4</td></tr>
+      <tr><td><b>Caché y compresión de prompts</b></td><td>Prompt caching de Anthropic y OpenAI · LLMLingua · DSPy</td><td><code>prompts.context</code>: lo que cambia por consulta va al final y el prefijo queda cacheable. Compresión y optimización offline todavía no.</td><td>M4</td></tr>
+      <tr><td><b>Guardrails</b></td><td>Guardrails AI, NeMo Guardrails, Presidio, Llama Guard</td><td>PII, temas, largo y costo; confirmación y modo propose para las escrituras</td><td>M4</td></tr>
+      <tr><td><b>Ejecución durable</b></td><td>Temporal, Inngest, checkpointers de LangGraph</td><td>Workflow con estado en Postgres; las cadenas nacen durables</td><td>M5</td></tr>
+      <tr><td><b>Observabilidad</b></td><td>Langfuse, LangSmith, Arize Phoenix, OpenTelemetry</td><td>OpenTelemetry, Prometheus y costo por corrida</td><td>M4 · M5</td></tr>
+      <tr><td><b>Evaluación</b></td><td>Ragas, DeepEval, promptfoo</td><td>Benchmarks propios (Glyph) y replay de costos en CLARUS. No hay un framework de evals general.</td><td>M4</td></tr>
+      <tr><td><b>Canales</b></td><td>WhatsApp Cloud API, Twilio, Botpress</td><td>Herald: WhatsApp, Telegram, Instagram y webchat con outbox</td><td>M5</td></tr>
+      <tr><td><b>Despliegue gestionado</b></td><td>Vertex AI Agent Engine, AWS Bedrock AgentCore, LangGraph Platform</td><td>Node, astromesh-os, Orbit, Kubernetes; Prisma traduce a Vertex</td><td>M6</td></tr>
+      <tr><td><b>Multi-tenant y facturación</b></td><td>Casi ningún framework lo trae</td><td>Nexus: tenant por credencial, límites, medición y planes</td><td>M5 · M7</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="cols">
+    <div class="box"><h4>La pregunta que enseñamos a hacer</h4>
+      <p>¿Construir, adoptar o comprar? Se adopta lo que es estándar y no te diferencia (MCP, OpenTelemetry, pgvector). Se construye lo que define cómo trabaja tu cliente: las compuertas, el costo por unidad, el canal. Se compra cuando el cliente ya vive en esa nube.</p></div>
+    <div class="box"><h4>Lo que casi nadie trae</h4>
+      <p>La mayoría de los frameworks resuelve bien el loop y las herramientas. Lo que el FDE termina construyendo solo es el 90% de la tesis: canales con entrega garantizada, aislamiento por cliente, techo de gasto, facturación y operación.</p></div>
+  </div>
+</section>
+
+<section id="lineas">
+  <span class="eyebrow">Convocatoria</span>
+  <h2>Dos líneas para postear en LinkedIn</h2>
+  <p>Alternamos dos ángulos para que la convocatoria no repita el mismo mensaje. La primera cuenta lo que medimos; la segunda habla del cambio de rol. Las dos desarrollan la tesis del curso.</p>
+  <div class="cols">
+    <div class="box"><h4>Línea A · Lo medido</h4>
+      <p><b>Hacer un agente de IA es el 10% del trabajo.</b></p>
+      <ul>
+        <li>Cuánto cuesta una conversación real con un agente vendedor, y por qué el replay le erró por 2,6%.</li>
+        <li>La hipótesis que falló: Glyph iba a ahorrar tokens y costó hasta +2839% más que ReAct.</li>
+        <li>5 segundos contra 55 milisegundos: qué no debería pasar por el modelo.</li>
+        <li>Mismo agente, Astromesh contra GCP: 10 equivalentes, 17 parciales, 7 sin homólogo.</li>
+      </ul></div>
+    <div class="box"><h4>Línea B · El rol</h4>
+      <p><b>Un SWE entrega software que funciona. Un FDE entrega un proceso que alguien puede operar, cobrar y auditar.</b></p>
+      <ul>
+        <li>Qué cambia cuando tu métrica pasa de la cobertura al costo por conversación.</li>
+        <li>Un modelo retirado dejó mudos a todos los agentes de dev sin una alerta: operar también es tu trabajo.</li>
+        <li>"El LLM no calcula dinero": dónde termina el modelo y empieza la ingeniería.</li>
+        <li>Superinteligencia: si el modelo sabe más que vos, ¿quién firma?</li>
+      </ul></div>
+  </div>
+  <p class="muted">Orden propuesto: A, B, A, B, y el anuncio de la postulación cierra en la línea B.</p>
+</section>
+
+<section id="herramientas">
+  <span class="eyebrow">Con qué programamos</span>
+  <h2>Herramientas de desarrollo</h2>
+  <p>El harness se escribe con un agente de código al lado. Usamos tres como base para las prácticas, y cada participante puede traer la IA que ya usa: lo que enseñamos es el harness, no la herramienta.</p>
+  <div class="cols">
+    <div class="box"><h4>Claude Code</h4><p>El agente de código de Anthropic, en terminal, IDE o escritorio. Con él construimos buena parte de Astromesh.</p></div>
+    <div class="box"><h4>Codex</h4><p>El agente de código de OpenAI, integrado a ChatGPT.</p></div>
+    <div class="box"><h4>Kimi Code</h4><p>El agente de código de Moonshot. Kimi es el modelo que mueve hoy a casi toda la flota de agentes.</p></div>
+  </div>
+  <p class="muted">Cualquier otra IA sirve: Cursor, Gemini, Copilot o un modelo local. Lo único que pedimos es que el participante pueda leer y explicar el código que su asistente escribe.</p>
+</section>
+
+<section id="postulacion">
+  <span class="eyebrow">Admisión</span>
+  <h2>Postulación y evaluación de perfiles</h2>
+  <p>La masterclass exige bases técnicas: vamos a escribir código en vivo desde el primer módulo. Cada postulante envía solo el link de su perfil de LinkedIn, y lo evaluamos con esta rúbrica.</p>
+  <div class="flow" aria-label="Proceso de admisión">
+    <div><b>1 · Postula</b><span>Comparte el link de su perfil de LinkedIn</span></div>
+    <div><b>2 · Evaluamos</b><span>Rúbrica sobre el perfil público</span></div>
+    <div><b>3 · Seleccionamos</b><span>Los 12 candidatos con mejor puntaje</span></div>
+    <div><b>4 · Sorteo</b><span>3 cupos gratis entre los 12, en vivo en LinkedIn. Los otros 9 pagan su cupo</span></div>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Criterio</th><th>0</th><th>1</th><th>2</th></tr></thead>
+    <tbody>
+      <tr><td><b>Experiencia en ingeniería</b> <span class="req">excluyente</span></td><td>Sin rol técnico</td><td>1 a 3 años como desarrollador</td><td>Más de 3 años</td></tr>
+      <tr><td><b>Backend e integraciones</b> <span class="req">excluyente</span></td><td>Sin evidencia</td><td>Lo menciona</td><td>Roles o proyectos con APIs, bases de datos, integraciones</td></tr>
+      <tr><td><b>Nube y despliegue</b></td><td>Sin evidencia</td><td>Docker o CI/CD</td><td>Opera en GCP, AWS o Azure, o Kubernetes</td></tr>
+      <tr><td><b>Contacto con cliente o negocio</b></td><td>Solo equipo interno</td><td>Trabajo con áreas de negocio</td><td>Consultoría, implementación, preventa o soporte a clientes</td></tr>
+      <tr><td><b>Exposición a IA y LLMs</b></td><td>Ninguna</td><td>Cursos o interés declarado</td><td>Construyó algo con LLMs</td></tr>
+      <tr><td><b>Evidencia pública</b></td><td>Nada</td><td>Publicaciones o certificaciones</td><td>Repos, proyectos o artículos técnicos propios</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li><b>Apto:</b> 1 o más en los dos criterios excluyentes y 7 o más sobre 12 en total. Esta línea es una propuesta para ajustar.</li>
+    <li><b>Desempate:</b> gana el contacto con clientes, porque es lo que más distingue al FDE.</li>
+    <li><b>Transparencia:</b> la convocatoria avisa que revisamos el perfil público, y todos los postulantes reciben respuesta.</li>
+  </ul>
+</section>
+
+<section id="rol">
+  <span class="eyebrow">El cambio de rol</span>
+  <h2>Qué cambia al pasar de SWE a FDE</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Dimensión</th><th>Software Engineer</th><th>Forward Deployed Engineer</th></tr></thead>
+    <tbody>
+      <tr><td>Dónde trabaja</td><td>En el repo, contra un backlog</td><td>En el negocio del cliente, contra un problema</td></tr>
+      <tr><td>Qué entrega</td><td>Features que pasan tests</td><td>Un proceso que funciona en producción y se puede operar</td></tr>
+      <tr><td>Cómo mide</td><td>Cobertura, latencia, bugs</td><td>Costo por conversación, margen, confirmaciones falsas, tiempo de respuesta al cliente</td></tr>
+      <tr><td>Con qué material</td><td>Código determinista</td><td>Código determinista + un modelo probabilístico que hay que acotar</td></tr>
+      <tr><td>Dónde corre</td><td>Donde decide el equipo</td><td>Donde está el cliente: su nube, su servidor o un servicio gestionado</td></tr>
+      <tr><td>Qué deja</td><td>Un proyecto</td><td>Producto: lo que aprende con un cliente queda en el código para el siguiente</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- MÓDULOS -->
+<section id="m0" class="mod">
+  <div class="idx">M0<span>~20 min</span></div>
+  <div class="body">
+    <h3>El rol y su momento</h3>
+    <p>De dónde viene el término (nace en Palantir para ingenieros que viven dentro del cliente) y por qué los laboratorios de IA lo adoptaron a partir de 2025. Los paradigmas que enfrenta: trabajar con un componente que no es determinista, vender resultados en lugar de horas, y operar lo que construye.</p>
+    <div class="cols">
+      <div class="box"><h4>Paradigmas a discutir</h4>
+        <ul>
+          <li>Del prompt al harness: el valor está en lo que rodea al modelo.</li>
+          <li>Del piloto a la operación: quién atiende el WhatsApp mañana.</li>
+          <li>De la hora facturada al costo por unidad.</li>
+          <li>Medir antes de contar.</li>
+        </ul></div>
+      <div class="box live"><h4>Práctica en vivo</h4>
+        <p>Cada participante presenta en 2 minutos un proceso real de su trabajo que hoy hace una persona. Ese es el caso que su harness va a resolver.</p></div>
+    </div>
+    <div class="si">
+      <span class="eyebrow">Momento Superinteligencia · 1 de 3</span>
+      <h3>El nombre cambió. ¿Cambió el trabajo?</h3>
+      <p>"Superinteligencia" pasó de concepto académico (Bostrom, 2014) a nombre de laboratorios: Safe Superintelligence (2024) y Meta Superintelligence Labs (2025). Pregunta para el foro: si el modelo es cada vez más capaz, ¿qué parte del trabajo del FDE desaparece y qué parte crece?</p>
+    </div>
+  </div>
+</section>
+
+<section id="m1" class="mod">
+  <div class="idx">M1<span>~25 min</span></div>
+  <div class="body">
+    <h3>El nacimiento de Astromesh</h3>
+    <p>El 6 de marzo de 2026 se aprobó un documento de diseño con una tesis: <em>cualquier vertical de negocio puede definir, desplegar y operar agentes desde configuración, sin reescribir código</em>. Astromesh no es un wrapper de LLM. Es un runtime de agentes con identidad, estado, memoria, permisos, herramientas y patrones de orquestación. La comparación que guía todo es la de Kubernetes con los contenedores.</p>
+    <div class="cols">
+      <div class="box"><h4>El problema que resolvía</h4>
+        <p>Cada equipo reconstruía las mismas seis piezas: proveedores, herramientas, memoria, prompts, seguridad y orquestación. Y terminaba con un framework propio, atado a un solo proveedor. Son las seis piezas que vamos a construir.</p></div>
+      <div class="box"><h4>Las decisiones del día uno</h4>
+        <ul>
+          <li>Python + FastAPI, agentes en YAML + Jinja2</li>
+          <li>Postgres para todo (pgvector por defecto)</li>
+          <li>Ollama por defecto, vLLM para alto rendimiento</li>
+          <li>MCP + herramientas internas, OpenTelemetry desde el inicio</li>
+        </ul></div>
+      <div class="box"><h4>Línea de tiempo</h4>
+        <ul>
+          <li><b>Día 1:</b> router con 6 proveedores, ReAct, 3 tipos de memoria, RAG, MCP, guardrails, WhatsApp. v0.1.0 → v0.3.0 el mismo día</li>
+          <li><b>Día 3:</b> extensiones en Rust, gobernanza, CI</li>
+          <li><b>Día 4:</b> diseño de Helm y de la malla de nodos</li>
+          <li><b>Hoy:</b> v0.63.0, 14 componentes</li>
+        </ul></div>
+    </div>
+    <p class="src">Fuentes: docs/plans/2026-03-06-astromesh-runtime-design.md · README.md · GOVERNANCE.md · git log</p>
+  </div>
+</section>
+
+<section id="m2" class="mod">
+  <div class="idx">M2<span>~45 min</span></div>
+  <div class="body">
+    <h3>Anatomía de un agente: construir el loop</h3>
+    <p>Un agente es un loop: el modelo lee el contexto, decide si llama a una herramienta, el harness la ejecuta y le devuelve el resultado, hasta que el modelo responde. Lo escribimos desde cero y vemos que todo lo demás se cuelga de ese loop.</p>
+    <div class="pipe" aria-label="Pipeline de ejecución de Astromesh">
+      <span>consulta</span><i>→</i><span>guardrails de entrada</span><i>→</i><span>memoria</span><i>→</i><span>RAG</span><i>→</i><span>prefetch</span><i>→</i><span>prompt</span><i>→</i><span>patrón</span><i>→</i><span>router de modelos</span><i>→</i><span>tools</span><i>→</i><span>guardrails de salida</span><i>→</i><span>persistir</span>
+    </div>
+    <p class="muted">El pipeline completo de Astromesh. Hoy construimos el centro: prompt, patrón, modelo y tools.</p>
+    <div class="cols">
+      <div class="box live"><h4>Construimos en vivo</h4>
+        <ul>
+          <li>El loop ReAct con un tope de iteraciones.</li>
+          <li>Un registro de herramientas con su esquema para el modelo.</li>
+          <li>Memoria conversacional con ventana deslizante.</li>
+          <li>Un presupuesto de tokens para el historial, calculado desde la ventana del modelo.</li>
+          <li>El agente definido como datos (YAML), no como código.</li>
+        </ul></div>
+      <div class="box"><h4>Contraste con Astromesh</h4>
+        <ul>
+          <li>7 patrones sobre la misma base: ReAct, PlanAndExecute, ParallelFanOut, Pipeline, Supervisor, Swarm, Glyph</li>
+          <li>Tools internas, MCP, webhook, RAG y otro agente como herramienta</li>
+          <li>Memoria conversacional, semántica y episódica</li>
+          <li>El historial viaja como mensajes, recortado al presupuesto o resumido por el rol <code>summarizer</code></li>
+        </ul></div>
+    </div>
+<pre>apiVersion: astromesh/v1
+kind: Agent
+metadata: { name: vendedor }
+spec:
+  model: { default: { model: kimi-k2.6, context_window: 131072 } }
+  orchestration: { pattern: react, max_iterations: 8 }
+  tools: [ praxis, crear_presupuesto, consultar_tecnico ]
+  memory: { conversational: { strategy: summary, max_turns: 40 } }
+  prompts:
+    system: Sos el vendedor de mostrador de PRESTO...   # estable: se cachea
+    context: "{{ knowledge }} {{ prefetch.stock }}"     # cambia por consulta: va al final</pre>
+    <p class="src">Fuentes: astromesh/runtime/engine.py · astromesh/orchestration/ · astromesh/core/{tools,tokens,memory}.py</p>
+  </div>
+</section>
+
+<section id="m3" class="mod">
+  <div class="idx">M3<span>~35 min</span></div>
+  <div class="body">
+    <h3>Un agente trabajando, en CLARUS</h3>
+    <p>Con el loop recién escrito, miramos un agente en producción y anotamos todo lo que a nuestro harness le falta. CLARUS lleva un negocio desde la entrevista hasta el proceso automatizado, y sus agentes atienden por WhatsApp, Telegram, Instagram y webchat. El caso es <b>PRESTO</b>, un vendedor de mostrador: un <em>vendedor</em> que arma presupuestos y un <em>técnico</em> de solo lectura que el vendedor consulta como herramienta.</p>
+    <div class="cols">
+      <div class="box"><h4>Lo que vamos a ver</h4>
+        <ul>
+          <li>El vendedor delega una pregunta técnica al sub-agente.</li>
+          <li>Antes de escribir, pide confirmación: "¿Te armo el presupuesto con esto?"</li>
+          <li>El presupuesto se crea entero en una sola transacción.</li>
+          <li>El mensaje entra por Herald y el agente corre en Nexus.</li>
+        </ul></div>
+      <div class="box"><h4>Lo que medimos</h4>
+        <ul>
+          <li>Sesión real: 5 invocaciones, <b>USD 0,084</b></li>
+          <li>Replay: predijo USD 0,0862, <b>2,6%</b> de error</li>
+          <li>12 de 12 corridas cumplidas, <b>0</b> confirmaciones falsas</li>
+          <li>Plan: USD 300/mes con 84% de margen</li>
+        </ul></div>
+      <div class="box"><h4>Lecciones de producción</h4>
+        <ul>
+          <li>"El LLM no calcula dinero": el costeo vive en código determinista.</li>
+          <li>Un modelo retirado por el proveedor dejó mudos a todos los agentes de dev sin una sola alerta roja.</li>
+          <li>El RAG nunca consulta sin filtro de tenant.</li>
+        </ul></div>
+    </div>
+    <p class="src">Fuentes: clarus apps/backend/src/seeds/presto-vendedor.ts · docs/tarifario/presto.md · seeds/modelo-llm.ts · mnemo/rag.py</p>
+  </div>
+</section>
+
+<section id="m4" class="mod">
+  <div class="idx">M4<span>~45 min</span></div>
+  <div class="body">
+    <h3>El harness a la medida: compuertas y capas</h3>
+    <p>Un harness es todo lo que rodea al modelo para que su trabajo sea útil y seguro. La regla: cada cosa en su capa. El modelo razona; lo demás es trabajo determinista y no debería costar tokens ni segundos.</p>
+    <div class="cols">
+      <div class="box live"><h4>Sumamos al harness</h4>
+        <ul>
+          <li><b>Confirmación:</b> las herramientas que escriben piden un sí humano, y una llamada anidada no puede darse permiso.</li>
+          <li><b>Guardrails:</b> PII, largo máximo y límite de costo por corrida.</li>
+          <li><b>Prefetch:</b> las búsquedas que el agente siempre hace corren antes del modelo.</li>
+          <li><b>Orden del prompt:</b> lo estable primero y lo que cambia por consulta al final, para que el proveedor cachee.</li>
+          <li><b>Router con fallback:</b> si el modelo falla o lo retiran, el agente no queda mudo.</li>
+          <li><b>Libro de costos:</b> tokens y dólares por corrida.</li>
+        </ul></div>
+      <div class="box"><h4>Contraste con Astromesh</h4>
+        <ul>
+          <li>Prefetch en un auditor de CLARUS: ~5 s por viaje al LLM contra ~55 ms de búsqueda.</li>
+          <li>Modo propose: la escritura se registra en lugar de ejecutarse.</li>
+          <li>Credencial por corrida que muere con la corrida.</li>
+          <li>Router por costo, latencia o calidad, con circuit breaker y un modelo por rol.</li>
+          <li>Siete módulos en Rust en los caminos calientes.</li>
+        </ul></div>
+      <div class="box"><h4>Caso de estudio: la hipótesis que falló</h4>
+        <p>Glyph nació para ahorrar tokens: el modelo escribe un programa en lugar de una llamada por turno. Lo medimos con tres modelos y costó entre <b>+164% y +2839%</b> más que ReAct, porque el modelo escribía el programa en cada corrida. Lo documentamos y cambiamos el diseño: el modelo escribe el programa una vez, una persona lo revisa y el runtime lo ejecuta sin llamar al modelo.</p></div>
+    </div>
+    <div class="cols">
+      <div class="box"><h4>Caso de estudio: la memoria que prometía y no cumplía</h4>
+        <p>Auditando el contexto encontramos que las estrategias de memoria del YAML no hacían nada: los turnos se guardaban sin contar tokens, el resumen nunca se generaba, el presupuesto era un 4096 fijo y el historial no llegaba al modelo como mensajes. Los agentes solo recordaban si su prompt de sistema recorría la conversación, y eso cambiaba el primer mensaje en cada turno.</p>
+        <p>El arreglo: la ventana se resuelve por modelo al cargar el agente (declarada, de Ollama o de LiteLLM), se descuentan el sistema, las tools y la respuesta, y el historial entra como mensajes. Si la ventana es desconocida no se recorta en silencio: se avisa.</p></div>
+      <div class="box"><h4>El orden del prompt decide el caché</h4>
+        <p>Kimi cachea por prefijo, sin marcar nada. Medido: hasta 86–88% del prompt desde caché si el prefijo no cambia. Pero el RAG y el prefetch vivían en el prompt de sistema, así que el prefijo se rompía en cada consulta.</p>
+        <div class="pipe" aria-label="Orden del prompt">
+          <span>system</span><i>→</i><span>tools</span><i>→</i><span>historial</span><i>→</i><span>contexto + consulta</span>
+        </div>
+        <p class="muted">Todo lo que va antes del último mensaje es prefijo estable. El turno se guarda sin el contexto, así el RAG no se acumula en la memoria.</p></div>
+    </div>
+    <p class="src">Fuentes: astromesh/runtime/{prefetch,confirmacion}.py · astromesh/core/{guardrails,model_router}.py · native/src/ · docs/GLYPH_GUIDE.md · docs/superpowers/specs/2026-10-05-{context-budget-fix,prompt-cache-prefix}-design.md</p>
+  </div>
+</section>
+
+<section id="m5" class="mod">
+  <div class="idx">M5<span>~40 min</span></div>
+  <div class="body">
+    <h3>De un agente a un ecosistema agéntico</h3>
+    <p>Un agente solo no atiende a un cliente. Hace falta que otros agentes lo ayuden, que un canal le traiga mensajes, que cada cliente esté aislado y pague lo suyo, y que alguien vea qué pasó en cada corrida. Llevamos el harness de una pieza a un sistema.</p>
+    <div class="cols">
+      <div class="box live"><h4>Sumamos al harness</h4>
+        <ul>
+          <li>Un agente como herramienta de otro (el vendedor y su técnico).</li>
+          <li>Ejecución en paralelo de dos especialistas y una síntesis.</li>
+          <li>Un canal de entrada: webhook o webchat.</li>
+          <li>Tenant por credencial y techo de gasto.</li>
+          <li>Trazas por corrida.</li>
+        </ul></div>
+      <div class="box"><h4>Lecciones de escala</h4>
+        <ul>
+          <li>CI que se rompe por calendario: una versión nueva de ruff dejó rojo cualquier PR sin cambiar código. Desde entonces los lockfiles se versionan.</li>
+          <li>Ningún paquete del nodo había corrido fuera de CI hasta que se probó en máquinas limpias.</li>
+          <li>Versiones independientes por paquete: solo se sube lo que cambió.</li>
+        </ul></div>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>Capa</th><th>En Astromesh</th><th>Qué resuelve</th></tr></thead>
+      <tbody>
+        <tr><td>Author</td><td>ADK, Forge, Cortex, Leia</td><td>Escribir agentes en código, visual, en un IDE o en lenguaje natural</td></tr>
+        <tr><td>Execute</td><td>Core, Glyph</td><td>Correr el agente</td></tr>
+        <tr><td>Reach</td><td>Herald</td><td>WhatsApp, Telegram, Instagram y webchat con entrega garantizada</td></tr>
+        <tr><td>Ship</td><td>Node, astromesh-os, Prisma, Orbit</td><td>Servicio nativo, appliance de 434 MB, traducción a la nube, stack en GCP</td></tr>
+        <tr><td>Operate</td><td>Nexus, CLI</td><td>Multi-tenant: publica, despacha, mide y factura</td></tr>
+        <tr><td>Models</td><td>Nebula</td><td>Entrenar y publicar modelos abiertos</td></tr>
+      </tbody>
+    </table></div>
+    <p class="src">Fuentes: docs-site/src/data/ecosystem.ts · docs/agent-chaining.md · docs/DEBT.md · clarus api/routes/proposals.py</p>
+    <div class="si">
+      <span class="eyebrow">Momento Superinteligencia · 2 de 3</span>
+      <h3>Modelos más capaces, ¿harness más fino o más grueso?</h3>
+      <p>Debate: a medida que el modelo mejora, ¿delegamos más decisiones o ponemos más compuertas? Nuestro dato: la compuerta de confirmación no se sacó con modelos mejores, se reforzó para que una corrida anidada no pueda darse permiso a sí misma.</p>
+    </div>
+  </div>
+</section>
+
+<section id="m6" class="mod">
+  <div class="idx">M6<span>~45 min</span></div>
+  <div class="body">
+    <h3>Paralelos en la nube</h3>
+    <p>El FDE despliega donde está el cliente, y muchas veces el cliente ya tiene una nube. Corremos el mismo agente en nuestro harness y en un servicio gestionado, y comparamos pieza por pieza.</p>
+    <div class="cols">
+      <div class="box"><h4>Lo que ya medimos contra GCP</h4>
+        <p>Prisma traduce un agente de Astromesh a un agente nativo de Vertex AI Agent Engine y reporta lo que no se puede traducir. Sobre 34 capacidades:</p>
+        <div class="tally">
+          <div><span class="n">10</span><span class="k">equivalentes</span></div>
+          <div><span class="n">17</span><span class="k">parciales</span></div>
+          <div><span class="n">7</span><span class="k">sin homólogo</span></div>
+        </div>
+        <ul>
+          <li>La memoria episódica no tiene par en GCP.</li>
+          <li>El Memory Bank de GCP es más rico que nuestra memoria semántica.</li>
+          <li>De 18 tools incluidas, solo web_search tiene par directo.</li>
+        </ul></div>
+      <div class="box live"><h4>Prueba en vivo</h4>
+        <ul>
+          <li>El agente de cada participante, desplegado en la nube.</li>
+          <li>La misma batería de consultas en los dos lados.</li>
+          <li>Comparamos costo por corrida, latencia y qué compuertas sobreviven.</li>
+          <li>Anotamos qué hay que construir afuera del servicio gestionado.</li>
+        </ul></div>
+    </div>
+    <p class="src">Fuentes: astromesh-prisma/docs/astromesh-vs-gcp.html · astromesh-prisma/docs/STATUS.md</p>
+  </div>
+</section>
+
+<section id="m7" class="mod">
+  <div class="idx">M7<span>~35 min</span></div>
+  <div class="body">
+    <h3>El oficio: cotizar, operar y responder</h3>
+    <p>Un agente que no se puede cobrar ni operar es un experimento. Cerramos con el trabajo que nadie cotiza: costo por unidad, margen, límites de gasto por cliente, y la pregunta de quién lo opera el lunes a las 3 de la mañana.</p>
+    <div class="cols">
+      <div class="box"><h4>El método de CLARUS</h4>
+        <ul>
+          <li>Costo de LLM por unidad de trabajo (un presupuesto, una consulta)</li>
+          <li>Margen objetivo del 70%</li>
+          <li>Techo de gasto mensual por tenant</li>
+          <li>Cada corrida registrada con su consumo</li>
+        </ul></div>
+      <div class="box live"><h4>Práctica final</h4>
+        <p>Cada participante presenta su harness funcionando, el costo por unidad medido en su máquina y en la nube, y el precio que le pondría. El foro hace de cliente.</p></div>
+    </div>
+    <div class="si">
+      <span class="eyebrow">Momento Superinteligencia · 3 de 3</span>
+      <h3>¿Quién firma?</h3>
+      <p>Cierre: aunque el modelo sea más inteligente que cualquiera en la sala, alguien responde ante el cliente por lo que hizo el agente. Ese es el lugar del FDE en el mundo que viene.</p>
+    </div>
+  </div>
+</section>
+
+<section id="harness">
+  <span class="eyebrow">Hilo conductor</span>
+  <h2>El harness, por pasos</h2>
+  <p>Cada participante construye el suyo sobre su propio caso. Cada paso agrega una pieza de la anatomía y se contrasta con Astromesh.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Módulo</th><th>Pieza que se agrega</th><th>Qué entiende el participante</th></tr></thead>
+    <tbody>
+      <tr><td>M2</td><td>Loop, tools, memoria con presupuesto, agente como YAML</td><td>Qué es un agente por dentro</td></tr>
+      <tr><td>M3</td><td>Lista de faltantes frente a PRESTO</td><td>La distancia entre una demo y producción</td></tr>
+      <tr><td>M4</td><td>Confirmación, guardrails, prefetch, orden del prompt para el caché, fallback, costos</td><td>Qué decide el modelo y qué no</td></tr>
+      <tr><td>M5</td><td>Sub-agentes, paralelo, canal, tenant, trazas</td><td>Qué es un ecosistema agéntico</td></tr>
+      <tr><td>M6</td><td>Despliegue en la nube y comparación</td><td>Construir o usar un servicio gestionado</td></tr>
+      <tr><td>M7</td><td>Costo por unidad y precio</td><td>Cómo se vende y se opera</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="verdad">
+  <span class="eyebrow">Basado en la realidad</span>
+  <h2>Qué no vamos a decir</h2>
+  <div class="warn"><ul>
+    <li><b>Juez de acciones (spec.judge):</b> es un diseño del 2026-10-02, no está implementado. Si aparece, se presenta como lo que viene.</li>
+    <li><b>Producción de CLARUS:</b> los docs se contradicen sobre si prod existe. Las cifras de PRESTO son de dev; se dicen así.</li>
+    <li><b>Coreografía autodisparada:</b> lo que existe es el encadenamiento declarativo (<code>spec.chain.on_complete</code>, desde v0.38.1). La coreografía distribuida entre nodos está diferida.</li>
+    <li><b>Frameworks de terceros:</b> la comparación sale de su documentación pública, no de mediciones nuestras (salvo Google ADK, medido con Prisma). Se revisa contra la versión vigente de cada uno antes de la clase.</li>
+    <li><b>Otras nubes:</b> solo tenemos medido GCP. AWS o Azure se presentan como prueba nueva, no como resultado.</li>
+    <li><b>Presupuesto de contexto y <code>prompts.context</code>:</b> están en <code>develop</code> desde el 2026-10-05, todavía sin release. El 86–88% de caché se midió el 2026-09-04 con prefijo estable; la ganancia de este cambio sobre la flota aún no está medida. OFFICIUM y CLARUS siguen recorriendo la conversación en el prompt de sistema hasta que se actualice su generador.</li>
+    <li><b>Compresión y optimización de prompts:</b> LLMLingua, DSPy y <code>spec.context</code> son el siguiente subproyecto, no existen hoy.</li>
+    <li><b>Número de clientes:</b> no lo tenemos medido; no se menciona.</li>
+  </ul></div>
+</section>
+
+<section id="abierto">
+  <span class="eyebrow">Pendiente</span>
+  <h2>Para iterar</h2>
+  <ul>
+    <li>Los tiempos por módulo suman ~4 h 50 min y son tentativos. ¿Una jornada o varias sesiones?</li>
+    <li>Precio del cupo para los 9 que pagan.</li>
+    <li>Lenguaje del harness: propongo Python, el mismo de Astromesh.</li>
+    <li>Nubes del M6: ¿solo GCP (ya medido) o también AWS u otra? Quién pone las cuentas y los créditos.</li>
+    <li>Modelo y credenciales que usan los participantes durante las prácticas, y quién paga las suscripciones de Claude Code, Codex o Kimi Code.</li>
+    <li>Qué parte de CLARUS se puede mostrar en pantalla sin exponer datos de clientes.</li>
+    <li>Formulario de postulación y la pieza de convocatoria para LinkedIn.</li>
+  </ul>
+</section>
+
+<footer>Borrador construido a partir del código y la documentación de Astromesh v0.63.0 (más lo que está en <code>develop</code>), CLARUS v1.197.0 y Prisma. Cada cifra tiene su fuente al pie del módulo.</footer>
+</main>
+</div>
