@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- `astromesh/orchestration/observaciones.py`: `presentar` serializa el resultado de una tool
+  como JSON y lo recorta a un presupuesto de tokens respetando su estructura (prefijo de una
+  lista con aviso de omitidos, la lista más grande de un dict, o la cabeza del texto con
+  marcador).
+
 ## [0.65.0] - 2026-10-06
 
 ### Changed (Backend)
