@@ -76,7 +76,8 @@ astromesh-taller-fde/
   CLAUDE.md                # @AGENTS.md + específico de Claude Code
   .agents/skills/nueva-tool/SKILL.md
   .claude/skills/nueva-tool/SKILL.md
-  compose.yaml  Dockerfile  .env.example  Makefile  pyproject.toml  uv.lock
+  compose.yaml  Dockerfile  .env.example  .gitattributes  pyproject.toml  uv.lock
+  taller/                  # comandos del curso, corren en el contenedor: probar, verificar
   harness/
     app.py                 # POST /run, contrato de la Academia
     loop.py  tools.py  agente.yaml
@@ -102,29 +103,49 @@ astromesh-taller-fde/
 | Desde | Servicio | Para qué |
 |---|---|---|
 | Muelle | `harness` | FastAPI con recarga, `:8080`, código montado como volumen |
-| Mercado | `ollama` | Modelo local de chat como fallback real del Kimi de la pasarela |
 | Archivo | `postgres` (pgvector) | Índice RAG; desde Ascensor también la memoria |
-| Archivo | modelo `nomic-embed-text` en `ollama` | Embeddings locales y gratis |
+| Archivo | `ollama` | Sólo embeddings (`nomic-embed-text`); no hay modelo de chat local |
 | Torre | `jaeger` | OTLP y UI en `:16686` |
 | siempre | `tunel` (cloudflared, perfil) | Exponer el harness al verificador |
 
 ### Modelo y costo
 
-- Chat: pasarela de la Academia (OpenAI-compatible, `kimi-k2.6`, clave del alumno, techo USD 5).
-- Fallback y embeddings: Ollama local. Modelo de chat local chico (a fijar en el plan,
-  medido en una máquina de 8 GB de RAM).
+- Chat: Kimi a través de la pasarela de la Academia (OpenAI-compatible). La key de Kimi del
+  taller se carga en la pasarela antes del día y se rota al terminar; nunca llega a las máquinas.
+  Cada alumno usa su clave personal de la Academia, que se entrega en el Muelle (techo USD 5).
+- Fallback (Mercado): `kimi-k2.6` → `kimi-k2.7-code-highspeed`, ambos por la pasarela, que
+  puede retirar el principal por alumno (así lo prueba `fallback_modelo_retirado`).
+- Embeddings (desde Archivo): Ollama local con `nomic-embed-text`.
 - Tests: modelo falso guionado, sin red, sin costo.
 
-### Comandos (`Makefile`)
+### Comandos
 
-- `make arrancar` — `docker compose up -d` (y baja los modelos de Ollama la primera vez).
-- `make probar N=4` — tests de la estación dentro del contenedor.
-- `make tunel` — perfil cloudflared; imprime la URL para registrar en la Academia.
-- `make rescate N=5` — `git checkout estacion-5` (avisa si hay cambios sin commitear).
+Los alumnos usan Linux, Mac y Windows. Sólo se instalan Docker, git y el agente de código;
+todo lo demás vive en contenedores. **No hay `Makefile` ni scripts de shell en el host**: los
+comandos del curso corren dentro del servicio `taller` (misma imagen que `harness`).
+
+- `docker compose up -d` — levanta todo; desde Archivo, un servicio de una sola vez baja el modelo de embeddings.
+- `docker compose run --rm taller probar N` — tests de la estación N.
+- `docker compose run --rm taller verificar` — ruff + tests de las estaciones hasta la actual.
+- `docker compose --profile tunel up tunel` — cloudflared; imprime la URL.
+- Rescate: `git checkout estacion-N` (git avisa si hay cambios; `git stash`).
+
+### Linux, Mac y Windows
+
+- Windows: Docker Desktop con WSL 2; se recomienda clonar dentro de WSL. Si se clona en
+  `C:\`, el compose activa `WATCHFILES_FORCE_POLLING=true` para la recarga.
+- `.gitattributes` con `* text=auto eol=lf`: nada clonado en Windows se rompe en el contenedor.
+- Linux: `extra_hosts: ["host.docker.internal:host-gateway"]` en el compose.
+- Ollama corre con CPU en los tres sistemas; alcanza para embeddings.
+- Skills como copias, no symlinks.
+- Todas las imágenes multi-arquitectura (amd64 y arm64).
+- CI levanta el compose sólo en `ubuntu-latest` (los runners de Mac no traen Docker y los de
+  Windows corren contenedores Windows). Mac y Windows se prueban a mano en máquinas reales la
+  semana de la clase.
 
 ### Requisitos del alumno
 
-Docker Desktop, ~4 GB libres (imágenes + modelos), git, la clave de la Academia. Cualquier
+Docker Desktop (Mac, Windows con WSL 2) o Docker Engine (Linux), ~2 GB libres (imágenes + modelo de embeddings), git, la clave de la Academia (se entrega en el Muelle). Cualquier
 agente de código; los tres de base son Claude Code, Codex y Kimi Code.
 
 ### Setup para IDEs de IA (Muelle)
@@ -169,10 +190,9 @@ Reescritura de `social/masterclass-fde.html` (mismo URL de artefacto):
 
 ## Riesgos
 
-- **Ollama en máquinas chicas:** un modelo de chat local puede no correr bien en 8 GB. El
-  fallback local se mide al implementar; si no corre, Mercado usa como fallback el segundo
-  modelo de la pasarela (`kimi-k2.7-code-highspeed`) y Ollama queda sólo para embeddings.
 - **Red del aula:** la primera descarga de imágenes y modelos es pesada. El README pide
-  `make arrancar` antes del día.
+  `docker compose up -d` antes del día.
+- **Windows sin WSL 2** (virtualización bloqueada en máquinas corporativas): no funciona. Se
+  pregunta en la postulación.
 - **Escenario «no sé»:** la detección por expresiones puede dar falsos negativos; se ajusta
   con corridas reales del `harness-referencia`.
