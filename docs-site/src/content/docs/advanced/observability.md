@@ -112,7 +112,7 @@ Every call to `Agent.run()` produces these spans automatically:
 | `rag_build` | `agent.run` | — | Build RAG context |
 | `tool.prefetch` | `agent.run` | `tool` | Each `spec.prefetch` lookup, when its `when` holds |
 | `llm.complete` | `agent.run` | `input_tokens`, `output_tokens`, `cached_tokens`, `cache.hit_ratio`, `model`, `provider`, `cost`, `latency_ms` | Each LLM call |
-| `tool.call` | `agent.run` | `tool`, `tool.result_tokens` | Each tool execution (`tool.result_tokens` is the size of the result that reached the model, after the cap) |
+| `tool.call` | `agent.run` | `tool`, `tool.result_tokens` | Each tool execution (`tool.result_tokens` is the estimated size of the result the tool returned, before the cap) |
 | `orchestration` | `agent.run` | `pattern` | Orchestration pattern execution |
 | `memory_persist` | `agent.run` | — | Persist conversation turns |
 
