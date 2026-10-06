@@ -19,7 +19,7 @@ import importlib.util
 import json
 import re
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 import anyio
 import httpx
@@ -148,6 +148,10 @@ class _ServidorMcp(BaseModel):
     auth: _AuthMcp
     tools: list[_ToolMcp] = Field(min_length=1)
     rate_limit: dict | None = None
+    # Lo consume el mapa de presupuestos del engine, no el servidor. `Any` a
+    # propósito: un valor inválido avisa y usa el default como en los demás
+    # tipos (engine `_cerrar`), en vez de tumbar el agente acá.
+    max_result_tokens: Any = None
 
 
 def nombre_de_tool(slug: str, nombre: str) -> str:

@@ -226,3 +226,23 @@ async def test_glyph_recibe_los_datos_completos():
     )
     assert "1999" in result["answer"]
     assert result["answer"].count('"id"') == 2000
+
+
+@pytest.mark.parametrize("modulo", ["test_mcp_tool", "test_api_tool"])
+async def test_max_result_tokens_en_api_y_mcp_carga_y_aplica(tmp_path, modulo):
+    import copy
+    import importlib
+
+    from astromesh.integrations.api import manifiesto_de_api
+    from astromesh.integrations.mcp import nombre_de_tool
+
+    m = importlib.import_module(f"tests.{modulo}")
+    ficha = copy.deepcopy(m.SERVIDOR if modulo == "test_mcp_tool" else m.API)
+    ficha["max_result_tokens"] = 77
+    if ficha["type"] == "mcp":
+        esperados = {nombre_de_tool(ficha["name"], t["name"]) for t in ficha["tools"]}
+    else:
+        manifest, _ = manifiesto_de_api(ficha)
+        esperados = {f"{manifest.slug}_{a.name}" for a in manifest.actions}
+    ag = await _agente(tmp_path, _manifest([ficha]))
+    assert ag._presupuesto_tools["por_tool"] == dict.fromkeys(esperados, 77)

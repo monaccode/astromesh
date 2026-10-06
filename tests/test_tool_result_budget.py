@@ -139,3 +139,17 @@ async def test_cada_patron_pasa_el_presupuesto_del_context(patron):
     msgs = [m for conv in vistos for m in conv if m["role"] == "tool"]
     assert msgs, "el patrón nunca llamó a la tool"
     assert all(tokens.estimate_tokens(m["content"]) <= 150 for m in msgs)
+
+
+async def test_el_aviso_de_confirmacion_nunca_se_recorta():
+    aviso = {
+        "error": "confirmacion_requerida",
+        "pendiente": {
+            "tool": "crear_pedido",
+            "argumentos": {f"campo_{i}": "valor " * 20 for i in range(50)},
+        },
+        "mensaje": "repetí EXACTAMENTE estos argumentos",
+    }
+    r, msg = await _correr({"default": 8000, "por_tool": {"buscar": 20}}, resultado=aviso)
+    assert json.loads(msg["content"]) == aviso
+    assert r["steps"][0].recorte is None

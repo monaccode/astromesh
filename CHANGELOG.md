@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recorta respetando la estructura (default 8000 tokens). Glyph no cambia: sus programas reciben los
   datos completos.
 
+### Fixed
+
+- `max_result_tokens` en una tool `type: mcp` ya no deja al agente en draft: la ficha del servidor
+  MCP rechazaba la clave como extra.
+- El aviso `confirmacion_requerida` llega entero al modelo, sin tope: tiene que repetir esos
+  argumentos exactos para que la confirmación funcione.
+
 ## [0.65.0] - 2026-10-06
 
 ### Changed (Backend)

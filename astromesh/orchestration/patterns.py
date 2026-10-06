@@ -1,6 +1,7 @@
 import asyncio as aio
 import json as json_mod
 import os
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -127,7 +128,14 @@ async def ciclo_de_tools(
                 observation = f"La tool «{tc['name']}» no está disponible para este agente."
             else:
                 observation = await tool_fn(tc["name"], tc["arguments"])
-            texto, meta = presentar(observation, por_tool.get(tc["name"], default))
+            tope = por_tool.get(tc["name"], default)
+            if isinstance(observation, dict) and observation.get("error") == (
+                "confirmacion_requerida"
+            ):
+                # El modelo tiene que repetir estos argumentos EXACTOS
+                # (engine `tool_fn`); recortarlos rompe la confirmación.
+                tope = sys.maxsize
+            texto, meta = presentar(observation, tope)
             steps.append(
                 AgentStep(
                     thought=response.content,
