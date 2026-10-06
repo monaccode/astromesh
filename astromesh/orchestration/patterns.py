@@ -175,6 +175,13 @@ class PlanAndExecutePattern(OrchestrationPattern):
             steps_plan = _loads(plan_response.content).get("steps", [])
         except (json_mod.JSONDecodeError, AttributeError, KeyError, ValueError):
             steps_plan = []
+        # El modelo puede devolver pasos como strings, o `steps` que no es lista.
+        if not isinstance(steps_plan, list):
+            steps_plan = []
+        steps_plan = [
+            p if isinstance(p, dict) else {"step": i, "description": str(p)}
+            for i, p in enumerate(steps_plan, 1)
+        ]
         if not steps_plan:
             steps_plan = [{"step": 1, "description": "Responder el último mensaje."}]
 

@@ -178,3 +178,28 @@ async def test_una_consulta_multimodal_no_se_pierde(patron):
 @pytest.mark.parametrize("cls", [PlanAndExecutePattern, PipelinePattern, ParallelFanOutPattern])
 def test_reciben_el_contexto_del_turno_como_mensaje(cls):
     assert cls.consumes_turn_context is True
+
+
+@pytest.mark.asyncio
+async def test_plan_con_pasos_como_strings_ejecuta_uno_por_string():
+    model_fn = AsyncMock(
+        side_effect=[
+            Resp('{"steps": ["buscar", "resumir"]}'),
+            Resp("a"),
+            Resp("b"),
+            Resp("final"),
+        ]
+    )
+    r = await PlanAndExecutePattern().execute("q", {}, model_fn, AsyncMock(), [])
+    assert r["answer"] == "final"
+    assert "buscar" in model_fn.await_args_list[1].args[0][-1]["content"]
+    assert "resumir" in model_fn.await_args_list[2].args[0][-1]["content"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("plan", ['{"steps": "texto"}', '{"steps": []}'])
+async def test_plan_sin_lista_de_pasos_cae_a_un_solo_paso(plan):
+    model_fn = AsyncMock(side_effect=[Resp(plan), Resp("paso"), Resp("final")])
+    r = await PlanAndExecutePattern().execute("q", {}, model_fn, AsyncMock(), [])
+    assert r["answer"] == "final"
+    assert model_fn.await_count == 3
