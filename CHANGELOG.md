@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.65.0] - 2026-10-06
+
+### Changed (Backend)
+
+- **`plan_and_execute`, `pipeline` y `parallel_fan_out` son conversacionales**: el que
+  planifica / la primera etapa / el que descompone, y el que sintetiza, reciben el historial y
+  el contexto del turno (`consumes_turn_context`). Cada paso, etapa o subtarea corre el mismo
+  ciclo de tools que `react`: el resultado de una tool vuelve al modelo (antes `fan_out`
+  descartaba las tool_calls y `pipeline` pasaba la observación cruda a la etapa siguiente).
+- **`pipeline` lee `orchestration.stages`** (2–6 nombres de 1–40 caracteres); sin la clave,
+  `analyze/process/synthesize`.
+- **`supervisor` reescrito sobre tools nativas**: sus trabajadores son las tools `type: agent`
+  del manifiesto y son lo único que se le ofrece al modelo; sin ninguna, `AgentConfigError`.
+- **Un `orchestration.pattern` desconocido es `AgentConfigError`** al construir el agente; antes
+  caía en `react` sin avisar.
+- `swarm` no cambia.
+
 ## [0.64.0] - 2026-10-05
 
 ### Added (Backend)
