@@ -281,3 +281,65 @@ def test_pipeline_lee_stages_del_yaml():
 def test_pipeline_con_stages_invalidas_no_construye(stages):
     with pytest.raises(AgentConfigError, match="stages"):
         _runtime()._build_pattern({"orchestration": {"pattern": "pipeline", "stages": stages}})
+
+
+# --- revisión final: cancelación, topes, confirm, pattern null ---
+
+
+@pytest.mark.asyncio
+async def test_fan_out_el_primer_error_cancela_las_otras_subtareas():
+    import asyncio
+
+    class Boom(Exception):
+        pass
+
+    async def model_fn(messages, tools, role=None):
+        if role == "planner":
+            return Resp('["A", "B"]')
+        if messages[0]["content"] == "A":
+            raise Boom("429")
+        await asyncio.sleep(0.05)  # B sigue en vuelo cuando A ya falló
+        return Resp("", tool_calls=[{"id": "t", "name": "escribir", "arguments": {}}])
+
+    tool_fn = AsyncMock(return_value="x")
+    with pytest.raises(Boom):
+        await ParallelFanOutPattern().execute("q", CTX, model_fn, tool_fn, [])
+    await asyncio.sleep(0.1)
+    tool_fn.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_fan_out_corre_a_lo_sumo_4_subtareas_y_en_orden():
+    model_fn = AsyncMock(
+        side_effect=[
+            Resp('["1","2","3","4","5","6"]'),
+            *[Resp(f"r{i}") for i in range(4)],
+            Resp("f"),
+        ]
+    )
+    r = await ParallelFanOutPattern().execute("q", CTX, model_fn, AsyncMock(), [])
+    assert [s["subtask"] for s in r["subtasks"]] == ["1", "2", "3", "4"]
+    assert model_fn.await_count == 6
+
+
+@pytest.mark.asyncio
+async def test_plan_and_execute_corre_a_lo_sumo_6_pasos():
+    plan = '{"steps": [' + ",".join(f'"p{i}"' for i in range(8)) + "]}"
+    model_fn = AsyncMock(side_effect=[Resp(plan), *[Resp(f"r{i}") for i in range(6)], Resp("f")])
+    r = await PlanAndExecutePattern().execute("q", CTX, model_fn, AsyncMock(), [])
+    assert len(r["plan"]) == 6
+    assert model_fn.await_count == 8
+
+
+@pytest.mark.asyncio
+async def test_paso_dict_sin_description_no_imprime_none():
+    model_fn = AsyncMock(side_effect=[Resp('{"steps": [{"step": 1}]}'), Resp("r"), Resp("f")])
+    await PlanAndExecutePattern().execute("q", CTX, model_fn, AsyncMock(), [])
+    assert "None" not in model_fn.await_args_list[1].args[0][0]["content"].split("Resultados")[0]
+
+
+@pytest.mark.parametrize("orch", [{"pattern": None}, None])
+def test_pattern_null_es_react(orch):
+    from astromesh.orchestration.patterns import ReActPattern
+
+    assert isinstance(_runtime()._build_pattern({"orchestration": orch}), ReActPattern)

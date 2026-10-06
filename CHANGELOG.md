@@ -11,10 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (Backend)
 
-- **`plan_and_execute`, `pipeline` y `parallel_fan_out` son conversacionales**: el que
-  planifica / la primera etapa / el que descompone, y el que sintetiza, reciben el historial y
-  el contexto del turno (`consumes_turn_context`). Cada paso, etapa o subtarea corre el mismo
-  ciclo de tools que `react`: el resultado de una tool vuelve al modelo (antes `fan_out`
+- **`plan_and_execute`, `pipeline` y `parallel_fan_out` son conversacionales**: en
+  `plan_and_execute` y `parallel_fan_out` el que planifica / descompone Y el que sintetiza
+  reciben el historial y el contexto del turno (`consumes_turn_context`); en `pipeline`, sólo
+  la primera etapa. Cada paso, etapa o subtarea corre el mismo ciclo de tools que `react`, sin
+  el historial: el resultado de una tool vuelve al modelo (antes `fan_out`
   descartaba las tool_calls y `pipeline` pasaba la observación cruda a la etapa siguiente).
 - **`pipeline` lee `orchestration.stages`** (2–6 nombres de 1–40 caracteres); sin la clave,
   `analyze/process/synthesize`.
@@ -22,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   del manifiesto y son lo único que se le ofrece al modelo; sin ninguna, `AgentConfigError`.
 - **Un `orchestration.pattern` desconocido es `AgentConfigError`** al construir el agente; antes
   caía en `react` sin avisar.
+- Un `orchestration.pattern: null` explícito es `react`. Topes: 6 pasos de plan y 4 subtareas;
+  `parallel_fan_out` cancela las demás subtareas cuando una falla.
 - `swarm` no cambia.
 
 ## [0.64.0] - 2026-10-05

@@ -1220,7 +1220,7 @@ class AgentRuntime:
             "supervisor": SupervisorPattern,
             "swarm": SwarmPattern,
         }
-        pattern_name = spec.get("orchestration", {}).get("pattern", "react")
+        pattern_name = (spec.get("orchestration") or {}).get("pattern") or "react"
         program = spec.get("program")
 
         if program is not None and pattern_name != "glyph":

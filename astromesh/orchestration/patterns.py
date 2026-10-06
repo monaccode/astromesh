@@ -150,6 +150,11 @@ class ReActPattern(OrchestrationPattern):
         )
 
 
+# Topes de los patrones: más pasos/subtareas que esto se recortan.
+MAX_PASOS_PLAN = 6
+MAX_SUBTAREAS = 4
+
+
 class PlanAndExecutePattern(OrchestrationPattern):
     """Arma un plan, ejecuta cada paso con su ciclo de tools y sintetiza."""
 
@@ -184,6 +189,7 @@ class PlanAndExecutePattern(OrchestrationPattern):
         ]
         if not steps_plan:
             steps_plan = [{"step": 1, "description": "Responder el último mensaje."}]
+        steps_plan = steps_plan[:MAX_PASOS_PLAN]
 
         steps: list[AgentStep] = []
         results: list[dict] = []
@@ -194,7 +200,7 @@ class PlanAndExecutePattern(OrchestrationPattern):
                         "role": "user",
                         "content": (
                             f"Ejecutá el paso {step_info.get('step')}: "
-                            f"{step_info.get('description')}\n"
+                            f"{step_info.get('description') or str(step_info)}\n"
                             f"Resultados anteriores: {results}"
                         ),
                     }
@@ -251,6 +257,7 @@ class ParallelFanOutPattern(OrchestrationPattern):
         # El modelo puede devolver cualquier cosa: sin lista, una sola subtarea.
         except Exception:  # noqa: BLE001
             subtasks = ["Responder el último mensaje."]
+        subtasks = subtasks[:MAX_SUBTAREAS]
 
         async def run_subtask(subtask):
             r = await ciclo_de_tools(
@@ -263,7 +270,13 @@ class ParallelFanOutPattern(OrchestrationPattern):
             )
             return {"subtask": str(subtask), "result": r["answer"], "steps": r["steps"]}
 
-        results = await aio.gather(*[run_subtask(st) for st in subtasks])
+        # TaskGroup: el primer error cancela las demás subtareas (cada una corre tools).
+        try:
+            async with aio.TaskGroup() as tg:
+                tareas = [tg.create_task(run_subtask(st)) for st in subtasks]
+        except* Exception as eg:  # noqa: BLE001  (se re-lanza la original)
+            raise eg.exceptions[0] from None
+        results = [t.result() for t in tareas]
         resumen = [{"subtask": r["subtask"], "result": r["result"]} for r in results]
         final = await model_fn(
             [
