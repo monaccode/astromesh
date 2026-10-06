@@ -426,9 +426,7 @@ async def test_patron_sin_soporte_recibe_el_contexto_en_el_system(tmp_path, capl
     from astromesh.orchestration.patterns import OrchestrationPattern
 
     with caplog.at_level(logging.WARNING):
-        agente = await _agente(
-            tmp_path, _con_context(_manifest(), context="CTX", pattern="plan_and_execute")
-        )
+        agente = await _agente(tmp_path, _con_context(_manifest(), context="CTX", pattern="swarm"))
     avisos = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
     assert any("mem-agent" in m and "prompts.context" in m for m in avisos), avisos
 

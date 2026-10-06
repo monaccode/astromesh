@@ -151,127 +151,169 @@ class ReActPattern(OrchestrationPattern):
 
 
 class PlanAndExecutePattern(OrchestrationPattern):
-    """Create plan, then execute each step sequentially."""
+    """Arma un plan, ejecuta cada paso con su ciclo de tools y sintetiza."""
+
+    consumes_turn_context = True
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
-        # Step 1: Ask model to create a plan
-        plan_prompt = f'Create a step-by-step plan to answer: {query}\nReturn JSON: {{"steps": [{{"step": 1, "description": "...", "tool": null, "depends_on": []}}]}}'
+        conversacion = mensajes_de_conversacion(query, context)
         plan_response = await model_fn(
-            [{"role": "user", "content": plan_prompt}], tools, role="planner"
+            [
+                *conversacion,
+                {
+                    "role": "user",
+                    "content": (
+                        "Armá un plan paso a paso para responder el último mensaje. "
+                        'Devolvé JSON: {"steps": [{"step": 1, "description": "..."}]}'
+                    ),
+                },
+            ],
+            tools,
+            role="planner",
         )
-
         try:
-            plan = _loads(plan_response.content)
-            steps_plan = plan.get("steps", [])
-        except (json_mod.JSONDecodeError, KeyError, ValueError):
-            steps_plan = [{"step": 1, "description": query, "tool": None}]
+            steps_plan = _loads(plan_response.content).get("steps", [])
+        except (json_mod.JSONDecodeError, AttributeError, KeyError, ValueError):
+            steps_plan = []
+        if not steps_plan:
+            steps_plan = [{"step": 1, "description": "Responder el último mensaje."}]
 
-        # Step 2: Execute each step
-        steps = []
-        results = []
+        steps: list[AgentStep] = []
+        results: list[dict] = []
         for step_info in steps_plan:
-            step_query = f"Execute step {step_info['step']}: {step_info['description']}\nPrevious results: {results}"
-            step_response = await model_fn(
-                [{"role": "user", "content": step_query}], tools, role="worker"
+            paso = await ciclo_de_tools(
+                [
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Ejecutá el paso {step_info.get('step')}: "
+                            f"{step_info.get('description')}\n"
+                            f"Resultados anteriores: {results}"
+                        ),
+                    }
+                ],
+                model_fn,
+                tool_fn,
+                tools,
+                max_iterations,
+                role="worker",
             )
+            results.append({"step": step_info.get("step"), "result": paso["answer"]})
+            steps.extend(paso["steps"])
 
-            if step_response.tool_calls:
-                for tc in step_response.tool_calls:
-                    obs = await tool_fn(tc["name"], tc["arguments"])
-                    results.append({"step": step_info["step"], "result": str(obs)})
-                    steps.append(
-                        AgentStep(
-                            thought=step_response.content,
-                            action=tc["name"],
-                            action_input=tc["arguments"],
-                            observation=str(obs),
-                        )
-                    )
-            else:
-                results.append({"step": step_info["step"], "result": step_response.content})
-                steps.append(AgentStep(result=step_response.content))
-
-        # Step 3: Synthesize final answer
-        synthesis_prompt = (
-            f"Synthesize a final answer from these results: {results}\nOriginal question: {query}"
-        )
         final = await model_fn(
-            [{"role": "user", "content": synthesis_prompt}], [], role="synthesizer"
+            [
+                *conversacion,
+                {
+                    "role": "user",
+                    "content": f"Con estos resultados, respondé el último mensaje: {results}",
+                },
+            ],
+            [],
+            role="synthesizer",
         )
         steps.append(AgentStep(result=final.content))
-
         return {"answer": final.content, "steps": steps, "plan": steps_plan}
 
 
 class ParallelFanOutPattern(OrchestrationPattern):
-    """Fan out subtasks in parallel, then aggregate."""
+    """Parte el último mensaje en subtareas en paralelo y las junta."""
+
+    consumes_turn_context = True
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
-        # Decompose into subtasks
-        decompose_prompt = (
-            f"Decompose this into 2-4 independent subtasks (JSON list of strings): {query}"
-        )
+        conversacion = mensajes_de_conversacion(query, context)
         decompose_resp = await model_fn(
-            [{"role": "user", "content": decompose_prompt}], [], role="planner"
+            [
+                *conversacion,
+                {
+                    "role": "user",
+                    "content": (
+                        "Partí el último mensaje en 2 a 4 subtareas independientes "
+                        "(una lista JSON de strings)."
+                    ),
+                },
+            ],
+            [],
+            role="planner",
         )
-
         try:
             subtasks = _loads(decompose_resp.content)
-            if not isinstance(subtasks, list):
-                subtasks = [query]
-        # El modelo puede devolver cualquier cosa: si no es una lista de subtareas
-        # se sigue con la consulta original. Decía `(JSONDecodeError, Exception)`,
-        # una tupla donde el segundo miembro ya cubría al primero.
+            if not isinstance(subtasks, list) or not subtasks:
+                subtasks = ["Responder el último mensaje."]
+        # El modelo puede devolver cualquier cosa: sin lista, una sola subtarea.
         except Exception:  # noqa: BLE001
-            subtasks = [query]
+            subtasks = ["Responder el último mensaje."]
 
-        # Execute subtasks in parallel
         async def run_subtask(subtask):
-            resp = await model_fn([{"role": "user", "content": subtask}], tools, role="worker")
-            return {"subtask": subtask, "result": resp.content}
+            r = await ciclo_de_tools(
+                [{"role": "user", "content": str(subtask)}],
+                model_fn,
+                tool_fn,
+                tools,
+                max_iterations,
+                role="worker",
+            )
+            return {"subtask": str(subtask), "result": r["answer"], "steps": r["steps"]}
 
         results = await aio.gather(*[run_subtask(st) for st in subtasks])
-
-        # Aggregate
-        agg_prompt = f"Aggregate these results into a final answer:\n{json_mod.dumps(list(results))}\nOriginal question: {query}"
-        final = await model_fn([{"role": "user", "content": agg_prompt}], [], role="synthesizer")
-
-        steps = [AgentStep(thought=f"Subtask: {r['subtask']}", result=r["result"]) for r in results]
+        resumen = [{"subtask": r["subtask"], "result": r["result"]} for r in results]
+        final = await model_fn(
+            [
+                *conversacion,
+                {
+                    "role": "user",
+                    "content": (
+                        "Juntá estos resultados en una respuesta al último mensaje:\n"
+                        f"{json_mod.dumps(resumen, ensure_ascii=False)}"
+                    ),
+                },
+            ],
+            [],
+            role="synthesizer",
+        )
+        steps = [s for r in results for s in r["steps"]]
         steps.append(AgentStep(result=final.content))
-
-        return {"answer": final.content, "steps": steps, "subtasks": list(results)}
+        return {"answer": final.content, "steps": steps, "subtasks": resumen}
 
 
 class PipelinePattern(OrchestrationPattern):
-    """Sequential pipeline: output of step N feeds into step N+1."""
+    """Etapas en orden: la respuesta de una etapa es la entrada de la siguiente."""
+
+    consumes_turn_context = True
 
     def __init__(self, stages: list[str] | None = None):
         self._stages = stages or ["analyze", "process", "synthesize"]
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
-        current_input = query
-        steps = []
-
+        conversacion = mensajes_de_conversacion(query, context)
+        current_input = None
+        steps: list[AgentStep] = []
         for stage in self._stages:
-            prompt = f"Stage '{stage}': Process the following input and produce output for the next stage.\nInput: {current_input}"
-            response = await model_fn(
-                [{"role": "user", "content": prompt}], tools, role=f"stage:{stage}"
-            )
-
-            if response.tool_calls:
-                for tc in response.tool_calls:
-                    obs = await tool_fn(tc["name"], tc["arguments"])
-                    steps.append(
-                        AgentStep(
-                            thought=f"Stage: {stage}",
-                            action=tc["name"],
-                            action_input=tc["arguments"],
-                            observation=str(obs),
-                        )
-                    )
-                    current_input = str(obs)
+            if current_input is None:
+                messages = [
+                    *conversacion,
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Etapa «{stage}»: procesá el último mensaje y producí la "
+                            "entrada de la etapa siguiente."
+                        ),
+                    },
+                ]
             else:
-                steps.append(AgentStep(thought=f"Stage: {stage}", result=response.content))
-                current_input = response.content
-
+                messages = [
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Etapa «{stage}»: procesá esta entrada y producí la de la "
+                            f"etapa siguiente.\nEntrada: {current_input}"
+                        ),
+                    }
+                ]
+            r = await ciclo_de_tools(
+                messages, model_fn, tool_fn, tools, max_iterations, role=f"stage:{stage}"
+            )
+            steps.extend(r["steps"])
+            current_input = r["answer"]
         return {"answer": current_input, "steps": steps}

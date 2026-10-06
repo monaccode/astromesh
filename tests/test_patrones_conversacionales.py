@@ -5,7 +5,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from astromesh.orchestration.patterns import ciclo_de_tools, mensajes_de_conversacion
+from astromesh.orchestration.patterns import (
+    ParallelFanOutPattern,
+    PipelinePattern,
+    PlanAndExecutePattern,
+    ciclo_de_tools,
+    mensajes_de_conversacion,
+)
 
 
 @dataclass
@@ -64,3 +70,111 @@ async def test_ciclo_de_tools_no_ejecuta_una_tool_fuera_de_permitidas():
     tool_fn.assert_not_called()
     obs = model_fn.await_args_list[1].args[0][-1]
     assert obs["content"] == "La tool «borrar_todo» no está disponible para este agente."
+
+
+CTX = {"_history_messages": HISTORIA, "_turn_context": "CTX"}
+
+
+def _primera(model_fn):
+    return model_fn.await_args_list[0].args[0]
+
+
+@pytest.mark.asyncio
+async def test_plan_and_execute_planifica_y_sintetiza_con_la_conversacion():
+    model_fn = AsyncMock(
+        side_effect=[
+            Resp('{"steps": [{"step": 1, "description": "buscar"}]}'),
+            Resp("paso hecho"),
+            Resp("final"),
+        ]
+    )
+    r = await PlanAndExecutePattern().execute("¿cómo me llamo?", CTX, model_fn, AsyncMock(), [])
+    assert r["answer"] == "final"
+    assert _primera(model_fn)[:2] == HISTORIA
+    assert _primera(model_fn)[2]["content"] == "CTX\n\n¿cómo me llamo?"
+    assert model_fn.await_args_list[2].args[0][:2] == HISTORIA  # sintetizador
+
+
+@pytest.mark.asyncio
+async def test_plan_and_execute_un_paso_ve_el_resultado_de_su_tool():
+    tc = {"id": "t1", "name": "buscar", "arguments": {}}
+    model_fn = AsyncMock(
+        side_effect=[
+            Resp('{"steps": [{"step": 1, "description": "buscar"}]}'),
+            Resp("", tool_calls=[tc]),
+            Resp("con el dato"),
+            Resp("final"),
+        ]
+    )
+    tool_fn = AsyncMock(return_value="dato")
+    await PlanAndExecutePattern().execute("q", {}, model_fn, tool_fn, [])
+    assert model_fn.await_args_list[2].args[0][-1]["content"] == "dato"
+    assert "con el dato" in model_fn.await_args_list[3].args[0][-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_plan_que_no_es_json_igual_sintetiza_con_la_historia():
+    model_fn = AsyncMock(side_effect=[Resp("no es json"), Resp("paso"), Resp("final")])
+    r = await PlanAndExecutePattern().execute("q", CTX, model_fn, AsyncMock(), [])
+    assert r["answer"] == "final"
+    assert model_fn.await_args_list[2].args[0][:2] == HISTORIA
+
+
+@pytest.mark.asyncio
+async def test_pipeline_usa_las_etapas_declaradas_y_la_primera_ve_la_conversacion():
+    model_fn = AsyncMock(side_effect=[Resp("uno"), Resp("dos")])
+    r = await PipelinePattern(stages=["leer", "contestar"]).execute(
+        "q", CTX, model_fn, AsyncMock(), []
+    )
+    assert r["answer"] == "dos"
+    roles = [c.kwargs["role"] for c in model_fn.await_args_list]
+    assert roles == ["stage:leer", "stage:contestar"]
+    assert _primera(model_fn)[:2] == HISTORIA
+    assert "uno" in model_fn.await_args_list[1].args[0][-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_pipeline_la_salida_de_una_etapa_es_su_respuesta_no_la_tool():
+    tc = {"id": "t1", "name": "buscar", "arguments": {}}
+    model_fn = AsyncMock(side_effect=[Resp("", tool_calls=[tc]), Resp("resumen"), Resp("fin")])
+    await PipelinePattern(stages=["a", "b"]).execute(
+        "q", {}, model_fn, AsyncMock(return_value="CRUDO"), []
+    )
+    entrada_b = model_fn.await_args_list[2].args[0][-1]["content"]
+    assert "resumen" in entrada_b
+    assert "CRUDO" not in entrada_b
+
+
+@pytest.mark.asyncio
+async def test_fan_out_descompone_y_junta_con_la_conversacion_y_las_subtareas_usan_tools():
+    tc = {"id": "t1", "name": "buscar", "arguments": {}}
+    model_fn = AsyncMock(
+        side_effect=[
+            Resp('["sub"]'),
+            Resp("", tool_calls=[tc]),
+            Resp("sub hecha"),
+            Resp("junto"),
+        ]
+    )
+    tool_fn = AsyncMock(return_value="dato")
+    r = await ParallelFanOutPattern().execute("q", CTX, model_fn, tool_fn, [])
+    assert r["answer"] == "junto"
+    tool_fn.assert_awaited_once()
+    assert _primera(model_fn)[:2] == HISTORIA
+    assert model_fn.await_args_list[3].args[0][:2] == HISTORIA
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "patron", [PlanAndExecutePattern(), PipelinePattern(stages=["a", "b"]), ParallelFanOutPattern()]
+)
+async def test_una_consulta_multimodal_no_se_pierde(patron):
+    partes = [{"type": "text", "text": "mirá"}, {"type": "image_url", "image_url": {"url": "x"}}]
+    model_fn = AsyncMock(return_value=Resp('["s"]'))
+    await patron.execute(partes, {}, model_fn, AsyncMock(), [])
+    assert _primera(model_fn)[0]["content"] == partes
+
+
+@pytest.mark.parametrize("cls", [PlanAndExecutePattern, PipelinePattern, ParallelFanOutPattern])
+def test_reciben_el_contexto_del_turno_como_mensaje(cls):
+    assert cls.consumes_turn_context is True
