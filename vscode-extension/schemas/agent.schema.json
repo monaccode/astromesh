@@ -195,6 +195,17 @@
               "type": "integer",
               "description": "Only for pattern: glyph. Default 2: retries when the model-generated program fails to compile.",
               "minimum": 0
+            },
+            "stages": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 6,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "description": "Pipeline stage names (pattern: pipeline): 2 to 6 names of 1 to 40 characters. Without it: analyze, process, synthesize."
             }
           }
         },

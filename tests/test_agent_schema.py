@@ -66,3 +66,26 @@ def test_schema_declares_every_key_the_engine_consumes(schema):
     declared = set(schema["$defs"]["modelConfig"]["properties"])
     consumed = set().union(*_CONSUMED_KEYS.values())
     assert consumed <= declared, f"schema is missing consumed key(s) {consumed - declared}"
+
+
+def _pipeline(stages) -> dict:
+    return {
+        "apiVersion": "astromesh/v1",
+        "kind": "Agent",
+        "metadata": {"name": "pipe", "version": "0.1.0"},
+        "spec": {
+            "identity": {"description": "d"},
+            "model": {"primary": {"provider": "ollama", "model": "llama3"}},
+            "prompts": {"system": "s"},
+            "orchestration": {"pattern": "pipeline", "stages": stages},
+        },
+    }
+
+
+def test_pipeline_stages_validan_como_las_acepta_el_engine(schema):
+    """`orchestration.stages` entró en 0.65.0 (engine.py, rama pipeline) sin su clave en el
+    schema, que con `additionalProperties: false` rechazaba un pipeline válido."""
+    validator = jsonschema.Draft202012Validator(schema)
+    assert not list(validator.iter_errors(_pipeline(["leer", "resumir"])))
+    assert list(validator.iter_errors(_pipeline(["solo"])))
+    assert list(validator.iter_errors(_pipeline(["x" * 41, "y"])))

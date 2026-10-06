@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `orchestration.stages` (pipeline, 0.65.0) en el `agent.schema.json`: el engine la leía pero el
+  schema, con `additionalProperties: false`, rechazaba un pipeline válido.
+
 ## [0.66.0] - 2026-10-06
 
 ### Added (Backend)
