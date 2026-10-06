@@ -183,7 +183,7 @@ astromesh-platform/
 │   ├── memory/                      # Layer 4: Memory backend implementations
 │   │   ├── backends/                # Redis, SQLite, PostgreSQL, pgvector,
 │   │   │                            # ChromaDB, Qdrant, FAISS
-│   │   └── strategies/              # sliding_window, summary, token_budget
+│   │   └── strategies/              # token_budget (the budget trim used by MemoryManager)
 │   │
 │   ├── rag/                         # Layer 4: RAG pipeline
 │   │   ├── pipeline.py              # RAG orchestrator
