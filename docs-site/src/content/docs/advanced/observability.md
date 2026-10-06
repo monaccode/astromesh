@@ -118,7 +118,7 @@ Every call to `Agent.run()` produces these spans automatically:
 
 `cached_tokens` on `llm.complete` is the part of `input_tokens` the provider served from its prompt cache (0 when it reports none). Without it every input token reads as full price and a prefix-caching optimization can't be verified. Available since astromesh **v0.48.0**; the run response sums it per model as `usage.by_model[].tokens_cached` since **v0.54.0**.
 
-Since **v0.64.0**, `cache.hit_ratio = round(cached_tokens / input_tokens, 3)` (0 when there are no input tokens) shows directly whether a stable prefix is hitting the cache; see [Prompt Caching](/advanced/prompt-caching/).
+Since **v0.64.0**, `cache.hit_ratio = round(cached_tokens / input_tokens, 3)` (0 when there are no input tokens) shows directly whether a stable prefix is hitting the cache; see [Prompt Caching](/astromesh/advanced/prompt-caching/).
 
 The trace is attached to the agent response:
 

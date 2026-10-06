@@ -77,11 +77,11 @@ The load warning looks **only inside Jinja blocks** (`{{ }}` / `{% %}`); prose s
 - When the budget trims history it drops the oldest turn, which shifts the prefix. A `prompts.context` whose size swings widely can make the oldest turn go in and out. Keep it bounded.
 - Without `context_window` (and no Ollama `num_ctx` or litellm knowledge of the model) the history is not trimmed by budget, only by `max_turns`, and the agent warns at load. Declare `context_window` on the model candidate to activate the budget.
 
-See [Agent YAML](/configuration/agent-yaml/) for `prompts.context`, `context_window` and memory strategies, and the [Memory Manager](/reference/core/memory-manager/) and [Runtime Engine](/reference/core/runtime-engine/) references.
+See [Agent YAML](/astromesh/configuration/agent-yaml/) for `prompts.context`, `context_window` and memory strategies, and the [Memory Manager](/astromesh/reference/core/memory-manager/) and [Runtime Engine](/astromesh/reference/core/runtime-engine/) references.
 
 ## Measuring
 
-Two spans tell you whether the cache is working (see [Observability](/advanced/observability/)):
+Two spans tell you whether the cache is working (see [Observability](/astromesh/advanced/observability/)):
 
 - `llm.complete` carries `cache.hit_ratio` (`cached_tokens / input_tokens`).
 - `context_fit` (child of `prompt_render`) carries `history.delivery` (`messages` or `template`), `turn_context.delivery` (`message`, `system` or `none`) and `history.budget` (`-1` means unbounded).
