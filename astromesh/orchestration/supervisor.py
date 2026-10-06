@@ -2,6 +2,7 @@ from astromesh.orchestration.patterns import (
     OrchestrationPattern,
     ciclo_de_tools,
     mensajes_de_conversacion,
+    presupuesto_de,
 )
 
 
@@ -29,4 +30,5 @@ class SupervisorPattern(OrchestrationPattern):
             max_iterations,
             role="supervisor",
             permitidas=permitidas,
+            presupuesto=presupuesto_de(context),
         )

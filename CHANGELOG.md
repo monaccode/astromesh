@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lista con aviso de omitidos, la lista más grande de un dict, o la cabeza del texto con
   marcador).
 
+### Changed
+
+- **El resultado de una tool entra al modelo con tope y como JSON.** `ciclo_de_tools` (ReAct,
+  plan_and_execute, pipeline, fan_out, supervisor) pasa cada observación por `presentar`: un
+  dict/lista llega como JSON compacto en lugar del repr de Python, y lo que supera el presupuesto se
+  recorta respetando la estructura (default 8000 tokens). Glyph no cambia: sus programas reciben los
+  datos completos.
+
 ## [0.65.0] - 2026-10-06
 
 ### Changed (Backend)

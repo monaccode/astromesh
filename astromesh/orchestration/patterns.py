@@ -4,6 +4,8 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from astromesh.orchestration.observaciones import DEFAULT_MAX_TOOL_RESULT_TOKENS, presentar
+
 try:
     from astromesh._native import rust_json_loads as _native_json_loads
 except ImportError:
@@ -38,6 +40,12 @@ class AgentStep:
     action_input: dict | None = None
     observation: str | None = None
     result: str | None = None
+    recorte: dict | None = None
+
+
+def presupuesto_de(context) -> dict | None:
+    """El presupuesto de observaciones que armó el engine (`_presupuesto_tools`)."""
+    return context.get("_presupuesto_tools") if isinstance(context, dict) else None
 
 
 def mensajes_de_conversacion(query, context):
@@ -55,7 +63,9 @@ def mensajes_de_conversacion(query, context):
     ]
 
 
-async def ciclo_de_tools(messages, model_fn, tool_fn, tools, max_iterations, role, permitidas=None):
+async def ciclo_de_tools(
+    messages, model_fn, tool_fn, tools, max_iterations, role, permitidas=None, presupuesto=None
+):
     """Modelo → tools → resultado de vuelta al modelo, hasta una respuesta sin tools.
 
     `permitidas` acota qué tools se ejecutan: una fuera del set no llega a
@@ -64,6 +74,8 @@ async def ciclo_de_tools(messages, model_fn, tool_fn, tools, max_iterations, rol
     """
     messages = list(messages)
     steps: list[AgentStep] = []
+    por_tool = (presupuesto or {}).get("por_tool") or {}
+    default = (presupuesto or {}).get("default") or DEFAULT_MAX_TOOL_RESULT_TOKENS
     for _ in range(max_iterations):
         response = await model_fn(messages, tools, role=role)
         if not response.tool_calls:
@@ -115,15 +127,17 @@ async def ciclo_de_tools(messages, model_fn, tool_fn, tools, max_iterations, rol
                 observation = f"La tool «{tc['name']}» no está disponible para este agente."
             else:
                 observation = await tool_fn(tc["name"], tc["arguments"])
+            texto, meta = presentar(observation, por_tool.get(tc["name"], default))
             steps.append(
                 AgentStep(
                     thought=response.content,
                     action=tc["name"],
                     action_input=tc["arguments"],
-                    observation=str(observation),
+                    observation=texto,
+                    recorte=meta if meta["truncated"] else None,
                 )
             )
-            messages.append({"role": "tool", "content": str(observation), "tool_call_id": tc["id"]})
+            messages.append({"role": "tool", "content": texto, "tool_call_id": tc["id"]})
     return {"answer": "Max iterations reached", "steps": steps}
 
 
@@ -147,6 +161,7 @@ class ReActPattern(OrchestrationPattern):
             tools,
             max_iterations,
             role="reasoner",
+            presupuesto=presupuesto_de(context),
         )
 
 
@@ -210,6 +225,7 @@ class PlanAndExecutePattern(OrchestrationPattern):
                 tools,
                 max_iterations,
                 role="worker",
+                presupuesto=presupuesto_de(context),
             )
             results.append({"step": step_info.get("step"), "result": paso["answer"]})
             steps.extend(paso["steps"])
@@ -267,6 +283,7 @@ class ParallelFanOutPattern(OrchestrationPattern):
                 tools,
                 max_iterations,
                 role="worker",
+                presupuesto=presupuesto_de(context),
             )
             return {"subtask": str(subtask), "result": r["answer"], "steps": r["steps"]}
 
@@ -332,7 +349,13 @@ class PipelinePattern(OrchestrationPattern):
                     }
                 ]
             r = await ciclo_de_tools(
-                messages, model_fn, tool_fn, tools, max_iterations, role=f"stage:{stage}"
+                messages,
+                model_fn,
+                tool_fn,
+                tools,
+                max_iterations,
+                role=f"stage:{stage}",
+                presupuesto=presupuesto_de(context),
             )
             steps.extend(r["steps"])
             current_input = r["answer"]

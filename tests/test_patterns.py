@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
 
@@ -69,7 +70,7 @@ async def test_react_with_tool_call():
     assert len(result["steps"]) == 2
     # First step is the tool call
     assert result["steps"][0].action == "lookup"
-    assert result["steps"][0].observation == str({"weather": "sunny"})
+    assert result["steps"][0].observation == json.dumps({"weather": "sunny"}, separators=(",", ":"))
     # Second step is the final answer
     assert result["steps"][1].result == "It is sunny today."
     tool_fn.assert_called_once_with("lookup", {"query": "weather"})
