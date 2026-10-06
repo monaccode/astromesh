@@ -413,11 +413,16 @@ async def test_contexto_no_lleva_el_bloque_de_output_schema(tmp_path):
     assert llamadas[0][-1] == {"role": "user", "content": "DOCS FIJOS\n\nfrenos"}
 
 
-async def test_patron_desconocido_cae_a_react_y_recibe_el_mensaje(tmp_path):
-    agente = await _agente(tmp_path, _con_context(_manifest(), context="CTX", pattern="raro"))
-    llamadas = _capturar(agente)
-    await agente.run("frenos", session_id="s1")
-    assert llamadas[0][-1] == {"role": "user", "content": "CTX\n\nfrenos"}
+async def test_patron_desconocido_no_carga_el_agente(tmp_path):
+    """Antes caía en react en silencio; ahora el agente no se construye y dice por qué."""
+    config_dir = tmp_path / "config"
+    (config_dir / "agents").mkdir(parents=True)
+    manifest = _con_context(_manifest(), context="CTX", pattern="raro")
+    (config_dir / "agents" / "mem-agent.agent.yaml").write_text(yaml.safe_dump(manifest))
+    runtime = AgentRuntime(config_dir=str(config_dir))
+    await runtime.bootstrap()
+    assert "mem-agent" not in runtime._agents
+    assert "raro" in runtime._agent_errors["mem-agent"]
 
 
 async def test_patron_sin_soporte_recibe_el_contexto_en_el_system(tmp_path, caplog):

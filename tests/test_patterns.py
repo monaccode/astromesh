@@ -144,9 +144,8 @@ async def test_pipeline_pattern():
 async def test_supervisor_pattern():
     from astromesh.orchestration.supervisor import SupervisorPattern
 
-    resp = make_response('{"final_answer": "done"}')
-    model_fn = AsyncMock(return_value=resp)
-    pattern = SupervisorPattern()
+    model_fn = AsyncMock(return_value=make_response("done"))
+    pattern = SupervisorPattern(workers=["consultar_x"])
     result = await pattern.execute("task", {}, model_fn, AsyncMock(), [])
     assert result["answer"] == "done"
 

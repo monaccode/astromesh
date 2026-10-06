@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from astromesh.errors import AgentConfigError
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
     PipelinePattern,
@@ -12,6 +13,8 @@ from astromesh.orchestration.patterns import (
     ciclo_de_tools,
     mensajes_de_conversacion,
 )
+from astromesh.orchestration.supervisor import SupervisorPattern
+from astromesh.runtime.engine import AgentRuntime
 
 
 @dataclass
@@ -203,3 +206,78 @@ async def test_plan_sin_lista_de_pasos_cae_a_un_solo_paso(plan):
     r = await PlanAndExecutePattern().execute("q", {}, model_fn, AsyncMock(), [])
     assert r["answer"] == "final"
     assert model_fn.await_count == 3
+
+
+def _schema(nombre):
+    return {"type": "function", "function": {"name": nombre, "description": "", "parameters": {}}}
+
+
+@pytest.mark.asyncio
+async def test_supervisor_solo_ofrece_sus_trabajadores_y_ve_la_conversacion():
+    tc = {"id": "t1", "name": "consultar_ventas", "arguments": {"query": "x"}}
+    model_fn = AsyncMock(side_effect=[Resp("", tool_calls=[tc]), Resp("listo")])
+    tool_fn = AsyncMock(return_value="ventas ok")
+    r = await SupervisorPattern(workers=["consultar_ventas", "consultar_stock"]).execute(
+        "q",
+        CTX,
+        model_fn,
+        tool_fn,
+        [_schema("consultar_ventas"), _schema("consultar_stock"), _schema("praxis_buscar")],
+    )
+    assert r["answer"] == "listo"
+    ofrecidas = [t["function"]["name"] for t in model_fn.await_args_list[0].args[1]]
+    assert ofrecidas == ["consultar_ventas", "consultar_stock"]
+    assert model_fn.await_args_list[0].kwargs["role"] == "supervisor"
+    assert _primera(model_fn)[:2] == HISTORIA
+    tool_fn.assert_awaited_once_with("consultar_ventas", {"query": "x"})
+
+
+@pytest.mark.asyncio
+async def test_supervisor_no_ejecuta_una_tool_que_no_es_trabajador():
+    tc = {"id": "t1", "name": "praxis_buscar", "arguments": {}}
+    model_fn = AsyncMock(side_effect=[Resp("", tool_calls=[tc]), Resp("ok")])
+    tool_fn = AsyncMock()
+    await SupervisorPattern(workers=["consultar_ventas"]).execute(
+        "q", {}, model_fn, tool_fn, [_schema("consultar_ventas"), _schema("praxis_buscar")]
+    )
+    tool_fn.assert_not_called()
+
+
+def _runtime():
+    return AgentRuntime.__new__(AgentRuntime)
+
+
+def test_supervisor_sin_tools_agent_no_construye():
+    with pytest.raises(AgentConfigError, match="supervisor"):
+        _runtime()._build_pattern(
+            {
+                "orchestration": {"pattern": "supervisor"},
+                "tools": [{"name": "x", "type": "builtin"}],
+            }
+        )
+
+
+def test_supervisor_toma_sus_trabajadores_de_las_tools_agent():
+    p = _runtime()._build_pattern(
+        {
+            "orchestration": {"pattern": "supervisor"},
+            "tools": [
+                {"name": "consultar_a", "type": "agent", "agent": "a"},
+                {"name": "datetime_now", "type": "builtin"},
+                {"name": "consultar_b", "type": "agent", "agent": "b"},
+            ],
+        }
+    )
+    assert isinstance(p, SupervisorPattern)
+    assert p._workers == ["consultar_a", "consultar_b"]
+
+
+def test_pipeline_lee_stages_del_yaml():
+    p = _runtime()._build_pattern({"orchestration": {"pattern": "pipeline", "stages": ["a", "b"]}})
+    assert p._stages == ["a", "b"]
+
+
+@pytest.mark.parametrize("stages", [["solo"], ["a"] * 7, ["a", ""], ["a", "x" * 41], "ab", [1, 2]])
+def test_pipeline_con_stages_invalidas_no_construye(stages):
+    with pytest.raises(AgentConfigError, match="stages"):
+        _runtime()._build_pattern({"orchestration": {"pattern": "pipeline", "stages": stages}})

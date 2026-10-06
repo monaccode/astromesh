@@ -60,9 +60,13 @@ def test_narration_is_on_by_default():
     assert pattern._max_repairs == 2
 
 
-def test_an_unknown_pattern_still_falls_back_to_react():
+def test_an_unknown_pattern_does_not_build():
+    """Antes caía en react en silencio: un typo corría otro agente que el declarado."""
+    from astromesh.errors import AgentConfigError
+
     runtime = AgentRuntime.__new__(AgentRuntime)
-    assert isinstance(runtime._build_pattern({"orchestration": {"pattern": "vaca"}}), ReActPattern)
+    with pytest.raises(AgentConfigError, match="vaca"):
+        runtime._build_pattern({"orchestration": {"pattern": "vaca"}})
 
 
 def test_the_default_pattern_is_still_react():

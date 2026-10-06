@@ -1269,7 +1269,36 @@ class AgentRuntime:
                 program=program,
             )
 
-        return pattern_map.get(pattern_name, ReActPattern)()
+        if pattern_name not in pattern_map:
+            raise AgentConfigError(
+                f"spec.orchestration.pattern {pattern_name!r} no existe; los válidos son: "
+                + ", ".join(sorted([*pattern_map, "glyph"]))
+            )
+        orchestration = spec.get("orchestration", {}) or {}
+        if pattern_name == "supervisor":
+            trabajadores = [
+                t["name"]
+                for t in spec.get("tools", []) or []
+                if t.get("type") == "agent" and t.get("name")
+            ]
+            if not trabajadores:
+                raise AgentConfigError(
+                    "`pattern: supervisor` necesita al menos una tool `type: agent`: "
+                    "son sus trabajadores"
+                )
+            return SupervisorPattern(workers=trabajadores)
+        if pattern_name == "pipeline":
+            stages = orchestration.get("stages")
+            if stages is not None and not (
+                isinstance(stages, list)
+                and 2 <= len(stages) <= 6
+                and all(isinstance(s, str) and 1 <= len(s) <= 40 for s in stages)
+            ):
+                raise AgentConfigError(
+                    "`orchestration.stages` de pipeline: de 2 a 6 nombres de 1 a 40 caracteres"
+                )
+            return PipelinePattern(stages=stages)
+        return pattern_map[pattern_name]()
 
     async def run(
         self,
