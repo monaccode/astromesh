@@ -191,9 +191,9 @@ Memory strategies control how conversational history is managed when it grows be
 
 | Strategy | Description | Use Case |
 |----------|-------------|----------|
-| `sliding_window` | Keep the last N turns, discard older ones | Simple chatbots with short context needs |
-| `summary` | Compress older turns into summaries using the LLM, keep recent turns verbatim | Long-running conversations that need historical awareness |
-| `token_budget` | Fit as many recent turns as possible within a configured token limit | Maximizing context usage without exceeding model limits |
+| `sliding_window` | Keep the last `max_turns` turns, discard older ones | Simple chatbots with short context needs |
+| `summary` | Incrementally fold older turns into a summary (`summarizer` role), keep recent turns verbatim | Long-running conversations that need historical awareness |
+| `token_budget` | Fit as many recent turns as possible within the budget derived from the model's context window | Maximizing context usage without exceeding model limits |
 
 ### Tool Registry
 

@@ -134,9 +134,11 @@ After input guardrails pass, the Memory Manager assembles context from all confi
 ### What happens during context building
 
 1. **Conversational memory** -- The manager retrieves recent chat history for the given session. The configured memory strategy determines how much history is included:
-   - `sliding_window`: Returns the last N turns
-   - `summary`: Returns a compressed summary of older turns plus the last few turns verbatim
-   - `token_budget`: Returns as many recent turns as fit within the configured token limit
+   - `sliding_window`: Returns the last `max_turns` turns
+   - `summary`: Returns an incremental summary of older turns plus the last `max_turns` turns verbatim
+   - `token_budget`: Returns as many recent turns as fit the budget
+
+   Whatever the strategy, the history is then trimmed to a real token budget (90% of the model's context window minus system prompt, tools, response `max_tokens` and `prompts.context`) -- see [Memory Manager](/astromesh/reference/core/memory-manager/#history-budget-and-delivery). If the window is unknown, only `max_turns` applies.
 
 2. **Semantic memory** -- If semantic memory is configured, the query is embedded and a vector similarity search is performed against the semantic store. The top-K most relevant results are returned. This gives the agent access to long-term knowledge that may be relevant to the current query.
 
@@ -179,7 +181,29 @@ The Prompt Engine uses Jinja2's `SilentUndefined` mode. This means if a variable
 
 ### Rendered output
 
-The rendered system prompt becomes the `system` message in the LLM conversation. It is combined with the conversation history to form the complete message array sent to the LLM provider.
+The system prompt is rendered **without** the conversation history, so it is identical between turns. The final message array is ordered:
+
+```
+system → tools → history (messages) → [glyph grammar] → prompts.context + query
+```
+
+`prompts.context` (a second Jinja2 template, for RAG `knowledge` and `prefetch`) is rendered per query and prepended to the current user message by the `react` and `glyph` patterns; other patterns get it appended to the system prompt. If `prompts.system` still iterates `memory.conversation`, the legacy path renders the history into the system prompt and sends no history messages.
+
+### The `context_fit` span
+
+Between memory build and the LLM call, the runtime measures the prompt, fits the history into the budget and records a `context_fit` span:
+
+| Attribute | Meaning |
+|-----------|---------|
+| `context.window`, `context.window_source` | Model context window and where it came from |
+| `context.base_tokens` | System prompt + tools + response `max_tokens` + context |
+| `history.budget` | Tokens available for history (`-1` = unbounded, window unknown) |
+| `history.turns_kept`, `history.turns_dropped`, `history.tokens` | What the budget kept |
+| `history.delivery` | `messages` or `template` (legacy) |
+| `history.summary_used` | Whether a summary was included |
+| `turn_context.tokens`, `turn_context.delivery` | Size of `prompts.context` and how it was delivered (`message`, `system`, `none`) |
+
+The `llm.complete` span adds `cache.hit_ratio` (`cached_tokens / input_tokens`) to show whether the provider's prompt cache is hitting.
 
 ---
 
@@ -410,7 +434,7 @@ spec:
 
 After output guardrails pass, the Memory Manager persists the conversation turn. Two calls are made:
 
-1. **`persist_turn(user_message)`** -- Stores the user's original query (after input guardrail redaction, if any) as a conversation turn.
+1. **`persist_turn(user_message)`** -- Stores (with its token count) the user's original query, never the `prompts.context` text (after input guardrail redaction, if any) as a conversation turn.
 2. **`persist_turn(assistant_message)`** -- Stores the agent's final response as a conversation turn.
 
 Both turns are written to the configured conversational memory backend (Redis — the only one the factory builds) and associated with the session ID.
@@ -420,6 +444,8 @@ If **episodic memory** is configured, significant events from the execution are 
 - Provider used and latency
 - Guardrail actions taken (redactions, blocks)
 - Total token usage and estimated cost
+
+With `strategy: summary`, once `max_turns` is exceeded the assistant turn also triggers one inline call to the `summarizer` role that folds the turns leaving the verbatim window into the running summary.
 
 If **semantic memory** is configured and the agent has auto-indexing enabled, the assistant's response may be embedded and stored in the vector store for future retrieval.
 

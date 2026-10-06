@@ -258,8 +258,8 @@ The agent remembers your name because the Memory Manager persisted the first exc
 Memory strategies control how the history is managed as it grows:
 
 - **`sliding_window`** — keeps the last N turns and drops older ones.
-- **`summary`** — periodically summarizes older turns to compress the context.
-- **`token_budget`** — keeps as many turns as fit within a token budget.
+- **`summary`** — folds turns that leave the window into a running summary.
+- **`token_budget`** — keeps as many turns as fit the model's context window (set `context_window` on the model).
 
 If you don't have Redis running, you can use `sqlite` as the backend for local development:
 

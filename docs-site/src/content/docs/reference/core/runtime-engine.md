@@ -97,6 +97,10 @@ flowchart TB
     end
 ```
 
+## Per-run Context Fitting
+
+Each `run()` renders the system prompt without history, renders `prompts.context` if declared, measures both plus the tool schemas and the response `max_tokens`, and fits the conversation history into the remaining budget (`fit_history`). The history then goes to the pattern as messages (`react`, `glyph`) or, for legacy templates that use `memory.conversation`, inside the system prompt. This is recorded in the `context_fit` span (`context.window`, `context.window_source`, `context.base_tokens`, `history.budget` with `-1` meaning unbounded, `history.turns_kept`, `history.turns_dropped`, `history.tokens`, `history.delivery`, `history.summary_used`, `turn_context.tokens`, `turn_context.delivery`). `llm.complete` spans carry `cache.hit_ratio`. See [Agent Pipeline](/astromesh/architecture/agent-pipeline/#the-context_fit-span).
+
 ## Agent Lifecycle
 
 Each agent transitions through four states:

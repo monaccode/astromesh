@@ -65,13 +65,31 @@ the same way — with a warning that names what is missing.
 
 ## Strategies
 
-Strategies control how conversational memory is trimmed to fit within the model's context window.
+Strategies control how conversational memory is read back. All of them read the last `max_turns` turns; the token budget below is then applied on top.
 
 | Strategy | Behavior | Configuration |
 |----------|----------|---------------|
-| `sliding_window` | Keep only the last N turns. Oldest turns are dropped | `window_size: 20` |
-| `summary` | When history exceeds the threshold, compress older turns into a summary using the LLM | `summary_threshold: 30` |
-| `token_budget` | Keep as many recent turns as fit within a token limit. Counts tokens and drops oldest turns first | `max_tokens: 8000` |
+| `sliding_window` | Keep only the last `max_turns` turns. Oldest turns are dropped | `max_turns: 20` |
+| `summary` | Turns that leave the `max_turns` window are folded into an incremental summary, kept next to the verbatim turns | `max_turns: 20` |
+| `token_budget` | Keep as many recent turns as fit the budget, newest first | `max_turns: 20` |
+
+### History budget and delivery
+
+The engine calls `fit_history(context, budget)` after it has measured the rest of the prompt:
+
+```
+budget = 90% of context window − (system prompt + tool schemas + response max_tokens + prompts.context)
+```
+
+Turns are kept newest first until the budget is spent. A summary is counted first and dropped if it alone does not fit.
+
+**Window resolution**, in order: `context_window` on the model candidate in the YAML, then `parameters.num_ctx` (Ollama), then litellm's model info. With several candidates in the default role, the smallest window is used. If none resolves, the window is unknown: **no budget trimming**, only `max_turns` applies, and a warning is logged at load time.
+
+**Delivery.** History reaches the model as chat messages (`react` and `glyph` patterns), so the system prompt stays identical between turns and the provider cache can work. If `prompts.system` references `memory.conversation` (detected by `memory\.conversation\b`), the legacy path is used instead: history is rendered into the system prompt, no messages are sent, and a warning is logged.
+
+**Token counts.** `persist_turn` stores each turn with its `token_count` (litellm if installed, otherwise `len/4`). Old rows stored with `0` are estimated when read. Assistant replies over 50 tokens go to semantic memory when it is wired.
+
+**Summary.** With `strategy: summary`, after the assistant turn of an exchange, once `max_turns` is exceeded, `persist_turn` makes one call to the agent's `summarizer` role (or `default`) that merges the turns just leaving the verbatim window into the previous summary. It runs inline and a failure does not break `persist_turn`.
 
 ### Strategy Configuration
 
@@ -81,7 +99,7 @@ spec:
     conversational:
       backend: redis
       strategy: sliding_window
-      window_size: 20
+      max_turns: 20
     semantic:
       backend: chroma
       collection: "agent_memory"
@@ -105,7 +123,7 @@ async def build_context(
 
 **Steps:**
 1. Load conversational history for the session from the backend
-2. Apply the configured strategy (sliding_window, summary, or token_budget) to trim history
+2. Read the last `max_turns` turns (plus the running summary with `summary`). With `max_tokens` set, trim to it; without it nothing is trimmed here and the engine applies the budget later with `fit_history`
 3. If semantic memory is enabled, embed the current query and retrieve top-k similar past entries
 4. If episodic memory is enabled, retrieve recent events relevant to the agent/session
 5. Return a `MemoryContext` combining all three
@@ -158,7 +176,7 @@ spec:
     conversational:
       backend: redis
       strategy: token_budget
-      max_tokens: 8000
+      max_turns: 20
       connection:
         url: "redis://localhost:6379/0"   # required, no default
       ttl: 86400                          # default: 259200 (72h)
@@ -180,9 +198,7 @@ spec:
 | `conversational.connection.url` | With `redis` | -- | Redis URL. Read with no default |
 | `conversational.ttl` | No | `259200` | Seconds a session's history survives (72h) |
 | `conversational.strategy` | No | `sliding_window` | Retention strategy |
-| `conversational.window_size` | No | `20` | Turns to keep (sliding_window strategy) |
-| `conversational.summary_threshold` | No | `30` | Turn count that triggers summarization (summary strategy) |
-| `conversational.max_tokens` | No | `8000` | Token budget limit (token_budget strategy) |
+| `conversational.max_turns` | No | `50` | Turns read back per run; with `summary`, the verbatim window |
 | `semantic.backend` | No | -- | Backend for vector memory. Omit to disable semantic memory |
 | `semantic.collection` | No | `{agent_name}_memory` | Vector store collection name |
 | `semantic.top_k` | No | `5` | Number of similar results to retrieve |

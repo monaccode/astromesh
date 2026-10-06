@@ -167,7 +167,7 @@ spec:
       connection:
         url: redis://localhost:6379/0   # required — no default
       strategy: sliding_window      # How conversation history is managed
-      max_turns: 20                 # For sliding_window: number of turns to retain
+      max_turns: 20                 # Turns read from the store (and kept verbatim)
       ttl: 3600                     # Time-to-live in seconds (default: 259200 — 72h)
 
     semantic:                       # Vector-based memory for similarity search
@@ -240,6 +240,7 @@ Each entry in a `candidates` array is an object with:
 | `api_key_env` | No | Name of the environment variable containing the API key. |
 | `api_key` | No | Inline API key. Prefer `api_key_env` so secrets stay out of YAML. |
 | `parameters` | No | Sampling parameters (`temperature`, `top_p`, `max_tokens`, etc.), passed through to the provider. |
+| `context_window` | No | The model's context window in tokens. Sizes the conversation-history budget (see [Memory Strategies](#memory-strategies)). Without it the runtime falls back to `parameters.num_ctx` (Ollama), then to what litellm knows. |
 
 A role (or `default`) can list multiple `candidates`; its `ModelRouter` selects and falls back between them according to its `strategy`, exactly like the legacy `primary`/`fallback` pair.
 
@@ -304,6 +305,7 @@ The legacy `primary` / `fallback` / `extra` / `routing.strategy` shape shown in 
 | `primary.parameters.temperature` | No | Sampling temperature. `0.0` = deterministic, `1.0` = maximum randomness. Default varies by provider. |
 | `primary.parameters.top_p` | No | Nucleus sampling threshold. Default: `0.9`. |
 | `primary.parameters.max_tokens` | No | Maximum number of tokens in the response. |
+| `primary.context_window` | No | The model's context window in tokens. Sizes the history budget (see [Memory Strategies](#memory-strategies)). Same field on `fallback`. |
 | `fallback` | No | Fallback provider configuration. Same fields as `primary`. Used when the primary provider fails or the circuit breaker opens. |
 | `routing.strategy` | No | Routing strategy for provider selection. Default: `cost_optimized`. |
 | `routing.health_check_interval` | No | Seconds between health checks. Default: `30`. |
@@ -314,6 +316,31 @@ The legacy `primary` / `fallback` / `extra` / `routing.strategy` shape shown in 
 |-------|----------|-------------|
 | `system` | Yes | The system prompt sent to the LLM. Supports Jinja2 template syntax for variable injection (e.g., `{{ user_name }}`). Use a YAML literal block (`\|`) for multi-line prompts. |
 | `templates` | No | Named Jinja2 templates that can be referenced from tools or orchestration steps. Keys are template names, values are template strings. |
+| `context` | No | Jinja2 template for what changes on every query (RAG `knowledge`, `prefetch`). Rendered per run and put next to the user message instead of in the system prompt. See below. |
+
+#### `prompts.context`
+
+Anything that depends on the query belongs here, not in `prompts.system`. The runtime places it in front of the current user message, so the final prompt is ordered:
+
+```
+system → tools → history → [glyph grammar] → context + query
+```
+
+Everything before the last message is identical between calls, so the provider's automatic prompt cache (Kimi/Moonshot, OpenAI, vLLM) can serve it. The turn stored in memory is the original query, without the context.
+
+```yaml
+prompts:
+  system: |
+    You are Lucia, a sales analyst. Answer with the data I give you.
+  context: |
+    {% if knowledge %}RELEVANT DOCUMENTS:
+    {{ knowledge }}{% endif %}
+    {% if prefetch.stock %}CURRENT STOCK: {{ prefetch.stock }}{% endif %}
+```
+
+Only the `react` and `glyph` patterns separate it from the system prompt. Every other pattern gets it appended to the end of the system prompt, and the agent logs a warning at load time. Do not iterate `memory.conversation` inside `prompts.context`: the history already travels as messages.
+
+The agent also warns at load time when `prompts.system` uses `knowledge`, `prefetch` or `memory.semantic`/`episodic` inside Jinja blocks (`{{ }}` / `{% %}`), since that changes the prefix on every query and defeats the cache. Move it to `prompts.context`.
 
 ### `spec.orchestration`
 
@@ -390,7 +417,7 @@ Entries run in order, after RAG and before the prompt is rendered, through
 | `conversational.backend` | No | `redis`. See the caveat below. |
 | `conversational.connection.url` | With `redis` | Redis URL. Read with no default — omit it and the agent runs **without memory**. |
 | `conversational.strategy` | No | History management strategy. See the strategies table below. |
-| `conversational.max_turns` | No | Number of conversation turns to retain (for `sliding_window`). |
+| `conversational.max_turns` | No | Number of turns read back per run. With `summary`, turns beyond it are folded into the summary. |
 | `conversational.ttl` | No | Time-to-live in seconds. Default `259200` (72h). |
 | `semantic.backend` | No | Vector store: `pgvector`, `chromadb`, `qdrant`, `faiss`. |
 | `semantic.similarity_threshold` | No | Minimum cosine similarity score (0.0-1.0) for results. |
@@ -446,9 +473,25 @@ Each guardrail is an object in the `input` or `output` array:
 
 | Strategy | Value | Use When |
 |----------|-------|----------|
-| Sliding Window | `sliding_window` | Simple conversations where only recent context matters. Keeps the last N turns. |
-| Summary | `summary` | Long-running conversations that need full history. Older turns are compressed into summaries. |
-| Token Budget | `token_budget` | You need precise control over context window usage. Fits as many turns as possible within a token limit. |
+| Sliding Window | `sliding_window` | Simple conversations where only recent context matters. Keeps the last `max_turns` turns. |
+| Summary | `summary` | Long-running conversations that need full history. Turns that fall out of the `max_turns` window are folded into a running summary. |
+| Token Budget | `token_budget` | You need precise control over context window usage. Fits as many recent turns as the budget allows. |
+
+Token counts are real: every turn is stored with its `token_count` (rows written by older versions are estimated on read). Whatever the strategy, the history is trimmed to a budget of 90% of the model's context window minus the system prompt, the tool schemas, the response `max_tokens` and the `prompts.context` text, newest turns first. History is sent to the model as messages.
+
+The window comes from `context_window` on the model candidate, else `parameters.num_ctx` (Ollama), else litellm. With several candidates, the smallest wins. If it cannot be determined, history is **not** trimmed by budget, only by `max_turns`, and the agent warns at load time: declare `context_window` to turn the budget on.
+
+```yaml
+model:
+  primary:
+    provider: ollama
+    model: llama3
+    context_window: 8192
+```
+
+`summary` is incremental. Once `max_turns` is exceeded, after each assistant turn (one call per exchange, inline) the turns that just left the verbatim window are merged into the previous summary by the `summarizer` role, falling back to `default`. That adds one model call of latency to that run. A failed summary does not break the turn.
+
+Putting `memory.conversation` in `prompts.system` still works and keeps the old behavior (the history is rendered into the system prompt, no messages are sent), but it changes the prompt on every turn and the agent warns at load time.
 
 ## Guardrail Types
 
