@@ -1,6 +1,7 @@
 import contextlib
 import json
 import logging
+import math
 import os
 import re
 import uuid
@@ -1942,10 +1943,15 @@ class Agent:
                     with contextlib.suppress(Exception):  # la métrica no rompe la corrida
                         tool_span.set_attribute(
                             "tool.result_tokens",
-                            estimate_tokens(
-                                observation
-                                if isinstance(observation, str)
-                                else json.dumps(observation, ensure_ascii=False, default=str)
+                            # Estimación `len/4`, no el tokenizer: `presentar` ya
+                            # mide la misma observación con el real.
+                            math.ceil(
+                                len(
+                                    observation
+                                    if isinstance(observation, str)
+                                    else json.dumps(observation, ensure_ascii=False, default=str)
+                                )
+                                / 4
                             ),
                         )
                     tool_span.set_attribute("tool_args", args)

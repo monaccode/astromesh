@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   MCP rechazaba la clave como extra.
 - El aviso `confirmacion_requerida` llega entero al modelo, sin tope: tiene que repetir esos
   argumentos exactos para que la confirmación funcione.
+- `presentar` recorta la lista más grande aunque esté anidada en dicts (`{"data": {"results":
+  [...]}}`) y conserva las demás claves en cada nivel; antes un dict así caía al recorte de texto
+  y llegaba como JSON inválido. La búsqueda del recorte sondea con `len/4` y sólo verifica con el
+  tokenizer el candidato elegido; `tool.result_tokens` es la estimación `len/4`.
 
 ## [0.65.0] - 2026-10-06
 

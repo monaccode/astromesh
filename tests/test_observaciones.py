@@ -93,3 +93,35 @@ def test_no_serializable_usa_default_str():
             return "raro"
 
     assert presentar({"x": Raro()}, 100)[0] == '{"x":"raro"}'
+
+
+def test_lista_anidada_en_dicts_se_recorta_ahi():
+    obs = {
+        "success": True,
+        "data": {"count": 3000, "results": [{"id": i, "v": "w" * 30} for i in range(3000)]},
+    }
+    texto, meta = presentar(obs, 500)
+    datos = json.loads(texto)
+    assert datos["success"] is True
+    assert datos["data"]["count"] == 3000
+    assert datos["data"]["results"][0] == {"id": 0, "v": "w" * 30}
+    assert datos["data"]["results"][-1]["_omitidos"] == meta["omitted"] > 0
+    assert tokens.estimate_tokens(texto) <= 500
+
+
+def test_tokenizer_mas_denso_que_len4_igual_entra_y_se_llama_poco(monkeypatch):
+    llamadas = []
+
+    class Denso:
+        @staticmethod
+        def token_counter(text):
+            llamadas.append(1)
+            return -(-len(text) // 2)  # 1 token cada 2 caracteres
+
+    monkeypatch.setattr(tokens, "_litellm", lambda: Denso)
+    filas = [{"id": i, "nombre": "x" * 36} for i in range(2000)]
+    texto, meta = presentar(filas, 300)
+    assert json.loads(texto)[-1]["_omitidos"] == meta["omitted"] > 0
+    assert tokens.estimate_tokens(texto) <= 300
+    # Una medición del total + pocas verificaciones; no una por sondeo de la búsqueda.
+    assert len(llamadas) <= 5

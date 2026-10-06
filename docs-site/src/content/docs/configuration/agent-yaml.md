@@ -369,7 +369,7 @@ A tool can return far more than the model needs. Each result is capped when it e
 
 - `dict` and `list` results reach the model as compact JSON, not as a Python `repr`.
 - A list keeps its first elements and ends with `{"_omitidos": N, "_nota": "..."}`.
-- A dict trims its largest list and keeps the other keys.
+- A dict trims its largest list, even one nested inside other dicts (`data.results`), and keeps every other key.
 - Anything else is cut at the head and ends with `[resultado recortado: X de Y tokens]`.
 
 The limit comes from `tools[].max_result_tokens`, then `orchestration.max_tool_result_tokens`, then the runtime default of `8000`. A value that is not an integer greater than 0 logs a warning at load and falls back to the next level. Earlier observations are never rewritten, because that would change the cached prefix (see [Prompt Caching](/astromesh/advanced/prompt-caching/)). Trimmed results are reported in traces: see [Observability](/astromesh/advanced/observability/).

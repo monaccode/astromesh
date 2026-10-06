@@ -246,3 +246,23 @@ async def test_max_result_tokens_en_api_y_mcp_carga_y_aplica(tmp_path, modulo):
         esperados = {f"{manifest.slug}_{a.name}" for a in manifest.actions}
     ag = await _agente(tmp_path, _manifest([ficha]))
     assert ag._presupuesto_tools["por_tool"] == dict.fromkeys(esperados, 77)
+
+
+async def test_result_tokens_es_estimacion_len4_sin_tokenizer(tmp_path, monkeypatch):
+    import json
+    import math
+
+    ag = await _agente(tmp_path, _manifest())
+    _guion(ag)
+
+    class Denso:
+        @staticmethod
+        def token_counter(text):
+            return len(text)  # distinto de len/4 a propósito
+
+    monkeypatch.setattr(tokens, "_litellm", lambda: Denso)
+    result = await ag.run("hola", session_id="s")
+    call = next(s for s in result["trace"]["spans"] if s["name"] == "tool.call")
+    crudo = len(json.dumps(GRANDE, ensure_ascii=False))
+    # Con el tokenizer serían ~crudo; la estimación da ~crudo/4.
+    assert math.ceil(crudo / 4) <= call["attributes"]["tool.result_tokens"] < crudo / 3

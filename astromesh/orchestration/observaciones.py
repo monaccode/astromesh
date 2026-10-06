@@ -31,22 +31,54 @@ def _aviso(n: int) -> dict:
     }
 
 
+def _barato(texto: str) -> int:
+    return math.ceil(len(texto) / 4)
+
+
 def _recortar_lista(lista: list, armar, max_tokens: int):
     """El prefijo más largo de `lista` tal que `armar(prefijo + [aviso])` entra.
 
     `armar` envuelve la lista recortada en el objeto completo (la lista sola, o
     el dict con esa clave reemplazada). Devuelve (texto, omitidos) o None si ni
     un elemento entra.
+
+    La búsqueda sondea con `len/4` (el tokenizer real cuesta por sondeo) y sólo
+    el candidato elegido se verifica con `estimate_tokens`; si no entra, k baja
+    en proporción al exceso hasta que entre.
     """
-    lo, hi, mejor = 1, len(lista) - 1, None
+
+    def texto_de(k):
+        return _serializar(armar([*lista[:k], _aviso(len(lista) - k)]))
+
+    lo, hi, k = 1, len(lista) - 1, 0
     while lo <= hi:
-        k = (lo + hi) // 2
-        texto = _serializar(armar([*lista[:k], _aviso(len(lista) - k)]))
-        if estimate_tokens(texto) <= max_tokens:
-            mejor, lo = (texto, len(lista) - k), k + 1
+        mid = (lo + hi) // 2
+        if _barato(texto_de(mid)) <= max_tokens:
+            k, lo = mid, mid + 1
         else:
-            hi = k - 1
-    return mejor
+            hi = mid - 1
+    k = k or 1
+    while k >= 1:  # k baja estricto en cada vuelta: termina
+        texto = texto_de(k)
+        reales = estimate_tokens(texto)
+        if reales <= max_tokens:
+            return texto, len(lista) - k
+        k = min(k - 1, k * max_tokens // reales)
+    return None
+
+
+def _listas(obj, camino=()):
+    """(tamaño, camino) de cada lista con más de un elemento, bajando sólo por dicts."""
+    for clave, v in obj.items():
+        if isinstance(v, list) and len(v) > 1:
+            yield len(_serializar(v)), (*camino, clave)
+        elif isinstance(v, dict):
+            yield from _listas(v, (*camino, clave))
+
+
+def _reemplazar(obj: dict, camino: tuple, xs: list) -> dict:
+    clave, *resto = camino
+    return {**obj, clave: _reemplazar(obj[clave], resto, xs) if resto else xs}
 
 
 def _recorte_de_texto(texto: str, total: int, max_tokens: int) -> str:
@@ -68,16 +100,15 @@ def presentar(observacion, max_tokens: int) -> tuple[str, dict]:
             if r:
                 return r[0], {"tokens": total, "truncated": True, "omitted": r[1]}
         if isinstance(observacion, dict):
-            listas = [
-                (estimate_tokens(_serializar(v)), k)
-                for k, v in observacion.items()
-                if isinstance(v, list) and len(v) > 1
-            ]
+            listas = list(_listas(observacion))
             if listas:
-                _, clave = max(listas)
+                _, camino = max(listas, key=lambda t: t[0])
+                lista = observacion
+                for clave in camino:
+                    lista = lista[clave]
                 r = _recortar_lista(
-                    observacion[clave],
-                    lambda xs: {**observacion, clave: xs},
+                    lista,
+                    lambda xs: _reemplazar(observacion, camino, xs),
                     max_tokens,
                 )
                 if r:
