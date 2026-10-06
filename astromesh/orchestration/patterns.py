@@ -40,6 +40,93 @@ class AgentStep:
     result: str | None = None
 
 
+def mensajes_de_conversacion(query, context):
+    """El historial y el mensaje actual, con el contexto del turno adelante.
+
+    Lo comparten todos los patrones conversacionales: desde 0.64.0 el historial
+    viaja como mensajes (`engine.py`, `_history_messages`) y un patrón que no lo
+    lee contesta cada mensaje como si fuera el primero.
+    """
+    history = context.get("_history_messages", []) if isinstance(context, dict) else []
+    turn_context = context.get("_turn_context") if isinstance(context, dict) else None
+    return [
+        *list(history),
+        {"role": "user", "content": with_turn_context(query, turn_context)},
+    ]
+
+
+async def ciclo_de_tools(messages, model_fn, tool_fn, tools, max_iterations, role, permitidas=None):
+    """Modelo → tools → resultado de vuelta al modelo, hasta una respuesta sin tools.
+
+    `permitidas` acota qué tools se ejecutan: una fuera del set no llega a
+    `tool_fn` y el modelo recibe una observación que lo dice (el supervisor sólo
+    delega en sus trabajadores).
+    """
+    messages = list(messages)
+    steps: list[AgentStep] = []
+    for _ in range(max_iterations):
+        response = await model_fn(messages, tools, role=role)
+        if not response.tool_calls:
+            steps.append(AgentStep(result=response.content))
+            return {"answer": response.content, "steps": steps}
+        # UN assistant con TODAS las tool_calls de esta respuesta, y
+        # después un `tool` por cada una. Es la forma de OpenAI, y
+        # además es la barata: antes se emitía un assistant POR
+        # tool_call, y cada uno repetía el mismo `content` y el mismo
+        # `reasoning_content`. En un modelo de razonamiento —Kimi k2.x,
+        # el que corre toda la flota— el razonamiento es la parte más
+        # larga del mensaje, así que tres tools en una respuesta lo
+        # mandaban tres veces; y como el transcripto se re-manda entero
+        # en cada vuelta siguiente, ese triple se volvía a pagar en
+        # todas. Lo fija `test_react_agrupa_tool_calls_de_una_misma_respuesta`.
+        #
+        # Reshape the normalized internal tool_call back to OpenAI
+        # format before echoing it to the LLM. Since 0.28.4 the
+        # provider normalizes tool_calls to {id, name, arguments:dict}
+        # for internal consumption — but the assistant.tool_calls
+        # field sent over the wire MUST be the nested OpenAI shape
+        # {id, type:"function", function:{name, arguments:<JSON
+        # string>}}, or the API rejects the next request as 400.
+        assistant_msg = {
+            "role": "assistant",
+            "content": response.content,
+            "tool_calls": [
+                {
+                    "id": tc["id"],
+                    "type": "function",
+                    "function": {
+                        "name": tc["name"],
+                        "arguments": json_mod.dumps(tc["arguments"], ensure_ascii=False),
+                    },
+                }
+                for tc in response.tool_calls
+            ],
+        }
+        # Thinking models (Kimi k2.5/k2.6 on Moonshot) require the
+        # assistant's reasoning_content to be echoed back on the
+        # tool-call message, or the next request 400s with
+        # "reasoning_content is missing in assistant tool call message".
+        reasoning = getattr(response, "reasoning_content", None)
+        if reasoning:
+            assistant_msg["reasoning_content"] = reasoning
+        messages.append(assistant_msg)
+        for tc in response.tool_calls:
+            if permitidas is not None and tc["name"] not in permitidas:
+                observation = f"La tool «{tc['name']}» no está disponible para este agente."
+            else:
+                observation = await tool_fn(tc["name"], tc["arguments"])
+            steps.append(
+                AgentStep(
+                    thought=response.content,
+                    action=tc["name"],
+                    action_input=tc["arguments"],
+                    observation=str(observation),
+                )
+            )
+            messages.append({"role": "tool", "content": str(observation), "tool_call_id": tc["id"]})
+    return {"answer": "Max iterations reached", "steps": steps}
+
+
 class OrchestrationPattern(ABC):
     @abstractmethod
     async def execute(
@@ -53,79 +140,14 @@ class ReActPattern(OrchestrationPattern):
     consumes_turn_context = True
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
-        history = context.get("_history_messages", []) if isinstance(context, dict) else []
-        turn_context = context.get("_turn_context") if isinstance(context, dict) else None
-        messages = [
-            *list(history),
-            {"role": "user", "content": with_turn_context(query, turn_context)},
-        ]
-        steps: list[AgentStep] = []
-        for _ in range(max_iterations):
-            response = await model_fn(messages, tools, role="reasoner")
-            if response.tool_calls:
-                # UN assistant con TODAS las tool_calls de esta respuesta, y
-                # después un `tool` por cada una. Es la forma de OpenAI, y
-                # además es la barata: antes se emitía un assistant POR
-                # tool_call, y cada uno repetía el mismo `content` y el mismo
-                # `reasoning_content`. En un modelo de razonamiento —Kimi k2.x,
-                # el que corre toda la flota— el razonamiento es la parte más
-                # larga del mensaje, así que tres tools en una respuesta lo
-                # mandaban tres veces; y como el transcripto se re-manda entero
-                # en cada vuelta siguiente, ese triple se volvía a pagar en
-                # todas. Lo fija `test_react_agrupa_tool_calls_de_una_misma_respuesta`.
-                #
-                # Reshape the normalized internal tool_call back to OpenAI
-                # format before echoing it to the LLM. Since 0.28.4 the
-                # provider normalizes tool_calls to {id, name, arguments:dict}
-                # for internal consumption — but the assistant.tool_calls
-                # field sent over the wire MUST be the nested OpenAI shape
-                # {id, type:"function", function:{name, arguments:<JSON
-                # string>}}, or the API rejects the next request as 400.
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": response.content,
-                    "tool_calls": [
-                        {
-                            "id": tc["id"],
-                            "type": "function",
-                            "function": {
-                                "name": tc["name"],
-                                "arguments": json_mod.dumps(tc["arguments"], ensure_ascii=False),
-                            },
-                        }
-                        for tc in response.tool_calls
-                    ],
-                }
-                # Thinking models (Kimi k2.5/k2.6 on Moonshot) require the
-                # assistant's reasoning_content to be echoed back on the
-                # tool-call message, or the next request 400s with
-                # "reasoning_content is missing in assistant tool call message".
-                reasoning = getattr(response, "reasoning_content", None)
-                if reasoning:
-                    assistant_msg["reasoning_content"] = reasoning
-                messages.append(assistant_msg)
-
-                for tc in response.tool_calls:
-                    observation = await tool_fn(tc["name"], tc["arguments"])
-                    steps.append(
-                        AgentStep(
-                            thought=response.content,
-                            action=tc["name"],
-                            action_input=tc["arguments"],
-                            observation=str(observation),
-                        )
-                    )
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "content": str(observation),
-                            "tool_call_id": tc["id"],
-                        }
-                    )
-            else:
-                steps.append(AgentStep(result=response.content))
-                return {"answer": response.content, "steps": steps}
-        return {"answer": "Max iterations reached", "steps": steps}
+        return await ciclo_de_tools(
+            mensajes_de_conversacion(query, context),
+            model_fn,
+            tool_fn,
+            tools,
+            max_iterations,
+            role="reasoner",
+        )
 
 
 class PlanAndExecutePattern(OrchestrationPattern):
