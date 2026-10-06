@@ -1,9 +1,11 @@
+import contextlib
 import json
 import logging
 import os
 import re
 import uuid
 from pathlib import Path
+from typing import ClassVar
 
 import yaml
 
@@ -28,6 +30,7 @@ from astromesh.integrations.propuestas import (
     handler_de_propuesta,
 )
 from astromesh.memory.factory import build_conversation_backend
+from astromesh.orchestration.observaciones import DEFAULT_MAX_TOOL_RESULT_TOKENS
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
     PipelinePattern,
@@ -190,7 +193,8 @@ def _truncate(text: str | None, limit: int) -> str:
 # `confirm` va en las comunes A PROPÓSITO aunque sólo lo lea `integration`: mal
 # puesto ya tiene su propio warning más abajo, que además explica por qué no
 # gatea. Reportarlo dos veces taparía el bueno.
-_CLAVES_COMUNES = frozenset({"type", "name", "confirm"})
+# `max_result_tokens` también: vale para todos los tipos (orchestration/observaciones.py).
+_CLAVES_COMUNES = frozenset({"type", "name", "confirm", "max_result_tokens"})
 _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "builtin": frozenset({"config", "rate_limit"}),
     "agent": frozenset({"agent", "description", "parameters", "context_transform"}),
@@ -201,6 +205,13 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
     "mcp": frozenset({"connection", "path", "auth", "tools", "rate_limit"}),
 }
+
+
+def _tokens_validos(valor) -> int | None:
+    """Un presupuesto de tokens del YAML: entero > 0 (no bool), o None."""
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
+        return None
+    return valor
 
 
 def claves_ignoradas(tool_def: dict) -> list[str]:
@@ -899,7 +910,28 @@ class AgentRuntime:
         loader.auto_discover()
         # Las tools `api` y `mcp` registradas, para el repaso del final del loop.
         vigiladas: dict[str, tuple[str, object]] = {}
+        por_tool: dict[str, int] = {}
+        pendiente: tuple[dict, set] | None = None
+
+        def _cerrar(p):
+            if p is None or "max_result_tokens" not in p[0]:
+                return
+            valor = _tokens_validos(p[0]["max_result_tokens"])
+            if valor is None:
+                logger.warning(
+                    "agent %r: tool %r declara max_result_tokens=%r, que no es un entero > 0; "
+                    "se usa el presupuesto del agente.",
+                    metadata["name"],
+                    p[0].get("name"),
+                    p[0]["max_result_tokens"],
+                )
+                return
+            for nombre in set(tools._tools) - p[1]:
+                por_tool[nombre] = valor
+
         for tool_def in spec.get("tools", []):
+            _cerrar(pendiente)
+            pendiente = (tool_def, set(tools._tools))
             tool_type = tool_def.get("type", "internal")
             if sobrantes := claves_ignoradas(tool_def):
                 # Warning y no raise, por la misma razón que la rama del tipo no
@@ -1173,6 +1205,19 @@ class AgentRuntime:
             )
         for name, tmpl in (prompts_spec.get("templates") or {}).items():
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
+        _cerrar(pendiente)
+        orq = spec.get("orchestration") or {}
+        tope_agente = None
+        if "max_tool_result_tokens" in orq:
+            tope_agente = _tokens_validos(orq["max_tool_result_tokens"])
+            if tope_agente is None:
+                logger.warning(
+                    "agent %r: orchestration.max_tool_result_tokens=%r no es un entero > 0; "
+                    "se usa el default (%d).",
+                    metadata["name"],
+                    orq["max_tool_result_tokens"],
+                    DEFAULT_MAX_TOOL_RESULT_TOKENS,
+                )
         # Después de registrar TODAS las tools: el prefetch nombra una por su
         # nombre registrado (`<slug>_<acción>`).
         prefetch = validar_prefetch(
@@ -1199,6 +1244,10 @@ class AgentRuntime:
             context_window_source=context_window_source,
             response_tokens=response_tokens,
             context_prompt=prompts_spec.get("context") or "",
+            presupuesto_tools={
+                "default": tope_agente or DEFAULT_MAX_TOOL_RESULT_TOKENS,
+                "por_tool": por_tool,
+            },
         )
 
     def _build_pattern(self, spec: dict, tool_schemas: list[dict] | None = None):
@@ -1453,6 +1502,12 @@ class AgentRuntime:
 
 
 class Agent:
+    # Default de clase: hay tests que arman un Agent sin pasar por `__init__`.
+    _presupuesto_tools: ClassVar[dict] = {
+        "default": DEFAULT_MAX_TOOL_RESULT_TOKENS,
+        "por_tool": {},
+    }
+
     def __init__(
         self,
         name,
@@ -1475,7 +1530,12 @@ class Agent:
         context_window_source="default",
         response_tokens=DEFAULT_RESPONSE_TOKENS,
         context_prompt="",
+        presupuesto_tools=None,
     ):
+        self._presupuesto_tools = presupuesto_tools or {
+            "default": DEFAULT_MAX_TOOL_RESULT_TOKENS,
+            "por_tool": {},
+        }
         self._context_prompt = context_prompt
         self._context_window = context_window
         self._context_window_source = context_window_source
@@ -1675,6 +1735,7 @@ class Agent:
                 rendered_prompt = self._render_system(variables)
             else:
                 memory_context["_history_messages"] = _history_messages(memory_context)
+            memory_context["_presupuesto_tools"] = self._presupuesto_tools
             if not turn_context:
                 turn_context_delivery = "none"
             elif getattr(self._pattern, "consumes_turn_context", False):
@@ -1878,6 +1939,15 @@ class Agent:
                             CLAVE_VIA: via,
                         },
                     )
+                    with contextlib.suppress(Exception):  # la métrica no rompe la corrida
+                        tool_span.set_attribute(
+                            "tool.result_tokens",
+                            estimate_tokens(
+                                observation
+                                if isinstance(observation, str)
+                                else json.dumps(observation, ensure_ascii=False, default=str)
+                            ),
+                        )
                     tool_span.set_attribute("tool_args", args)
                     tool_span.set_attribute("tool_result", _truncate(str(observation), 5_000))
                     tracing.finish_span(tool_span)
@@ -1928,6 +1998,9 @@ class Agent:
                     step_data["observation"] = _truncate(step.observation, 5_000)
                 if hasattr(step, "result") and step.result:
                     step_data["result"] = _truncate(step.result, 5_000)
+                if getattr(step, "recorte", None):
+                    step_data["truncated"] = True
+                    step_data["omitted"] = step.recorte.get("omitted", 0)
                 orch_span.add_event("orch_step", step_data)
             tracing.finish_span(orch_span)
 

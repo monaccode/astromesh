@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   como JSON y lo recorta a un presupuesto de tokens respetando su estructura (prefijo de una
   lista con aviso de omitidos, la lista más grande de un dict, o la cabeza del texto con
   marcador).
+- `tools[].max_result_tokens` y `orchestration.max_tool_result_tokens`: el tope de tokens del
+  resultado de una tool, por tool y por agente (default 8000). En una integración, api o mcp, el
+  valor aplica a todas las tools que esa definición registra. Un valor inválido avisa al cargar y
+  usa el default.
+- Traza: `tool.result_tokens` en el span `tool.call`; los steps recortados llevan `truncated` y
+  `omitted`.
 
 ### Changed
 

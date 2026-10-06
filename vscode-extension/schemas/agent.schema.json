@@ -172,6 +172,11 @@
               "description": "Maximum number of reasoning/tool-call iterations.",
               "minimum": 1
             },
+            "max_tool_result_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Tope por defecto de tokens del resultado de una tool para este agente (default 8000)."
+            },
             "timeout_seconds": {
               "type": "integer",
               "description": "Maximum wall-clock seconds before the run is aborted.",
@@ -217,6 +222,11 @@
                   "agent",
                   "client"
                 ]
+              },
+              "max_result_tokens": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Tope de tokens del resultado de esta tool al entrar al mensaje del modelo (orchestration/observaciones.py). Sin él rige orchestration.max_tool_result_tokens o 8000."
               },
               "description": {
                 "type": "string",
