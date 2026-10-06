@@ -108,14 +108,17 @@ Every call to `Agent.run()` produces these spans automatically:
 | `agent.run` | (root) | `agent`, `session` | Full execution lifecycle |
 | `memory_build` | `agent.run` | — | Build memory context |
 | `prompt_render` | `agent.run` | — | Render Jinja2 prompt |
+| `context_fit` | `prompt_render` | `context.window`, `context.window_source`, `context.base_tokens`, `history.budget`, `history.turns_kept`, `history.turns_dropped`, `history.tokens`, `history.delivery`, `history.summary_used`, `turn_context.tokens`, `turn_context.delivery` | How history and `prompts.context` fit the window (`history.budget` is -1 when unbounded) |
 | `rag_build` | `agent.run` | — | Build RAG context |
 | `tool.prefetch` | `agent.run` | `tool` | Each `spec.prefetch` lookup, when its `when` holds |
-| `llm.complete` | `agent.run` | `input_tokens`, `output_tokens`, `cached_tokens`, `model`, `provider`, `cost`, `latency_ms` | Each LLM call |
+| `llm.complete` | `agent.run` | `input_tokens`, `output_tokens`, `cached_tokens`, `cache.hit_ratio`, `model`, `provider`, `cost`, `latency_ms` | Each LLM call |
 | `tool.call` | `agent.run` | `tool` | Each tool execution |
 | `orchestration` | `agent.run` | `pattern` | Orchestration pattern execution |
 | `memory_persist` | `agent.run` | — | Persist conversation turns |
 
 `cached_tokens` on `llm.complete` is the part of `input_tokens` the provider served from its prompt cache (0 when it reports none). Without it every input token reads as full price and a prefix-caching optimization can't be verified. Available since astromesh **v0.48.0**; the run response sums it per model as `usage.by_model[].tokens_cached` since **v0.54.0**.
+
+Since **v0.64.0**, `cache.hit_ratio = round(cached_tokens / input_tokens, 3)` (0 when there are no input tokens) shows directly whether a stable prefix is hitting the cache; see [Prompt Caching](/advanced/prompt-caching/).
 
 The trace is attached to the agent response:
 

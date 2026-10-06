@@ -93,6 +93,7 @@ export default defineConfig({
             { label: 'Rust Native Extensions', slug: 'advanced/rust-extensions' },
             { label: 'WhatsApp Integration', slug: 'advanced/whatsapp' },
             { label: 'Observability Stack', slug: 'advanced/observability' },
+            { label: 'Prompt Caching', slug: 'advanced/prompt-caching' },
             { label: 'Maia Protocol Internals', slug: 'advanced/maia-internals' },
           ],
         },
