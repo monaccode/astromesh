@@ -76,6 +76,7 @@ The load warning looks **only inside Jinja blocks** (`{{ }}` / `{% %}`); prose s
 - `prompts.context` tokens count against the history budget, because they occupy the window.
 - When the budget trims history it drops the oldest turn, which shifts the prefix. A `prompts.context` whose size swings widely can make the oldest turn go in and out. Keep it bounded.
 - Without `context_window` (and no Ollama `num_ctx` or litellm knowledge of the model) the history is not trimmed by budget, only by `max_turns`, and the agent warns at load. Declare `context_window` on the model candidate to activate the budget.
+- Tool results have their own cap (`max_result_tokens`, `max_tool_result_tokens`), applied when the result enters the conversation. Earlier observations are never rewritten afterwards, so the prefix stays intact. See [Agent YAML](/astromesh/configuration/agent-yaml/#tool-result-budget).
 
 See [Agent YAML](/astromesh/configuration/agent-yaml/) for `prompts.context`, `context_window` and memory strategies, and the [Memory Manager](/astromesh/reference/core/memory-manager/) and [Runtime Engine](/astromesh/reference/core/runtime-engine/) references.
 

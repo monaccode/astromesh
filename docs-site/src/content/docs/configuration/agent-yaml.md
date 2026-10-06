@@ -349,6 +349,7 @@ The agent also warns at load time when `prompts.system` uses `knowledge`, `prefe
 | `pattern` | Yes | The orchestration pattern. See the patterns table below. |
 | `max_iterations` | No | Maximum number of reasoning iterations. Prevents infinite loops. Default: `10`. |
 | `timeout_seconds` | No | Hard timeout in seconds for the entire agent execution. When exceeded, the agent returns whatever partial result it has. |
+| `max_tool_result_tokens` | No | Default cap, in tokens, for each tool result that reaches the model. Overridden per tool by `max_result_tokens`. Default: `8000`. See [Tool result budget](#tool-result-budget). |
 
 ### `spec.tools`
 
@@ -360,6 +361,18 @@ Each tool is an object in the `tools` array:
 | `type` | Yes | Tool type loadable from YAML: `builtin` (a tool shipped with the runtime), `agent` (another agent, callable as a tool), `client` (announced to the model, executed by whoever is listening), `integration` (catalog actions), `api` or `mcp` (a tenant's API or MCP server, declared inline). `mcp_stdio`/`mcp_sse`/`mcp_http`, `webhook` and `rag` exist in the runtime's `ToolType` but are not declarable from an agent YAML file. |
 | `description` | Yes | Description of what the tool does. Sent to the LLM for function calling. |
 | `parameters` | No | JSON Schema-like parameter definitions. Each parameter has a `type` and `description`. |
+| `max_result_tokens` | No | Cap, in tokens, for this tool's result when it enters the conversation. For `integration`, `api` and `mcp` it applies to every tool that definition registers. Falls back to `orchestration.max_tool_result_tokens`, then to `8000`. |
+
+#### Tool result budget
+
+A tool can return far more than the model needs. Each result is capped when it enters the conversation, so one large response cannot fill the window. It applies to the patterns that share the tool loop: `react`, `plan_and_execute`, `pipeline`, `parallel_fan_out` and `supervisor`. `swarm` is not covered. Glyph programs receive the full data, uncapped.
+
+- `dict` and `list` results reach the model as compact JSON, not as a Python `repr`.
+- A list keeps its first elements and ends with `{"_omitidos": N, "_nota": "..."}`.
+- A dict trims its largest list and keeps the other keys.
+- Anything else is cut at the head and ends with `[resultado recortado: X de Y tokens]`.
+
+The limit comes from `tools[].max_result_tokens`, then `orchestration.max_tool_result_tokens`, then the runtime default of `8000`. A value that is not an integer greater than 0 logs a warning at load and falls back to the next level. Earlier observations are never rewritten, because that would change the cached prefix (see [Prompt Caching](/astromesh/advanced/prompt-caching/)). Trimmed results are reported in traces: see [Observability](/astromesh/advanced/observability/).
 
 ### `spec.prefetch`
 

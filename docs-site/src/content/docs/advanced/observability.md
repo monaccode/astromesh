@@ -112,13 +112,15 @@ Every call to `Agent.run()` produces these spans automatically:
 | `rag_build` | `agent.run` | — | Build RAG context |
 | `tool.prefetch` | `agent.run` | `tool` | Each `spec.prefetch` lookup, when its `when` holds |
 | `llm.complete` | `agent.run` | `input_tokens`, `output_tokens`, `cached_tokens`, `cache.hit_ratio`, `model`, `provider`, `cost`, `latency_ms` | Each LLM call |
-| `tool.call` | `agent.run` | `tool` | Each tool execution |
+| `tool.call` | `agent.run` | `tool`, `tool.result_tokens` | Each tool execution (`tool.result_tokens` is the size of the result that reached the model, after the cap) |
 | `orchestration` | `agent.run` | `pattern` | Orchestration pattern execution |
 | `memory_persist` | `agent.run` | — | Persist conversation turns |
 
 `cached_tokens` on `llm.complete` is the part of `input_tokens` the provider served from its prompt cache (0 when it reports none). Without it every input token reads as full price and a prefix-caching optimization can't be verified. Available since astromesh **v0.48.0**; the run response sums it per model as `usage.by_model[].tokens_cached` since **v0.54.0**.
 
 Since **v0.64.0**, `cache.hit_ratio = round(cached_tokens / input_tokens, 3)` (0 when there are no input tokens) shows directly whether a stable prefix is hitting the cache; see [Prompt Caching](/astromesh/advanced/prompt-caching/).
+
+When a tool result is trimmed by the [tool result budget](/astromesh/configuration/agent-yaml/#tool-result-budget), the `orch_step` event of that step carries `truncated: true` and `omitted` (how many list items were dropped; 0 when the text was cut instead).
 
 The trace is attached to the agent response:
 
