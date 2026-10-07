@@ -41,7 +41,7 @@ metadata:
 spec:
   agent: lucia                  # agente del mismo árbol de config
   judge:                        # opcional; sólo lo usan los casos con `rubric`
-    model: {provider: openai_compat, model: kimi-k2, endpoint: "${MOONSHOT_URL}", api_key_env: MOONSHOT_API_KEY}
+    model: {provider: openai_compat, model: kimi-k2, endpoint: "https://api.moonshot.ai/v1", api_key_env: MOONSHOT_API_KEY}
     pass_score: 0.7             # default 0.7
   tools_default: real           # real | block
   thresholds:
@@ -212,7 +212,9 @@ Se publica cuando el feature salga en un release, no antes.
 4. **Memoria:**
    - dos turnos del mismo caso comparten historial;
    - dos casos no se ven entre sí;
-   - no se construye ningún backend Redis.
+   - después de preparar el runtime, el backend conversacional de cada agente con memoria es
+     el de memoria del eval, y los turnos quedan ahí (el backend Redis se construye al
+     arrancar, porque es lazy, pero nunca recibe una escritura).
 5. **Juez:**
    - un score sobre el umbral aprueba y uno bajo desaprueba;
    - una respuesta que no es JSON deja el caso en `error`;
