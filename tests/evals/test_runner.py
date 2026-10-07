@@ -247,3 +247,16 @@ async def test_block_sin_fixture_no_ejecuta(tmp_path):
     r = await correr_eval(rt, _eval([caso], tools_default="block"), "run9")
     assert r["cases"][0]["status"] == "pass"
     assert EJECUCIONES == []
+
+
+async def test_run_que_levanta_deja_error_con_el_mensaje(tmp_path, monkeypatch):
+    rt = await _runtime(tmp_path)
+
+    async def run(*a, **kw):
+        raise RuntimeError("se cayó")
+
+    monkeypatch.setattr(rt, "run", run)
+    r = await correr_eval(rt, _eval([Caso(id="a", turns=["x"], expect=[{"contains": "ok"}])]), "r")
+    (c,) = r["cases"]
+    assert c["status"] == "error"
+    assert c["motivos"] == ["RuntimeError: se cayó"]

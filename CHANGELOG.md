@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tool_called`, `tool_not_called`) y una rúbrica opcional que califica un juez LLM. Las
   tools pueden llevar fixtures por caso (`tools_default: block` bloquea las demás) y la
   memoria conversacional corre aislada, sin tocar Redis. Reporta pass rate, tokens, caché,
-  costo y latencia; sale con 1 bajo `thresholds` y con 2 por error de carga.
+  costo y latencia; sale con 1 bajo `thresholds` y con 2 por cualquier error de carga (YAML inválido o ilegible, agente inexistente, árbol de agentes que no arranca), sin correr ningún caso.
 
 ### Fixed
 

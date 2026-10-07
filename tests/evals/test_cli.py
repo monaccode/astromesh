@@ -113,3 +113,50 @@ def test_sin_evals_sale_2(tmp_path):
 def test_archivo_explicito(tmp_path, modelo_ok):
     d = _config(tmp_path)
     assert cli.main([str(d), str(d / "evals" / "e.eval.yaml")]) == 0
+
+
+def _romper_no_utf8(d):
+    (d / "evals" / "e.eval.yaml").write_bytes(b"\xff\xfe\x00bad")
+
+
+def _romper_cases_file(d):
+    p = d / "evals" / "e.eval.yaml"
+    doc = yaml.safe_load(p.read_text())
+    doc["spec"]["cases_file"] = "c.jsonl"
+    p.write_text(yaml.safe_dump(doc))
+    (d / "evals" / "c.jsonl").write_bytes(b"\xff\xfe\x00bad")
+
+
+def _romper_metadata(d):
+    p = d / "evals" / "e.eval.yaml"
+    doc = yaml.safe_load(p.read_text())
+    doc["metadata"] = ["e"]
+    p.write_text(yaml.safe_dump(doc))
+
+
+def _romper_agente(d):
+    (d / "agents" / "mala.agent.yaml").write_text("spec: [")
+
+
+def _romper_raiz(d):
+    p = d / "evals" / "e.eval.yaml"
+    doc = yaml.safe_load(p.read_text())
+    doc["extra"] = 1
+    p.write_text(yaml.safe_dump(doc))
+
+
+@pytest.mark.parametrize(
+    "romper",
+    [_romper_no_utf8, _romper_cases_file, _romper_metadata, _romper_agente, _romper_raiz],
+)
+def test_error_de_carga_sale_2_sin_correr(tmp_path, modelo_ok, monkeypatch, romper):
+    corridos = []
+
+    async def no_debe(*a, **kw):
+        corridos.append(1)
+
+    monkeypatch.setattr(cli, "correr_eval", no_debe)
+    d = _config(tmp_path)
+    romper(d)
+    assert cli.main([str(d)]) == 2
+    assert corridos == []

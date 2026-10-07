@@ -43,15 +43,21 @@ def _tabla(ev: dict) -> None:
 async def correr(config_dir: str, evals: list[Eval], out: str | None) -> int:
     from astromesh.runtime.engine import AgentRuntime, build_candidate_provider
 
-    runtime = AgentRuntime(config_dir=config_dir)
-    await runtime.bootstrap()
+    try:
+        runtime = AgentRuntime(config_dir=config_dir)
+        await runtime.bootstrap()
+    except Exception as exc:  # noqa: BLE001
+        return _error(f"no arrancó el runtime: {exc}")
     jueces = {}
     for ev in evals:
         if ev.agent not in runtime._agents:
             motivo = runtime._agent_errors.get(ev.agent, "no está en el árbol de config")
             return _error(f"{ev.path}: agente {ev.agent!r} no disponible: {motivo}")
         if ev.judge_model is not None:
-            juez = build_candidate_provider(ev.judge_model)
+            try:
+                juez = build_candidate_provider(ev.judge_model)
+            except Exception as exc:  # noqa: BLE001
+                return _error(f"{ev.path}: judge.model no construye un provider: {exc}")
             if juez is None:
                 return _error(f"{ev.path}: judge.model no construye un provider")
             jueces[ev.path] = juez

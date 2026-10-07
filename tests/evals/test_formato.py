@@ -118,3 +118,16 @@ def test_el_schema_rechaza_las_mismas_formas(mutar):
     mutar(doc)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(doc, SCHEMA)
+
+
+def test_id_con_salto_de_linea_final_se_rechaza(tmp_path):
+    doc = _doc(cases=[{"id": "abc\n", "turns": ["a"], "expect": [{"contains": "a"}]}])
+    with pytest.raises(EvalError):
+        cargar_eval(_escribir(tmp_path, doc))
+
+
+def test_clave_desconocida_en_la_raiz_se_rechaza(tmp_path):
+    doc = _doc()
+    doc["extra"] = 1
+    with pytest.raises(EvalError):
+        cargar_eval(_escribir(tmp_path, doc))

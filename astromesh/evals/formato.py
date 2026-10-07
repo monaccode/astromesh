@@ -21,7 +21,7 @@ class EvalError(ValueError):
 ASSERTS = frozenset(
     {"contains", "not_contains", "regex", "equals", "tool_called", "tool_not_called"}
 )
-_ID = re.compile(r"^[a-z0-9_-]{1,64}$")
+_ID = re.compile(r"[a-z0-9_-]{1,64}")
 _CLAVES_SPEC = {"agent", "judge", "tools_default", "thresholds", "cases", "cases_file"}
 _CLAVES_CASO = {"id", "turns", "context", "tools", "expect", "rubric"}
 
@@ -64,7 +64,7 @@ def _caso(crudo, donde: str, hay_juez: bool) -> Caso:
         raise EvalError(f"{donde}: un caso tiene que ser un mapa")
     _sobrantes(crudo, _CLAVES_CASO, donde)
     cid = crudo.get("id")
-    if not isinstance(cid, str) or not _ID.match(cid):
+    if not isinstance(cid, str) or not _ID.fullmatch(cid):
         raise EvalError(f"{donde}: id {cid!r} inválido (usar [a-z0-9_-], hasta 64)")
     donde = f"{donde} caso {cid!r}"
     turns = crudo.get("turns")
@@ -109,8 +109,12 @@ def _caso(crudo, donde: str, hay_juez: bool) -> Caso:
 def _casos_de_archivo(path: Path, donde: str) -> list:
     if not path.is_file():
         raise EvalError(f"{donde}: no existe cases_file {str(path)!r}")
+    try:
+        texto = path.read_text(encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        raise EvalError(f"{donde}: no se pudo leer cases_file {str(path)!r}: {exc}") from exc
     crudos = []
-    for n, linea in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for n, linea in enumerate(texto.splitlines(), start=1):
         if not linea.strip():
             continue
         try:
@@ -125,7 +129,7 @@ def cargar_eval(path) -> Eval:
     donde = str(path)
     try:
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as exc:
+    except (OSError, ValueError, yaml.YAMLError) as exc:
         raise EvalError(f"{donde}: no se pudo leer: {exc}") from exc
     if not isinstance(doc, dict):
         raise EvalError(f"{donde}: el documento tiene que ser un mapa")
@@ -133,7 +137,9 @@ def cargar_eval(path) -> Eval:
         raise EvalError(f"{donde}: apiVersion tiene que ser astromesh/v1")
     if doc.get("kind") != "Eval":
         raise EvalError(f"{donde}: kind tiene que ser Eval")
-    nombre = (doc.get("metadata") or {}).get("name")
+    _sobrantes(doc, {"apiVersion", "kind", "metadata", "spec"}, donde)
+    metadata = doc.get("metadata")
+    nombre = metadata.get("name") if isinstance(metadata, dict) else None
     if not isinstance(nombre, str) or not nombre:
         raise EvalError(f"{donde}: falta metadata.name")
     spec = doc.get("spec")
