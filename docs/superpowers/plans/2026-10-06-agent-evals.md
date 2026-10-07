@@ -24,7 +24,7 @@
 - **Se tocan los tests del motor, no el motor.** No cambia el comportamiento de `astromesh/runtime/engine.py`, `astromesh/core/tools.py` ni `astromesh/core/memory.py`. El runner los adapta desde afuera: asigna `agent._memory._conversation` y reemplaza `registry.execute` en la instancia.
 - **Ruff y estilo.** Largo de línea 100. Antes de cada commit, corré `uv run ruff check astromesh/ tests/` y `uv run ruff format --check astromesh/ tests/`; CI corre los dos.
 - **Idioma.** Los identificadores y mensajes nuevos van en español, como `observaciones.py`. Commits convencionales.
-- **Changelog.** Va bajo `## [Unreleased]` → `### Added` en el mismo commit `feat:` (Task 6).
+- **Changelog.** La entrada bajo `## [Unreleased]` → `### Added` va en el primer commit `feat:` (Task 1), como exige CLAUDE.md.
 - **Mensajes de error exactos:**
   - tool bloqueada: `tool sin fixture en el eval: <nombre>`;
   - el `session_id` de un caso es `eval-<run_id>-<case_id>`.
@@ -491,11 +491,25 @@ Expected: PASS (todos).
 
 ```bash
 uv run ruff check astromesh/evals tests/evals && uv run ruff format --check astromesh/evals tests/evals
-git add astromesh/evals tests/evals vscode-extension/schemas/eval.schema.json
+git add astromesh/evals tests/evals vscode-extension/schemas/eval.schema.json CHANGELOG.md
 git commit -m "feat(evals): formato kind: Eval — cargador y schema"
 ```
 
-(El changelog va con el commit `feat:` del Task 6, que cierra el feature. Este commit queda en la rama hasta entonces.)
+Antes de commitear, agregá la entrada del feature en `CHANGELOG.md`, porque CLAUDE.md exige que viaje con el primer `feat:`. Va bajo `## [Unreleased]`, en una subsección `### Added` (creala arriba de `### Fixed` si no existe):
+
+```markdown
+### Added
+
+- Evals de agentes: formato `kind: Eval` (`*.eval.yaml`, schema en
+  `vscode-extension/schemas/eval.schema.json`) y el runner `astromesh-eval <config_dir>`.
+  Casos de uno o más turnos con asserts (`contains`, `not_contains`, `regex`, `equals`,
+  `tool_called`, `tool_not_called`) y una rúbrica opcional que califica un juez LLM. Las
+  tools pueden llevar fixtures por caso (`tools_default: block` bloquea las demás) y la
+  memoria conversacional corre aislada, sin tocar Redis. Reporta pass rate, tokens, caché,
+  costo y latencia; sale con 1 bajo `thresholds` y con 2 por error de carga.
+```
+
+Y sumá `CHANGELOG.md` al `git add`.
 
 ---
 
@@ -1421,12 +1435,11 @@ git commit -m "feat(evals): runner — casos, juez, uso y umbrales"
 
 ---
 
-### Task 6: CLI `astromesh-eval`, entry point, changelog y guía
+### Task 6: CLI `astromesh-eval`, entry point y guía
 
 **Files:**
 - Create: `astromesh/evals/__main__.py`
 - Modify: `pyproject.toml` (sección nueva `[project.scripts]`, después de `[project.optional-dependencies]`)
-- Modify: `CHANGELOG.md` (`## [Unreleased]`)
 - Modify: `docs/CONFIGURATION_GUIDE.md` (sección nueva al final, «Evals de agentes»)
 - Test: `tests/evals/test_cli.py`
 
@@ -1664,20 +1677,6 @@ astromesh-eval = "astromesh.evals.__main__:main"
 
 Después corré `uv lock` en la raíz y commiteá `uv.lock` si cambió (`git diff --stat uv.lock`).
 
-`CHANGELOG.md`: bajo `## [Unreleased]`, en una subsección `### Added` (creala arriba de `### Fixed` si no existe):
-
-```markdown
-### Added
-
-- Evals de agentes: formato `kind: Eval` (`*.eval.yaml`, schema en
-  `vscode-extension/schemas/eval.schema.json`) y el runner `astromesh-eval <config_dir>`.
-  Casos de uno o más turnos con asserts (`contains`, `not_contains`, `regex`, `equals`,
-  `tool_called`, `tool_not_called`) y una rúbrica opcional que califica un juez LLM. Las
-  tools pueden llevar fixtures por caso (`tools_default: block` bloquea las demás) y la
-  memoria conversacional corre aislada, sin tocar Redis. Reporta pass rate, tokens, caché,
-  costo y latencia; sale con 1 bajo `thresholds` y con 2 por error de carga.
-```
-
 `docs/CONFIGURATION_GUIDE.md`: sección nueva al final.
 
 ````markdown
@@ -1737,7 +1736,7 @@ Expected: sin salida (`api.main` no importa `astromesh.evals`).
 
 ```bash
 uv run ruff check astromesh/ tests/ && uv run ruff format --check astromesh/ tests/
-git add astromesh/evals/__main__.py tests/evals/test_cli.py pyproject.toml uv.lock CHANGELOG.md docs/CONFIGURATION_GUIDE.md
+git add astromesh/evals/__main__.py tests/evals/test_cli.py pyproject.toml uv.lock docs/CONFIGURATION_GUIDE.md
 git commit -m "feat(evals): CLI astromesh-eval, entry point y guía"
 ```
 
