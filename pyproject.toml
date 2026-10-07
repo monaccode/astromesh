@@ -44,6 +44,10 @@ glyph = ["astromesh-glyph>=0.1.1"]
 all = [
     "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh,litellm,centinela,glyph]",
 ]
+
+[project.scripts]
+astromesh-eval = "astromesh.evals.__main__:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

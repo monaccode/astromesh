@@ -673,3 +673,43 @@ services:
     volumes:
       - ./my-configs:/app/config
 ```
+
+## Evals de agentes
+
+Un eval es un `*.eval.yaml` en `<config_dir>/evals/` que corre casos contra un agente del
+mismo árbol y falla bajo un umbral. Sirve como gate antes de cambiar un prompt, un modelo
+o el presupuesto de contexto.
+
+```yaml
+apiVersion: astromesh/v1
+kind: Eval
+metadata:
+  name: lucia-basico
+spec:
+  agent: lucia
+  judge:                       # opcional; sólo para casos con rubric
+    model: {provider: openai_compat, model: kimi-k2, endpoint: "https://api.moonshot.ai/v1", api_key_env: MOONSHOT_API_KEY}
+    pass_score: 0.7
+  tools_default: real          # real | block
+  thresholds:
+    pass_rate: 0.9
+    max_avg_tokens: 6000       # opcional
+  cases:
+    - id: stock-simple
+      turns: ["¿cuánto stock hay de X?"]
+      tools: {consultar_stock: {sku: X, stock: 12}}
+      expect:
+        - contains: "12"
+        - tool_called: consultar_stock
+      rubric: "Responde con la cantidad y no inventa precios."
+  cases_file: lucia.cases.jsonl  # opcional, un caso por línea
+```
+
+- `expect` se evalúa sobre la respuesta del último turno. `tool_called` y
+  `tool_not_called` miran todas las llamadas del caso.
+- Una tool con fixture no se ejecuta y devuelve ese valor; si el valor no es un mapa, llega
+  como `{"result": valor}`. El resultado pasa igual por el tope `max_result_tokens`, y el
+  gate de confirmación sigue aplicando.
+- Los turnos de un caso comparten sesión, y la memoria conversacional corre en memoria.
+- Correr: `uv run astromesh-eval config/ --out reporte.json`. Sale con `0` si todo pasa,
+  `1` si algún eval queda bajo umbral y `2` por error de carga.
