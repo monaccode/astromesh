@@ -17,7 +17,7 @@ The image is distributed as an **OCI artifact** and pulled with [`oras`](https:/
 
 ```bash
 # Pull the appliance image for a given version into ./out
-oras pull docker.io/fulfarodev/astromesh-os:0.13.3 -o ./out
+oras pull docker.io/fulfarodev/astromesh-os:0.13.4 -o ./out
 ls ./out          # → astromesh-os-phase0.raw.zst (~187 MB compressed)
 
 # `latest` also tracks the newest published version
@@ -103,7 +103,7 @@ See the [CLI reference](/astromesh/reference/os/cli/) for the full `astromeshctl
 
 ## 7. Bump the baked-in runtime
 
-The exact `astromesh` runtime in the image is pinned by ref in `runtime.pin` (currently `v0.66.0`). Bumping it is a deliberate edit, then a rebuild:
+The exact `astromesh` runtime in the image is pinned by ref in `runtime.pin` (currently `v0.67.0`). Bumping it is a deliberate edit, then a rebuild:
 
 ```ini
 # runtime.pin — prefer a release tag over a floating branch tip

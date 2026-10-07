@@ -18,12 +18,12 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.4.0 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.3.1 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.10 |
-| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.13.3 |
+| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.13.4 |
 | **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.24.1 |
 | **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.23.0 |
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.4 |
 | **Prisma** | Turns your agent into a cloud's own native agent, running on that cloud's base resources (GCP: ADK on Agent Engine) | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | v0.2.1 *(in development)* |
-| **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.26.7 |
+| **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.26.8 |
 | **Herald** | Communications gateway — WhatsApp, Telegram, Instagram and web chat messages reach agents, and agents reach people back through one outbox | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.11.0 |
 | **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.5.0 |
 | **Nebula** | Open-model foundry — trains, gates, and publishes the ecosystem's own models | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | v0.1.0 (preview) |
