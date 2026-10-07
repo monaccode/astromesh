@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astromesh.dev/schemas/eval.schema.json",
+  "title": "Astromesh Eval",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {"const": "astromesh/v1"},
+    "kind": {"const": "Eval"},
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {"name": {"type": "string", "minLength": 1}}
+    },
+    "spec": {
+      "type": "object",
+      "required": ["agent", "thresholds"],
+      "additionalProperties": false,
+      "properties": {
+        "agent": {"type": "string", "minLength": 1, "description": "Agente del mismo árbol de config."},
+        "judge": {
+          "type": "object",
+          "required": ["model"],
+          "additionalProperties": false,
+          "properties": {
+            "model": {"type": "object", "description": "Misma forma que un candidato de model en un agente."},
+            "pass_score": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.7}
+          }
+        },
+        "tools_default": {"enum": ["real", "block"], "default": "real"},
+        "thresholds": {
+          "type": "object",
+          "required": ["pass_rate"],
+          "additionalProperties": false,
+          "properties": {
+            "pass_rate": {"type": "number", "minimum": 0, "maximum": 1},
+            "max_avg_tokens": {"type": "integer", "minimum": 1}
+          }
+        },
+        "cases": {"type": "array", "items": {"$ref": "#/$defs/caso"}},
+        "cases_file": {"type": "string", "minLength": 1, "description": "JSONL relativo al eval, un caso por línea."}
+      }
+    }
+  },
+  "$defs": {
+    "caso": {
+      "type": "object",
+      "required": ["id", "turns"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_-]{1,64}$"},
+        "turns": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "context": {"type": "object"},
+        "tools": {"type": "object", "description": "Fixture por nombre de tool: no se ejecuta y devuelve esto."},
+        "expect": {"type": "array", "items": {"$ref": "#/$defs/assert"}},
+        "rubric": {"type": "string", "minLength": 1}
+      }
+    },
+    "assert": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "contains": {"type": "string", "minLength": 1},
+        "not_contains": {"type": "string", "minLength": 1},
+        "regex": {"type": "string", "minLength": 1},
+        "equals": {"type": "string", "minLength": 1},
+        "tool_called": {"type": "string", "minLength": 1},
+        "tool_not_called": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

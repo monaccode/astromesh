@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Evals de agentes: formato `kind: Eval` (`*.eval.yaml`, schema en
+  `vscode-extension/schemas/eval.schema.json`) y el runner `astromesh-eval <config_dir>`.
+  Casos de uno o más turnos con asserts (`contains`, `not_contains`, `regex`, `equals`,
+  `tool_called`, `tool_not_called`) y una rúbrica opcional que califica un juez LLM. Las
+  tools pueden llevar fixtures por caso (`tools_default: block` bloquea las demás) y la
+  memoria conversacional corre aislada, sin tocar Redis. Reporta pass rate, tokens, caché,
+  costo y latencia; sale con 1 bajo `thresholds` y con 2 por error de carga.
+
 ### Fixed
 
 - `orchestration.stages` (pipeline, 0.65.0) en el `agent.schema.json`: el engine la leía pero el
