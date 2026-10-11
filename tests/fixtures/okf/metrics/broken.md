@@ -1,0 +1,5 @@
+---
+type: [unclosed
+---
+
+Broken frontmatter.

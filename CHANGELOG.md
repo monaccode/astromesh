@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Knowledge bundles OKF: `spec.knowledge.bundle` apunta a un directorio
+  [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format)
+  v0.2 (también lee v0.1). El agente recibe `kb_index`, `kb_read` y `kb_find` para
+  navegarlo y la variable de template `bundle_index` con el índice raíz, estable para el
+  caché de prompts. Las señales de la spec llegan al modelo sin filtrar: nivel de
+  confianza (`verified`), `stale_after`, y avisos para deprecated y draft; `kb_find`
+  excluye los deprecated por defecto. Sólo lectura, confinado a la raíz del bundle
+  (symlinks incluidos); nada del bundle se ejecuta. Ejemplo en
+  `config/agents/okf-demo.agent.yaml`.
+
 ## [0.67.0] - 2026-10-07
 
 ### Added
