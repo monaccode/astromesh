@@ -168,3 +168,14 @@ def test_unreadable_stale_after_is_ignored_and_logged(tmp_path, caplog):
     assert c.stale is False
     assert c.warnings == []
     assert "stale_after" in caplog.text
+
+
+def test_invalid_date_in_frontmatter_is_invalid(tmp_path):
+    with pytest.raises(InvalidConceptError, match="unparseable frontmatter"):
+        _tmp(tmp_path, "---\ntype: X\nstale_after: 2026-13-45\n---\n")
+
+
+def test_frontmatter_with_date_as_mapping_key_is_json_serializable(tmp_path):
+    c = _tmp(tmp_path, "---\ntype: X\ncustom: {2020-01-01: x}\n---\n")
+    assert c.extra["custom"] == {"2020-01-01": "x"}
+    assert json.loads(json.dumps(c.extra))["custom"]["2020-01-01"] == "x"

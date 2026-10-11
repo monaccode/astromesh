@@ -88,7 +88,7 @@ def split_frontmatter(text: str) -> tuple[dict, str]:
         if lines[i].strip() == "---":
             try:
                 meta = yaml.safe_load("\n".join(lines[1:i]))
-            except yaml.YAMLError as exc:
+            except (yaml.YAMLError, ValueError) as exc:
                 raise InvalidConceptError(
                     f"unparseable frontmatter ({exc.__class__.__name__})"
                 ) from None
@@ -150,9 +150,19 @@ def _generated_at(meta: dict) -> str | None:
     return _stamp(meta.get("timestamp"))  # v0.1 (§13.1)
 
 
+def _stringify_keys(obj):
+    """Recursively convert dict keys to strings for JSON serialization."""
+    if isinstance(obj, dict):
+        return {str(k): _stringify_keys(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_keys(item) for item in obj]
+    return obj
+
+
 def _jsonable(meta: dict) -> dict:
     """`extra` viaja en un resultado de tool: las fechas de YAML pasan a ISO 8601."""
-    return json.loads(json.dumps(meta, default=_stamp))
+    stringified = _stringify_keys(meta)
+    return json.loads(json.dumps(stringified, default=_stamp))
 
 
 def parse_concept(root: Path, path: Path, now: datetime | None = None) -> Concept:
