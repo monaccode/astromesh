@@ -38,3 +38,16 @@ def test_agent_knowledge_without_pipeline_fails():
 def test_agent_knowledge_rejects_unknown_key():
     with pytest.raises(ValidationError):
         validate(instance=_agent({"pipeline": "pk", "strategey": "oops"}), schema=_schema())
+
+
+def test_agent_with_knowledge_bundle_validates():
+    validate(instance=_agent({"bundle": "knowledge/acme_retail"}), schema=_schema())
+
+
+def test_agent_with_bundle_and_pipeline_validates():
+    validate(instance=_agent({"bundle": "kb", "pipeline": "pk", "top_k": 3}), schema=_schema())
+
+
+def test_agent_knowledge_bundle_must_be_a_string():
+    with pytest.raises(ValidationError):
+        validate(instance=_agent({"bundle": 3}), schema=_schema())

@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import json
 import logging
@@ -804,6 +805,25 @@ class AgentRuntime:
             routers["default"] = ModelRouter({"strategy": "cost_optimized"})
         return routers
 
+    def _resolve_bundle(self, spec: dict, agent_name: str):
+        """`spec.knowledge.bundle`: un directorio OKF. Sin él, el agente sigue sin bundle."""
+        from astromesh.knowledge.okf import Bundle
+
+        raw = (spec.get("knowledge") or {}).get("bundle")
+        if not raw:
+            return None
+        path = Path(raw)
+        if not path.is_absolute():
+            path = self._config_dir / path
+        if not path.is_dir():
+            logger.warning(
+                "agent %r: knowledge.bundle %s no es un directorio; sigue sin bundle",
+                agent_name,
+                path,
+            )
+            return None
+        return Bundle(path)
+
     def _resolve_rag(self, spec: dict):
         from astromesh.rag.agent_rag import AgentRAG
         from astromesh.rag.factory import build_pipeline
@@ -904,6 +924,7 @@ class AgentRuntime:
                 metadata["name"],
             )
         rag = self._resolve_rag(spec)
+        bundle = self._resolve_bundle(spec, metadata["name"])
         tools = ToolRegistry()
         from astromesh.tools import ToolLoader
 
@@ -1182,6 +1203,10 @@ class AgentRuntime:
                     tool_def.get("name"),
                     tool_type,
                 )
+        if bundle is not None:
+            from astromesh.knowledge.tools import register_bundle_tools
+
+            register_bundle_tools(tools, bundle)
         # El chequeo de adentro sólo ve lo registrado ANTES de la `api`/`mcp`;
         # una tool declarada DESPUÉS con el mismo nombre la pisa sin avisar
         # (`core/tools.py:91-92`). Este repaso cubre ese orden.
@@ -1239,6 +1264,7 @@ class AgentRuntime:
             permissions=spec.get("permissions", {}),
             orchestration_config=spec.get("orchestration", {}),
             rag=rag,
+            bundle=bundle,
             output_schema=normalize_output_schema(spec.get("output_schema")),
             prefetch=prefetch,
             context_window=context_window,
@@ -1508,6 +1534,7 @@ class Agent:
         "default": DEFAULT_MAX_TOOL_RESULT_TOKENS,
         "por_tool": {},
     }
+    _bundle = None
 
     def __init__(
         self,
@@ -1532,6 +1559,7 @@ class Agent:
         response_tokens=DEFAULT_RESPONSE_TOKENS,
         context_prompt="",
         presupuesto_tools=None,
+        bundle=None,
     ):
         self._presupuesto_tools = presupuesto_tools or {
             "default": DEFAULT_MAX_TOOL_RESULT_TOKENS,
@@ -1549,6 +1577,7 @@ class Agent:
         self._role_map = (orchestration_config or {}).get("role_map", {}) or {}
         self._memory = memory
         self._rag = rag
+        self._bundle = bundle
         self._tools = tools
         self._pattern = pattern
         self._system_prompt = system_prompt
@@ -1566,6 +1595,20 @@ class Agent:
             # que la forma se pide por prompt y se parsea de la respuesta.
             prompt += schema_prompt_block(self._output_schema)
         return prompt
+
+    async def _bundle_index(self) -> str:
+        """El mapa del bundle para el template. Como el RAG, nunca rompe una corrida."""
+        if self._bundle is None:
+            return ""
+        from astromesh.knowledge.okf import BundleError
+
+        try:
+            return await asyncio.to_thread(self._bundle.index, "/")
+        except (BundleError, OSError, ValueError):
+            logger.warning(
+                "agent %r: no se pudo leer el índice del bundle", self.name, exc_info=True
+            )
+            return ""
 
     async def run(
         self,
@@ -1692,6 +1735,7 @@ class Agent:
                 "memory": memory_context,
                 "knowledge": knowledge_context,
                 "prefetch": prefetch_resultados,
+                "bundle_index": await self._bundle_index(),
             }
             # Base: el system prompt SIN historial. Es lo que viaja si el historial
             # va como mensajes, y así el prefijo es el mismo en cada turno (caché).

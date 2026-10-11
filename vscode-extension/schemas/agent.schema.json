@@ -361,10 +361,11 @@
         },
         "knowledge": {
           "type": "object",
-          "description": "RAG knowledge-base configuration: the agent retrieves from a RAGPipeline at run time.",
+          "description": "Knowledge configuration: a RAGPipeline retrieved at run time, an OKF knowledge bundle the agent navigates with kb_index/kb_read/kb_find, or both.",
           "additionalProperties": false,
-          "required": [
-            "pipeline"
+          "anyOf": [
+            { "required": ["pipeline"] },
+            { "required": ["bundle"] }
           ],
           "properties": {
             "pipeline": {
@@ -373,7 +374,11 @@
             },
             "top_k": {
               "type": "integer",
-              "description": "Number of chunks to retrieve per run (defaults to the pipeline's retrieval.top_k)."
+              "description": "Number of chunks to retrieve per run (defaults to the pipeline's retrieval.top_k). Applies to pipeline only."
+            },
+            "bundle": {
+              "type": "string",
+              "description": "Directory of an Open Knowledge Format (OKF) bundle, relative to the config directory or absolute. Registers kb_index, kb_read and kb_find, and exposes bundle_index to the prompt templates."
             }
           }
         },
