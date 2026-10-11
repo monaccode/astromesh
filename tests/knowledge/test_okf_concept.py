@@ -179,3 +179,9 @@ def test_frontmatter_with_date_as_mapping_key_is_json_serializable(tmp_path):
     c = _tmp(tmp_path, "---\ntype: X\ncustom: {2020-01-01: x}\n---\n")
     assert c.extra["custom"] == {"2020-01-01": "x"}
     assert json.loads(json.dumps(c.extra))["custom"]["2020-01-01"] == "x"
+
+
+def test_unreadable_file_is_invalid(tmp_path):
+    (tmp_path / "d.md").mkdir()
+    with pytest.raises(InvalidConceptError, match="unreadable"):
+        parse_concept(tmp_path, tmp_path / "d.md")

@@ -134,3 +134,18 @@ def test_find_skips_hidden_dirs_and_escaping_symlinks(tmp_path):
     (root / "linked").symlink_to(outside, target_is_directory=True)
     (root / "leak.md").symlink_to(outside / "leak.md")
     assert _ids(Bundle(root).find()) == ["ok"]
+
+
+def test_directory_named_md_is_not_a_concept(tmp_path):
+    (tmp_path / "x.md").mkdir()
+    (tmp_path / "valid.md").write_text("---\ntype: X\ntitle: Valid\n---\n")
+    b = Bundle(tmp_path)
+    result = b.index("/")
+    assert "Valid" in result
+    assert "concept(s) skipped" not in result
+
+
+def test_index_md_non_utf8_raises_bundle_error(tmp_path):
+    (tmp_path / "index.md").write_bytes(b"\xff\xfe\x00")
+    with pytest.raises(BundleError, match=r"^invalid index: /$"):
+        Bundle(tmp_path).index("/")

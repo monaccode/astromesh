@@ -174,6 +174,10 @@ def parse_concept(root: Path, path: Path, now: datetime | None = None) -> Concep
         meta, body = split_frontmatter(path.read_text(encoding="utf-8-sig"))
     except UnicodeDecodeError:
         raise InvalidConceptError(f"invalid concept {cid}: not UTF-8") from None
+    except OSError as exc:
+        raise InvalidConceptError(
+            f"invalid concept {cid}: unreadable ({exc.__class__.__name__})"
+        ) from None
     except InvalidConceptError as exc:
         raise InvalidConceptError(f"invalid concept {cid}: {exc}") from None
     ctype = str(meta.get("type") or "").strip()
@@ -340,7 +344,10 @@ class Bundle:
             raise BundleError(f"not a directory: {path}")
         existing = folder / "index.md"
         if existing.is_file() and existing.resolve().is_relative_to(self.root):
-            return _strip_frontmatter(existing.read_text(encoding="utf-8-sig"))
+            try:
+                return _strip_frontmatter(existing.read_text(encoding="utf-8-sig"))
+            except (UnicodeDecodeError, OSError):
+                raise BundleError(f"invalid index: {path}") from None
         return self._synth_index(folder, now)
 
     def _synth_index(self, folder: Path, now: datetime | None) -> str:
@@ -357,6 +364,8 @@ class Bundle:
         concepts, skipped = [], 0
         for path in folder.glob("*.md"):
             if path.name in RESERVED or not path.resolve().is_relative_to(self.root):
+                continue
+            if not path.is_file():
                 continue
             try:
                 concepts.append(parse_concept(self.root, path, now))
