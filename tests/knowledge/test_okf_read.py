@@ -125,3 +125,9 @@ def test_symlink_escaping_the_bundle_is_blocked(tmp_path):
         b.read("leak")
     with pytest.raises(OutsideBundleError):
         b.read("leak.md")
+
+
+@pytest.mark.parametrize("raw", ["a\x00b", "x" * 5000])
+def test_malformed_paths_raise_outside_bundle_error(raw):
+    with pytest.raises(OutsideBundleError):
+        B.read(raw)

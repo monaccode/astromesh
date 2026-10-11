@@ -227,7 +227,10 @@ class Bundle:
 
     def _inside(self, rel: str, raw: str) -> Path:
         # `resolve` sigue symlinks ANTES del chequeo: un link que apunta afuera no pasa.
-        path = (self.root / rel).resolve()
+        try:
+            path = (self.root / rel).resolve()
+        except (OSError, ValueError):
+            raise OutsideBundleError(f"outside bundle: {raw}") from None
         if not path.is_relative_to(self.root):
             raise OutsideBundleError(f"outside bundle: {raw}")
         return path
@@ -237,7 +240,11 @@ class Bundle:
         base = self.root / rel
         # El `.md` se agrega antes de resolver: si no, un symlink `x.md` se chequearía
         # como `x` (que no existe) y se leería igual.
-        if rel and not rel.endswith(".md") and not base.exists():
+        try:
+            exists = base.exists()
+        except (OSError, ValueError):
+            exists = False
+        if rel and not rel.endswith(".md") and not exists:
             rel += ".md"
         return self._inside(rel, raw)
 
@@ -260,9 +267,14 @@ class Bundle:
     def read(self, concept_id: str, now: datetime | None = None) -> dict:
         path = self._concept_path(concept_id)
         cid = _id_of(self.root, path)
-        if not path.exists():
+        try:
+            exists = path.exists()
+            is_dir = path.is_dir()
+        except (OSError, ValueError):
+            raise OutsideBundleError(f"outside bundle: {concept_id}") from None
+        if not exists:
             raise ConceptNotFoundError(self._not_found(cid))
-        if path.is_dir() or path.suffix != ".md" or path.name in RESERVED:
+        if is_dir or path.suffix != ".md" or path.name in RESERVED:
             raise NotAConceptError(f"not a concept: {cid}")
         concept = parse_concept(self.root, path, now)
         return {
