@@ -22,6 +22,7 @@ import yaml
 logger = logging.getLogger(__name__)
 
 RESERVED = frozenset({"index.md", "log.md"})
+MAX_FIND_LIMIT = 100
 
 # Campos que `Concept` expone con nombre propio; el resto del frontmatter va a `extra`.
 _MAPPED = frozenset({"type", "title", "description", "tags", "status", "stale_after"})
@@ -219,6 +220,28 @@ def _clean(raw: str) -> str:
     return str(raw or "").split("#", 1)[0].strip().lstrip("/")
 
 
+def _strip_frontmatter(text: str) -> str:
+    """Un `index.md` sólo lleva frontmatter en la raíz (`okf_version`, §12); se omite."""
+    try:
+        return split_frontmatter(text)[1]
+    except InvalidConceptError:
+        return text
+
+
+def _index_line(c: Concept) -> str:
+    flags = [c.type]
+    if c.status != "stable":
+        flags.append(c.status)
+    if c.stale:
+        flags.append("stale")
+    desc = f" - {c.description}" if c.description else ""
+    return f"* [{c.title}]({c.id}){desc} [{', '.join(flags)}]"
+
+
+def _log_skipped(count: int, where: str) -> None:
+    logger.warning("okf: %d concepto(s) inválido(s) omitido(s) en %s", count, where)
+
+
 class Bundle:
     """Un bundle OKF en disco, de sólo lectura. Lee en cada llamada: sin caché."""
 
@@ -310,3 +333,77 @@ class Bundle:
                 seen.add(key)
                 out.append(item)
         return out
+
+    def index(self, path: str = "/", now: datetime | None = None) -> str:
+        folder = self._inside(_clean(path), path)
+        if not folder.is_dir():
+            raise BundleError(f"not a directory: {path}")
+        existing = folder / "index.md"
+        if existing.is_file() and existing.resolve().is_relative_to(self.root):
+            return _strip_frontmatter(existing.read_text(encoding="utf-8-sig"))
+        return self._synth_index(folder, now)
+
+    def _synth_index(self, folder: Path, now: datetime | None) -> str:
+        """Índice en el formato de la §8 cuando el directorio no trae `index.md`."""
+        lines: list[str] = []
+        subdirs = sorted(
+            p
+            for p in folder.iterdir()
+            if p.is_dir() and not p.name.startswith(".") and p.resolve().is_relative_to(self.root)
+        )
+        if subdirs:
+            lines += ["# Subdirectories", ""]
+            lines += [f"* [{p.name}]({_id_of(self.root, p)}/)" for p in subdirs]
+        concepts, skipped = [], 0
+        for path in folder.glob("*.md"):
+            if path.name in RESERVED or not path.resolve().is_relative_to(self.root):
+                continue
+            try:
+                concepts.append(parse_concept(self.root, path, now))
+            except InvalidConceptError:
+                skipped += 1
+        if concepts:
+            if lines:
+                lines.append("")
+            lines += ["# Concepts", ""]
+            lines += [_index_line(c) for c in sorted(concepts, key=lambda c: c.id)]
+        if skipped:
+            _log_skipped(skipped, _id_of(self.root, folder))
+            lines += ["", f"({skipped} concept(s) skipped: invalid frontmatter)"]
+        return "\n".join(lines) + "\n" if lines else "(empty directory)\n"
+
+    def find(
+        self,
+        text: str | None = None,
+        type_: str | None = None,
+        tags: list[str] | None = None,
+        include_deprecated: bool = False,
+        limit: int = 20,
+        now: datetime | None = None,
+    ) -> dict:
+        # ponytail: recorre y parsea todos los archivos en cada llamada; anda con cientos
+        # o pocos miles de conceptos. Más grande que eso, ingesta a RAGPipeline.
+        limit = max(1, min(int(limit), MAX_FIND_LIMIT))
+        want_tags = {t.lower() for t in tags or []}
+        needle = text.lower() if text else None
+        header_hits, body_hits, skipped = [], [], 0
+        for path in self._concept_files():
+            try:
+                c = parse_concept(self.root, path, now)
+            except InvalidConceptError:
+                skipped += 1
+                continue
+            if c.status == "deprecated" and not include_deprecated:
+                continue
+            if type_ and c.type.lower() != type_.lower():
+                continue
+            if not want_tags <= {t.lower() for t in c.tags}:
+                continue
+            if needle is None or needle in " ".join([c.title, c.description, *c.tags]).lower():
+                header_hits.append(c)
+            elif needle in c.body.lower():
+                body_hits.append(c)
+        if skipped:
+            _log_skipped(skipped, "/")
+        hits = (header_hits + body_hits)[:limit]
+        return {"results": [c.summary() for c in hits], "skipped_invalid": skipped}
