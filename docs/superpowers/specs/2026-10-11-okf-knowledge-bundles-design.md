@@ -76,7 +76,7 @@ línea y otro `---` que cierra) y cuerpo. Campos de `Concept`:
 
 Tolerancia según la §11 de la spec: un concepto es **inválido** sólo si no tiene frontmatter
 parseable como mapping YAML o si `type` falta o está vacío. Entonces levanta
-`InvalidConcept(motivo)`. Nunca se rechaza por campos opcionales faltantes, `type`
+`InvalidConceptError(motivo)` (ruff N818 exige el sufijo `Error`). Nunca se rechaza por campos opcionales faltantes, `type`
 desconocido, claves desconocidas ni links rotos.
 
 **Señales:**
@@ -108,7 +108,8 @@ chequear.
 - Si existe `<path>/index.md`, devuelve su contenido. El frontmatter de un `index.md` de la
   raíz (`okf_version`) se omite.
 - Si no existe, lo sintetiza en el formato de la §8: una sección `# Subdirectories` con
-  `* [nombre](nombre/) - <description del index.md del subdirectorio, si hay>` y una sección
+  `* [nombre](<id del directorio>/)` (un `index.md` no tiene frontmatter, así que no hay
+  descripción que tomar) y una sección
   `# Concepts` con `* [title](id) - description [type, status, stale]`. En `[...]` sólo se
   agregan `status` si no es `stable` y `stale` si está vencido. Orden alfabético.
   Los conceptos inválidos se omiten y se agrega una línea final
