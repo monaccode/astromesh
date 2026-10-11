@@ -110,11 +110,11 @@ export const CORE: Component = {
   name: 'Core Runtime',
   short: 'Core',
   group: 'runtime',
-  version: '0.67.0',
-  released: '2026-10-07',
+  version: '0.68.0',
+  released: '2026-10-11',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
-  latest: 'Agent evals: `kind: Eval` files and the `astromesh-eval` runner score an agent on cases with stubbed tools and isolated memory, report quality next to tokens, cache hits and cost, and fail CI below a threshold. Since 0.66, tool results enter the model capped (`max_result_tokens`, default 8000 tokens) and as compact JSON, trimmed by structure with a note of what was left out; plan, pipeline, fan-out and supervisor now see the conversation. Since 0.64, history travels as messages within the model\'s window and `prompts.context` keeps the system prompt cacheable.',
+  latest: 'OKF knowledge bundles: `spec.knowledge.bundle` points an agent at an Open Knowledge Format directory and it navigates the concepts with `kb_index`, `kb_read` and `kb_find`, with trust and freshness signals intact. Since 0.67, agent evals: `kind: Eval` files and the `astromesh-eval` runner score an agent on cases with stubbed tools and isolated memory, report quality next to tokens, cache hits and cost, and fail CI below a threshold. Since 0.66, tool results enter the model capped (`max_result_tokens`, default 8000 tokens) and as compact JSON, trimmed by structure with a note of what was left out; plan, pipeline, fan-out and supervisor now see the conversation.',
   install: 'pip install astromesh',
   href: '/astromesh/getting-started/what-is-astromesh/',
 };
