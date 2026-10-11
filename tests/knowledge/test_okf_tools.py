@@ -72,3 +72,15 @@ def test_collision_with_an_existing_tool_raises():
     registry.register_internal(name="kb_read", handler=_h, description="x", parameters={})
     with pytest.raises(ValueError, match="kb_read"):
         register_bundle_tools(registry, Bundle(FIX))
+
+
+async def test_kb_find_infinite_limit_does_not_fail():
+    out = await _registry().execute("kb_find", {"limit": float("inf")})
+    assert out["success"] is True
+
+
+@pytest.mark.parametrize(("value", "expected"), [("false", False), ("true", True), (" Yes ", True)])
+async def test_kb_find_include_deprecated_string(value, expected):
+    out = await _registry().execute("kb_find", {"include_deprecated": value})
+    ids = [r["id"] for r in out["data"]["results"]]
+    assert ("metrics/gross-margin-legacy" in ids) is expected

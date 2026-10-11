@@ -131,3 +131,10 @@ def test_symlink_escaping_the_bundle_is_blocked(tmp_path):
 def test_malformed_paths_raise_outside_bundle_error(raw):
     with pytest.raises(OutsideBundleError):
         B.read(raw)
+
+
+def test_unresolvable_link_is_skipped_not_fatal(tmp_path):
+    (tmp_path / "a.md").write_text("---\ntype: X\n---\n[x](" + "a" * 5000 + ".md) and [ok](b.md)\n")
+    (tmp_path / "b.md").write_text("---\ntype: X\n---\n")
+    links = Bundle(tmp_path).read("a")["links"]
+    assert links == [{"id": "b", "exists": True}]

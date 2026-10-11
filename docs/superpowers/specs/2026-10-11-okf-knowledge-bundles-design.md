@@ -108,10 +108,12 @@ chequear.
 - Si existe `<path>/index.md`, devuelve su contenido. El frontmatter de un `index.md` de la
   raíz (`okf_version`) se omite.
 - Si no existe, lo sintetiza en el formato de la §8: una sección `# Subdirectories` con
-  `* [nombre](<id del directorio>/)` (un `index.md` no tiene frontmatter, así que no hay
+  `* [nombre](/<id del directorio>/)` (un `index.md` no tiene frontmatter, así que no hay
   descripción que tomar) y una sección
-  `# Concepts` con `* [title](id) - description [type, status, stale]`. En `[...]` sólo se
-  agregan `status` si no es `stable` y `stale` si está vencido. Orden alfabético.
+  `# Concepts` con `* [title](/id) - description [type, status, stale]`. En `[...]` sólo se
+  agregan `status` si no es `stable` y `stale` si está vencido. Orden alfabético. Los links llevan
+  `/` inicial (forma absoluta de la §6.1), para que el modelo no confunda un índice sintetizado
+  con uno relativo al directorio.
   Los conceptos inválidos se omiten y se agrega una línea final
   `(N concept(s) skipped: invalid frontmatter)`.
 

@@ -23,7 +23,7 @@ spec:
 | `kb_read` | `concept_id` | `type`, `title`, `trust`, `stale`, `warnings`, the body, unknown frontmatter under `extra`, and the body's `links` already resolved to concept ids. |
 | `kb_find` | `text`, `type`, `tags`, `include_deprecated`, `limit` | Matching concepts (no body). Title, description and tag matches come before body matches. Deprecated concepts are left out unless asked for. |
 
-The template variable `bundle_index` holds the root index. It does not change between queries, so it can go in `prompts.system` without breaking the prompt cache, and it saves the agent its first `kb_index` call.
+The template variable `bundle_index` holds the root index. It is stable between queries while the bundle and its root concepts don't change (editing the bundle, or a root concept passing its `stale_after`, changes it), so it can go in `prompts.system` and keep the prompt cache warm, and it saves the agent its first `kb_index` call.
 
 If the agent sets `permissions.allowed_actions`, add `kb_index`, `kb_read` and `kb_find` to it.
 
@@ -35,7 +35,7 @@ Signals are reported, never used to hide a concept:
 - `stale`: true once `stale_after` has passed.
 - `warnings`: plain sentences for the model, e.g. `DEPRECATED: kept for history; do not use for new work.`
 
-Tell the agent what to do with them in its prompt. The example below refuses deprecated sources and flags stale or draft ones.
+Tell the agent what to do with them in its prompt. The example agent refuses deprecated sources and flags stale or draft ones.
 
 ## Tolerance
 

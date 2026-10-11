@@ -15,8 +15,8 @@ from astromesh.tools.base import ToolResult
 TOOL_NAMES = ("kb_index", "kb_read", "kb_find")
 
 _INDEX = (
-    "List a directory of the knowledge bundle. Start here with path '/'. Links inside an "
-    "existing index are relative to the listed directory."
+    "List a directory of the knowledge bundle. Start here with path '/'. Links starting "
+    "with '/' are bundle-absolute; other links in an index are relative to the listed directory."
 )
 _READ = (
     "Read one concept of the knowledge bundle: metadata, trust warnings, body, and its "
@@ -31,8 +31,14 @@ _FIND = (
 def _int(value, default: int) -> int:
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
+
+
+def _bool(value) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
 
 
 def _str_or_none(value):
@@ -53,10 +59,8 @@ async def _call(fn, *args, **kwargs) -> dict:
         data = await asyncio.to_thread(fn, *args, **kwargs)
     except BundleError as exc:
         return ToolResult(success=False, data=None, error=str(exc)).to_dict()
-    except (
-        OSError,
-        ValueError,
-    ) as exc:  # permisos, un archivo que desaparece, o un ValueError suelto
+    # permisos, un archivo que desaparece, o un ValueError suelto
+    except (OSError, ValueError) as exc:
         return ToolResult(success=False, data=None, error=f"bundle read failed: {exc}").to_dict()
     return ToolResult(success=True, data=data).to_dict()
 
@@ -81,7 +85,7 @@ def register_bundle_tools(registry: ToolRegistry, bundle: Bundle) -> None:
             text=_str_or_none(text),
             type_=_str_or_none(type),
             tags=_tags(tags),
-            include_deprecated=bool(include_deprecated),
+            include_deprecated=_bool(include_deprecated),
             limit=_int(limit, 20),
         )
 

@@ -31,12 +31,12 @@ def test_missing_index_is_synthesized():
     assert B.index("metrics", now=NOW) == (
         "# Concepts\n"
         "\n"
-        "* [Churn](metrics/churn) - Share of customers lost in a period. [metric, draft]\n"
-        "* [Gross Margin](metrics/gross-margin) - Revenue minus cost of goods. [Metric, stale]\n"
-        "* [Gross Margin (legacy)](metrics/gross-margin-legacy) - Retired definition."
+        "* [Churn](/metrics/churn) - Share of customers lost in a period. [metric, draft]\n"
+        "* [Gross Margin](/metrics/gross-margin) - Revenue minus cost of goods. [Metric, stale]\n"
+        "* [Gross Margin (legacy)](/metrics/gross-margin-legacy) - Retired definition."
         " [Metric, deprecated]\n"
-        "* [legacy-v01](metrics/legacy-v01) [Reference]\n"
-        "* [Revenue](metrics/revenue) - Recognized revenue for a fiscal year. [Metric]\n"
+        "* [legacy-v01](/metrics/legacy-v01) [Reference]\n"
+        "* [Revenue](/metrics/revenue) - Recognized revenue for a fiscal year. [Metric]\n"
         "\n"
         "(2 concept(s) skipped: invalid frontmatter)\n"
     )
@@ -48,7 +48,7 @@ def test_synthesized_index_lists_subdirectories(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / "top.md").write_text("---\ntype: X\ntitle: Top\n---\n")
     assert Bundle(tmp_path).index("/") == (
-        "# Subdirectories\n\n* [a](a/)\n\n# Concepts\n\n* [Top](top) [X]\n"
+        "# Subdirectories\n\n* [a](/a/)\n\n# Concepts\n\n* [Top](/top) [X]\n"
     )
 
 

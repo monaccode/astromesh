@@ -239,7 +239,7 @@ def _index_line(c: Concept) -> str:
     if c.stale:
         flags.append("stale")
     desc = f" - {c.description}" if c.description else ""
-    return f"* [{c.title}]({c.id}){desc} [{', '.join(flags)}]"
+    return f"* [{c.title}](/{c.id}){desc} [{', '.join(flags)}]"
 
 
 def _log_skipped(count: int, where: str) -> None:
@@ -323,15 +323,22 @@ class Bundle:
                 raw = target.split("#", 1)[0]
                 if not raw:
                     continue  # ancla dentro del mismo concepto
-                base = self.root if raw.startswith("/") else path.parent
-                dest = (base / raw.lstrip("/")).resolve()
-                if not dest.is_relative_to(self.root):
-                    continue
-                if raw.endswith("/") or dest.is_dir() or dest.name == "index.md":
-                    folder = dest.parent if dest.name == "index.md" else dest
-                    item = {"id": _id_of(self.root, folder), "dir": True, "exists": folder.is_dir()}
-                else:
-                    item = {"id": _id_of(self.root, dest), "exists": dest.is_file()}
+                try:
+                    base = self.root if raw.startswith("/") else path.parent
+                    dest = (base / raw.lstrip("/")).resolve()
+                    if not dest.is_relative_to(self.root):
+                        continue
+                    if raw.endswith("/") or dest.is_dir() or dest.name == "index.md":
+                        folder = dest.parent if dest.name == "index.md" else dest
+                        item = {
+                            "id": _id_of(self.root, folder),
+                            "dir": True,
+                            "exists": folder.is_dir(),
+                        }
+                    else:
+                        item = {"id": _id_of(self.root, dest), "exists": dest.is_file()}
+                except (OSError, ValueError):
+                    continue  # nombre imposible en este filesystem: se omite el link
                 key = item["id"]
             if key not in seen:
                 seen.add(key)
@@ -360,7 +367,7 @@ class Bundle:
         )
         if subdirs:
             lines += ["# Subdirectories", ""]
-            lines += [f"* [{p.name}]({_id_of(self.root, p)}/)" for p in subdirs]
+            lines += [f"* [{p.name}](/{_id_of(self.root, p)}/)" for p in subdirs]
         concepts, skipped = [], 0
         for path in folder.glob("*.md"):
             if path.name in RESERVED or not path.resolve().is_relative_to(self.root):
