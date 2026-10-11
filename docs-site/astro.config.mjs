@@ -95,6 +95,7 @@ export default defineConfig({
             { label: 'Observability Stack', slug: 'advanced/observability' },
             { label: 'Prompt Caching', slug: 'advanced/prompt-caching' },
             { label: 'Agent Evals', slug: 'advanced/evals' },
+            { label: 'Knowledge Bundles (OKF)', slug: 'advanced/knowledge-bundles' },
             { label: 'Maia Protocol Internals', slug: 'advanced/maia-internals' },
           ],
         },

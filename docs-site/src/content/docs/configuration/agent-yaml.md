@@ -452,6 +452,20 @@ backend at all, so *no agent had conversational memory with any backend* and the
 `memory_build` / `memory_persist` spans still reported `ok`.
 :::
 
+### `spec.knowledge`
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `pipeline` | One of `pipeline`/`bundle` | `metadata.name` of a `RAGPipeline`. Retrieved chunks reach the templates as `knowledge`. |
+| `top_k` | No | Chunks per run for `pipeline`. Defaults to the pipeline's `retrieval.top_k`. |
+| `bundle` | One of `pipeline`/`bundle` | Directory of an [OKF knowledge bundle](/astromesh/advanced/knowledge-bundles/), relative to the config directory or absolute. Registers `kb_index`, `kb_read` and `kb_find`, and exposes `bundle_index` to the templates. |
+
+```yaml
+knowledge:
+  pipeline: product-knowledge
+  bundle: knowledge/acme_retail
+```
+
 ### `spec.guardrails`
 
 Each guardrail is an object in the `input` or `output` array:
