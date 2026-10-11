@@ -9,8 +9,10 @@ invalidan.
 
 from __future__ import annotations
 
+import difflib
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -192,3 +194,107 @@ def parse_concept(root: Path, path: Path, now: datetime | None = None) -> Concep
         body=body,
         extra=_jsonable({k: v for k, v in meta.items() if k not in _MAPPED}),
     )
+
+
+class OutsideBundleError(BundleError):
+    """La ruta pedida resuelve fuera de la raíz del bundle."""
+
+
+class ConceptNotFoundError(BundleError):
+    """No hay concepto con ese ID."""
+
+
+class NotAConceptError(BundleError):
+    """La ruta existe pero no es un concepto (directorio, reservado o no-markdown)."""
+
+
+# Links markdown (§6.1). Excluye imágenes (`![...]`); las notas al pie (`[^id]`) no
+# llevan paréntesis y no matchean.
+_LINK = re.compile(r"(?<!!)\[[^\]]*\]\(\s*([^)\s]+)[^)]*\)")
+_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+
+
+def _clean(raw: str) -> str:
+    """Normaliza lo que manda el modelo: sin fragmento `#...` ni `/` inicial."""
+    return str(raw or "").split("#", 1)[0].strip().lstrip("/")
+
+
+class Bundle:
+    """Un bundle OKF en disco, de sólo lectura. Lee en cada llamada: sin caché."""
+
+    def __init__(self, root: Path):
+        self.root = Path(root).resolve()
+
+    def _inside(self, rel: str, raw: str) -> Path:
+        # `resolve` sigue symlinks ANTES del chequeo: un link que apunta afuera no pasa.
+        path = (self.root / rel).resolve()
+        if not path.is_relative_to(self.root):
+            raise OutsideBundleError(f"outside bundle: {raw}")
+        return path
+
+    def _concept_path(self, raw: str) -> Path:
+        rel = _clean(raw)
+        base = self.root / rel
+        # El `.md` se agrega antes de resolver: si no, un symlink `x.md` se chequearía
+        # como `x` (que no existe) y se leería igual.
+        if rel and not rel.endswith(".md") and not base.exists():
+            rel += ".md"
+        return self._inside(rel, raw)
+
+    def _concept_files(self) -> list[Path]:
+        out = []
+        for path in self.root.rglob("*.md"):
+            rel_parts = path.relative_to(self.root).parts
+            if path.name in RESERVED or any(p.startswith(".") for p in rel_parts):
+                continue
+            if path.is_file() and path.resolve().is_relative_to(self.root):
+                out.append(path)
+        return sorted(out, key=lambda p: _id_of(self.root, p))
+
+    def _not_found(self, cid: str) -> str:
+        ids = [_id_of(self.root, p) for p in self._concept_files()]
+        close = difflib.get_close_matches(cid, ids, n=3)
+        msg = f"concept not found: {cid}"
+        return f"{msg} (did you mean: {', '.join(close)}?)" if close else msg
+
+    def read(self, concept_id: str, now: datetime | None = None) -> dict:
+        path = self._concept_path(concept_id)
+        cid = _id_of(self.root, path)
+        if not path.exists():
+            raise ConceptNotFoundError(self._not_found(cid))
+        if path.is_dir() or path.suffix != ".md" or path.name in RESERVED:
+            raise NotAConceptError(f"not a concept: {cid}")
+        concept = parse_concept(self.root, path, now)
+        return {
+            **concept.summary(),
+            "tags": concept.tags,
+            "warnings": concept.warnings,
+            "extra": concept.extra,
+            "body": concept.body,
+            "links": self._links(path, concept.body),
+        }
+
+    def _links(self, path: Path, body: str) -> list[dict]:
+        """Links del cuerpo resueltos a IDs, para que el modelo no calcule rutas relativas."""
+        out, seen = [], set()
+        for target in _LINK.findall(body):
+            if _SCHEME.match(target):
+                item, key = {"url": target, "external": True}, target
+            else:
+                raw = target.split("#", 1)[0]
+                if not raw:
+                    continue  # ancla dentro del mismo concepto
+                base = self.root if raw.startswith("/") else path.parent
+                dest = (base / raw.lstrip("/")).resolve()
+                if not dest.is_relative_to(self.root):
+                    continue
+                if raw.endswith("/") or dest.is_dir() or dest.name == "index.md":
+                    folder = dest.parent if dest.name == "index.md" else dest
+                    item = {"id": _id_of(self.root, folder), "dir": True, "exists": folder.is_dir()}
+                else:
+                    item = {"id": _id_of(self.root, dest), "exists": dest.is_file()}
+                key = item["id"]
+            if key not in seen:
+                seen.add(key)
+                out.append(item)
+        return out
