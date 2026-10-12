@@ -25,8 +25,6 @@ spec:
 
 The template variable `bundle_index` holds the root index. It is stable between queries while the bundle and its root concepts don't change (editing the bundle, or a root concept passing its `stale_after`, changes it), so it can go in `prompts.system` and keep the prompt cache warm, and it saves the agent its first `kb_index` call.
 
-If the agent sets `permissions.allowed_actions`, add `kb_index`, `kb_read` and `kb_find` to it.
-
 ## Trust and freshness
 
 Signals are reported, never used to hide a concept:

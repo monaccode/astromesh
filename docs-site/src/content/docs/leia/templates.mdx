@@ -64,13 +64,15 @@ It won't:
 
 - emit `internal`, `webhook`, `rag` or `mcp_*` tool types, which the runtime drops with only a
   warning;
+- emit `spec.guardrails` or `orchestration.timeout_seconds` as if they did something: core 0.68
+  accepts both and applies neither;
 - invent a `spec.channels` block;
 - write a placeholder system prompt;
 - add a chain because it looks sophisticated.
 
 <Aside type="note">
-The architect's knowledge ends at core 0.38.1. Newer features (`integration`, `api` and `mcp`
-tools, `prefetch`, Glyph) are not in its schemas.
+The architect's knowledge ends at core 0.68.0. Fields added to the core after that are not in
+its schemas.
 </Aside>
 
 ## The bundled schemas
