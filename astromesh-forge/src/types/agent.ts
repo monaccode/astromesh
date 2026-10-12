@@ -75,6 +75,7 @@ export interface AgentConfig {
       timeout_seconds?: number;
     };
     tools?: ToolConfig[];
+    knowledge?: { pipeline?: string; top_k?: number; bundle?: string };
     memory?: {
       conversational?: MemoryConfig;
       semantic?: MemoryConfig;

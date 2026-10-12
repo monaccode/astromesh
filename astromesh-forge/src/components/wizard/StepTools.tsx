@@ -17,6 +17,8 @@ import { useAgentEditorStore } from "../../stores/agent";
 import { useConnectionStore } from "../../stores/connection";
 import { Badge } from "../ui/Badge";
 import { Card } from "../ui/Card";
+import { Input } from "../ui/Input";
+import { cleanKnowledge } from "../../utils/knowledge";
 import type { ToolConfig } from "../../types/agent";
 
 interface AvailableTool {
@@ -131,6 +133,7 @@ function DroppableArea({
 export function StepTools() {
   const config = useAgentEditorStore((s) => s.config);
   const updateSpec = useAgentEditorStore((s) => s.updateSpec);
+  const setConfig = useAgentEditorStore((s) => s.setConfig);
   const client = useConnectionStore((s) => s.client);
   const connected = useConnectionStore((s) => s.connected);
 
@@ -139,6 +142,13 @@ export function StepTools() {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const agentTools = config.spec.tools || [];
+  const knowledge = config.spec.knowledge ?? {};
+
+  function setKnowledge(patch: NonNullable<typeof config.spec.knowledge>) {
+    const next = cleanKnowledge({ ...knowledge, ...patch });
+    const { knowledge: _drop, ...rest } = config.spec;
+    setConfig({ ...config, spec: next ? { ...rest, knowledge: next } : rest });
+  }
 
   useEffect(() => {
     if (!connected) return;
@@ -282,6 +292,36 @@ export function StepTools() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <div className="space-y-3 pt-4 border-t border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-100">Knowledge</h3>
+        <Input
+          label="RAG pipeline name"
+          id="knowledge-pipeline"
+          value={knowledge.pipeline ?? ""}
+          onChange={(e) => setKnowledge({ pipeline: e.target.value })}
+          placeholder="docs-pipeline"
+        />
+        {knowledge.pipeline && (
+          <Input
+            label="Top K"
+            id="knowledge-top-k"
+            type="number"
+            min={1}
+            value={knowledge.top_k ?? ""}
+            onChange={(e) =>
+              setKnowledge({ top_k: e.target.value ? Number(e.target.value) : undefined })
+            }
+          />
+        )}
+        <Input
+          label="OKF bundle path"
+          id="knowledge-bundle"
+          value={knowledge.bundle ?? ""}
+          onChange={(e) => setKnowledge({ bundle: e.target.value })}
+          placeholder="knowledge/my-bundle"
+        />
+      </div>
     </div>
   );
 }

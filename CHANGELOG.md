@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Astromesh Forge)
+
+- **Forge modela `spec.knowledge`** (pipeline, `top_k` y bundle de knowledge bundles OKF, core
+  0.68.0) y lo edita desde el wizard (paso Tools). Un campo vacío quita la clave, así que nunca
+  emite `knowledge: {}` ni `top_k` sin pipeline. Forge → 0.25.0. (`astromesh-forge`)
+
 ## [0.68.0] - 2026-10-11
 
 ### Added
