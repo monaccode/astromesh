@@ -1,0 +1,42 @@
+---
+import ProductShowcase from './ProductShowcase.astro';
+
+import { COMPONENTS } from '../data/ecosystem';
+const version = COMPONENTS.find((c) => c.id === 'okf')!.version;
+
+const lines = [
+  { t: 'kb_index("/")', k: 'cmd' },
+  { t: '  * policies/ - Customer-facing policies.', k: 'comment' },
+  { t: '  * products/ - What we sell.', k: 'comment' },
+  { t: 'kb_find(type="Policy")', k: 'cmd' },
+  { t: '  policies/refunds · human-reviewed', k: 'plain' },
+  { t: 'kb_read("policies/refunds")', k: 'cmd' },
+  { t: '  title: Refund policy · trust: human-reviewed', k: 'str' },
+  { t: '  link → products/plans (exists)', k: 'str' },
+];
+
+const features = [
+  { icon: `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: '3 tools', desc: 'kb_index · kb_find · kb_read' },
+  { icon: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>`, label: '9 frameworks', desc: 'LangChain, CrewAI, ADK, …' },
+  { icon: `<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>`, label: 'MCP server', desc: 'Claude Desktop, Code, Cursor' },
+  { icon: `<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>`, label: 'Trust & freshness', desc: 'Warnings, never hidden' },
+  { icon: `<circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/>`, label: 'Never raises', desc: 'Errors come back as JSON' },
+  { icon: `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`, label: 'Path confinement', desc: 'Symlinks resolved first' },
+];
+---
+
+<ProductShowcase
+  name="OKF"
+  version={version}
+  badge="PRE-RELEASE"
+  tagline="Navigate knowledge, don't retrieve chunks"
+  description="Three tools that let an agent in any framework walk an Open Knowledge Format bundle: read the index, search by type or tag, open a concept and follow its links. Not on PyPI yet; install from GitHub."
+  accent="#2dd4bf"
+  accentDeep="#14b8a6"
+  panelTitle="okf · navigation"
+  lines={lines}
+  features={features}
+  terminal={['pip install "astromesh-okf @ git+https://github.com/monaccode/astromesh-okf"', "astromesh-okf index ./bundle"]}
+  ctaPrimary={{ text: 'Get Started', href: '/astromesh/okf/quickstart/' }}
+  ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/okf/introduction/' }}
+/>

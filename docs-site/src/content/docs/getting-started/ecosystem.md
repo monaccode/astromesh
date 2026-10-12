@@ -1,6 +1,6 @@
 ---
 title: The Astromesh Ecosystem
-description: How the core runtime, Glyph, ADK, CLI, Node, OS, Forge, Cortex, Orbit, Prisma, Nexus, Herald, Leia, and Nebula fit together
+description: How the core runtime, Glyph, OKF, ADK, CLI, Node, OS, Forge, Cortex, Orbit, Prisma, Nexus, Herald, Leia, and Nebula fit together
 ---
 
 Astromesh is not a single tool — it's an **ecosystem** designed to cover the full lifecycle of AI agents: **define, build, run, deploy, and manage**. The core runtime is the foundation, and a set of satellite projects extend it for specific use cases.
@@ -15,6 +15,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 |-----------|-------------|----------------|---------|
 | **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 18 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.68.0 |
 | **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.3 |
+| **OKF** | Open-source library: agents in LangChain, CrewAI, ADK and six more frameworks (or any MCP client) navigate an Open Knowledge Format bundle with trust and freshness signals | [`astromesh-okf`](https://github.com/monaccode/astromesh-okf) | v0.1.0 *(in development)* |
 | **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.4.0 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.3.1 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.10 |
@@ -161,4 +162,5 @@ flowchart TB
 | Prisma | [Prisma Introduction](/astromesh/prisma/introduction/) — the multi-cloud reconciler, and what it does not do yet |
 | Herald | [Herald Introduction](/astromesh/herald/introduction/) — channels in, proactive messages out |
 | Glyph | [Glyph Introduction](/astromesh/glyph/introduction/) — the action language, and when it actually pays |
+| OKF | [OKF Introduction](/astromesh/okf/introduction/) — navigating knowledge bundles from any framework |
 | Nebula | [Nebula Introduction](/astromesh/nebula/introduction/) — the open-model foundry where our models are born |

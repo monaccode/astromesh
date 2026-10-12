@@ -127,6 +127,14 @@ export default defineConfig({
           ],
         },
         {
+          label: 'OKF Tools',
+          items: [
+            { label: 'Introduction', slug: 'okf/introduction' },
+            { label: 'Quickstart', slug: 'okf/quickstart' },
+            { label: 'Integrations', slug: 'okf/integrations' },
+          ],
+        },
+        {
           label: 'Astromesh Nebula',
           items: [
             { label: 'Introduction', slug: 'nebula/introduction' },

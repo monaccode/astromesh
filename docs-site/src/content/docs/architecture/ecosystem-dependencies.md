@@ -117,6 +117,7 @@ All authoring tools produce the same agent spec that the core runtime understand
 
 - **Core Runtime** — Loads YAML agents, routes roles to models, runs orchestration patterns, manages memory/tools/guardrails.
 - **Glyph** — Optional action-language pattern inside the runtime. Requires the `glyph` extra or a local editable install.
+- **OKF** (own repo, `astromesh-okf`) — The Open Knowledge Format reader behind `spec.knowledge.bundle`, as a standalone library for other frameworks. Depends only on PyYAML; the core is expected to depend on it in a later release, not today.
 
 ### 3.3 Reach layer
 

@@ -1,0 +1,148 @@
+---
+title: OKF integrations
+description: The nine framework targets of astromesh-okf, the extra for each and a minimal snippet.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Every adapter has the same entry point, `okf_tools(bundle, prefix="")`, which returns the framework's own tool objects. The adapter imports its framework only when you call it. Install an extra with `pip install "astromesh-okf[<extra>] @ git+https://github.com/monaccode/astromesh-okf"` (PyPI publication is pending).
+
+| Framework | Extra | Adapter import |
+|---|---|---|
+| LangChain / LangGraph | `langchain` | `from astromesh_okf.integrations.langchain import okf_tools` |
+| CrewAI | `crewai` | `from astromesh_okf.integrations.crewai import okf_tools` |
+| Google ADK | `adk` | `from astromesh_okf.integrations.adk import okf_tools` |
+| OpenAI Agents SDK | `openai-agents` | `from astromesh_okf.integrations.openai_agents import okf_tools` |
+| PydanticAI (Python 3.11+) | `pydantic-ai` | `from astromesh_okf.integrations.pydantic_ai import okf_tools` |
+| LlamaIndex | `llamaindex` | `from astromesh_okf.integrations.llamaindex import okf_tools` |
+| smolagents | `smolagents` | `from astromesh_okf.integrations.smolagents import okf_tools` |
+| Microsoft Agent Framework | `agent-framework` | `from astromesh_okf.integrations.agent_framework import okf_tools` |
+| MCP (Claude Desktop, Claude Code, Cursor, any client) | `mcp` | `astromesh-okf mcp ./my-bundle` |
+
+Anything that takes plain Python functions needs no extra: `OKFTools("./my-bundle").functions()` returns `kb_index`, `kb_read` and `kb_find`.
+
+The snippets below assume this system prompt. Model packages are separate installs.
+
+```python
+from astromesh_okf import Bundle
+
+SYSTEM = "Answer using the knowledge base tools. Bundle index:\n" + Bundle("./my-bundle").index("/")
+```
+
+## LangChain / LangGraph
+
+```python
+from langchain.agents import create_agent
+from astromesh_okf.integrations.langchain import okf_tools
+
+agent = create_agent("openai:gpt-4.1-mini", okf_tools("./my-bundle"), system_prompt=SYSTEM)
+result = agent.invoke({"messages": [("user", "Can I get a refund?")]})
+```
+
+## CrewAI
+
+```python
+from crewai import Agent
+from astromesh_okf.integrations.crewai import okf_tools
+
+agent = Agent(
+    role="Support agent",
+    goal="Answer from the bundle",
+    backstory=SYSTEM,
+    tools=okf_tools("./my-bundle"),
+)
+```
+
+## Google ADK
+
+```python
+from google.adk.agents import Agent
+from astromesh_okf.integrations.adk import okf_tools
+
+agent = Agent(
+    name="support", model="gemini-2.5-flash", instruction=SYSTEM, tools=okf_tools("./my-bundle")
+)
+```
+
+## OpenAI Agents SDK
+
+```python
+from agents import Agent, Runner
+from astromesh_okf.integrations.openai_agents import okf_tools
+
+agent = Agent(name="support", instructions=SYSTEM, tools=okf_tools("./my-bundle"))
+print(Runner.run_sync(agent, "Can I get a refund?").final_output)
+```
+
+## PydanticAI
+
+```python
+from pydantic_ai import Agent
+from astromesh_okf.integrations.pydantic_ai import okf_tools
+
+agent = Agent("openai:gpt-4.1-mini", tools=okf_tools("./my-bundle"), system_prompt=SYSTEM)
+print(agent.run_sync("Can I get a refund?").output)
+```
+
+## LlamaIndex
+
+```python
+from llama_index.core.agent.workflow import FunctionAgent
+from llama_index.llms.openai import OpenAI
+from astromesh_okf.integrations.llamaindex import okf_tools
+
+agent = FunctionAgent(
+    tools=okf_tools("./my-bundle"), llm=OpenAI(model="gpt-4.1-mini"), system_prompt=SYSTEM
+)
+
+
+async def main():
+    print(await agent.run("Can I get a refund?"))
+```
+
+## smolagents
+
+```python
+from smolagents import OpenAIModel, ToolCallingAgent
+from astromesh_okf.integrations.smolagents import okf_tools
+
+agent = ToolCallingAgent(
+    tools=okf_tools("./my-bundle"), model=OpenAIModel("gpt-4.1-mini"), instructions=SYSTEM
+)
+print(agent.run("Can I get a refund?"))
+```
+
+## Microsoft Agent Framework
+
+```python
+from agent_framework import Agent
+from agent_framework.openai import OpenAIChatCompletionClient
+from astromesh_okf.integrations.agent_framework import okf_tools
+
+agent = Agent(
+    OpenAIChatCompletionClient(model="gpt-4.1-mini"), SYSTEM, tools=okf_tools("./my-bundle")
+)
+```
+
+## MCP
+
+See the [quickstart](/astromesh/okf/quickstart/) for Claude Desktop, Claude Code and Cursor. From Python, `build_server` returns a `FastMCP` server you can run or mount:
+
+```python
+from astromesh_okf.mcp import build_server
+
+build_server("./my-bundle", prefix="support_", name="support-kb").run()
+```
+
+## Argument coercion differs by framework
+
+Models invent arguments: `limit="2"`, `tags="finance"` instead of a list, `include_deprecated="false"` as a string; strict-schema frameworks send `null` for every optional argument.
+
+- **Pass-through** (plain functions and `OKFTools`, LlamaIndex, smolagents, Google ADK): the tool layer coerces. Numbers are parsed (with a default when they are not), a string tag becomes a list, `"true"`, `"1"` and `"yes"` mean true and any other string means false, and `null` means the default.
+- **Schema-validating** (LangChain, CrewAI, OpenAI Agents, Agent Framework, PydanticAI and MCP): the framework validates first. It parses `"2"` and `"false"` itself, rejects what does not fit (`limit="many"`, `tags="finance"`) and reports the error to the model so it can retry.
+
+Either way the agent loop does not crash.
+
+<Aside type="tip">
+To mount several bundles in one agent, use `prefix`: `okf_tools("./support-kb", prefix="support_") + okf_tools("./finance-kb", prefix="finance_")` gives `support_kb_index`, `finance_kb_read` and so on.
+</Aside>

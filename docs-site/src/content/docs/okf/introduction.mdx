@@ -1,0 +1,66 @@
+---
+title: OKF Tools
+description: An open-source library that lets agents in any framework navigate an Open Knowledge Format bundle, with trust and freshness signals.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+**astromesh-okf** gives an AI agent three tools to walk an [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format) (OKF) bundle the way a person would: read the index, search by type or tag, open a concept and follow its links, with the trust and freshness signals of the spec intact. A bundle is a directory of Markdown concepts with YAML frontmatter. The library works with LangChain/LangGraph, CrewAI, Google ADK, OpenAI Agents SDK, PydanticAI, LlamaIndex, smolagents, Microsoft Agent Framework and any MCP client, and its core depends only on PyYAML.
+
+<Aside type="caution" title="Pre-release">
+Version 0.1.0 has no release tag and is not on PyPI yet. Install it from GitHub, as shown in the [quickstart](/astromesh/okf/quickstart/).
+</Aside>
+
+## The navigation trail
+
+Real output from the CLI against the `support` bundle in the repository (`astromesh-okf index|find|read examples/bundles/support ...`):
+
+```text
+kb_index("/")
+# Subdirectories
+
+* [policies](policies/) - Customer-facing policies.
+* [products](products/) - What we sell.
+
+kb_find(type="Policy")
+{"results": [{"id": "policies/refunds", "type": "Policy", "title": "Refund policy",
+  "status": "stable", "trust": "human-reviewed", "stale": false}], "skipped_invalid": 0}
+
+kb_read("policies/refunds")
+{"id": "policies/refunds", "type": "Policy", "title": "Refund policy",
+ "trust": "human-reviewed", "stale": false, "warnings": [], ...
+ "links": [{"id": "products/plans", "exists": true},
+           {"id": "policies/refunds-2024", "exists": true}]}
+
+kb_read("policies/refunds-2024")
+{"id": "policies/refunds-2024", "title": "Refund policy (2024)", "status": "deprecated",
+ "trust": "unverified", "warnings": ["DEPRECATED: kept for history; do not use for new work."], ...}
+```
+
+The agent never builds a path itself: every link in a concept body comes back as a concept id it can pass straight back to `kb_read`, and a retired concept still opens, with a warning.
+
+## When navigation beats RAG, and when it does not
+
+**Navigation wins** when the knowledge is curated, linked and typed: policies, metric definitions, runbooks, a data catalog. The model reads whole concepts rather than fragments, follows the links the authors wrote, sees who verified each concept and whether it is stale or deprecated, and can cite the concept id it answered from. Nothing is embedded or indexed ahead of time, so an edit to the bundle is visible on the next tool call.
+
+**RAG wins** on huge, unstructured corpora: thousands of documents with no structure to follow. `kb_find` is a plain scan that parses every concept file on each call. That is fine for hundreds to a few thousand concepts and the wrong tool beyond that.
+
+**They combine.** Give the agent a retriever for the long tail and the OKF tools for the curated core; with `prefix` you can mount several bundles in one agent.
+
+## What we learned building it in Astromesh
+
+- **Signals are annotated, never used to hide content.** A deprecated or unverified concept is still readable; it comes back with `trust`, `stale`, `status` and human-readable `warnings`. The one exception is search: `kb_find` skips deprecated concepts unless asked, because a search result is a recommendation.
+- **Links come back already resolved.** Models get relative paths wrong. `kb_read` returns each body link as a concept id, marks external URLs and directories, says whether the target exists, and drops links that point outside the bundle.
+- **The root index belongs in the system prompt.** It does not change between questions, so preloading `Bundle(path).index("/")` saves a tool call per conversation and keeps the prompt prefix stable for caching.
+- **Tools never raise.** Depending on the framework, an exception either ends the run or reaches the model as a traceback. Every error comes back as a JSON message, and a missing concept comes with suggestions.
+- **Models invent arguments** (`limit="2"`, a string where a list belongs). Some frameworks pass arguments straight through and the tool layer coerces them; others validate against the schema and report the error to the model. See [Integrations](/astromesh/okf/integrations/).
+- **Path confinement must resolve symlinks before checking.** A concept id is untrusted input, so the path is resolved and only then compared with the bundle root.
+- **Be tolerant, the spec says so.** Only unparseable frontmatter and a missing `type` make a concept invalid; unknown fields are kept under `extra`, and search skips invalid concepts and counts them.
+
+## How it relates to the Astromesh core
+
+Core 0.68.0 already reads OKF bundles: `spec.knowledge.bundle` gives an agent the same three tools (see [Knowledge Bundles](/astromesh/advanced/knowledge-bundles/)). This library is that reader extracted so other frameworks can use it, and the core is expected to depend on it. Today the two are separate code.
+
+## Status and license
+
+Pre-release 0.1.0, installable from GitHub, PyPI publication pending. Writing or editing bundles, validation, remote bundles and async-native tools are not supported yet. Licensed under Apache-2.0. Source: [github.com/monaccode/astromesh-okf](https://github.com/monaccode/astromesh-okf).

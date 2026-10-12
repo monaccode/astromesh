@@ -3,6 +3,12 @@ title: Knowledge Bundles (OKF)
 description: Give an agent an Open Knowledge Format bundle and let it navigate the concepts it needs, with trust and freshness signals intact
 ---
 
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note">
+The same reader is available outside Astromesh as the open-source library [astromesh-okf](/astromesh/okf/introduction/), for LangChain/LangGraph, CrewAI, Google ADK and more.
+</Aside>
+
 [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format) (OKF) is an open spec for knowledge as a directory of markdown files with YAML frontmatter, cross-linked like a wiki. Astromesh reads OKF v0.2 bundles (and v0.1 ones) as they are: no conversion, no embeddings, no vector store. The agent navigates the bundle with three tools and opens only what it needs.
 
 ## Configuration

@@ -1,0 +1,95 @@
+---
+title: OKF quickstart
+description: Install astromesh-okf from GitHub and give an agent a knowledge bundle in a few lines.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Install
+
+```bash
+pip install "astromesh-okf[langchain] @ git+https://github.com/monaccode/astromesh-okf"
+```
+
+<Aside type="caution">
+`pip install astromesh-okf` does not work yet: the package is not on PyPI. Install from GitHub until it is published. Drop the `[langchain]` extra if you do not need a framework adapter; the extra names are in [Integrations](/astromesh/okf/integrations/).
+</Aside>
+
+## No framework, no model
+
+The tools are plain methods that return strings.
+
+```python
+from astromesh_okf import OKFTools
+
+kb = OKFTools("./my-bundle")
+print(kb.kb_index("/"))
+print(kb.kb_find(type="Policy"))
+print(kb.kb_read("policies/refunds"))
+```
+
+No bundle yet? Clone the repository and try `astromesh-okf index examples/bundles/support`.
+
+## With LangChain
+
+`create_agent` runs on LangGraph underneath, so the same tools work in a hand-built LangGraph graph (`ToolNode`).
+
+```bash
+pip install "astromesh-okf[langchain] @ git+https://github.com/monaccode/astromesh-okf" langchain langchain-openai
+export OPENAI_API_KEY=...
+```
+
+```python
+import os
+from pathlib import Path
+
+from langchain.agents import create_agent
+
+from astromesh_okf import Bundle
+from astromesh_okf.integrations.langchain import okf_tools
+
+QUESTION = "Can I get a refund after 3 weeks on the Team plan?"
+BUNDLE = Path(__file__).parent / "bundles" / "support"
+SYSTEM = "Answer using the knowledge base tools. Bundle index:\n" + Bundle(BUNDLE).index("/")
+
+if __name__ == "__main__":
+    agent = create_agent(
+        os.getenv("OKF_EXAMPLE_MODEL", "openai:gpt-4.1-mini"),
+        okf_tools(BUNDLE),
+        system_prompt=SYSTEM,
+    )
+    result = agent.invoke({"messages": [("user", QUESTION)]})
+    print(result["messages"][-1].content)
+```
+
+This is `examples/langgraph_agent.py` from the repository. The root index goes into the system prompt so the agent does not spend a tool call on it.
+
+## As an MCP server
+
+Install the `mcp` extra, then point your client at the bundle with an absolute path.
+
+```bash
+pip install "astromesh-okf[mcp] @ git+https://github.com/monaccode/astromesh-okf"
+astromesh-okf mcp /absolute/path/to/bundle
+```
+
+**Claude Code**
+
+```bash
+claude mcp add okf-support -- astromesh-okf mcp /absolute/path/to/bundle
+```
+
+**Claude Desktop** (`claude_desktop_config.json`) or Cursor (`.cursor/mcp.json`)
+
+```json
+{ "mcpServers": { "okf-support": { "command": "astromesh-okf", "args": ["mcp", "/absolute/path/to/bundle"] } } }
+```
+
+<Aside>
+The repository's own examples use `uvx --from astromesh-okf[mcp] ...`, which resolves the package from PyPI and will work once it is published. Until then, use the installed `astromesh-okf` command as above. Over MCP you usually do not control the system prompt, so the model starts with `kb_index("/")`.
+</Aside>
+
+## Next
+
+- [Integrations](/astromesh/okf/integrations/): the other seven frameworks.
+- [Introduction](/astromesh/okf/introduction/): what the tools return and when to use them.
