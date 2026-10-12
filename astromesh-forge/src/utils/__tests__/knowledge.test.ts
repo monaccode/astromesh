@@ -4,6 +4,22 @@ import { agentToYaml, yamlToAgent } from "../yaml";
 import { agentToNodes } from "../agent-to-nodes";
 import { nodesToAgent } from "../nodes-to-agent";
 
+describe("cleanKnowledge commit", () => {
+  it("keeps raw while typing, trims on commit", () => {
+    expect(cleanKnowledge({ bundle: "a b" }, false)).toEqual({ bundle: "a b" });
+    expect(cleanKnowledge({ bundle: "a " }, false)).toEqual({ bundle: "a " });
+    expect(cleanKnowledge({ bundle: "  x  " })).toEqual({ bundle: "x" });
+    expect(cleanKnowledge({ bundle: "   " }, false)).toBeUndefined();
+  });
+  it("agentToYaml emits trimmed, never empty knowledge", () => {
+    const cfg = yamlToAgent(YAML);
+    cfg.spec.knowledge = { bundle: "  x y  ", top_k: 3 };
+    expect(yamlToAgent(agentToYaml(cfg)).spec.knowledge).toEqual({ bundle: "x y" });
+    cfg.spec.knowledge = { pipeline: " ", top_k: 3 };
+    expect(agentToYaml(cfg)).not.toContain("knowledge");
+  });
+});
+
 describe("cleanKnowledge", () => {
   it("drops empty keys and the whole block", () => {
     expect(cleanKnowledge({ pipeline: "", bundle: " ", top_k: 3 })).toBeUndefined();

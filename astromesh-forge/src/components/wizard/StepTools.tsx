@@ -144,8 +144,8 @@ export function StepTools() {
   const agentTools = config.spec.tools || [];
   const knowledge = config.spec.knowledge ?? {};
 
-  function setKnowledge(patch: NonNullable<typeof config.spec.knowledge>) {
-    const next = cleanKnowledge({ ...knowledge, ...patch });
+  function setKnowledge(patch: NonNullable<typeof config.spec.knowledge>, commit = false) {
+    const next = cleanKnowledge({ ...knowledge, ...patch }, commit);
     const { knowledge: _drop, ...rest } = config.spec;
     setConfig({ ...config, spec: next ? { ...rest, knowledge: next } : rest });
   }
@@ -300,6 +300,7 @@ export function StepTools() {
           id="knowledge-pipeline"
           value={knowledge.pipeline ?? ""}
           onChange={(e) => setKnowledge({ pipeline: e.target.value })}
+          onBlur={() => setKnowledge({}, true)}
           placeholder="docs-pipeline"
         />
         {knowledge.pipeline && (
@@ -319,6 +320,7 @@ export function StepTools() {
           id="knowledge-bundle"
           value={knowledge.bundle ?? ""}
           onChange={(e) => setKnowledge({ bundle: e.target.value })}
+          onBlur={() => setKnowledge({}, true)}
           placeholder="knowledge/my-bundle"
         />
       </div>
