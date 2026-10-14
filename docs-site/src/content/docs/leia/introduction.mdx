@@ -10,7 +10,7 @@ agent you need, in English or Spanish, and Leia designs a complete `astromesh/v1
 a real system prompt, shows it to you, and can deploy it, test it and diagnose it on a
 [Nexus](/astromesh/nexus/introduction/) hub. It is named after a lemon beagle.
 
-<Aside type="caution" title="v0.6.0 targets an older Nexus">
+<Aside type="caution" title="v0.7.0 targets an older Nexus">
 Leia's operations (deploy, status, logs, test, bootstrap, doctor) were written for **Nexus
 0.3.x**, when Nexus was a Kubernetes operator. Against the current managed Nexus (0.26.x) they
 do not work as written: Leia sends the API key as `Authorization: Bearer`, and Nexus only reads
@@ -95,7 +95,8 @@ version.
 
 | Version | Synced to | Added |
 |---|---|---|
-| **0.6.0** | core 0.68.0 | The whole manifest again: `integration`, `api` and `mcp` tools with `confirm`/`mode`, `prefetch`, `prompts.context` and `context_window`, `max_result_tokens`, pipeline `stages`, Glyph, and `spec.knowledge` with OKF bundles. It also says what 0.68 accepts but never applies: `spec.guardrails`, `permissions.allowed_actions`, semantic and episodic memory, a swarm handoff, `orchestration.timeout_seconds` |
+| **0.7.0** | core 0.70.0 | Guardrails are enforced in core 0.70, so the architect emits them again: the real rule types per side, `message`, and the cautions (no input PII redaction when tools need IDs or phones, `cost_limit` ≈ 4000 for the whole run, US-format PII patterns). Templates carry input `max_length` and `cost_limit`, and output PII redaction where it fits. |
+| 0.6.0 | core 0.68.0 | The whole manifest again: `integration`, `api` and `mcp` tools with `confirm`/`mode`, `prefetch`, `prompts.context` and `context_window`, `max_result_tokens`, pipeline `stages`, Glyph, and `spec.knowledge` with OKF bundles. It also says what 0.68 accepts but never applies: `spec.guardrails`, `permissions.allowed_actions`, semantic and episodic memory, a swarm handoff, `orchestration.timeout_seconds` |
 | 0.5.0 | core 0.38.1 | `spec.chain` and `spec.output_schema`: when to offer them, that every agent in `on_complete` must be deployed first, and that an older runtime ignores both silently. The doctor checks chain declarations |
 | 0.4.0 | core 0.36.0 | Only `builtin`, `agent` and `client` tools load from YAML; which model keys each source reads; the streaming contract and `usage.by_model`; RAG pipeline and workflow endpoints |
 | 0.3.0 | core 0.29.0 | Per-role models (`default` + `roles`), `litellm`, the roles each pattern asks for |
