@@ -248,17 +248,17 @@ Relevant knowledge:
 
 **Module:** `astromesh/core/guardrails.py`
 
-The Guardrails Engine applies safety checks on both input (before the agent processes a query) and output (before the response is returned to the caller).
+The Guardrails Engine applies the rules in `spec.guardrails`. Input rules run before memory and the model; output rules run on the final answer and on streamed `token` events.
 
-| Guardrail | Direction | Description |
-|-----------|-----------|-------------|
-| `pii_detection` | Input & Output | Detects and redacts emails, phone numbers, SSNs, and credit card numbers using regex patterns |
-| `topic_filter` | Input | Blocks messages matching forbidden topics defined in configuration |
-| `max_length` | Input | Enforces maximum character limits on incoming queries |
-| `cost_limit` | Output | Enforces token-per-turn limits to prevent runaway LLM usage |
-| `content_filter` | Output | Blocks responses containing forbidden keywords or patterns |
+| Rule | Direction | Actions |
+|------|-----------|---------|
+| `pii_detection` | Input & Output | `redact` (default), `block`, `warn` |
+| `topic_filter` | Input | `warn` (default), `block` |
+| `max_length` | Input | `truncate` (default), `block` |
+| `content_filter` | Output | `redact` (default), `block` |
+| `cost_limit` | Run (declared under either) | always blocks once the token budget is spent |
 
-Guardrails run in the order they are defined in the agent's YAML configuration. Each guardrail can either **pass** (allow the message through), **redact** (modify the message and continue), or **block** (reject the message with an error).
+Rules run in declared order. A block is not an error: the run returns normally with `blocked: true`, the rule's message as `answer`, and a `guardrail` object saying which rule fired. Keys, aliases, the rejection result and the limits are in [Agent Pipeline](/astromesh/architecture/agent-pipeline/#step-3-input-guardrails).
 
 ---
 
