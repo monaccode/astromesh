@@ -450,7 +450,7 @@ Output guardrails run on the final `answer` right after the orchestration patter
 
 ### Streaming
 
-The `token` events of a streamed run carry the full response of each model call. With output rules declared, each event's `content` goes through the same rules before it is emitted; if a rule blocks it, that event is not emitted. `cost_limit` does not apply to the stream.
+The `token` events of a streamed run carry the full response of each model call. With output rules declared, each event's `content` goes through the same rules before it is emitted; if a rule blocks it, that event is not emitted. `cost_limit` does not filter individual events, but the budget still applies: a streamed run is stopped by it like any other.
 
 ### Cost limit
 
