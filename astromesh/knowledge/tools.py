@@ -8,24 +8,18 @@ from __future__ import annotations
 
 import asyncio
 
+from astromesh_okf.tools import DESCRIPTIONS
+
 from astromesh.core.tools import ToolRegistry
 from astromesh.knowledge.okf import Bundle, BundleError
 from astromesh.tools.base import ToolResult
 
 TOOL_NAMES = ("kb_index", "kb_read", "kb_find")
 
-_INDEX = (
-    "List a directory of the knowledge bundle. Start here with path '/'. Links starting "
-    "with '/' are bundle-absolute; other links in an index are relative to the listed directory."
-)
-_READ = (
-    "Read one concept of the knowledge bundle: metadata, trust warnings, body, and its "
-    "links already resolved to concept ids you can pass back to kb_read."
-)
-_FIND = (
-    "Search concepts of the knowledge bundle by type, tags (all must match) and text. "
-    "Deprecated concepts are excluded unless include_deprecated is true."
-)
+# Las descripciones son las de la librería: el modelo ve lo mismo dentro y fuera del core.
+_INDEX = DESCRIPTIONS["kb_index"]
+_READ = DESCRIPTIONS["kb_read"]
+_FIND = DESCRIPTIONS["kb_find"]
 
 
 def _int(value, default: int) -> int:

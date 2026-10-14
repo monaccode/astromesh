@@ -68,9 +68,9 @@ def test_index_outside_bundle_is_blocked():
 
 
 def test_synthesized_index_logs_skipped(caplog):
-    with caplog.at_level(logging.WARNING, logger="astromesh.knowledge.okf"):
+    with caplog.at_level(logging.WARNING, logger="astromesh_okf"):
         B.index("metrics")
-    assert "omitido" in caplog.text
+    assert "skipped" in caplog.text
 
 
 def test_find_without_filters_excludes_deprecated_and_counts_invalid():

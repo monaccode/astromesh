@@ -84,3 +84,27 @@ async def test_kb_find_include_deprecated_string(value, expected):
     out = await _registry().execute("kb_find", {"include_deprecated": value})
     ids = [r["id"] for r in out["data"]["results"]]
     assert ("metrics/gross-margin-legacy" in ids) is expected
+
+
+async def test_yaml_alias_bomb_comes_back_as_an_error_not_a_crash(tmp_path):
+    """Heredado de astromesh-okf 0.1: un alias de YAML ya no tumba la búsqueda ni el índice."""
+    (tmp_path / "bomb.md").write_text("---\ntype: X\na: &a [*a]\n---\nbody\n")
+    (tmp_path / "ok.md").write_text("---\ntype: X\n---\nbody\n")
+    registry = ToolRegistry()
+    register_bundle_tools(registry, Bundle(tmp_path))
+    out = await registry.execute("kb_read", {"concept_id": "bomb"})
+    assert out["success"] is False
+    assert "aliases are not allowed" in out["error"]
+    found = await registry.execute("kb_find", {})
+    assert [r["id"] for r in found["data"]["results"]] == ["ok"]
+    assert found["data"]["skipped_invalid"] == 1
+
+
+async def test_errors_never_carry_absolute_paths(tmp_path):
+    registry = ToolRegistry()
+    register_bundle_tools(registry, Bundle(tmp_path))
+    out = await registry.execute("kb_index", {"path": "a" * 5000})
+    assert out["success"] is False
+    assert out["error"].startswith("outside bundle")
+    assert str(tmp_path) not in out["error"]
+    assert len(out["error"]) < 300

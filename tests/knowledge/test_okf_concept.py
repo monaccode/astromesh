@@ -163,7 +163,7 @@ def test_stale_after_as_date_only(tmp_path):
 
 
 def test_unreadable_stale_after_is_ignored_and_logged(tmp_path, caplog):
-    with caplog.at_level(logging.WARNING, logger="astromesh.knowledge.okf"):
+    with caplog.at_level(logging.WARNING, logger="astromesh_okf"):
         c = _tmp(tmp_path, "---\ntype: X\nstale_after: next tuesday\n---\n")
     assert c.stale is False
     assert c.warnings == []

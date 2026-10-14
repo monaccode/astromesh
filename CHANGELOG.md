@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- El lector de knowledge bundles OKF sale del core: `astromesh/knowledge/okf.py` re-exporta
+  desde la librería open source [`astromesh-okf`](https://github.com/monaccode/astromesh-okf)
+  (nueva dependencia base `astromesh-okf>=0.1,<0.2`, sólo trae `pyyaml`). `spec.knowledge.bundle`
+  y las tools `kb_index`/`kb_read`/`kb_find` se comportan igual; sus descripciones son las de la
+  librería. Los avisos del log pasan a inglés (`okf: skipped N invalid concept(s) in …`).
+
+### Fixed
+
+- Un concepto cuyo frontmatter usa anclas o alias de YAML (`&a`/`*a`, también `<<: *a`) se
+  rechaza como inválido. Antes un alias que se referencia a sí mismo tiraba `RecursionError`
+  en `kb_read`, `kb_find` y el índice raíz, y unos pocos alias anidados multiplicaban un
+  archivo de 300 bytes hasta decenas de MB. Un bundle de terceros ya no puede tumbar al agente.
+- Los errores de las tools `kb_*` ya no incluyen rutas absolutas del disco (`File name too
+  long: '/ruta/…'`): un nombre imposible vuelve como `outside bundle: …` recortado, y un error
+  de disco con su motivo sin la ruta.
+
 ### Added (Astromesh Forge)
 
 - **Forge modela `spec.knowledge`** (pipeline, `top_k` y bundle de knowledge bundles OKF, core
