@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tokens de la corrida. `blocked_categories` y `allowed_topics` no se soportan (requieren
   un clasificador) y avisan al cargar.
 
+### Fixed
+
+- **`spec.guardrails` se aplica.** Hasta ahora se parseaba y nada lo leía: un agente con
+  `pii_detection: redact` mandaba los emails al modelo. Las reglas de entrada corren antes
+  de memoria, RAG y modelo (en una query multimodal, sobre cada parte de texto); las de
+  salida, sobre la respuesta antes de persistirla y de armar `data`. Un bloqueo devuelve
+  una respuesta de rechazo (`answer` = `message` de la regla, `blocked: true`,
+  `guardrail: {direction, rule, reason}`), no un error; un bloqueo de entrada no persiste
+  el turno, y uno con una confirmación pendiente la descarta. Toda corrida devuelve
+  `blocked` y `guardrail`. Spans `guardrails.input`/`guardrails.output` sin contenido.
+
 ## [0.69.0] - 2026-10-13
 
 ### Changed

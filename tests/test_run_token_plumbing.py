@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import respx
 
+from astromesh.core.guardrails import GuardrailsEngine
 from astromesh.core.tools import ToolRegistry
 from astromesh.runtime.engine import Agent, _make_builtin_handler, _public_caller_context
 from astromesh.tools.base import BuiltinTool, ToolContext, ToolResult
@@ -87,7 +88,7 @@ def _agent(tools: ToolRegistry, pattern) -> Agent:
     agent._orchestration_config = {"pattern": "test"}
     agent._permissions = {}
     agent._output_schema = None
-    agent._guardrails = {}
+    agent._guardrails = GuardrailsEngine(None)
     agent._rag = None
     agent._knowledge = None
     agent._system_prompt = "you are a test agent"
