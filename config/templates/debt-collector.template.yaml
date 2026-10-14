@@ -100,11 +100,8 @@ template:
           max_turns: 20
           ttl: 604800
       guardrails:
-        input:
+        output:
           - type: pii_detection
             action: redact
-        output:
-          - type: content_filter
-            blocked_categories: [harassment, threats, discrimination]
           - type: cost_limit
-            max_tokens_per_turn: 500
+            max_tokens_per_turn: 4000

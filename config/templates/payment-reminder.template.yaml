@@ -85,9 +85,6 @@ template:
           max_turns: 15
           ttl: 86400
       guardrails:
-        input:
+        output:
           - type: pii_detection
             action: redact
-        output:
-          - type: content_filter
-            blocked_categories: [harassment, threats]

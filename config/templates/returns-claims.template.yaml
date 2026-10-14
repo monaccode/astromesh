@@ -83,9 +83,6 @@ template:
           max_turns: 20
           ttl: 3600
       guardrails:
-        input:
-          - type: pii_detection
-            action: redact
         output:
           - type: pii_detection
             action: redact

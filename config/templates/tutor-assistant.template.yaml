@@ -87,7 +87,5 @@ template:
           ttl: 86400
       guardrails:
         output:
-          - type: content_filter
-            blocked_categories: [violence, adult_content]
           - type: cost_limit
-            max_tokens_per_turn: 1500
+            max_tokens_per_turn: 4000

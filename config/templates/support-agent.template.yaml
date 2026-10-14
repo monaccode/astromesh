@@ -95,4 +95,4 @@ template:
           - type: pii_detection
             action: redact
           - type: cost_limit
-            max_tokens_per_turn: 500
+            max_tokens_per_turn: 4000

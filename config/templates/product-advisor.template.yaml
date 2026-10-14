@@ -87,4 +87,4 @@ template:
             action: redact
         output:
           - type: cost_limit
-            max_tokens_per_turn: 1500
+            max_tokens_per_turn: 4000

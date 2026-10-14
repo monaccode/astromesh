@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Manifiestos y templates de `config/` alineados con los guardrails que ahora se aplican:
+  `cost_limit` a 4000 tokens de salida por corrida; fuera `allowed_topics` y
+  `blocked_categories` (requieren un clasificador); `debt-collector`, `payment-reminder` y
+  `returns-claims` dejan de redactar PII de entrada (sus IDs numéricos se confundían con
+  teléfonos o tarjetas) y la redactan en la salida. El schema de VS Code documenta cada
+  regla, acción y alias.
 - **Guardrails reescritos** (`core/guardrails.py`): las reglas se normalizan y validan al
   cargar el agente (lo inválido se descarta con warning, nunca impide cargar); se aceptan
   los nombres de los docs como alias (`forbidden_topics`, `max_characters`,
