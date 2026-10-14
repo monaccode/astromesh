@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.70.0] - 2026-10-14
+
 **Breaking for existing manifests.** Agentes fuera de este repo que ya declaran
 `guardrails` cambian en silencio:
 

@@ -186,7 +186,7 @@ wheels = [
 
 [[package]]
 name = "astromesh"
-version = "0.69.0"
+version = "0.70.0"
 source = { editable = "." }
 dependencies = [
     { name = "astromesh-okf" },

@@ -13,7 +13,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 
 | Component | What it does | Package / Repo | Version |
 |-----------|-------------|----------------|---------|
-| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 18 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.69.0 |
+| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 18 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.70.0 |
 | **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.3 |
 | **OKF** | Open-source library: agents in LangChain, CrewAI, ADK and six more frameworks (or any MCP client) navigate an Open Knowledge Format bundle with trust and freshness signals | [`astromesh-okf`](https://github.com/monaccode/astromesh-okf) | v0.1.0 |
 | **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.4.0 |
