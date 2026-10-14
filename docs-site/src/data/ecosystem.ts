@@ -110,11 +110,11 @@ export const CORE: Component = {
   name: 'Core Runtime',
   short: 'Core',
   group: 'runtime',
-  version: '0.68.0',
-  released: '2026-10-11',
+  version: '0.69.0',
+  released: '2026-10-13',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
-  latest: 'OKF knowledge bundles: `spec.knowledge.bundle` points an agent at an Open Knowledge Format directory and it navigates the concepts with `kb_index`, `kb_read` and `kb_find`, with trust and freshness signals intact. Since 0.67, agent evals: `kind: Eval` files and the `astromesh-eval` runner score an agent on cases with stubbed tools and isolated memory, report quality next to tokens, cache hits and cost, and fail CI below a threshold. Since 0.66, tool results enter the model capped (`max_result_tokens`, default 8000 tokens) and as compact JSON, trimmed by structure with a note of what was left out; plan, pipeline, fan-out and supervisor now see the conversation.',
+  latest: 'The OKF knowledge-bundle reader now comes from the open-source `astromesh-okf` library, so `spec.knowledge.bundle` rejects YAML aliases that could crash or inflate a bundle, and tool errors no longer carry absolute paths. Since 0.68, an agent navigates an Open Knowledge Format bundle with `kb_index`, `kb_read` and `kb_find`; since 0.67, `kind: Eval` files and the `astromesh-eval` runner score agents and fail CI below a threshold.',
   install: 'pip install astromesh',
   href: '/astromesh/getting-started/what-is-astromesh/',
 };

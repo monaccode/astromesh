@@ -61,7 +61,7 @@ The agent never builds a path itself: every link in a concept body comes back as
 
 ## How it relates to the Astromesh core
 
-Core 0.68.0 already reads OKF bundles: `spec.knowledge.bundle` gives an agent the same three tools (see [Knowledge Bundles](/astromesh/advanced/knowledge-bundles/)). This library is that reader extracted so other frameworks can use it, and the core is expected to depend on it. Today the two are separate code.
+The Astromesh core reads OKF bundles with this same library: since core 0.69.0, `spec.knowledge.bundle` (see [Knowledge Bundles](/astromesh/advanced/knowledge-bundles/)) gives an agent the three tools through `astromesh-okf`. The reader was born in the core (0.68.0) and was extracted so other frameworks can use it; fixes now land in the library and reach the runtime as a dependency bump.
 
 ## Status and license
 
