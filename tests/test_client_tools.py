@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import yaml
 
+from astromesh.core.guardrails import GuardrailsEngine
 from astromesh.core.tools import ToolRegistry, ToolType
 from astromesh.runtime.engine import Agent, AgentRuntime
 
@@ -190,7 +191,7 @@ async def test_a_client_tool_reaches_a_consumer_live_and_in_steps():
     agent._orchestration_config = {"pattern": "test"}
     agent._permissions = {}
     agent._output_schema = None
-    agent._guardrails = {}
+    agent._guardrails = GuardrailsEngine(None)
     agent._rag = None
     agent._knowledge = None
     agent._system_prompt = "you are a test agent"

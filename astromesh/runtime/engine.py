@@ -13,6 +13,7 @@ import yaml
 
 from astromesh.chain.compiler import chain_workflow_name, compile_chain
 from astromesh.chain.output import build_data, normalize_output_schema, schema_prompt_block
+from astromesh.core.guardrails import GuardrailBlocked, GuardrailsEngine
 from astromesh.core.memory import MemoryManager
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
@@ -53,6 +54,13 @@ _WHITE, _GRAY, _BLACK = 0, 1, 2
 # Compartida por proceso: el gate tiene que ver lo que propuso la corrida
 # anterior de la misma sesión, y cada corrida arma su propio engine.
 _PENDIENTES = Pendientes()
+
+
+def _texto_de(query) -> str:
+    """El texto de una query: tal cual si es str, las partes `text` unidas si es multimodal."""
+    if isinstance(query, str):
+        return query
+    return " ".join(p.get("text", "") for p in query if p.get("type") == "text")
 
 
 def _emit(on_event, event: dict) -> None:
@@ -175,6 +183,10 @@ def _history_messages(memory_context: dict) -> list[dict]:
             turns.pop(0)
     messages.extend({"role": t.role, "content": t.content} for t in turns)
     return messages
+
+
+# Lo que ocupa el lugar de un texto que una regla de salida bloqueó.
+_BLOQUEADO = "[blocked by guardrail]"
 
 
 def _truncate(text: str | None, limit: int) -> str:
@@ -1260,7 +1272,7 @@ class AgentRuntime:
             pattern=pattern,
             system_prompt=prompts_spec.get("system", ""),
             prompt_engine=self._prompt_engine,
-            guardrails=spec.get("guardrails", {}),
+            guardrails=GuardrailsEngine(spec.get("guardrails") or {}, agent_name=metadata["name"]),
             permissions=spec.get("permissions", {}),
             orchestration_config=spec.get("orchestration", {}),
             rag=rag,
@@ -1582,7 +1594,12 @@ class Agent:
         self._pattern = pattern
         self._system_prompt = system_prompt
         self._prompt_engine = prompt_engine
-        self._guardrails = guardrails
+        # Los tests que arman `Agent` a mano pasan el dict del manifiesto.
+        self._guardrails = (
+            guardrails
+            if isinstance(guardrails, GuardrailsEngine)
+            else GuardrailsEngine(guardrails or {}, agent_name=name)
+        )
         self._permissions = permissions
         self._output_schema = output_schema
         self._orchestration_config = orchestration_config
@@ -1610,6 +1627,79 @@ class Agent:
             )
             return ""
 
+    def _aplicar_guardrails(self, direction, text, tracing, root_span):
+        """Corre las reglas de una dirección dentro de su span; levanta GuardrailBlocked.
+
+        El span lleva qué reglas corrieron y cuántas redacciones o avisos hubo,
+        nunca el texto.
+        """
+        span = tracing.start_span(f"guardrails.{direction}", parent_span_id=root_span.span_id)
+        check = (
+            self._guardrails.check_input if direction == "input" else self._guardrails.check_output
+        )
+        try:
+            report = check(text)
+        except GuardrailBlocked as bloqueo:
+            span.set_attribute("blocked_by", bloqueo.rule)
+            span.set_attribute("reason", bloqueo.reason)
+            tracing.finish_span(span)
+            raise
+        span.set_attribute("rules", report.rules)
+        span.set_attribute("redactions", report.redactions)
+        span.set_attribute("warnings", report.warnings)
+        tracing.finish_span(span)
+        return report.text
+
+    def _guardar_query(self, query, tracing, root_span):
+        """La query con las reglas de entrada aplicadas; multimodal, parte `text` por parte."""
+        if isinstance(query, str):
+            return self._aplicar_guardrails("input", query, tracing, root_span)
+        return [
+            {**p, "text": self._aplicar_guardrails("input", p.get("text", ""), tracing, root_span)}
+            if p.get("type") == "text"
+            else p
+            for p in query
+        ]
+
+    async def _persistir_turno(self, session_id, query, answer, tracing, root_span):
+        from datetime import UTC, datetime
+
+        from astromesh.core.memory import ConversationTurn
+
+        # Extract text for storage; keep full multimodal content in metadata.
+        if isinstance(query, list):
+            text_parts = [p.get("text", "") for p in query if p.get("type") == "text"]
+            user_content = " ".join(text_parts)
+            user_metadata = {"multimodal_content": query}
+        else:
+            user_content = query
+            user_metadata = {}
+
+        persist_span = tracing.start_span("memory_persist", parent_span_id=root_span.span_id)
+        await self._memory.persist_turn(
+            session_id,
+            ConversationTurn(
+                role="user",
+                content=user_content,
+                # Aware, no naive: esto termina en una columna TIMESTAMPTZ de
+                # Postgres, que hasta acá recibía un naive y lo asumía UTC sin
+                # que nadie lo dijera. Los backends de texto guardan ahora un
+                # isoformat con `+00:00`; `fromisoformat` lee las dos formas,
+                # así que las filas viejas se siguen leyendo.
+                timestamp=datetime.now(UTC),
+                metadata=user_metadata,
+            ),
+        )
+        await self._memory.persist_turn(
+            session_id,
+            ConversationTurn(
+                role="assistant",
+                content=answer,
+                timestamp=datetime.now(UTC),
+            ),
+        )
+        tracing.finish_span(persist_span)
+
     async def run(
         self,
         query,
@@ -1622,9 +1712,6 @@ class Agent:
         admite_propuestas: bool = True,
         propuestas_padre: list[dict] | None = None,
     ):
-        from datetime import UTC, datetime
-
-        from astromesh.core.memory import ConversationTurn
         from astromesh.observability.tracing import SpanStatus, TracingContext
 
         tracing = TracingContext(agent_name=self.name, session_id=session_id)
@@ -1633,11 +1720,11 @@ class Agent:
         root_span = tracing.start_span("agent.run", {"agent": self.name, "session": session_id})
 
         try:
-            query_text = (
-                query
-                if isinstance(query, str)
-                else " ".join(p.get("text", "") for p in query if p.get("type") == "text")
-            )
+            # Estado que el `except GuardrailBlocked` de abajo necesita.
+            propuestas: list[dict] | str = []
+            contados = 0  # tokens contados para `cost_limit` (Task 3)
+            corte: GuardrailBlocked | None = None  # el corte de `cost_limit`
+            query_text = _texto_de(query)
 
             # El texto del humano llega UNA vez por corrida; la tool puede llamarse
             # varias. Por eso la habilitación se lee acá y no dentro de `tool_fn`.
@@ -1659,6 +1746,14 @@ class Agent:
             # confirmado en una corrida anterior de la MISMA sesión.
             if desde_humano:
                 _PENDIENTES.habilitar(session_id, query_text)
+
+            # Guardrails de entrada: antes de memoria, RAG, prefetch y modelo, así
+            # todo lo de abajo (y el atributo `query` del span) ve el texto ya
+            # filtrado. `habilitar`, arriba, lee el crudo: es un chequeo de
+            # consentimiento que no viaja al modelo.
+            if self._guardrails.has_input:
+                query = self._guardar_query(query, tracing, root_span)
+                query_text = _texto_de(query)
 
             root_span.set_attribute("query", query_text[:5000])
 
@@ -1699,7 +1794,6 @@ class Agent:
             # devuelve `propuestas` (`admite_propuestas=False`: WhatsApp,
             # `agent_channels`), no recibe lista sino el motivo: su respuesta no
             # las llevaría, y proponer ahí se rechaza en vez de perderse.
-            propuestas: list[dict] | str
             if propuestas_padre is not None:
                 propuestas = propuestas_padre
             elif not desde_humano:
@@ -1827,6 +1921,15 @@ class Agent:
                 route_kwargs["provider_override"] = (override_name, override_provider)
 
             async def model_fn(messages, tools, role=None):
+                nonlocal contados, corte
+                # `cost_limit`: se chequea antes de gastar; la llamada que cruza
+                # el límite se completa. Una vez cortado, toda llamada siguiente
+                # vuelve a levantar aunque el patrón se haya tragado la primera.
+                try:
+                    self._guardrails.check_budget(contados)
+                except GuardrailBlocked as bloqueo:
+                    corte = corte or bloqueo
+                    raise corte from None
                 llm_span = tracing.start_span("llm.complete", parent_span_id=root_span.span_id)
                 full_messages = [{"role": "system", "content": rendered_prompt}, *messages]
                 resolved_role = self._role_map.get(role, role) if role else "default"
@@ -1835,6 +1938,7 @@ class Agent:
                 llm_span.set_attribute("resolved_role", resolved_role or "default")
                 try:
                     response = await router.route(full_messages, tools=tools, **route_kwargs)
+                    contados += self._guardrails.tokens_of(getattr(response, "usage", None))
                     # Fase 4.4c: attribute the outbound provider-request bytes to this agent.
                     try:
                         import json as _json
@@ -1899,10 +2003,17 @@ class Agent:
                                 10_000,
                             ),
                         )
-                    llm_span.set_attribute("response", _truncate(response.content, 10_000))
+                    # Las reglas de salida también valen para el stream y para el
+                    # span (la traza viaja en la respuesta REST): el patrón recibe
+                    # la respuesta cruda, el evento y el span la filtrada.
+                    contenido = response.content
+                    if response.content and self._guardrails.has_output:
+                        contenido = self._guardrails.filter_stream(response.content)
+                    visible = _BLOQUEADO if contenido is None and response.content else contenido
+                    llm_span.set_attribute("response", _truncate(visible, 10_000))
                     tracing.finish_span(llm_span)
-                    if response.content:
-                        _emit(on_event, {"type": "token", "content": response.content})
+                    if response.content and contenido is not None:
+                        _emit(on_event, {"type": "token", "content": contenido})
                     return response
                 except Exception as e:
                     llm_span.set_attribute("error_message", str(e))
@@ -2014,26 +2125,59 @@ class Agent:
                 {"pattern": self._orchestration_config.get("pattern", "react")},
                 parent_span_id=root_span.span_id,
             )
-            result = await self._pattern.execute(
-                query=query,
-                # El context del llamador viaja al patrón dentro del dict que ya
-                # va, bajo una clave reservada — misma convención que
-                # `_history_messages`. Antes se perdía acá: sólo llegaba a
-                # renderizar el prompt, así que un patrón no podía leer los
-                # parámetros de la invocación.
-                #
-                # Va filtrado: las claves `_` son del runtime, no del llamador, y
-                # `_provider_override` lleva una API key. Ver `_public_caller_context`.
-                context=(
-                    {**memory_context, "_caller_context": _public_caller_context(context)}
-                    if isinstance(memory_context, dict)
-                    else memory_context
-                ),
-                model_fn=model_fn,
-                tool_fn=tool_fn,
-                tools=tool_schemas,
-                max_iterations=max_iterations,
-            )
+            try:
+                result = await self._pattern.execute(
+                    query=query,
+                    # El context del llamador viaja al patrón dentro del dict que ya
+                    # va, bajo una clave reservada — misma convención que
+                    # `_history_messages`. Antes se perdía acá: sólo llegaba a
+                    # renderizar el prompt, así que un patrón no podía leer los
+                    # parámetros de la invocación.
+                    #
+                    # Va filtrado: las claves `_` son del runtime, no del llamador, y
+                    # `_provider_override` lleva una API key. Ver `_public_caller_context`.
+                    context=(
+                        {**memory_context, "_caller_context": _public_caller_context(context)}
+                        if isinstance(memory_context, dict)
+                        else memory_context
+                    ),
+                    model_fn=model_fn,
+                    tool_fn=tool_fn,
+                    tools=tool_schemas,
+                    max_iterations=max_iterations,
+                )
+            except GuardrailBlocked:
+                tracing.finish_span(orch_span, status=SpanStatus.ERROR)
+                raise
+            except Exception:
+                # Glyph convierte el error de una capacidad en el suyo y
+                # reintenta; si lo que falló fue el presupuesto, es un rechazo.
+                if corte is not None:
+                    tracing.finish_span(orch_span, status=SpanStatus.ERROR)
+                    raise corte from None
+                raise
+            if corte is not None:
+                tracing.finish_span(orch_span, status=SpanStatus.ERROR)
+                raise corte
+            if self._guardrails.has_output:
+                # Los pasos viajan en la respuesta y en los eventos `orch_step`:
+                # el texto que `answer` tapa no puede salir por ahí. Los
+                # argumentos de las tools (`action_input`) quedan fuera.
+                for step in result.get("steps", []):
+                    for campo in ("thought", "observation", "result"):
+                        valor = (
+                            step.get(campo)
+                            if isinstance(step, dict)
+                            else getattr(step, campo, None)
+                        )
+                        if not isinstance(valor, str) or not valor:
+                            continue
+                        filtrado = self._guardrails.filter_stream(valor)
+                        filtrado = _BLOQUEADO if filtrado is None else filtrado
+                        if isinstance(step, dict):
+                            step[campo] = filtrado
+                        else:
+                            setattr(step, campo, filtrado)
             for i, step in enumerate(result.get("steps", [])):
                 step_data = {
                     "iteration": i + 1,
@@ -2053,6 +2197,14 @@ class Agent:
                     step_data["omitted"] = step.recorte.get("omitted", 0)
                 orch_span.add_event("orch_step", step_data)
             tracing.finish_span(orch_span)
+            # Guardrails de salida: antes del aviso de confirmación (texto del
+            # runtime), de persistir y de `build_data`, así `data` tampoco
+            # filtra lo que `answer` tapa.
+            if self._guardrails.has_output:
+                respuesta = result.get("answer")
+                if not isinstance(respuesta, str):
+                    respuesta = "" if respuesta is None else str(respuesta)
+                result["answer"] = self._aplicar_guardrails("output", respuesta, tracing, root_span)
 
             # El sello del CRITICAL de la revisión final: el runtime que
             # verifica la palabra tiene que ser el mismo que hace la
@@ -2094,40 +2246,12 @@ class Agent:
                         respuesta = "" if respuesta is None else str(respuesta)
                     result["answer"] = f"{respuesta}\n\n{aviso}" if respuesta else aviso
 
-            # Extract text for storage; keep full multimodal content in metadata.
-            if isinstance(query, list):
-                text_parts = [p.get("text", "") for p in query if p.get("type") == "text"]
-                user_content = " ".join(text_parts)
-                user_metadata = {"multimodal_content": query}
-            else:
-                user_content = query
-                user_metadata = {}
-
-            persist_span = tracing.start_span("memory_persist", parent_span_id=root_span.span_id)
-            await self._memory.persist_turn(
-                session_id,
-                ConversationTurn(
-                    role="user",
-                    content=user_content,
-                    # Aware, no naive: esto termina en una columna TIMESTAMPTZ de
-                    # Postgres, que hasta acá recibía un naive y lo asumía UTC sin
-                    # que nadie lo dijera. Los backends de texto guardan ahora un
-                    # isoformat con `+00:00`; `fromisoformat` lee las dos formas,
-                    # así que las filas viejas se siguen leyendo.
-                    timestamp=datetime.now(UTC),
-                    metadata=user_metadata,
-                ),
+            await self._persistir_turno(
+                session_id, query, result.get("answer", ""), tracing, root_span
             )
-            await self._memory.persist_turn(
-                session_id,
-                ConversationTurn(
-                    role="assistant",
-                    content=result.get("answer", ""),
-                    timestamp=datetime.now(UTC),
-                ),
-            )
-            tracing.finish_span(persist_span)
 
+            if self._guardrails.cost_limit is not None:
+                root_span.set_attribute("guardrail.tokens_counted", contados)
             tracing.finish_span(root_span)
             if self._output_schema:
                 data, data_error = build_data(respuesta_sin_aviso, self._output_schema)
@@ -2137,6 +2261,8 @@ class Agent:
                 if data_error:
                     root_span.set_attribute("output_data_error", data_error)
 
+            result["blocked"] = False
+            result["guardrail"] = None
             result["trace"] = tracing.to_dict()
             # La de un hijo con `propuestas_padre` ya está en la respuesta del
             # padre: devolverla también la duplicaría.
@@ -2150,6 +2276,39 @@ class Agent:
                 len(result.get("steps") or []),
             )
             return result
+
+        except GuardrailBlocked as bloqueo:
+            # Un bloqueo es una respuesta, no un error: la corrida termina bien.
+            if desde_humano:
+                pendiente = _PENDIENTES.pendiente(session_id)
+                if pendiente is not None and not pendiente["ok"]:
+                    # La respuesta que explicaba la propuesta fue reemplazada
+                    # por el rechazo: un "sí" en el próximo turno no puede
+                    # autorizar algo que la persona no vio.
+                    _PENDIENTES.cerrar(session_id)
+            if bloqueo.direction != "input":
+                # El texto bloqueado de entrada no entra al historial; el resto
+                # guarda la pregunta (ya filtrada) y el rechazo.
+                await self._persistir_turno(session_id, query, bloqueo.message, tracing, root_span)
+            root_span.set_attribute("guardrail.blocked", True)
+            root_span.set_attribute("guardrail.rule", bloqueo.rule)
+            if self._guardrails.cost_limit is not None:
+                root_span.set_attribute("guardrail.tokens_counted", contados)
+            tracing.finish_span(root_span)
+            rechazo = {
+                "answer": bloqueo.message,
+                "steps": [],  # un bloqueo nunca devuelve el contenido bloqueado
+                "blocked": True,
+                "guardrail": bloqueo.as_dict(),
+                "propuestas": (
+                    propuestas if isinstance(propuestas, list) and propuestas_padre is None else []
+                ),
+            }
+            if self._output_schema:
+                rechazo["data"] = None
+                rechazo["data_error"] = "blocked by guardrail"
+            rechazo["trace"] = tracing.to_dict()
+            return rechazo
 
         except Exception as e:
             logger.exception("agent.run failed agent=%s session=%s", self.name, session_id)

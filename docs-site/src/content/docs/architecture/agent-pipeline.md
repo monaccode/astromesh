@@ -92,23 +92,28 @@ async def run(self, agent_name: str, query: str, session_id: str):
 
 **Module:** `astromesh/core/guardrails.py`
 
-Before the agent processes the query, input guardrails run in the order defined in the agent's YAML configuration. Each guardrail examines the incoming query and takes one of three actions:
+Input guardrails run first, before memory, RAG, prefetch and the model. For a multimodal query they run on each text part separately. Rules run in the order declared and each one sees the text the previous one left. Everything after this step (memory context, RAG, the root span's `query` attribute, the orchestration pattern and the persisted user turn) sees the filtered text.
+
+Each rule takes an action:
 
 | Action | Effect |
 |--------|--------|
-| **Pass** | The query continues unchanged |
-| **Redact** | The query is modified (e.g., PII is replaced with placeholders) and continues |
-| **Block** | The pipeline stops immediately and an error response is returned |
+| **Redact / truncate** | The text is modified and the pipeline continues |
+| **Warn** | The text is untouched; the detection is recorded on the trace |
+| **Block** | The pipeline stops and a structured rejection result is returned (see below) |
 
-### Input guardrail types
+### Input rules
 
-**PII Detection** scans the query for patterns matching emails, phone numbers, SSNs, and credit card numbers. In input mode, it can either redact the PII (replacing it with `[EMAIL]`, `[PHONE]`, etc.) or block the request entirely, depending on configuration.
+Every rule accepts `type`, `action` and `message` (the rejection text if the rule blocks; default `"I can't help with that request."`). The first action listed is the default.
 
-**Topic Filter** checks the query against a list of forbidden topics. If the query matches a forbidden topic (via keyword or pattern matching), the request is blocked with a configurable rejection message.
+| `type` | Keys | `action` |
+|--------|------|----------|
+| `pii_detection` | none | `redact` (default), `block`, `warn` |
+| `topic_filter` | `blocked_topics` (alias `forbidden_topics`) | `warn` (default), `block` |
+| `max_length` | `max_chars` (alias `max_characters`), default 10000 | `truncate` (default), `block` |
+| `cost_limit` | `max_tokens_per_turn` (required), `count: output \| total` | always blocks; see [Step 10](#step-10-output-guardrails) |
 
-**Max Length** checks the character count of the query. If it exceeds the configured maximum, the request is blocked. This prevents abuse and ensures the query fits within reasonable bounds before prompt construction.
-
-Example guardrails configuration in agent YAML:
+`pii_detection` replaces emails, phone numbers, SSNs and card numbers with `[REDACTED_EMAIL]`, `[REDACTED_PHONE]`, `[REDACTED_SSN]` and `[REDACTED_CC]`. `topic_filter` matches case-insensitively by substring.
 
 ```yaml
 spec:
@@ -117,11 +122,42 @@ spec:
       - type: pii_detection
         action: redact
       - type: topic_filter
-        forbidden_topics: ["violence", "illegal_activity"]
+        blocked_topics: ["violence", "weapons"]
         action: block
+        message: "I can't help with that."
       - type: max_length
-        max_characters: 5000
+        max_chars: 5000
+        action: block
+      - type: cost_limit
+        max_tokens_per_turn: 4000
 ```
+
+### Rejection result
+
+A block is not an error: the run finishes normally and `answer` is the rule's `message`.
+
+```json
+{
+  "answer": "I can't help with that.",
+  "blocked": true,
+  "guardrail": {"direction": "input", "rule": "topic_filter", "reason": "blocked topic"},
+  "steps": [],
+  "propuestas": [],
+  "trace": {}
+}
+```
+
+`steps` is always `[]` on a block: a rejection never ships the blocked content in any field. `propuestas` is shown for completeness (pending proposals, as in any run) and `trace` is the full trace of the run. When the agent declares an `output_schema`, any block also sets `data` to `null` and `data_error` to `"blocked by guardrail"`.
+
+`direction` is `input`, `output` or `run` (for `cost_limit`). `reason` never repeats the blocked content. A run that is not blocked returns `blocked: false` and `guardrail: null`. The REST response and the WebSocket `done` event carry both fields.
+
+An input block runs no memory, RAG or model call and persists no turn, so the blocked text never enters the history.
+
+### Validation and limits
+
+Rules are validated once when the agent loads. Nothing invalid stops the agent from loading: unknown or misplaced rule types, invalid actions and invalid regexes are discarded with a warning naming the agent, direction and index. `max_chars` must be a positive integer. A rule left with no topics or no valid patterns is discarded; an invalid individual pattern is dropped, and the rule itself is dropped only if no pattern remains. Unknown keys are ignored with a warning. `blocked_categories` and `allowed_topics` need a classifier, are not supported, warn at load and are ignored; use `blocked_patterns` or the system prompt instead.
+
+Limits to know: PII patterns follow US formats (an Argentine phone number is not detected), topics match by substring, and there are no classifier-based rules.
 
 ---
 
@@ -403,28 +439,50 @@ For a full guide on configuring multi-agent systems, see [Multi-agent Compositio
 
 **Module:** `astromesh/core/guardrails.py`
 
-Once the orchestration pattern produces a final answer, output guardrails run on the response before it is returned to the caller.
+Output guardrails run on the final `answer` right after the orchestration pattern returns, before the pending-confirmation notice, memory persistence and `output_schema` parsing. Because `data` is built from the filtered answer, it cannot leak what `answer` hides.
 
-### Output guardrail types
+The same rules also filter the text fields of `steps` (`thought`, `observation`, `result`) and the trace's model-response and step attributes in the run response. Tool arguments (`action_input`, `tool_call` events) are not filtered. The confirmation notice for a pending `needs_confirmation` action is appended after output filtering, so the person sees exactly the arguments that will run.
 
-**Content Filter** checks the response for forbidden keywords or patterns. If found, the response is either redacted (offending content replaced) or blocked (a generic safe response is returned instead).
+### Output rules
 
-**Cost Limit** checks whether the total tokens used in this turn exceed the configured per-turn limit. If exceeded, the response is truncated or an error is returned. This prevents runaway token usage from expensive orchestration loops.
+| `type` | Keys | `action` |
+|--------|------|----------|
+| `pii_detection` | none | `redact` (default), `block`, `warn` |
+| `content_filter` | `blocked_patterns` (regex, case-insensitive), `forbidden_keywords` (literal strings) | `redact` (default), `block` |
+| `cost_limit` | `max_tokens_per_turn` (required), `count: output \| total` (default `output`) | always blocks |
 
-**PII Detection** (output mode) scans the response for PII patterns and redacts them before returning to the caller. This catches cases where the LLM generates PII in its response (e.g., generating fake but realistic-looking credit card numbers in examples).
+`content_filter` with `redact` replaces every match with `[FILTERED]`; with `block` the run returns the rejection result from [Step 3](#rejection-result) with `direction: "output"` and `answer` set to the rule's `message`. `topic_filter` does not apply to output and is discarded with a warning.
+
+### Streaming
+
+The `token` events of a streamed run carry the full response of each model call. With output rules declared, each event's `content` goes through the same rules before it is emitted; if a rule blocks it, that event is not emitted. `cost_limit` does not filter individual events, but the budget still applies: a streamed run is stopped by it like any other.
+
+### Cost limit
+
+`cost_limit` is a token budget for the whole run, not a length cap. Each model response adds its provider-reported `usage.output_tokens` (or input plus output with `count: total`) to a per-run counter, and the counter is checked before each model call. If it has already reached `max_tokens_per_turn`, the run stops with a rejection result (`direction: "run"`). The call that crosses the limit completes; the budget is checked before spending, so a response is never cut in half. A response without `usage` counts as 0. It can be declared under `input` or `output`; if you declare two, the lower one wins. Because the check happens before each call, under the `parallel_fan_out` pattern several concurrent calls can pass it together and the run can exceed the budget by up to one call per concurrent subtask.
 
 ```yaml
 spec:
   guardrails:
     output:
       - type: content_filter
-        forbidden_keywords: ["internal_only", "classified"]
+        blocked_patterns: ["internal[-_ ]only"]
+        forbidden_keywords: ["classified"]
+        action: redact
+      - type: pii_detection
         action: redact
       - type: cost_limit
         max_tokens_per_turn: 4000
-      - type: pii_detection
-        action: redact
+        count: total
 ```
+
+### Persistence on a block
+
+An output block, or a `cost_limit` stop, persists the user turn (already filtered) and the rejection message as the assistant turn. If the blocked run had registered an unconfirmed proposal, it is discarded, so a later "yes" cannot authorize something the user never saw.
+
+### Limits
+
+Output guardrails filter the final `answer`, `data`, the text fields of `steps`, the trace's model-response and step attributes, and streamed `token` events; tool arguments are not filtered. PII patterns follow US formats (an Argentine phone number is not detected), there are no classifiers (`blocked_categories` and `allowed_topics` warn at load and are ignored), and invalid rules are discarded with a warning. Each agent applies only its own rules: a sub-agent does not inherit its parent's.
 
 ---
 
@@ -442,7 +500,6 @@ Both turns are written to the configured conversational memory backend (Redis â€
 If **episodic memory** is configured, significant events from the execution are also recorded:
 - Tool calls made (tool name, arguments, result summary)
 - Provider used and latency
-- Guardrail actions taken (redactions, blocks)
 - Total token usage and estimated cost
 
 With `strategy: summary`, once `max_turns` is exceeded the assistant turn also triggers one inline call to the `summarizer` role that folds the turns leaving the verbatim window into the running summary.

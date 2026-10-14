@@ -488,3 +488,26 @@ def test_done_event_carries_propuestas(client, mock_runtime):
 
     assert con[-1]["propuestas"] == [propuesta]
     assert sin[-1]["propuestas"] == []
+
+
+def test_done_lleva_blocked_y_guardrail(client, mock_runtime):
+    mock_runtime.run.return_value = {
+        "answer": "No.",
+        "steps": [],
+        "trace": {},
+        "blocked": True,
+        "guardrail": {"direction": "input", "rule": "topic_filter", "reason": "blocked topic"},
+    }
+    with client.websocket_connect("/v1/ws/agent/demo") as ws:
+        ws.send_json({"query": "x"})
+        done = _drain(ws)[-1]
+    assert done["blocked"] is True
+    assert done["guardrail"]["rule"] == "topic_filter"
+
+
+def test_done_sin_bloqueo(client, mock_runtime):
+    with client.websocket_connect("/v1/ws/agent/demo") as ws:
+        ws.send_json({"query": "x"})
+        done = _drain(ws)[-1]
+    assert done["blocked"] is False
+    assert done["guardrail"] is None

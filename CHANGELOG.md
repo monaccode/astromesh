@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**Breaking for existing manifests.** Agentes fuera de este repo que ya declaran
+`guardrails` cambian en silencio:
+
+- `pii_detection` de entrada ahora redacta (default `redact`). El regex de teléfono
+  coincide con cualquier número de 10 dígitos, así que IDs de pedido, tarjetas y teléfonos
+  dejan de llegar a las tools. Recomendado: mover la redacción a la salida si las tools
+  necesitan esos valores.
+- `cost_limit.max_tokens_per_turn` es ahora un presupuesto de tokens de salida de toda la
+  corrida. Los valores viejos de los templates (500-1500) cortan corridas con tools.
+  Recomendado: alrededor de 4000.
+- `max_length` trunca por default a 10000 caracteres.
+- `blocked_categories` / `allowed_topics` se ignoran, con un warning al cargar.
+- Un bloqueo devuelve una respuesta normal con `blocked: true` en lugar de un error (antes
+  un bloqueo por tema salía como HTTP 404 desde la ruta de run).
+
+### Added (Backend)
+
+- `POST /v1/agents/{name}/run` y el `done` del WebSocket devuelven `blocked` y
+  `guardrail`.
+
+- **`cost_limit` es un presupuesto real de tokens de la corrida**: suma el `usage` del
+  proveedor de cada llamada al modelo (`count: output`, default, o `total`) y, si antes
+  de una nueva llamada ya se pasó `max_tokens_per_turn`, la corrida termina con el
+  rechazo (`guardrail.direction: run`). Funciona aunque el patrón se trague el error
+  (Glyph). **El stream respeta las reglas de salida**: cada evento `token` se filtra, y
+  no se emite si una regla lo bloquea.
+
+### Changed
+
+- Manifiestos y templates de `config/` alineados con los guardrails que ahora se aplican:
+  `cost_limit` a 4000 tokens de salida por corrida; fuera `allowed_topics` y
+  `blocked_categories` (requieren un clasificador); `debt-collector`, `payment-reminder` y
+  `returns-claims` dejan de redactar PII de entrada (sus IDs numéricos se confundían con
+  teléfonos o tarjetas) y la redactan en la salida. El schema de VS Code documenta cada
+  regla, acción y alias.
+- **Guardrails reescritos** (`core/guardrails.py`): las reglas se normalizan y validan al
+  cargar el agente (lo inválido se descarta con warning, nunca impide cargar); se aceptan
+  los nombres de los docs como alias (`forbidden_topics`, `max_characters`,
+  `forbidden_keywords`); bloquear levanta `GuardrailBlocked` en lugar de `ValueError`;
+  `pii_detection` admite `block` y `warn`; `max_length` admite `block`; `content_filter`
+  admite `block`; `cost_limit` deja de truncar el texto y pasa a ser un presupuesto de
+  tokens de la corrida. `blocked_categories` y `allowed_topics` no se soportan (requieren
+  un clasificador) y avisan al cargar.
+
+### Fixed
+
+- **`spec.guardrails` se aplica.** Hasta ahora se parseaba y nada lo leía: un agente con
+  `pii_detection: redact` mandaba los emails al modelo. Las reglas de entrada corren antes
+  de memoria, RAG y modelo (en una query multimodal, sobre cada parte de texto); las de
+  salida, sobre la respuesta antes de persistirla y de armar `data`. Un bloqueo devuelve
+  una respuesta de rechazo (`answer` = `message` de la regla, `blocked: true`,
+  `guardrail: {direction, rule, reason}`), no un error; un bloqueo de entrada no persiste
+  el turno, y uno con una confirmación pendiente la descarta. Toda corrida devuelve
+  `blocked` y `guardrail`. Spans `guardrails.input`/`guardrails.output` sin contenido.
+- **Los guardrails de salida ya no filtran el contenido por la respuesta REST.** Con reglas
+  de salida, el atributo `response` del span `llm.complete`, los eventos `orch_step` y los
+  campos `thought`/`observation`/`result` de `steps` salen filtrados (con
+  `[blocked by guardrail]` si una regla bloquea); un bloqueo de salida devuelve `steps: []`.
+  Los argumentos de las tools no se filtran. Un corte por `cost_limit` cierra el span
+  `orchestration` con error.
+
 ## [0.69.0] - 2026-10-13
 
 ### Changed

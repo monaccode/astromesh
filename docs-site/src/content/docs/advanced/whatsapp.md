@@ -127,9 +127,9 @@ spec:
       max_messages: 20
   guardrails:
     input:
-      - type: pii_redaction
+      - type: pii_detection
     output:
-      - type: pii_redaction
+      - type: pii_detection
 ```
 
 Key considerations for WhatsApp agents:

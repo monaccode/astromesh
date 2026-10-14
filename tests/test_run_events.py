@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from astromesh.core.guardrails import GuardrailsEngine
 from astromesh.runtime.engine import Agent, _emit
 
 
@@ -79,7 +80,7 @@ def _make_agent(pattern, tool_impl=None, model_content="thinking"):
     agent._orchestration_config = {"pattern": "recording"}
     agent._permissions = {}
     agent._output_schema = None
-    agent._guardrails = {}
+    agent._guardrails = GuardrailsEngine(None)
     agent._rag = None
     agent._knowledge = None
     agent._system_prompt = "you are a test agent"

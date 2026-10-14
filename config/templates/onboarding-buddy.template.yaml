@@ -90,4 +90,4 @@ template:
       guardrails:
         output:
           - type: cost_limit
-            max_tokens_per_turn: 800
+            max_tokens_per_turn: 4000

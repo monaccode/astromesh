@@ -94,4 +94,4 @@ template:
             max_chars: 5000
         output:
           - type: cost_limit
-            max_tokens_per_turn: 1000
+            max_tokens_per_turn: 4000

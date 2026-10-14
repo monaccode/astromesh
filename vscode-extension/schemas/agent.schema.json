@@ -364,8 +364,16 @@
           "description": "Knowledge configuration: a RAGPipeline retrieved at run time, an OKF knowledge bundle the agent navigates with kb_index/kb_read/kb_find, or both.",
           "additionalProperties": false,
           "anyOf": [
-            { "required": ["pipeline"] },
-            { "required": ["bundle"] }
+            {
+              "required": [
+                "pipeline"
+              ]
+            },
+            {
+              "required": [
+                "bundle"
+              ]
+            }
           ],
           "properties": {
             "pipeline": {
@@ -749,7 +757,7 @@
     },
     "guardrailRule": {
       "type": "object",
-      "description": "A single guardrail rule.",
+      "description": "A single guardrail rule. Unknown keys are ignored with a warning at load time.",
       "required": [
         "type"
       ],
@@ -757,34 +765,79 @@
       "properties": {
         "type": {
           "type": "string",
-          "description": "Guardrail type identifier.",
-          "examples": [
+          "description": "pii_detection (input/output), topic_filter (input), max_length (input), content_filter (output), cost_limit (run budget; either side).",
+          "enum": [
             "pii_detection",
+            "topic_filter",
             "max_length",
-            "cost_limit",
             "content_filter",
-            "prompt_injection"
+            "cost_limit"
           ]
         },
         "action": {
           "type": "string",
-          "description": "Action to take when the guardrail triggers.",
+          "description": "pii_detection: redact|block|warn (default redact). topic_filter: warn|block (default warn). max_length: truncate|block (default truncate). content_filter: redact|block (default redact). cost_limit always blocks.",
           "enum": [
             "redact",
             "block",
             "warn",
-            "log"
+            "truncate"
           ]
+        },
+        "message": {
+          "type": "string",
+          "description": "Answer returned when this rule blocks. Default: \"I can't help with that request.\""
+        },
+        "blocked_topics": {
+          "type": "array",
+          "description": "topic_filter: case-insensitive substrings. Alias: forbidden_topics.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_topics": {
+          "type": "array",
+          "description": "Alias of blocked_topics.",
+          "items": {
+            "type": "string"
+          }
         },
         "max_chars": {
           "type": "integer",
-          "description": "Character limit (used with max_length type).",
+          "description": "max_length: character limit (default 10000). Alias: max_characters.",
           "minimum": 1
+        },
+        "max_characters": {
+          "type": "integer",
+          "description": "Alias of max_chars.",
+          "minimum": 1
+        },
+        "blocked_patterns": {
+          "type": "array",
+          "description": "content_filter: case-insensitive regular expressions.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_keywords": {
+          "type": "array",
+          "description": "content_filter: literal case-insensitive keywords.",
+          "items": {
+            "type": "string"
+          }
         },
         "max_tokens_per_turn": {
           "type": "integer",
-          "description": "Token budget per turn (used with cost_limit type).",
+          "description": "cost_limit: token budget for the whole run, checked before each model call.",
           "minimum": 1
+        },
+        "count": {
+          "type": "string",
+          "description": "cost_limit: count output tokens (default) or input+output.",
+          "enum": [
+            "output",
+            "total"
+          ]
         }
       }
     }
