@@ -26,11 +26,11 @@ class TestPiiRedactionBenchmark:
         from astromesh.core.guardrails import GuardrailsEngine
 
         engine = GuardrailsEngine()
-        benchmark(engine._redact_pii, text, "redact")
+        benchmark(engine.check_input, text)
 
     def test_python(self, benchmark, text):
         os.environ["ASTROMESH_FORCE_PYTHON"] = "1"
         from astromesh.core.guardrails import GuardrailsEngine
 
         engine = GuardrailsEngine()
-        benchmark(engine._redact_pii, text, "redact")
+        benchmark(engine.check_input, text)

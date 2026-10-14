@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Guardrails reescritos** (`core/guardrails.py`): las reglas se normalizan y validan al
+  cargar el agente (lo inválido se descarta con warning, nunca impide cargar); se aceptan
+  los nombres de los docs como alias (`forbidden_topics`, `max_characters`,
+  `forbidden_keywords`); bloquear levanta `GuardrailBlocked` en lugar de `ValueError`;
+  `pii_detection` admite `block` y `warn`; `max_length` admite `block`; `content_filter`
+  admite `block`; `cost_limit` deja de truncar el texto y pasa a ser un presupuesto de
+  tokens de la corrida. `blocked_categories` y `allowed_topics` no se soportan (requieren
+  un clasificador) y avisan al cargar.
+
 ## [0.69.0] - 2026-10-13
 
 ### Changed
