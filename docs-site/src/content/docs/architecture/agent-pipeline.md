@@ -142,9 +142,12 @@ A block is not an error: the run finishes normally and `answer` is the rule's `m
   "blocked": true,
   "guardrail": {"direction": "input", "rule": "topic_filter", "reason": "blocked topic"},
   "steps": [],
+  "propuestas": [],
   "trace": {}
 }
 ```
+
+`steps` is always `[]` on a block: a rejection never ships the blocked content in any field. `propuestas` is shown for completeness (pending proposals, as in any run) and `trace` is the full trace of the run. When the agent declares an `output_schema`, any block also sets `data` to `null` and `data_error` to `"blocked by guardrail"`.
 
 `direction` is `input`, `output` or `run` (for `cost_limit`). `reason` never repeats the blocked content. A run that is not blocked returns `blocked: false` and `guardrail: null`. The REST response and the WebSocket `done` event carry both fields.
 
@@ -152,7 +155,7 @@ An input block runs no memory, RAG or model call and persists no turn, so the bl
 
 ### Validation and limits
 
-Rules are validated once when the agent loads. Nothing invalid stops the agent from loading: unknown or misplaced rule types, invalid actions and invalid regexes are discarded with a warning naming the agent, direction and index; unknown keys are ignored with a warning. `blocked_categories` and `allowed_topics` need a classifier, are not supported, warn at load and are ignored; use `blocked_patterns` or the system prompt instead.
+Rules are validated once when the agent loads. Nothing invalid stops the agent from loading: unknown or misplaced rule types, invalid actions and invalid regexes are discarded with a warning naming the agent, direction and index. `max_chars` must be a positive integer. A rule left with no topics or no valid patterns is discarded; an invalid individual pattern is dropped, and the rule itself is dropped only if no pattern remains. Unknown keys are ignored with a warning. `blocked_categories` and `allowed_topics` need a classifier, are not supported, warn at load and are ignored; use `blocked_patterns` or the system prompt instead.
 
 Limits to know: PII patterns follow US formats (an Argentine phone number is not detected), topics match by substring, and there are no classifier-based rules.
 
@@ -438,6 +441,8 @@ For a full guide on configuring multi-agent systems, see [Multi-agent Compositio
 
 Output guardrails run on the final `answer` right after the orchestration pattern returns, before the pending-confirmation notice, memory persistence and `output_schema` parsing. Because `data` is built from the filtered answer, it cannot leak what `answer` hides.
 
+The same rules also filter the text fields of `steps` (`thought`, `observation`, `result`) and the trace's model-response and step attributes in the run response. Tool arguments (`action_input`, `tool_call` events) are not filtered. The confirmation notice for a pending `needs_confirmation` action is appended after output filtering, so the person sees exactly the arguments that will run.
+
 ### Output rules
 
 | `type` | Keys | `action` |
@@ -446,7 +451,7 @@ Output guardrails run on the final `answer` right after the orchestration patter
 | `content_filter` | `blocked_patterns` (regex, case-insensitive), `forbidden_keywords` (literal strings) | `redact` (default), `block` |
 | `cost_limit` | `max_tokens_per_turn` (required), `count: output \| total` (default `output`) | always blocks |
 
-`content_filter` with `redact` replaces every match with `[FILTERED]`; with `block` the run returns the rejection result from [Step 3](#rejection-result) with `direction: "output"`, `answer` set to the rule's `message`, and `data` set to `null` with `data_error: "blocked by guardrail"`. `topic_filter` does not apply to output and is discarded with a warning.
+`content_filter` with `redact` replaces every match with `[FILTERED]`; with `block` the run returns the rejection result from [Step 3](#rejection-result) with `direction: "output"` and `answer` set to the rule's `message`. `topic_filter` does not apply to output and is discarded with a warning.
 
 ### Streaming
 
@@ -477,7 +482,7 @@ An output block, or a `cost_limit` stop, persists the user turn (already filtere
 
 ### Limits
 
-Output guardrails filter the final `answer`, `data` and streamed `token` events; the per-step `steps` (thoughts and observations) in the result are not filtered. PII patterns follow US formats (an Argentine phone number is not detected), there are no classifiers (`blocked_categories` and `allowed_topics` warn at load and are ignored), and invalid rules are discarded with a warning. Each agent applies only its own rules: a sub-agent does not inherit its parent's.
+Output guardrails filter the final `answer`, `data`, the text fields of `steps`, the trace's model-response and step attributes, and streamed `token` events; tool arguments are not filtered. PII patterns follow US formats (an Argentine phone number is not detected), there are no classifiers (`blocked_categories` and `allowed_topics` warn at load and are ignored), and invalid rules are discarded with a warning. Each agent applies only its own rules: a sub-agent does not inherit its parent's.
 
 ---
 
