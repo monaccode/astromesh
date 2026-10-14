@@ -25,12 +25,12 @@ class TestPiiRedactionBenchmark:
         os.environ.pop("ASTROMESH_FORCE_PYTHON", None)
         from astromesh.core.guardrails import GuardrailsEngine
 
-        engine = GuardrailsEngine()
+        engine = GuardrailsEngine({"input": [{"type": "pii_detection"}]}, agent_name="bench")
         benchmark(engine.check_input, text)
 
     def test_python(self, benchmark, text):
         os.environ["ASTROMESH_FORCE_PYTHON"] = "1"
         from astromesh.core.guardrails import GuardrailsEngine
 
-        engine = GuardrailsEngine()
+        engine = GuardrailsEngine({"input": [{"type": "pii_detection"}]}, agent_name="bench")
         benchmark(engine.check_input, text)

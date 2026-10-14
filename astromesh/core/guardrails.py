@@ -116,7 +116,9 @@ class GuardrailsEngine:
         self._input: list[dict] = []
         self._output: list[dict] = []
         budgets: list[dict] = []
-        if not isinstance(config, dict):
+        if config is None:
+            config = {}
+        elif not isinstance(config, dict):
             logger.warning("agent %s: guardrails must be a mapping, ignored", agent_name)
             config = {}
         for direction in ("input", "output"):
@@ -152,14 +154,14 @@ class GuardrailsEngine:
             self._warn(direction, index, "not a mapping, discarded")
             return None
         kind = raw.get("type")
-        if kind not in _RULES:
+        if not isinstance(kind, str) or kind not in _RULES:
             self._warn(direction, index, f"unknown type {kind!r}, discarded")
             return None
         directions, actions, keys = _RULES[kind]
         if direction not in directions:
             self._warn(direction, index, f"{kind} does not apply to {direction}, discarded")
             return None
-        for key in sorted(raw.keys() - _COMMON_KEYS - keys):
+        for key in sorted(raw.keys() - _COMMON_KEYS - keys, key=str):
             if key in _NEEDS_CLASSIFIER:
                 self._warn(
                     direction,

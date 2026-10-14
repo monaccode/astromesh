@@ -150,8 +150,14 @@ def test_dos_cost_limit_gana_el_menor():
     assert e.cost_limit["max_tokens"] == 20
 
 
-def test_sin_config():
-    e = GuardrailsEngine()
+def test_sin_config(caplog):
+    with caplog.at_level(logging.WARNING, logger="astromesh.core.guardrails"):
+        e = GuardrailsEngine()
+        e_none = GuardrailsEngine(None)
+    assert not caplog.records
+    assert not e_none.has_input
+    assert not e_none.has_output
+    assert e_none.cost_limit is None
     assert not e.has_input
     assert not e.has_output
     assert e.cost_limit is None
@@ -204,3 +210,17 @@ def test_string_en_lugar_de_lista():
     with pytest.raises(GuardrailBlocked):
         e.check_input("a secret")
     assert e.check_input("s e c r e t").text == "s e c r e t"
+
+
+def test_claves_y_tipos_raros_no_impiden_cargar(caplog):
+    with caplog.at_level(logging.WARNING, logger="astromesh.core.guardrails"):
+        e = _e(
+            input=[
+                {"type": "pii_detection", 1: "x", "foo": "y"},
+                {"type": ["pii_detection"]},
+            ]
+        )
+    assert e.has_input
+    assert any("unknown key 1" in r.getMessage() for r in caplog.records)
+    assert any("unknown key 'foo'" in r.getMessage() for r in caplog.records)
+    assert any("unknown type" in r.getMessage() for r in caplog.records)
