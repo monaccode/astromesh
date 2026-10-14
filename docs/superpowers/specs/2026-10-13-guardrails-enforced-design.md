@@ -119,18 +119,20 @@ max_tokens_per_turn`, levanta `GuardrailBlocked`; `run` la atrapa alrededor de
 presupuesto se chequea antes de gastar, no corta una respuesta a medias.
 
 `GuardrailBlocked(direction, rule, reason, message)` es una excepción nueva en
-`core/guardrails.py`. Si un patrón la envolviera en otra excepción, el agente falla como
-hoy con cualquier error: se verifica en los tests que ReAct, PlanAndExecute, Pipeline,
-ParallelFanOut, Supervisor y Swarm la dejan pasar.
+`core/guardrails.py`. Un patrón puede tragarla o envolverla (Glyph convierte los errores
+de una capacidad en `GlyphExecutionError` y reintenta): por eso `run` guarda el corte en
+la clausura y, si `pattern.execute` vuelve o levanta otra cosa después de un corte,
+devuelve igual el rechazo. Una vez cortado, toda llamada siguiente a `model_fn` vuelve a
+levantar.
 
 ### Resultado de rechazo
 
 ```python
 {
     "answer": "<message de la regla>",
-    "steps": [...],          # los que haya hasta el bloqueo; [] si fue de entrada
+    "steps": [...],          # los del patrón si bloqueó la salida; [] si entrada o cost_limit
     "blocked": True,
-    "guardrail": {"direction": "input" | "output", "rule": "<type>", "reason": "<texto>"},
+    "guardrail": {"direction": "input" | "output" | "run", "rule": "<type>", "reason": "<texto>"},
     "propuestas": [...],     # como hoy
     "trace": {...},
 }
@@ -144,6 +146,11 @@ Toda corrida no bloqueada devuelve `blocked: False` y `guardrail: None`.
 **Persistencia:** una corrida bloqueada en la entrada no persiste ningún turno (el texto
 bloqueado no entra al historial). Una bloqueada en la salida o por `cost_limit` persiste
 el turno de usuario (ya filtrado en entrada) y como respuesta el mensaje de rechazo.
+
+**Confirmaciones pendientes:** si la corrida bloqueada había registrado una propuesta
+sin confirmar (`needs_confirmation`), se descarta (`_PENDIENTES.cerrar`): la respuesta que
+la explicaba fue reemplazada por el rechazo, y un "sí" en el turno siguiente no puede
+autorizar algo que la persona no vio.
 
 **API:** `AgentRunResponse` (`api/routes/agents.py`) gana `blocked: bool = False` y
 `guardrail: dict | None = None`. El `done` del WebSocket también los lleva. El resto de
