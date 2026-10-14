@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Backend)
 
+- `POST /v1/agents/{name}/run` y el `done` del WebSocket devuelven `blocked` y
+  `guardrail`.
+
 - **`cost_limit` es un presupuesto real de tokens de la corrida**: suma el `usage` del
   proveedor de cada llamada al modelo (`count: output`, default, o `total`) y, si antes
   de una nueva llamada ya se pasó `max_tokens_per_turn`, la corrida termina con el

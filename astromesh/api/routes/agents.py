@@ -87,6 +87,10 @@ class AgentRunResponse(BaseModel):
     #: Las escrituras que propusieron las tools `mode: propose`, sin ejecutar
     #: (`integrations/propuestas.py`). Vacía si no hubo.
     propuestas: list[dict] = []
+    #: True si un guardrail bloqueó la corrida; `answer` es entonces el mensaje
+    #: de rechazo y `guardrail` dice qué regla y por qué (sin el contenido).
+    blocked: bool = False
+    guardrail: dict | None = None
 
 
 @router.get("/agents")
@@ -323,6 +327,8 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             data=result.get("data"),
             chain=chain_block,
             propuestas=result.get("propuestas") or [],
+            blocked=bool(result.get("blocked")),
+            guardrail=result.get("guardrail"),
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

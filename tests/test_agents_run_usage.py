@@ -78,3 +78,43 @@ def test_model_usage_defaults_tokens_cached_to_zero():
     from astromesh.api.routes.agents import ModelUsage
 
     assert ModelUsage().tokens_cached == 0
+
+
+async def test_run_response_carries_blocked_and_guardrail(client, monkeypatch):
+    """Contrato de /run: una corrida bloqueada por guardrail lo declara en la respuesta."""
+    from astromesh.api.routes import agents as agents_module
+
+    guardrail = {"direction": "input", "rule": "topic_filter", "reason": "blocked topic"}
+
+    class FakeRuntime:
+        async def run(self, *_args, **_kwargs):
+            return {
+                "answer": "No.",
+                "steps": [],
+                "trace": {},
+                "blocked": True,
+                "guardrail": guardrail,
+            }
+
+    monkeypatch.setattr(agents_module, "_runtime", FakeRuntime())
+    resp = await client.post("/v1/agents/any-agent/run", json={"query": "x"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["blocked"] is True
+    assert body["guardrail"] == guardrail
+
+
+async def test_run_response_without_block_defaults(client, monkeypatch):
+    from astromesh.api.routes import agents as agents_module
+
+    class FakeRuntime:
+        async def run(self, *_args, **_kwargs):
+            return {"answer": "hola", "steps": [], "trace": {}}
+
+    monkeypatch.setattr(agents_module, "_runtime", FakeRuntime())
+    resp = await client.post("/v1/agents/any-agent/run", json={"query": "hola"})
+
+    body = resp.json()
+    assert body["blocked"] is False
+    assert body["guardrail"] is None
