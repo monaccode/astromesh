@@ -4,6 +4,8 @@ import { Select } from "../ui/Select";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import type { MemoryConfig, GuardrailConfig } from "../../types/agent";
+import { GuardrailRuleFields } from "../guardrails/GuardrailRuleFields";
+import { defaultGuardrail, guardrailTypesFor, type GuardrailSide } from "../../utils/guardrails";
 
 const MEMORY_BACKENDS = [
   { value: "in_memory", label: "In-Memory" },
@@ -16,19 +18,6 @@ const MEMORY_STRATEGIES = [
   { value: "sliding_window", label: "Sliding Window" },
   { value: "summary", label: "Summary" },
   { value: "token_budget", label: "Token Budget" },
-];
-
-const GUARDRAIL_TYPES = [
-  { value: "pii_detection", label: "PII Detection" },
-  { value: "max_length", label: "Max Length" },
-  { value: "cost_limit", label: "Cost Limit" },
-  { value: "content_filter", label: "Content Filter" },
-  { value: "topic_filter", label: "Topic Filter" },
-];
-
-const GUARDRAIL_ACTIONS = [
-  { value: "redact", label: "Redact" },
-  { value: "block", label: "Block" },
 ];
 
 type MemoryType = "conversational" | "semantic" | "episodic";
@@ -110,50 +99,40 @@ function MemorySection({
 
 function GuardrailsList({
   title,
+  side,
   guardrails,
   onChange,
 }: {
   title: string;
+  side: GuardrailSide;
   guardrails: GuardrailConfig[];
   onChange: (g: GuardrailConfig[]) => void;
 }) {
   function addGuardrail() {
-    onChange([...guardrails, { type: "content_filter", action: "block" }]);
+    onChange([...guardrails, defaultGuardrail(guardrailTypesFor(side)[0])]);
   }
 
   function removeGuardrail(index: number) {
     onChange(guardrails.filter((_, i) => i !== index));
   }
 
-  function updateGuardrail(index: number, updates: Partial<GuardrailConfig>) {
-    onChange(
-      guardrails.map((g, i) => (i === index ? { ...g, ...updates } : g))
-    );
+  function updateGuardrail(index: number, rule: GuardrailConfig) {
+    onChange(guardrails.map((g, i) => (i === index ? rule : g)));
   }
 
   return (
     <div className="space-y-3">
       <h4 className="text-sm font-medium text-gray-300">{title}</h4>
       {guardrails.map((g, i) => (
-        <div key={i} className="flex items-end gap-2">
-          <Select
-            label="Type"
-            id={`${title}-${i}-type`}
-            options={GUARDRAIL_TYPES}
-            value={g.type}
-            onChange={(e) => updateGuardrail(i, { type: e.target.value })}
-          />
-          <Select
-            label="Action"
-            id={`${title}-${i}-action`}
-            options={GUARDRAIL_ACTIONS}
-            value={g.action || "block"}
-            onChange={(e) =>
-              updateGuardrail(i, {
-                action: e.target.value as "redact" | "block",
-              })
-            }
-          />
+        <div key={i} className="flex items-start gap-2">
+          <div className="flex-1">
+            <GuardrailRuleFields
+              idPrefix={`${title}-${i}`}
+              side={side}
+              rule={g}
+              onChange={(r) => updateGuardrail(i, r)}
+            />
+          </div>
           <Button
             variant="danger"
             className="px-2 py-2 text-sm"
@@ -237,11 +216,13 @@ export function StepSettings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <GuardrailsList
             title="Input Guardrails"
+            side="input"
             guardrails={guardrails.input || []}
             onChange={(g) => updateGuardrails("input", g)}
           />
           <GuardrailsList
             title="Output Guardrails"
+            side="output"
             guardrails={guardrails.output || []}
             onChange={(g) => updateGuardrails("output", g)}
           />

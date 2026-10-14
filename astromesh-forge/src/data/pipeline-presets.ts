@@ -1,4 +1,5 @@
 import type { GuardrailConfig, MemoryConfig } from "../types/agent";
+import { defaultGuardrail } from "../utils/guardrails";
 
 export type PresetSection = "builtin" | "memory" | "safety";
 
@@ -95,18 +96,17 @@ export const PIPELINE_PRESETS: PipelinePreset[] = [
     "epi",
     { backend: "sqlite", strategy: "append_only", ttl: 86400 },
   ),
-  guardPreset("safe-pii", "input", "PII redaction", "Mask emails, phones, etc.", {
-    type: "pii_detection",
-    action: "redact",
+  guardPreset("safe-pii", "input", "PII redaction", "Mask emails, phones, etc.", defaultGuardrail("pii_detection")),
+  guardPreset("safe-topics", "input", "Topic filter", "Warn on blocked topics (edit the list)", {
+    ...defaultGuardrail("topic_filter"),
+    blocked_topics: ["politics"],
   }),
-  guardPreset("safe-toxic-in", "input", "Toxic input filter", "Block unsafe user content", {
-    type: "content_filter",
-    action: "block",
+  guardPreset("safe-length", "input", "Input length cap", "Truncate input to 10000 characters", defaultGuardrail("max_length")),
+  guardPreset("safe-toxic-out", "output", "Output content filter", "Redact forbidden keywords/patterns", {
+    ...defaultGuardrail("content_filter"),
+    forbidden_keywords: ["password"],
   }),
-  guardPreset("safe-cost", "output", "Output cost guard", "Stop runaway token usage", {
-    type: "cost_limit",
-    action: "block",
-  }),
+  guardPreset("safe-cost", "output", "Output cost guard", "Stop runaway token usage (4000 output tokens per run)", defaultGuardrail("cost_limit")),
 ];
 
 export function presetsForSection(section: PresetSection): PipelinePreset[] {

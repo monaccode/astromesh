@@ -5,6 +5,7 @@ import type { GuardrailConfig, MemoryConfig, ModelConfig, ToolConfig } from "../
 import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
 import { Select } from "../../ui/Select";
+import { GuardrailRuleFields } from "../../guardrails/GuardrailRuleFields";
 
 const PROVIDERS = [
   { value: "ollama", label: "Ollama" },
@@ -425,57 +426,33 @@ function GuardrailFields({
   d: PipelineNodeData;
   onApply: (id: string, data: PipelineNodeData) => void;
 }) {
-  const c = d.config as unknown as GuardrailConfig;
-  const [local, setLocal] = useState({
-    type: c.type ?? "",
-    action: (c.action ?? "block") as NonNullable<GuardrailConfig["action"]>,
-  });
+  const side = nodeId.startsWith("ig-") ? "input" : "output";
+  const [rule, setRule] = useState(d.config as unknown as GuardrailConfig);
 
   useEffect(() => {
-    const nc = d.config as unknown as GuardrailConfig;
     // Syncs props into local form state; the idiomatic fix is remounting via `key` or
     // deriving during render. Deferred: this component has no test coverage, see the
     // hook-refactor spec.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
-    setLocal({
-      type: nc.type ?? "",
-      action: (nc.action ?? "block") as NonNullable<GuardrailConfig["action"]>,
-    });
+    setRule(d.config as unknown as GuardrailConfig);
   }, [nodeId, d.config]);
 
   function push() {
-    const next: GuardrailConfig = { type: local.type, action: local.action };
-    const phase = nodeId.startsWith("ig-") ? "Input" : "Output";
     onApply(nodeId, {
       ...d,
-      label: `${phase}: ${local.type}`,
-      config: { ...next } as unknown as Record<string, unknown>,
+      label: `${side === "input" ? "Input" : "Output"}: ${rule.type}`,
+      config: { ...rule } as unknown as Record<string, unknown>,
     });
   }
 
   return (
     <div className="space-y-3">
-      <Input
-        label="Guardrail type"
-        id="g-type"
-        value={local.type}
-        onChange={(e) => setLocal((s) => ({ ...s, type: e.target.value }))}
-        placeholder="pii_detection, cost_limit…"
-      />
-      <Select
-        label="Action"
-        id="g-act"
-        options={[
-          { value: "block", label: "Block" },
-          { value: "redact", label: "Redact" },
-        ]}
-        value={local.action}
-        onChange={(e) =>
-          setLocal((s) => ({
-            ...s,
-            action: e.target.value as NonNullable<GuardrailConfig["action"]>,
-          }))
-        }
+      <GuardrailRuleFields
+        key={nodeId}
+        idPrefix="g"
+        side={side}
+        rule={rule}
+        onChange={setRule}
       />
       <Button variant="primary" className="w-full text-sm" onClick={push}>
         Apply

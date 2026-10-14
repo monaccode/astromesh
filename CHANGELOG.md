@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Astromesh Forge)
+
+- **Forge emite y edita las reglas de guardrails que core 0.70.0 aplica.** Sólo ofrece los
+  cinco tipos soportados (`pii_detection`, `topic_filter`, `max_length`, `content_filter`,
+  `cost_limit`), cada uno en la dirección que core acepta (`topic_filter` y `max_length` sólo
+  en entrada, `content_filter` sólo en salida), con sus acciones y defaults (`redact`, `warn`,
+  `truncate`, `redact`, `block`) y sus campos (temas, `max_chars`, patrones/keywords,
+  `max_tokens_per_turn` + `count`, `message`), tanto en el wizard como en el panel del canvas.
+  Los presets de seguridad sólo producen reglas válidas (`cost_limit` en 4000). Forge →
+  0.26.0. (`astromesh-forge`)
+
 ## [0.70.0] - 2026-10-14
 
 **Breaking for existing manifests.** Agentes fuera de este repo que ya declaran

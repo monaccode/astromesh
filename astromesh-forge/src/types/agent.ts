@@ -29,7 +29,14 @@ export interface ToolConfig {
 
 export interface GuardrailConfig {
   type: string;
-  action?: "redact" | "block";
+  action?: "redact" | "block" | "warn" | "truncate";
+  message?: string;
+  blocked_topics?: string[];
+  max_chars?: number;
+  blocked_patterns?: string[];
+  forbidden_keywords?: string[];
+  max_tokens_per_turn?: number;
+  count?: "output" | "total";
   [key: string]: unknown;
 }
 

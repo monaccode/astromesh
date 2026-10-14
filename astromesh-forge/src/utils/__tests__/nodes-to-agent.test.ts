@@ -18,7 +18,7 @@ const SAMPLE: AgentConfig = {
     tools: [{ name: "search", type: "builtin", description: "Search" }],
     guardrails: {
       input: [{ type: "pii_detection", action: "redact" }],
-      output: [{ type: "cost_limit" }],
+      output: [{ type: "cost_limit", max_tokens_per_turn: 4000 }],
     },
     memory: {
       conversational: { backend: "redis", strategy: "sliding_window", max_turns: 20 },
