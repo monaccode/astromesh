@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**Breaking for existing manifests.** Agentes fuera de este repo que ya declaran
+`guardrails` cambian en silencio:
+
+- `pii_detection` de entrada ahora redacta (default `redact`). El regex de teléfono
+  coincide con cualquier número de 10 dígitos, así que IDs de pedido, tarjetas y teléfonos
+  dejan de llegar a las tools. Recomendado: mover la redacción a la salida si las tools
+  necesitan esos valores.
+- `cost_limit.max_tokens_per_turn` es ahora un presupuesto de tokens de salida de toda la
+  corrida. Los valores viejos de los templates (500-1500) cortan corridas con tools.
+  Recomendado: alrededor de 4000.
+- `max_length` trunca por default a 10000 caracteres.
+- `blocked_categories` / `allowed_topics` se ignoran, con un warning al cargar.
+- Un bloqueo devuelve una respuesta normal con `blocked: true` en lugar de un error (antes
+  un bloqueo por tema salía como HTTP 404 desde la ruta de run).
+
 ### Added (Backend)
 
 - `POST /v1/agents/{name}/run` y el `done` del WebSocket devuelven `blocked` y
