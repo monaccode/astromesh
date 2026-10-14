@@ -1,0 +1,193 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--a:#2dd4bf;--ad:#0d9488;--cy:#99f6e4;--sky:#00d4ff;--bg:#060d15;--bd:rgba(255,255,255,.08);--sf:rgba(255,255,255,.03);--g2:#cbd5e1;--g3:#94a3b8;--red:#f87171;--ok:#34d399}
+*{box-sizing:border-box;margin:0}
+@page{size:1080px 1350px;margin:0}
+body{background:#000;font-family:'DM Sans',sans-serif;color:#e2e8f0}
+.s{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--bg);padding:90px 84px;display:flex;flex-direction:column;margin-bottom:20px;break-after:page}
+@media print{.s{margin:0}}
+.s::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(45,212,191,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(45,212,191,.05) 1px,transparent 1px);background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 35%,#000 30%,transparent 100%)}
+.s::after{content:"";position:absolute;width:900px;height:900px;right:-300px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(20,184,166,.16),transparent 70%)}
+.s>*{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top img{height:170px;margin:-40px 0 -40px -50px;filter:drop-shadow(0 0 14px rgba(0,212,255,.3))}
+.badge{font:700 20px 'JetBrains Mono';letter-spacing:.12em;color:#042f2e;background:linear-gradient(135deg,var(--cy),var(--a));padding:8px 16px;border-radius:6px;box-shadow:0 0 24px rgba(45,212,191,.35)}
+.kick{font:500 24px 'JetBrains Mono';letter-spacing:.06em;color:var(--a)}
+h1{font-size:118px;line-height:1.02;font-weight:300;color:var(--g2);letter-spacing:-.02em}
+h1 b,h2 b{font-weight:800;background:linear-gradient(135deg,var(--cy),var(--a) 45%,var(--ad));-webkit-background-clip:text;color:transparent}
+h2{font-size:70px;line-height:1.08;font-weight:300;color:var(--g2);letter-spacing:-.01em}
+p.lead{font-size:34px;line-height:1.5;color:var(--g3);font-weight:300}
+p.lead b{color:#f1f5f9;font-weight:700}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font:500 22px 'JetBrains Mono';color:var(--g3);opacity:.8}
+.chips{display:flex;gap:12px;flex-wrap:wrap}
+.chip{font:500 24px 'JetBrains Mono';padding:10px 16px;border-radius:8px;border:1px solid rgba(45,212,191,.4);color:#ccfbf1;background:rgba(45,212,191,.08)}
+.chip.sky{border-color:rgba(0,212,255,.35);color:#a5f3fc;background:rgba(0,212,255,.07)}
+.mark{position:absolute;right:6px;top:210px;width:380px;filter:drop-shadow(0 0 40px rgba(37,99,235,.35))}
+/* comparación */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:56px}
+.col{border-radius:14px;padding:28px 30px;border:1px solid var(--bd)}
+.col.bad{background:rgba(248,113,113,.05);border-color:rgba(248,113,113,.3)}
+.col.good{background:rgba(45,212,191,.06);border-color:rgba(45,212,191,.5);box-shadow:0 0 50px rgba(20,184,166,.12)}
+.col .t{font:700 21px 'JetBrains Mono';letter-spacing:.08em}
+.col ul{list-style:none;padding:0;margin:18px 0 0}.col li{font-size:30px;line-height:1.3;color:var(--g2);padding:18px 0;border-top:1px solid rgba(255,255,255,.06)}
+.col.bad li{color:var(--g3)}
+/* ciclo */
+.ciclo{margin-top:34px;display:flex;flex-direction:column;gap:0}
+.fase{display:grid;grid-template-columns:70px 1fr auto;align-items:center;gap:24px;border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:14px 26px}
+.fase .n{font:800 34px 'JetBrains Mono';color:var(--a)}
+.fase .p{font-size:36px;font-weight:700;color:#f1f5f9}
+.fase .p span{display:block;font-size:24px;font-weight:300;color:var(--g3);margin-top:4px}
+.fase code{font:500 24px 'JetBrains Mono';color:#ccfbf1;background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.35);padding:6px 12px;border-radius:8px}
+.gate{font:500 22px 'JetBrains Mono';color:var(--sky);padding:5px 0 5px 96px;opacity:.9}
+/* prueba */
+.pedido{margin-top:44px;border:1px solid rgba(0,212,255,.35);background:rgba(0,212,255,.05);border-radius:14px;padding:22px 28px;font:500 28px 'JetBrains Mono';color:#a5f3fc}
+.pedido span{color:var(--g3)}
+.preg{margin-top:26px;display:flex;flex-direction:column;gap:14px}
+.q{border-left:4px solid var(--a);padding:6px 0 6px 22px;font-size:31px;color:var(--g2);line-height:1.3}
+.q code{font:500 27px 'JetBrains Mono';color:#ccfbf1}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:40px}
+.num{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:20px 18px;text-align:center}
+.num .v{font:800 64px 'DM Sans';color:#f1f5f9;line-height:1}
+.num .k{font:500 20px 'JetBrains Mono';color:var(--g3);margin-top:10px}
+.num.pass{border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.07)}.num.pass .v{color:var(--ok)}
+/* trazabilidad */
+.traza{margin-top:50px;border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.traza .r{display:grid;grid-template-columns:150px 110px 1fr 70px;gap:16px;align-items:center;padding:20px 24px;border-top:1px solid rgba(255,255,255,.06);font-size:27px;color:var(--g2)}
+.traza .r:first-child{border-top:0;background:rgba(45,212,191,.08);font:700 20px 'JetBrains Mono';letter-spacing:.08em;color:var(--a)}
+.traza .id{font:700 26px 'JetBrains Mono';color:#ccfbf1}
+.traza code{font:500 23px 'JetBrains Mono';color:#a5f3fc}
+.traza .ok{color:var(--ok);font-weight:800;text-align:center}
+.regla{margin-top:34px;display:flex;flex-direction:column;gap:16px}
+.regla div{font-size:33px;line-height:1.35;color:var(--g2);font-weight:300}
+.regla b{color:#f1f5f9;font-weight:800}
+/* lecciones */
+.lec{margin-top:40px;display:flex;flex-direction:column;gap:16px}
+.l{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:22px 30px}
+.l .t{font-size:36px;font-weight:800;color:#f1f5f9;line-height:1.2}
+.l .d{font-size:27px;font-weight:300;color:var(--g3);line-height:1.45;margin-top:10px}
+.l .d code{font:500 24px 'JetBrains Mono';color:#ccfbf1}
+/* cierre */
+.agentes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:44px}
+.ag{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:18px 24px;display:flex;justify-content:space-between;align-items:center}
+.ag .p{font-size:32px;font-weight:700;color:#f1f5f9}
+.ag code{font:500 21px 'JetBrains Mono';color:var(--g3)}
+.cta{margin-top:40px;display:flex;justify-content:space-between;align-items:center;border-radius:14px;padding:26px 30px;background:linear-gradient(135deg,rgba(45,212,191,.18),rgba(20,184,166,.05));border:2px solid var(--a)}
+.cta span{font-size:30px;color:var(--g2)}
+.cta b{font:700 26px 'JetBrains Mono';color:var(--cy)}
+
+/* okf */
+.term{margin-top:40px;border:1px solid var(--bd);background:#0a1420;border-radius:14px;padding:26px 30px;font:500 28px/1.6 'JetBrains Mono';color:var(--g2)}
+.term .c{color:var(--a);font-weight:700}.term .m{color:var(--g3)}.term .w{color:#fbbf24}.term .ok2{color:#a5f3fc}
+.term div{white-space:pre}
+.tres{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:40px}
+.tres .l .t{font-size:30px}
+.lado{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:44px}
+.lado .col li{font-size:28px;padding:14px 0}
+.combo{margin-top:22px;border:2px solid var(--a);border-radius:14px;padding:22px 28px;background:linear-gradient(135deg,rgba(45,212,191,.14),rgba(45,212,191,.03));font-size:30px;color:var(--g2);font-weight:300}
+.combo b{color:var(--cy);font-weight:800}
+</style></head><body>
+
+<!-- 1 portada -->
+<section class="s" id="s1">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">OPEN SOURCE · PyPI</span></div>
+  <img class="mark" src="assets/okf-mark.svg">
+  <div style="margin-top:150px"><div class="kick">Opinión impopular</div></div>
+  <h1 style="margin-top:28px;font-size:88px">Dejá de picar<br>tu conocimiento<br><b>en pedacitos.</b></h1>
+  <p class="lead" style="margin-top:44px;max-width:900px">Libero <b>astromesh-okf</b>: tus agentes navegan el conocimiento como una persona, en vez de recuperar fragmentos sueltos.</p>
+  <div class="chips" style="margin-top:42px"><span class="chip">3 tools</span><span class="chip">9 frameworks</span><span class="chip">MCP</span><span class="chip sky">pip install astromesh-okf</span></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>desliza →</span></div>
+</section>
+
+<!-- 2 el problema -->
+<section class="s" id="s2">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">El problema</span></div>
+  <h2 style="margin-top:50px">Un fragmento no sabe<br><b>si sigue vigente.</b></h2>
+  <p class="lead" style="margin-top:34px">Tampoco quién lo revisó, ni a qué otro documento apunta. Una persona no lee así: abre el índice, sigue los links y mira la fecha.</p>
+  <div class="cmp">
+    <div class="col bad"><div class="t" style="color:var(--red)">UN CHUNK</div>
+      <ul><li>Un pedazo sin su contexto</li><li>Nadie sabe quién lo verificó</li><li>Lo viejo y lo nuevo, mezclados</li><li>Links rotos o perdidos</li></ul></div>
+    <div class="col good"><div class="t" style="color:var(--a)">UN CONCEPTO OKF</div>
+      <ul><li>El documento entero</li><li>trust: human-reviewed</li><li>stale, status y warnings</li><li>Links que el agente puede seguir</li></ul></div>
+  </div>
+  <div class="foot"><span>Open Knowledge Format</span><span>2/7</span></div>
+</section>
+
+<!-- 3 cómo navega -->
+<section class="s" id="s3">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Cómo navega</span></div>
+  <h2 style="margin-top:46px">Lee como lo harías<br><b>vos.</b></h2>
+  <div class="term">
+<div><span class="c">kb_index("/")</span></div>
+<div><span class="m">  policies/  products/</span></div>
+<div><span class="c">kb_find(type="Policy")</span></div>
+<div><span class="ok2">  policies/refunds · human-reviewed</span></div>
+<div><span class="c">kb_read("policies/refunds")</span></div>
+<div><span class="ok2">  links → products/plans ✓</span></div>
+<div><span class="ok2">          policies/refunds-2024 ✓</span></div>
+<div><span class="c">kb_read("policies/refunds-2024")</span></div>
+<div><span class="w">  ⚠ DEPRECATED: do not use for new work</span></div>
+  </div>
+  <p class="lead" style="margin-top:30px;font-size:30px">Índice → búsqueda → concepto → link. Y cuando llega a la política vieja, <b>la lee con la advertencia puesta.</b></p>
+  <div class="foot"><span>salida real del CLI · bundle de ejemplo</span><span>3/7</span></div>
+</section>
+
+<!-- 4 señales -->
+<section class="s" id="s4">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Confianza</span></div>
+  <h2 style="margin-top:46px">Lo vencido se lee.<br><b>Pero avisa.</b></h2>
+  <div class="lec">
+    <div class="l"><div class="t">Leer nunca esconde nada.</div><div class="d">Un concepto deprecado o sin verificar se abre igual, con <code>trust</code>, <code>stale</code>, <code>status</code> y <code>warnings</code>. El modelo decide sabiendo.</div></div>
+    <div class="l"><div class="t">Buscar sí filtra.</div><div class="d"><code>kb_find</code> saltea lo deprecado, porque un resultado de búsqueda es una recomendación, y una política retirada no debería serlo.</div></div>
+    <div class="l"><div class="t">Y puede citar de dónde sacó la respuesta.</div><div class="d">Cada concepto tiene un id. La respuesta sale de <code>policies/refunds</code>, no de "un fragmento por ahí".</div></div>
+  </div>
+  <div class="foot"><span>astromesh-okf</span><span>4/7</span></div>
+</section>
+
+<!-- 5 lo que aprendí -->
+<section class="s" id="s5">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Lo que aprendí</span></div>
+  <h2 style="margin-top:46px">Lo que aprendí<br><b>construyéndolo.</b></h2>
+  <div class="lec">
+    <div class="l"><div class="t">Los modelos se equivocan con las rutas.</div><div class="d">Por eso cada link vuelve ya resuelto a un id que el agente pasa tal cual.</div></div>
+    <div class="l"><div class="t">Los modelos inventan argumentos.</div><div class="d">Vi <code>limit="2"</code> y <code>tags="finance"</code> en vez de una lista. El loop no se cae.</div></div>
+    <div class="l"><div class="t">Una herramienta nunca lanza una excepción.</div><div class="d">Cada error vuelve como JSON, y un concepto que no existe trae sugerencias.</div></div>
+    <div class="l"><div class="t">El índice va en el system prompt.</div><div class="d">No cambia entre preguntas: ahorra una llamada por conversación y el prefijo queda cacheable.</div></div>
+  </div>
+  <div class="foot"><span>astromesh-okf</span><span>5/7</span></div>
+</section>
+
+<!-- 6 cuándo sí -->
+<section class="s" id="s6">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Sin humo</span></div>
+  <h2 style="margin-top:46px">¿Mata a RAG?<br><b>No.</b></h2>
+  <div class="lado">
+    <div class="col good"><div class="t" style="color:var(--a)">NAVEGAR GANA</div>
+      <ul><li>Políticas</li><li>Definiciones de métricas</li><li>Runbooks</li><li>Catálogos de datos</li></ul></div>
+    <div class="col bad"><div class="t" style="color:var(--red)">RAG GANA</div>
+      <ul><li>Miles de documentos</li><li>Sin estructura que seguir</li><li>Búsqueda por similitud</li><li>Más allá de unos miles de conceptos</li></ul></div>
+  </div>
+  <div class="combo"><b>Se combinan:</b> un retriever para la cola larga y las tools de OKF para el núcleo curado. Varios bundles en un mismo agente con <code style="font-family:'JetBrains Mono'">prefix</code>.</div>
+  <div class="foot"><span>astromesh-okf</span><span>6/7</span></div>
+</section>
+
+<!-- 7 cierre -->
+<section class="s" id="s7">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">APACHE-2.0</span></div>
+  <h2 style="margin-top:46px">Nació en Astromesh.<br><b>Ahora es de todos.</b></h2>
+  <p class="lead" style="margin-top:28px">El lector OKF del runtime, extraído como librería. El core de Astromesh ya lo usa como dependencia.</p>
+  <div class="agentes">
+    <div class="ag"><span class="p">LangChain</span></div>
+    <div class="ag"><span class="p">CrewAI</span></div>
+    <div class="ag"><span class="p">Google ADK</span></div>
+    <div class="ag"><span class="p">OpenAI Agents</span></div>
+    <div class="ag"><span class="p">PydanticAI</span></div>
+    <div class="ag"><span class="p">LlamaIndex</span></div>
+    <div class="ag"><span class="p">smolagents</span></div>
+    <div class="ag"><span class="p">MS Agent Framework</span></div>
+  </div>
+  <p class="lead" style="margin-top:22px;font-size:28px">Y cualquier cliente <b>MCP</b>, con <b>pip install astromesh-okf</b>. Probado en cada CI contra los 4 bundles de ejemplo de Google: 53 conceptos, ninguno descartado.</p>
+  <div class="cta"><span>Instalalo hoy</span><b>github.com/monaccode/astromesh-okf</b></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>7/7</span></div>
+</section>
+</body></html>

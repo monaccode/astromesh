@@ -34,3 +34,5 @@ social/
 | 2026-10-01 | [Nexus, más allá del agente](2026/2026-10-01-nexus-mas-alla-del-agente/post.md) | LinkedIn | Nexus | draft |
 | 2026-10-01 | [Cada cosa en su capa](2026/2026-10-01-cada-cosa-en-su-capa/post.md) | LinkedIn | Astromesh | draft |
 | 2026-10-02 | [Un deck no contesta un WhatsApp](2026/2026-10-02-un-deck-no-contesta-whatsapp/post.md) | LinkedIn | Herald + Nexus | draft |
+| 2026-10-14 | [El vibe coding no escala. La spec sí.](2026/2026-10-14-el-vibe-coding-no-escala/post.md) | LinkedIn | astromesh-sdd | draft |
+| 2026-10-14 | [Dejá de picar tu conocimiento en pedacitos](2026/2026-10-14-deja-de-picar-tu-conocimiento/post.md) | LinkedIn | astromesh-okf | draft |

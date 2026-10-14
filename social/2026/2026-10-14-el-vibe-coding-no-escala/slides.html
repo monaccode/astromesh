@@ -1,0 +1,190 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--a:#a78bfa;--ad:#7c3aed;--cy:#c4b5fd;--sky:#00d4ff;--bg:#060d15;--bd:rgba(255,255,255,.08);--sf:rgba(255,255,255,.03);--g2:#cbd5e1;--g3:#94a3b8;--red:#f87171;--ok:#34d399}
+*{box-sizing:border-box;margin:0}
+@page{size:1080px 1350px;margin:0}
+body{background:#000;font-family:'DM Sans',sans-serif;color:#e2e8f0}
+.s{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--bg);padding:90px 84px;display:flex;flex-direction:column;margin-bottom:20px;break-after:page}
+@media print{.s{margin:0}}
+.s::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(167,139,250,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(167,139,250,.05) 1px,transparent 1px);background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 35%,#000 30%,transparent 100%)}
+.s::after{content:"";position:absolute;width:900px;height:900px;right:-300px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.16),transparent 70%)}
+.s>*{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top img{height:170px;margin:-40px 0 -40px -50px;filter:drop-shadow(0 0 14px rgba(0,212,255,.3))}
+.badge{font:700 20px 'JetBrains Mono';letter-spacing:.12em;color:#160b2e;background:linear-gradient(135deg,var(--cy),var(--a));padding:8px 16px;border-radius:6px;box-shadow:0 0 24px rgba(167,139,250,.35)}
+.kick{font:500 24px 'JetBrains Mono';letter-spacing:.06em;color:var(--a)}
+h1{font-size:118px;line-height:1.02;font-weight:300;color:var(--g2);letter-spacing:-.02em}
+h1 b,h2 b{font-weight:800;background:linear-gradient(135deg,var(--cy),var(--a) 45%,var(--ad));-webkit-background-clip:text;color:transparent}
+h2{font-size:70px;line-height:1.08;font-weight:300;color:var(--g2);letter-spacing:-.01em}
+p.lead{font-size:34px;line-height:1.5;color:var(--g3);font-weight:300}
+p.lead b{color:#f1f5f9;font-weight:700}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font:500 22px 'JetBrains Mono';color:var(--g3);opacity:.8}
+.chips{display:flex;gap:12px;flex-wrap:wrap}
+.chip{font:500 24px 'JetBrains Mono';padding:10px 16px;border-radius:8px;border:1px solid rgba(167,139,250,.4);color:#ddd6fe;background:rgba(167,139,250,.08)}
+.chip.sky{border-color:rgba(0,212,255,.35);color:#a5f3fc;background:rgba(0,212,255,.07)}
+.mark{position:absolute;right:16px;top:230px;width:420px;filter:drop-shadow(0 0 40px rgba(37,99,235,.35))}
+/* comparación */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:56px}
+.col{border-radius:14px;padding:28px 30px;border:1px solid var(--bd)}
+.col.bad{background:rgba(248,113,113,.05);border-color:rgba(248,113,113,.3)}
+.col.good{background:rgba(167,139,250,.06);border-color:rgba(167,139,250,.5);box-shadow:0 0 50px rgba(124,58,237,.12)}
+.col .t{font:700 21px 'JetBrains Mono';letter-spacing:.08em}
+.col ul{list-style:none;padding:0;margin:18px 0 0}.col li{font-size:30px;line-height:1.3;color:var(--g2);padding:18px 0;border-top:1px solid rgba(255,255,255,.06)}
+.col.bad li{color:var(--g3)}
+/* ciclo */
+.ciclo{margin-top:34px;display:flex;flex-direction:column;gap:0}
+.fase{display:grid;grid-template-columns:70px 1fr auto;align-items:center;gap:24px;border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:14px 26px}
+.fase .n{font:800 34px 'JetBrains Mono';color:var(--a)}
+.fase .p{font-size:36px;font-weight:700;color:#f1f5f9}
+.fase .p span{display:block;font-size:24px;font-weight:300;color:var(--g3);margin-top:4px}
+.fase code{font:500 24px 'JetBrains Mono';color:#ddd6fe;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.35);padding:6px 12px;border-radius:8px}
+.gate{font:500 22px 'JetBrains Mono';color:var(--sky);padding:5px 0 5px 96px;opacity:.9}
+/* prueba */
+.pedido{margin-top:44px;border:1px solid rgba(0,212,255,.35);background:rgba(0,212,255,.05);border-radius:14px;padding:22px 28px;font:500 28px 'JetBrains Mono';color:#a5f3fc}
+.pedido span{color:var(--g3)}
+.preg{margin-top:26px;display:flex;flex-direction:column;gap:14px}
+.q{border-left:4px solid var(--a);padding:6px 0 6px 22px;font-size:31px;color:var(--g2);line-height:1.3}
+.q code{font:500 27px 'JetBrains Mono';color:#ddd6fe}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:40px}
+.num{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:20px 18px;text-align:center}
+.num .v{font:800 64px 'DM Sans';color:#f1f5f9;line-height:1}
+.num .k{font:500 20px 'JetBrains Mono';color:var(--g3);margin-top:10px}
+.num.pass{border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.07)}.num.pass .v{color:var(--ok)}
+/* trazabilidad */
+.traza{margin-top:50px;border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.traza .r{display:grid;grid-template-columns:150px 110px 1fr 70px;gap:16px;align-items:center;padding:20px 24px;border-top:1px solid rgba(255,255,255,.06);font-size:27px;color:var(--g2)}
+.traza .r:first-child{border-top:0;background:rgba(167,139,250,.08);font:700 20px 'JetBrains Mono';letter-spacing:.08em;color:var(--a)}
+.traza .id{font:700 26px 'JetBrains Mono';color:#ddd6fe}
+.traza code{font:500 23px 'JetBrains Mono';color:#a5f3fc}
+.traza .ok{color:var(--ok);font-weight:800;text-align:center}
+.regla{margin-top:34px;display:flex;flex-direction:column;gap:16px}
+.regla div{font-size:33px;line-height:1.35;color:var(--g2);font-weight:300}
+.regla b{color:#f1f5f9;font-weight:800}
+/* lecciones */
+.lec{margin-top:46px;display:flex;flex-direction:column;gap:20px}
+.l{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:26px 30px}
+.l .t{font-size:36px;font-weight:800;color:#f1f5f9;line-height:1.2}
+.l .d{font-size:27px;font-weight:300;color:var(--g3);line-height:1.45;margin-top:10px}
+.l .d code{font:500 24px 'JetBrains Mono';color:#ddd6fe}
+/* cierre */
+.agentes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:44px}
+.ag{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:18px 24px;display:flex;justify-content:space-between;align-items:center}
+.ag .p{font-size:32px;font-weight:700;color:#f1f5f9}
+.ag code{font:500 21px 'JetBrains Mono';color:var(--g3)}
+.cta{margin-top:40px;display:flex;justify-content:space-between;align-items:center;border-radius:14px;padding:26px 30px;background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(124,58,237,.05));border:2px solid var(--a)}
+.cta span{font-size:30px;color:var(--g2)}
+.cta b{font:700 26px 'JetBrains Mono';color:var(--cy)}
+</style></head><body>
+
+<!-- 1 portada -->
+<section class="s" id="s1">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">OPEN SOURCE · v0.1.0</span></div>
+  <img class="mark" src="assets/sdd-mark.svg">
+  <div style="margin-top:150px"><div class="kick">Opinión impopular</div></div>
+  <h1 style="margin-top:28px;max-width:600px;font-size:100px">El vibe coding no escala.<br><b>La spec sí.</b></h1>
+  <p class="lead" style="margin-top:46px;max-width:880px">Libero <b>astromesh-sdd</b>: 7 skills de Spec-Driven Development para que tu agente de código piense antes de escribir, y lo demuestre al terminar.</p>
+  <div class="chips" style="margin-top:44px"><span class="chip">Claude Code</span><span class="chip">Codex</span><span class="chip">OpenCode</span><span class="chip">Kimi</span><span class="chip">Gemini</span><span class="chip">Copilot</span></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>desliza →</span></div>
+</section>
+
+<!-- 2 el problema -->
+<section class="s" id="s2">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">El problema</span></div>
+  <h2 style="margin-top:50px">Tu agente escribe rápido.<br><b>Y se olvida del porqué.</b></h2>
+  <p class="lead" style="margin-top:36px">La sesión se cierra, el contexto se va, y la próxima arranca de cero. Lo que decidiste quedó en un chat que nadie va a releer.</p>
+  <div class="cmp">
+    <div class="col bad"><div class="t" style="color:var(--red)">PROMPT Y REZAR</div>
+      <ul><li>El agente adivina lo que no le dijiste</li><li>Las decisiones viven en el chat</li><li>"Listo" sin una prueba que corra</li></ul></div>
+    <div class="col good"><div class="t" style="color:var(--a)">SPEC-DRIVEN</div>
+      <ul><li>Lo que no sabe, lo pregunta o lo marca</li><li>Cada fase es un archivo en tu repo</li><li>"Listo" = evidencia de esta sesión</li></ul></div>
+  </div>
+  <div class="foot"><span>astromesh-sdd</span><span>2/7</span></div>
+</section>
+
+<!-- 3 el ciclo -->
+<section class="s" id="s3">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">El ciclo</span></div>
+  <h2 style="margin-top:46px">Primero qué. Después cómo.<br><b>Al final, la prueba.</b></h2>
+  <div class="ciclo">
+    <div class="fase"><div class="n">1</div><div class="p">Specify<span>requisitos numerados, testeables</span></div><code>spec.md</code></div>
+    <div class="gate">aprobás ↓</div>
+    <div class="fase"><div class="n">2</div><div class="p">Plan<span>decisiones y lo que se descartó</span></div><code>plan.md</code></div>
+    <div class="gate">aprobás ↓</div>
+    <div class="fase"><div class="n">3</div><div class="p">Tasks<span>cada tarea con su comando de prueba</span></div><code>tasks.md</code></div>
+    <div class="gate">aprobás ↓</div>
+    <div class="fase"><div class="n">4</div><div class="p">Implement<span>una tarea a la vez, test primero</span></div><code>commits</code></div>
+    <div class="gate" style="color:var(--g3)">↓</div>
+    <div class="fase"><div class="n">5</div><div class="p">Verify<span>cada requisito contra su evidencia</span></div><code>verify.md</code></div>
+  </div>
+  <div class="foot"><span>astromesh-sdd</span><span>3/7</span></div>
+</section>
+
+<!-- 4 la prueba real -->
+<section class="s" id="s4">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Prueba real</span></div>
+  <h2 style="margin-top:46px">Le pedí una línea.<br><b>Me devolvió 5 preguntas.</b></h2>
+  <div class="pedido"><span>&gt;</span> agregá slugify(title): minúsculas, ASCII, guiones, máx. 5 palabras</div>
+  <div class="preg">
+    <div class="q">¿La <code>ß</code> se translitera a <code>ss</code> o se descarta?</div>
+    <div class="q">¿<code>don't</code> queda <code>dont</code> o se parte en dos?</div>
+    <div class="q">¿Un símbolo suelto como <code>&amp;</code> cuenta como palabra?</div>
+  </div>
+  <p class="lead" style="margin-top:28px;font-size:30px">Preguntas que yo no me había hecho. Cada respuesta se volvió un requisito con su ejemplo, y cada ejemplo, un test.</p>
+  <div class="nums">
+    <div class="num"><div class="v">7</div><div class="k">requisitos</div></div>
+    <div class="num"><div class="v">3</div><div class="k">tareas</div></div>
+    <div class="num"><div class="v">8</div><div class="k">tests en verde</div></div>
+    <div class="num pass"><div class="v">PASS</div><div class="k">veredicto</div></div>
+  </div>
+  <div class="foot"><span>Claude Code · ejemplo en el repo</span><span>4/7</span></div>
+</section>
+
+<!-- 5 trazabilidad -->
+<section class="s" id="s5">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Trazabilidad</span></div>
+  <h2 style="margin-top:46px">"Funciona" no es<br><b>un veredicto.</b></h2>
+  <div class="traza">
+    <div class="r"><span>REQUISITO</span><span>TAREA</span><span>EVIDENCIA</span><span></span></div>
+    <div class="r"><span class="id">REQ-2</span><span class="id">T-1</span><code>"Café Ñandú" → "cafe-nandu"</code><span class="ok">✓</span></div>
+    <div class="r"><span class="id">REQ-4</span><span class="id">T-2</span><code>"C++ &amp; Rust" → "c-rust"</code><span class="ok">✓</span></div>
+    <div class="r"><span class="id">REQ-7</span><span class="id">T-3</span><code>"?!... --- ___" → ""</code><span class="ok">✓</span></div>
+  </div>
+  <div class="regla">
+    <div>Un requisito que nadie cita <b>no se construye.</b></div>
+    <div>Una tarea que no cita nada <b>es scope creep.</b></div>
+    <div>Un ✓ sin evidencia de esta sesión <b>no existe.</b></div>
+  </div>
+  <div class="foot"><span>verify.md · ejemplo real</span><span>5/7</span></div>
+</section>
+
+<!-- 6 lo que aprendí -->
+<section class="s" id="s6">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Lo que aprendí</span></div>
+  <h2 style="margin-top:46px">Lo que no te cuenta<br><b>ningún tutorial.</b></h2>
+  <div class="lec">
+    <div class="l"><div class="t">La aprobación tiene que vivir en el archivo.</div><div class="d">La primera versión la dejaba en el chat. Una sesión nueva encontraba la spec y planificaba sin que nadie la hubiera aprobado. Ahora cada gate escribe <code>Status: approved</code>.</div></div>
+    <div class="l"><div class="t">Si lo dejás, el agente planifica alrededor de una duda.</div><div class="d">Con dos preguntas abiertas y un "aprobado", siguió adelante y aisló lo indefinido. Razonable, pero por eso el plan exige cerrar las dudas primero.</div></div>
+    <div class="l"><div class="t">Un revisor independiente encontró 8 problemas.</div><div class="d">Antes de lanzar. Cada uno se arregló con un test que primero falló. Lo mismo que le pido al agente.</div></div>
+  </div>
+  <div class="foot"><span>astromesh-sdd</span><span>6/7</span></div>
+</section>
+
+<!-- 7 cierre -->
+<section class="s" id="s7">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">APACHE-2.0</span></div>
+  <h2 style="margin-top:46px">Un formato abierto.<br><b>Cualquier agente.</b></h2>
+  <p class="lead" style="margin-top:30px">Skills en formato <b>Agent Skills</b> (<span style="font-family:'JetBrains Mono';font-size:28px">SKILL.md</span>): la misma carpeta sirve para todos.</p>
+  <div class="agentes">
+    <div class="ag"><span class="p">Claude Code</span><code>plugin</code></div>
+    <div class="ag"><span class="p">Codex CLI</span><code>.agents/skills</code></div>
+    <div class="ag"><span class="p">OpenCode</span><code>.agents/skills</code></div>
+    <div class="ag"><span class="p">Kimi Code</span><code>.agents/skills</code></div>
+    <div class="ag"><span class="p">Gemini CLI</span><code>.agents/skills</code></div>
+    <div class="ag"><span class="p">Copilot</span><code>.agents/skills</code></div>
+  </div>
+  <p class="lead" style="margin-top:30px;font-size:30px">¿Tu equipo trabaja distinto? Reglas, plantillas y fases propias en <b>.sdd/</b>, sin tocar las skills.</p>
+  <div class="cta"><span>Instalalo hoy</span><b>github.com/monaccode/astromesh-sdd</b></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>7/7</span></div>
+</section>
+</body></html>
