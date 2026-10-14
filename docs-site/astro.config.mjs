@@ -135,6 +135,14 @@ export default defineConfig({
           ],
         },
         {
+          label: 'SDD Skills',
+          items: [
+            { label: 'Introduction', slug: 'sdd/introduction' },
+            { label: 'Install', slug: 'sdd/install' },
+            { label: 'Customizing', slug: 'sdd/customizing' },
+          ],
+        },
+        {
           label: 'Astromesh Nebula',
           items: [
             { label: 'Introduction', slug: 'nebula/introduction' },

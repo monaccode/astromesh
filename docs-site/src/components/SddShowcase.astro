@@ -1,0 +1,41 @@
+---
+import ProductShowcase from './ProductShowcase.astro';
+
+import { COMPONENTS } from '../data/ecosystem';
+const version = COMPONENTS.find((c) => c.id === 'sdd')!.version;
+
+const lines = [
+  { t: '/sdd add slugify(title) to textutil', k: 'cmd' },
+  { t: '  specify → specs/001-slugify-title/spec.md', k: 'comment' },
+  { t: '  REQ-1 … REQ-7 · 0 NEEDS CLARIFICATION', k: 'plain' },
+  { t: '  plan → plan.md · tasks → T-1 … T-3', k: 'comment' },
+  { t: '  T-1 check: python3 -m unittest → OK', k: 'str' },
+  { t: '/sdd-verify', k: 'cmd' },
+  { t: '  REQ-1 … REQ-7 ✅ · Verdict: PASS', k: 'str' },
+];
+
+const features = [
+  { icon: `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: '7 skills', desc: 'specify → plan → tasks → verify' },
+  { icon: `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>`, label: 'Files on disk', desc: 'Any session or agent resumes' },
+  { icon: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>`, label: '6 agents', desc: 'Claude Code, Codex, OpenCode, …' },
+  { icon: `<polyline points="20 6 9 17 4 12"/>`, label: 'Traceable', desc: 'REQ → task → evidence' },
+  { icon: `<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`, label: 'Human gates', desc: 'Approval recorded in the file' },
+  { icon: `<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>`, label: 'Yours to bend', desc: '.sdd/ rules, templates, phases' },
+];
+---
+
+<ProductShowcase
+  name="SDD"
+  version={version}
+  badge="SKILLS"
+  tagline="Spec first, for any coding agent"
+  description="Seven skills that make a coding agent write a spec, a plan and tasks before the code, and verify against the spec at the end — every phase a file next to your code."
+  accent="#60a5fa"
+  accentDeep="#2563eb"
+  panelTitle="sdd · one feature"
+  lines={lines}
+  features={features}
+  terminal={['/plugin marketplace add monaccode/astromesh-sdd', '/plugin install astromesh-sdd@astromesh']}
+  ctaPrimary={{ text: 'Install', href: '/astromesh/sdd/install/' }}
+  ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/sdd/introduction/' }}
+/>

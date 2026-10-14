@@ -1,6 +1,6 @@
 ---
 title: The Astromesh Ecosystem
-description: How the core runtime, Glyph, OKF, ADK, CLI, Node, OS, Forge, Cortex, Orbit, Prisma, Nexus, Herald, Leia, and Nebula fit together
+description: How the core runtime, Glyph, OKF, SDD, ADK, CLI, Node, OS, Forge, Cortex, Orbit, Prisma, Nexus, Herald, Leia, and Nebula fit together
 ---
 
 Astromesh is not a single tool — it's an **ecosystem** designed to cover the full lifecycle of AI agents: **define, build, run, deploy, and manage**. The core runtime is the foundation, and a set of satellite projects extend it for specific use cases.
@@ -27,6 +27,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.26.10 |
 | **Herald** | Communications gateway — WhatsApp, Telegram, Instagram and web chat messages reach agents, and agents reach people back through one outbox | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.11.0 |
 | **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.6.0 |
+| **SDD** | Spec-Driven Development skills for any coding agent — spec, plan, tasks, implementation and verification as files next to your code; a Claude Code plugin and open Agent Skills | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | v0.1.0 |
 | **Nebula** | Open-model foundry — trains, gates, and publishes the ecosystem's own models | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | v0.1.0 (preview) |
 
 ## How They Relate
@@ -69,6 +70,7 @@ flowchart LR
 - **ADK** builds agents in Python → generates YAML the **Core Runtime** understands.
 - **Forge** and **Cortex** build agents visually (see [Forge vs Cortex](#forge-vs-cortex) below).
 - **Leia** drives the whole flow in plain English from inside Claude Code.
+- **[SDD](/astromesh/sdd/introduction/)** is how you build the software *around* agents with a coding agent: Claude Code, Codex, OpenCode, Kimi and others write a spec, a plan and tasks before the code, and verify against the spec at the end. It does not touch the runtime.
 - **Core Runtime** is the engine that executes agents.
 - **Node** installs the runtime as a native system service (`astromeshd`); **OS** ships it as a sealed appliance image; **Docker/Helm** package it for containers.
 - **CLI** is the `astromeshctl` management interface.
@@ -101,6 +103,7 @@ In short: reach for **Forge** when you want an instant, in-node visual builder; 
 | Build agents visually in the browser, embedded in a node | [**Astromesh Forge**](/astromesh/forge/introduction/) |
 | Design, test, and deploy from a desktop IDE | [**Astromesh Cortex**](/astromesh/cortex/introduction/) |
 | Go from idea to a deployed WhatsApp agent in plain English | [**Astromesh Leia**](/astromesh/leia/introduction/) |
+| Build software with a coding agent, spec first, with every requirement traced to a test | [**Astromesh SDD**](/astromesh/sdd/introduction/) |
 | Install as a system service on Linux, macOS, or Windows | [**Astromesh Node**](/astromesh/node/introduction/) |
 | Run agents on a hardened, immutable appliance | [**Astromesh OS**](/astromesh/os/introduction/) |
 | Deploy in containers or Kubernetes | [**Docker / Helm**](/astromesh/deployment/docker-single/) (part of core) |

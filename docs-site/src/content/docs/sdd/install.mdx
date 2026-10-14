@@ -1,0 +1,60 @@
+---
+title: Install SDD
+description: Install the SDD skills in Claude Code, Codex CLI, OpenCode, Kimi Code, Gemini CLI, GitHub Copilot, or any agent that reads AGENTS.md.
+---
+
+Installing means putting the seven skill folders where your agent looks for skills. Claude
+Code has a plugin; every other agent uses the installer from a clone:
+
+```bash
+git clone https://github.com/monaccode/astromesh-sdd
+cd astromesh-sdd
+```
+
+| Agent | Install into your project | Run it |
+|---|---|---|
+| Claude Code | `/plugin marketplace add monaccode/astromesh-sdd`<br/>`/plugin install astromesh-sdd@astromesh` | `/astromesh-sdd:sdd` |
+| Codex CLI | `./install.sh --target codex --dir ~/my-project` | `$sdd` |
+| OpenCode | `./install.sh --target opencode --dir ~/my-project` | ask for the `sdd` skill |
+| Kimi Code | `./install.sh --target kimi --dir ~/my-project` | `/skill:sdd` |
+| Gemini CLI | `./install.sh --target gemini --dir ~/my-project` | picked up automatically |
+| GitHub Copilot | `./install.sh --target copilot --dir ~/my-project` | picked up automatically |
+| Anything else | `./install.sh --target agents-md --dir ~/my-project` | reads `AGENTS.md` |
+
+`--global` installs for every project instead of one. Plain `./install.sh` installs for
+every agent at once. On Windows, run `pwsh -File .\install.ps1` with the same options
+(`-Target`, `-Global`, `-Dir`); it needs PowerShell 7, not the Windows PowerShell 5.1 that
+ships with Windows.
+
+## Where the skills go
+
+| Target | Project | Global | Read by |
+|---|---|---|---|
+| `claude` | `.claude/skills/` | `~/.claude/skills/` | Claude Code (also OpenCode and Copilot) |
+| `agents` (`codex`, `opencode`, `kimi`, `gemini`, `copilot`) | `.agents/skills/` | `~/.agents/skills/` | Codex CLI, OpenCode, Kimi Code, Gemini CLI, GitHub Copilot |
+| `agents-md` | `AGENTS.md`, between `<!-- astromesh-sdd:start -->` and `<!-- astromesh-sdd:end -->` | — | Cursor, Aider, Windsurf and other agents without skill support |
+
+Paths were checked against each agent's documentation on 2026-10-13; the
+[install guide in the repository](https://github.com/monaccode/astromesh-sdd/blob/main/docs/install.md)
+links the source for every one, and how to check the skills loaded in each agent.
+
+## Installer options
+
+| Option | What it does |
+|---|---|
+| `--project` (default) / `--global` | Install into the project at `--dir` (default: the current directory) or into your home directory |
+| `--link` | Symlink to the clone instead of copying, so `git pull` updates the skills. Moving or deleting the clone breaks them, and the installer says so |
+| `--dry-run` | Print what would change and change nothing |
+| `--init` | Also create a commented `.sdd/` settings folder. An existing `.sdd/` is never touched |
+
+Running the installer again updates the skills in place. Your `.sdd/` folder and everything
+in `AGENTS.md` outside the marked block are left alone; a symlinked `AGENTS.md` stays a
+symlink. If the block was edited by hand and lost one of its markers, the installer stops
+without touching the file and asks you to fix it.
+
+## Updating and uninstalling
+
+- **Update:** `git pull` in the clone and run the same command again (with `--link`,
+  `git pull` alone is enough). Claude Code plugin: update it from `/plugin`.
+- **Uninstall:** delete the seven `sdd*` folders from the skills directory and the marked
+  block from `AGENTS.md`. Claude Code plugin: `/plugin uninstall astromesh-sdd@astromesh`.

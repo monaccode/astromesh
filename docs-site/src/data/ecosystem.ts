@@ -58,7 +58,7 @@ export const GROUPS: Group[] = [
   {
     id: 'author',
     label: 'Author',
-    blurb: 'Four ways to write an agent — Python, browser, desktop, or plain English. All of them emit the same YAML.',
+    blurb: 'Four ways to write an agent — Python, browser, desktop, or plain English — all emitting the same YAML, and a spec-first method for building software with coding agents.',
     accent: '#8b5cf6',
     start: 0,
     sweep: 120,
@@ -171,7 +171,22 @@ export const COMPONENTS: Component[] = [
     install: 'claude --plugin-dir ./astromesh-leia',
     href: '/astromesh/leia/introduction/',
     repo: 'https://github.com/monaccode/astromesh-leia',
+  },  {
+    id: 'sdd',
+    name: 'Astromesh SDD',
+    short: 'SDD',
+    group: 'author',
+    version: '0.1.0',
+    released: '2026-10-13',
+    tagline:
+      'Spec-Driven Development for any coding agent: spec, plan, tasks, code and verification, each phase a file next to your code.',
+    latest:
+      'First release: seven Agent Skills, a Claude Code plugin, installers for Claude Code and the `.agents/skills` agents (Codex, OpenCode, Kimi, Gemini, Copilot), and `.sdd/` settings to customize them.',
+    install: '/plugin marketplace add monaccode/astromesh-sdd',
+    href: '/astromesh/sdd/introduction/',
+    repo: 'https://github.com/monaccode/astromesh-sdd',
   },
+
   {
     id: 'glyph',
     name: 'Glyph',
