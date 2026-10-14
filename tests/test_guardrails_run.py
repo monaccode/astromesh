@@ -296,3 +296,31 @@ async def test_cost_limit_sobrevive_a_un_patron_que_lo_esconde(tmp_path, modo):
     assert len(llamadas) == 1
     assert result["blocked"] is True
     assert result["guardrail"]["rule"] == "cost_limit"
+
+
+async def test_salida_redactada_no_se_filtra_por_steps_ni_trace(tmp_path):
+    agente, _ = await _agente(
+        tmp_path, _manifest({"output": [{"type": "pii_detection"}]}), respuestas=[f"mail {EMAIL}"]
+    )
+    result = await agente.run("dame el mail", "s1")
+    assert result["steps"], "el patrón tiene que dejar un paso con el texto"
+    assert EMAIL not in json.dumps(result, default=str)
+
+
+async def test_salida_bloqueada_no_devuelve_el_contenido_en_ningun_campo(tmp_path):
+    manifest = _manifest(
+        {
+            "output": [
+                {
+                    "type": "content_filter",
+                    "forbidden_keywords": ["CONFIDENCIAL"],
+                    "action": "block",
+                }
+            ]
+        }
+    )
+    agente, _ = await _agente(tmp_path, manifest, respuestas=["esto es CONFIDENCIAL"])
+    result = await agente.run("hola", "s1")
+    assert result["blocked"] is True
+    assert result["steps"] == []
+    assert "CONFIDENCIAL" not in json.dumps(result, default=str)

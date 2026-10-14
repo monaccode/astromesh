@@ -130,7 +130,7 @@ levantar.
 ```python
 {
     "answer": "<message de la regla>",
-    "steps": [...],          # los del patrón si bloqueó la salida; [] si entrada o cost_limit
+    "steps": [],             # [] — un bloqueo nunca devuelve el contenido bloqueado
     "blocked": True,
     "guardrail": {"direction": "input" | "output" | "run", "rule": "<type>", "reason": "<texto>"},
     "propuestas": [...],     # como hoy

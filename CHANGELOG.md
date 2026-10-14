@@ -46,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `guardrail: {direction, rule, reason}`), no un error; un bloqueo de entrada no persiste
   el turno, y uno con una confirmación pendiente la descarta. Toda corrida devuelve
   `blocked` y `guardrail`. Spans `guardrails.input`/`guardrails.output` sin contenido.
+- **Los guardrails de salida ya no filtran el contenido por la respuesta REST.** Con reglas
+  de salida, el atributo `response` del span `llm.complete`, los eventos `orch_step` y los
+  campos `thought`/`observation`/`result` de `steps` salen filtrados (con
+  `[blocked by guardrail]` si una regla bloquea); un bloqueo de salida devuelve `steps: []`.
+  Los argumentos de las tools no se filtran. Un corte por `cost_limit` cierra el span
+  `orchestration` con error.
 
 ## [0.69.0] - 2026-10-13
 

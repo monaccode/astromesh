@@ -185,6 +185,10 @@ def _history_messages(memory_context: dict) -> list[dict]:
     return messages
 
 
+# Lo que ocupa el lugar de un texto que una regla de salida bloqueó.
+_BLOQUEADO = "[blocked by guardrail]"
+
+
 def _truncate(text: str | None, limit: int) -> str:
     """Truncate text to limit chars, appending a marker if truncated."""
     if not text:
@@ -1717,7 +1721,6 @@ class Agent:
 
         try:
             # Estado que el `except GuardrailBlocked` de abajo necesita.
-            pasos: list = []
             propuestas: list[dict] | str = []
             contados = 0  # tokens contados para `cost_limit` (Task 3)
             corte: GuardrailBlocked | None = None  # el corte de `cost_limit`
@@ -2000,14 +2003,17 @@ class Agent:
                                 10_000,
                             ),
                         )
-                    llm_span.set_attribute("response", _truncate(response.content, 10_000))
-                    tracing.finish_span(llm_span)
-                    if response.content:
-                        # Las reglas de salida también valen para el stream: el
-                        # patrón recibe la respuesta cruda, el evento la filtrada.
+                    # Las reglas de salida también valen para el stream y para el
+                    # span (la traza viaja en la respuesta REST): el patrón recibe
+                    # la respuesta cruda, el evento y el span la filtrada.
+                    contenido = response.content
+                    if response.content and self._guardrails.has_output:
                         contenido = self._guardrails.filter_stream(response.content)
-                        if contenido is not None:
-                            _emit(on_event, {"type": "token", "content": contenido})
+                    visible = _BLOQUEADO if contenido is None and response.content else contenido
+                    llm_span.set_attribute("response", _truncate(visible, 10_000))
+                    tracing.finish_span(llm_span)
+                    if response.content and contenido is not None:
+                        _emit(on_event, {"type": "token", "content": contenido})
                     return response
                 except Exception as e:
                     llm_span.set_attribute("error_message", str(e))
@@ -2141,15 +2147,37 @@ class Agent:
                     max_iterations=max_iterations,
                 )
             except GuardrailBlocked:
+                tracing.finish_span(orch_span, status=SpanStatus.ERROR)
                 raise
             except Exception:
                 # Glyph convierte el error de una capacidad en el suyo y
                 # reintenta; si lo que falló fue el presupuesto, es un rechazo.
                 if corte is not None:
+                    tracing.finish_span(orch_span, status=SpanStatus.ERROR)
                     raise corte from None
                 raise
             if corte is not None:
+                tracing.finish_span(orch_span, status=SpanStatus.ERROR)
                 raise corte
+            if self._guardrails.has_output:
+                # Los pasos viajan en la respuesta y en los eventos `orch_step`:
+                # el texto que `answer` tapa no puede salir por ahí. Los
+                # argumentos de las tools (`action_input`) quedan fuera.
+                for step in result.get("steps", []):
+                    for campo in ("thought", "observation", "result"):
+                        valor = (
+                            step.get(campo)
+                            if isinstance(step, dict)
+                            else getattr(step, campo, None)
+                        )
+                        if not isinstance(valor, str) or not valor:
+                            continue
+                        filtrado = self._guardrails.filter_stream(valor)
+                        filtrado = _BLOQUEADO if filtrado is None else filtrado
+                        if isinstance(step, dict):
+                            step[campo] = filtrado
+                        else:
+                            setattr(step, campo, filtrado)
             for i, step in enumerate(result.get("steps", [])):
                 step_data = {
                     "iteration": i + 1,
@@ -2169,7 +2197,6 @@ class Agent:
                     step_data["omitted"] = step.recorte.get("omitted", 0)
                 orch_span.add_event("orch_step", step_data)
             tracing.finish_span(orch_span)
-            pasos = result.get("steps", [])
             # Guardrails de salida: antes del aviso de confirmación (texto del
             # runtime), de persistir y de `build_data`, así `data` tampoco
             # filtra lo que `answer` tapa.
@@ -2270,7 +2297,7 @@ class Agent:
             tracing.finish_span(root_span)
             rechazo = {
                 "answer": bloqueo.message,
-                "steps": pasos if bloqueo.direction == "output" else [],
+                "steps": [],  # un bloqueo nunca devuelve el contenido bloqueado
                 "blocked": True,
                 "guardrail": bloqueo.as_dict(),
                 "propuestas": (
