@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- **`cost_limit` es un presupuesto real de tokens de la corrida**: suma el `usage` del
+  proveedor de cada llamada al modelo (`count: output`, default, o `total`) y, si antes
+  de una nueva llamada ya se pasó `max_tokens_per_turn`, la corrida termina con el
+  rechazo (`guardrail.direction: run`). Funciona aunque el patrón se trague el error
+  (Glyph). **El stream respeta las reglas de salida**: cada evento `token` se filtra, y
+  no se emite si una regla lo bloquea.
+
 ### Changed
 
 - **Guardrails reescritos** (`core/guardrails.py`): las reglas se normalizan y validan al

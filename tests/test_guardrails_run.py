@@ -224,3 +224,75 @@ async def test_sin_guardrails_no_cambia_nada(tmp_path):
     assert result["blocked"] is False
     assert result["guardrail"] is None
     assert not [s for s in result["trace"]["spans"] if s["name"].startswith("guardrails")]
+
+
+async def test_stream_filtra_cada_evento_token(tmp_path):
+    agente, _ = await _agente(
+        tmp_path, _manifest({"output": [{"type": "pii_detection"}]}), respuestas=[f"es {EMAIL}"]
+    )
+    eventos = []
+    await agente.run("hola", "s1", on_event=eventos.append)
+    tokens_emitidos = [e["content"] for e in eventos if e["type"] == "token"]
+    assert tokens_emitidos == ["es [REDACTED_EMAIL]"]
+
+
+async def test_stream_no_emite_lo_que_una_regla_bloquea(tmp_path):
+    reglas = {
+        "output": [{"type": "content_filter", "forbidden_keywords": ["secreto"], "action": "block"}]
+    }
+    agente, _ = await _agente(tmp_path, _manifest(reglas), respuestas=["el secreto es 42"])
+    eventos = []
+    result = await agente.run("hola", "s1", on_event=eventos.append)
+    assert [e for e in eventos if e["type"] == "token"] == []
+    assert result["answer"] == "I can't help with that request."
+
+
+async def test_cost_limit_corta_antes_de_la_llamada_siguiente(tmp_path):
+    reglas = {"output": [{"type": "cost_limit", "max_tokens_per_turn": 15}]}
+    manifest = _manifest(reglas, orchestration={"pattern": "plan_and_execute"})
+    plan = _resp('["paso a", "paso b", "paso c"]', output_tokens=10)
+    agente, llamadas = await _agente(tmp_path, manifest, respuestas=[plan])
+    result = await agente.run("hacé tres cosas", "s1")
+    # 1ª: 0 < 15 → corre (10). 2ª: 10 < 15 → corre (20). 3ª: 20 >= 15 → corta.
+    assert len(llamadas) == 2
+    assert result["blocked"] is True
+    assert result["guardrail"] == {
+        "direction": "run",
+        "rule": "cost_limit",
+        "reason": "token budget 15 exceeded (20)",
+    }
+    raiz = next(s for s in result["trace"]["spans"] if s["name"] == "agent.run")
+    assert raiz["attributes"]["guardrail.tokens_counted"] == 20
+
+
+async def test_cost_limit_count_total(tmp_path):
+    reglas = {"input": [{"type": "cost_limit", "max_tokens_per_turn": 5, "count": "total"}]}
+    manifest = _manifest(reglas, orchestration={"pattern": "plan_and_execute"})
+    plan = _resp('["a", "b"]', output_tokens=0)  # usage.input_tokens = 3
+    agente, llamadas = await _agente(tmp_path, manifest, respuestas=[plan])
+    result = await agente.run("x", "s1")
+    assert len(llamadas) == 2  # 0 → 3 → 6 >= 5
+    assert result["guardrail"]["rule"] == "cost_limit"
+
+
+@pytest.mark.parametrize("modo", ["traga", "envuelve"])
+async def test_cost_limit_sobrevive_a_un_patron_que_lo_esconde(tmp_path, modo):
+    reglas = {"output": [{"type": "cost_limit", "max_tokens_per_turn": 1}]}
+    agente, llamadas = await _agente(
+        tmp_path, _manifest(reglas), respuestas=[_resp("x", output_tokens=5)]
+    )
+
+    async def execute(query, context, model_fn, tool_fn, tools, max_iterations=10):
+        await model_fn([{"role": "user", "content": "1"}], [])
+        try:
+            await model_fn([{"role": "user", "content": "2"}], [])
+        except Exception as exc:  # como Glyph: convierte el error y sigue
+            if modo == "envuelve":
+                raise RuntimeError("falló la capacidad") from exc
+        return {"answer": "terminé igual", "steps": []}
+
+    agente._pattern.execute = execute
+    result = await agente.run("x", "s1")
+    assert len(llamadas) == 1
+    assert result["blocked"] is True
+    assert result["guardrail"]["rule"] == "cost_limit"

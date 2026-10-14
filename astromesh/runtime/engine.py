@@ -1720,7 +1720,7 @@ class Agent:
             pasos: list = []
             propuestas: list[dict] | str = []
             contados = 0  # tokens contados para `cost_limit` (Task 3)
-            corte: GuardrailBlocked | None = None  # noqa: F841 — el corte de `cost_limit` (Task 3)
+            corte: GuardrailBlocked | None = None  # el corte de `cost_limit`
             query_text = _texto_de(query)
 
             # El texto del humano llega UNA vez por corrida; la tool puede llamarse
@@ -1918,6 +1918,15 @@ class Agent:
                 route_kwargs["provider_override"] = (override_name, override_provider)
 
             async def model_fn(messages, tools, role=None):
+                nonlocal contados, corte
+                # `cost_limit`: se chequea antes de gastar; la llamada que cruza
+                # el límite se completa. Una vez cortado, toda llamada siguiente
+                # vuelve a levantar aunque el patrón se haya tragado la primera.
+                try:
+                    self._guardrails.check_budget(contados)
+                except GuardrailBlocked as bloqueo:
+                    corte = corte or bloqueo
+                    raise corte from None
                 llm_span = tracing.start_span("llm.complete", parent_span_id=root_span.span_id)
                 full_messages = [{"role": "system", "content": rendered_prompt}, *messages]
                 resolved_role = self._role_map.get(role, role) if role else "default"
@@ -1926,6 +1935,7 @@ class Agent:
                 llm_span.set_attribute("resolved_role", resolved_role or "default")
                 try:
                     response = await router.route(full_messages, tools=tools, **route_kwargs)
+                    contados += self._guardrails.tokens_of(getattr(response, "usage", None))
                     # Fase 4.4c: attribute the outbound provider-request bytes to this agent.
                     try:
                         import json as _json
@@ -1993,7 +2003,11 @@ class Agent:
                     llm_span.set_attribute("response", _truncate(response.content, 10_000))
                     tracing.finish_span(llm_span)
                     if response.content:
-                        _emit(on_event, {"type": "token", "content": response.content})
+                        # Las reglas de salida también valen para el stream: el
+                        # patrón recibe la respuesta cruda, el evento la filtrada.
+                        contenido = self._guardrails.filter_stream(response.content)
+                        if contenido is not None:
+                            _emit(on_event, {"type": "token", "content": contenido})
                     return response
                 except Exception as e:
                     llm_span.set_attribute("error_message", str(e))
@@ -2105,26 +2119,37 @@ class Agent:
                 {"pattern": self._orchestration_config.get("pattern", "react")},
                 parent_span_id=root_span.span_id,
             )
-            result = await self._pattern.execute(
-                query=query,
-                # El context del llamador viaja al patrón dentro del dict que ya
-                # va, bajo una clave reservada — misma convención que
-                # `_history_messages`. Antes se perdía acá: sólo llegaba a
-                # renderizar el prompt, así que un patrón no podía leer los
-                # parámetros de la invocación.
-                #
-                # Va filtrado: las claves `_` son del runtime, no del llamador, y
-                # `_provider_override` lleva una API key. Ver `_public_caller_context`.
-                context=(
-                    {**memory_context, "_caller_context": _public_caller_context(context)}
-                    if isinstance(memory_context, dict)
-                    else memory_context
-                ),
-                model_fn=model_fn,
-                tool_fn=tool_fn,
-                tools=tool_schemas,
-                max_iterations=max_iterations,
-            )
+            try:
+                result = await self._pattern.execute(
+                    query=query,
+                    # El context del llamador viaja al patrón dentro del dict que ya
+                    # va, bajo una clave reservada — misma convención que
+                    # `_history_messages`. Antes se perdía acá: sólo llegaba a
+                    # renderizar el prompt, así que un patrón no podía leer los
+                    # parámetros de la invocación.
+                    #
+                    # Va filtrado: las claves `_` son del runtime, no del llamador, y
+                    # `_provider_override` lleva una API key. Ver `_public_caller_context`.
+                    context=(
+                        {**memory_context, "_caller_context": _public_caller_context(context)}
+                        if isinstance(memory_context, dict)
+                        else memory_context
+                    ),
+                    model_fn=model_fn,
+                    tool_fn=tool_fn,
+                    tools=tool_schemas,
+                    max_iterations=max_iterations,
+                )
+            except GuardrailBlocked:
+                raise
+            except Exception:
+                # Glyph convierte el error de una capacidad en el suyo y
+                # reintenta; si lo que falló fue el presupuesto, es un rechazo.
+                if corte is not None:
+                    raise corte from None
+                raise
+            if corte is not None:
+                raise corte
             for i, step in enumerate(result.get("steps", [])):
                 step_data = {
                     "iteration": i + 1,
@@ -2198,6 +2223,8 @@ class Agent:
                 session_id, query, result.get("answer", ""), tracing, root_span
             )
 
+            if self._guardrails.cost_limit is not None:
+                root_span.set_attribute("guardrail.tokens_counted", contados)
             tracing.finish_span(root_span)
             if self._output_schema:
                 data, data_error = build_data(respuesta_sin_aviso, self._output_schema)
