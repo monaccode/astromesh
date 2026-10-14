@@ -7,9 +7,11 @@ import { Aside } from '@astrojs/starlight/components';
 
 **astromesh-okf** gives an AI agent three tools to walk an [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format) (OKF) bundle the way a person would: read the index, search by type or tag, open a concept and follow its links, with the trust and freshness signals of the spec intact. A bundle is a directory of Markdown concepts with YAML frontmatter. The library works with LangChain/LangGraph, CrewAI, Google ADK, OpenAI Agents SDK, PydanticAI, LlamaIndex, smolagents, Microsoft Agent Framework and any MCP client, and its core depends only on PyYAML.
 
-<Aside type="caution" title="Pre-release">
-Version 0.1.0 has no release tag and is not on PyPI yet. Install it from GitHub, as shown in the [quickstart](/astromesh/okf/quickstart/).
-</Aside>
+```bash
+pip install astromesh-okf
+```
+
+The [quickstart](/astromesh/okf/quickstart/) adds a framework extra and a working agent.
 
 ## The navigation trail
 
@@ -63,4 +65,4 @@ Core 0.68.0 already reads OKF bundles: `spec.knowledge.bundle` gives an agent th
 
 ## Status and license
 
-Pre-release 0.1.0, installable from GitHub, PyPI publication pending. Writing or editing bundles, validation, remote bundles and async-native tools are not supported yet. Licensed under Apache-2.0. Source: [github.com/monaccode/astromesh-okf](https://github.com/monaccode/astromesh-okf).
+Version 0.1.0, on [PyPI](https://pypi.org/project/astromesh-okf/). Writing or editing bundles, validation, remote bundles and async-native tools are not supported yet. Licensed under Apache-2.0. Source: [github.com/monaccode/astromesh-okf](https://github.com/monaccode/astromesh-okf).

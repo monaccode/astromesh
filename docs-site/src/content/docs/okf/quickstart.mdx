@@ -8,11 +8,11 @@ import { Aside } from '@astrojs/starlight/components';
 ## Install
 
 ```bash
-pip install "astromesh-okf[langchain] @ git+https://github.com/monaccode/astromesh-okf"
+pip install "astromesh-okf[langchain]"
 ```
 
-<Aside type="caution">
-`pip install astromesh-okf` does not work yet: the package is not on PyPI. Install from GitHub until it is published. Drop the `[langchain]` extra if you do not need a framework adapter; the extra names are in [Integrations](/astromesh/okf/integrations/).
+<Aside>
+Drop the `[langchain]` extra if you do not need a framework adapter; the extra names are in [Integrations](/astromesh/okf/integrations/).
 </Aside>
 
 ## No framework, no model
@@ -35,7 +35,7 @@ No bundle yet? Clone the repository and try `astromesh-okf index examples/bundle
 `create_agent` runs on LangGraph underneath, so the same tools work in a hand-built LangGraph graph (`ToolNode`).
 
 ```bash
-pip install "astromesh-okf[langchain] @ git+https://github.com/monaccode/astromesh-okf" langchain langchain-openai
+pip install "astromesh-okf[langchain]" langchain langchain-openai
 export OPENAI_API_KEY=...
 ```
 
@@ -69,7 +69,7 @@ This is `examples/langgraph_agent.py` from the repository. The root index goes i
 Install the `mcp` extra, then point your client at the bundle with an absolute path.
 
 ```bash
-pip install "astromesh-okf[mcp] @ git+https://github.com/monaccode/astromesh-okf"
+pip install "astromesh-okf[mcp]"
 astromesh-okf mcp /absolute/path/to/bundle
 ```
 
@@ -86,7 +86,7 @@ claude mcp add okf-support -- astromesh-okf mcp /absolute/path/to/bundle
 ```
 
 <Aside>
-The repository's own examples use `uvx --from astromesh-okf[mcp] ...`, which resolves the package from PyPI and will work once it is published. Until then, use the installed `astromesh-okf` command as above. Over MCP you usually do not control the system prompt, so the model starts with `kb_index("/")`.
+Without installing anything, `uvx --from 'astromesh-okf[mcp]' astromesh-okf mcp /absolute/path/to/bundle` runs the server straight from PyPI; use that as the `command` and `args` if you prefer. Over MCP you usually do not control the system prompt, so the model starts with `kb_index("/")`.
 </Aside>
 
 ## Next

@@ -190,15 +190,14 @@ export const COMPONENTS: Component[] = [
     short: 'OKF',
     group: 'runtime',
     version: '0.1.0',
-    released: '2026-10-12',
+    released: '2026-10-13',
     tagline:
       'Agents in any framework navigate an Open Knowledge Format bundle — index, concept, links — with trust and freshness signals.',
     latest:
-      'First release: the core reader ported from the runtime, plus adapters for LangChain/LangGraph, CrewAI, Google ADK, OpenAI Agents SDK, PydanticAI, LlamaIndex, smolagents, Microsoft Agent Framework and an MCP server. Not on PyPI yet.',
-    install: 'pip install "astromesh-okf[langchain] @ git+https://github.com/monaccode/astromesh-okf"',
+      'First release: the core reader ported from the runtime, plus adapters for LangChain/LangGraph, CrewAI, Google ADK, OpenAI Agents SDK, PydanticAI, LlamaIndex, smolagents, Microsoft Agent Framework and an MCP server, on PyPI.',
+    install: 'pip install astromesh-okf',
     href: '/astromesh/okf/introduction/',
     repo: 'https://github.com/monaccode/astromesh-okf',
-    inDevelopment: true,
   },
   {
     id: 'herald',
