@@ -29,14 +29,16 @@ scorer = LLMScorer(complete, top_n=30, alpha=0.5, timeout=10.0)
 ```
 
 `LLMScorer` works with any policy. It needs the `llm` extra and any OpenAI-compatible endpoint.
-The values in the snippet are the ones the library documents: `beta=0` (the default), a score
-floor of 0.1, and a scorer that rescores the top 30 candidates, blends at `alpha=0.5` and gives
-up after 10 seconds.
+Defaults: `ScoredKnapsack` uses `beta=0` and no score floor (`min_score=None`; the snippet sets
+0.1 as an example). `LLMScorer` rescores the top 30 candidates (`top_n=30`), blends at
+`alpha=0.5`, sends at most 800 characters per candidate and gives up after 10 seconds.
 
 ## What happens before the policy
 
 1. **Calibrate.** A cosine of 0.82, a BM25 score of 14 and "the third most recent turn" are not
-   comparable. Scores are normalized by rank within each source, then weighted by how much you
+   comparable. Within each source, each score becomes half its rank position and half its
+   min-max position (`0.5·rank + 0.5·minmax`; `rank`, `minmax` and `zscore` are the other modes),
+   then it is weighted by how much you
    trust that source (`weight` in the source config). Signals adjust them where you can see it
    in the trace: a stale concept scores lower (x0.7), a human-reviewed one higher (x1.1), a
    deprecated one is left out.
