@@ -1,0 +1,119 @@
+---
+title: Context integrations
+description: Use the engine, the Compactor and the Offloader from LangChain, PydanticAI and MCP.
+---
+
+Each integration lives in its own module and needs its extra. The engine and the loop pieces
+carry over to the framework's own message type. The snippets reuse `engine` from the
+[Quickstart](/astromesh/context/quickstart/) and `compactor` and `offloader` from the loop
+example below.
+
+## The loop pieces
+
+`Compactor` summarizes old turns once history crosses a threshold and keeps the last turns
+verbatim. It never splits a tool call from its result, which providers reject, and it is
+incremental: the previous summary feeds the next one. `Offloader` moves a tool result over the
+limit into a store and leaves a preview and a handle in its place; the agent reads what it needs
+with `ctx_read(handle, offset, limit)` and `ctx_grep(handle, pattern)`.
+
+```python
+import asyncio
+
+from astromesh_context.loop import Compactor, Offloader
+
+
+async def summarize(old_messages):
+    # call your model here; this stand-in only counts
+    return f"{len(old_messages)} earlier messages"
+
+
+offloader = Offloader(max_tokens=1500, preview_tokens=200)
+compactor = Compactor(summarize, threshold_tokens=6000, keep_last=6)
+
+conversation = [
+    {"role": "user", "content": "Find the order."},
+    {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {"id": "c1", "type": "function", "function": {"name": "search", "arguments": "{}"}}
+        ],
+    },
+    {"role": "tool", "tool_call_id": "c1", "content": "order line\n" * 2000},
+]
+conversation = offloader.offload(conversation)               # big result: preview and a handle
+conversation = asyncio.run(compactor.compact(conversation))  # old turns: one summary
+tools = offloader.tools()                                    # ctx_read and ctx_grep, to register
+```
+
+## LangChain 1.x
+
+Install `astromesh-context[langchain]`. `ContextMiddleware` offloads and compacts the thread
+before each model call and, if you give it an engine, appends the window to the system message.
+`offload_tools` gives the agent `ctx_read` and `ctx_grep` as LangChain tools. For a graph you
+build yourself, `context_node(engine)` is a LangGraph node to put before the model: it adds the
+window as a `SystemMessage` named `context_window`, replacing last turn's.
+
+```python
+# needs: langchain
+import asyncio
+
+from langchain.agents import create_agent
+
+from astromesh_context.integrations.langchain import ContextMiddleware, offload_tools
+
+# model: any LangChain chat model
+agent = create_agent(
+    model,
+    tools=offload_tools(offloader),
+    middleware=[ContextMiddleware(engine, compactor=compactor, offloader=offloader)],
+)
+question = {"messages": [{"role": "user", "content": "Where is my order?"}]}
+result = asyncio.run(agent.ainvoke(question))
+```
+
+## PydanticAI
+
+Install `astromesh-context[pydantic-ai]`; it needs Python 3.11 or newer. `history_processor` is
+registered through the `ProcessHistory` capability.
+
+```python
+# needs: pydantic_ai
+from pydantic_ai import Agent
+from pydantic_ai.capabilities import ProcessHistory
+
+from astromesh_context.integrations.pydantic_ai import history_processor, offload_tools
+
+# model: any PydanticAI model
+agent = Agent(
+    model,
+    tools=offload_tools(offloader),
+    capabilities=[ProcessHistory(history_processor(compactor=compactor, offloader=offloader))],
+)
+result = agent.run_sync("Where is my order?")
+```
+
+## MCP
+
+Install `astromesh-context[mcp]` (mcp 2.3 or newer). The server exposes `ctx_build`, which
+returns the window and its trace, plus `ctx_read` and `ctx_grep` when you pass an offloader.
+
+```python
+# needs: mcp
+from astromesh_context.integrations.mcp import serve
+
+server = serve(engine, offloader)  # then server.run() to serve over stdio
+```
+
+Without writing code:
+
+```bash
+astromesh-context mcp --config support.context.yaml
+```
+
+## Other frameworks
+
+Only the three above ship in 0.1.0. For any other message type, implement a `MessageAdapter`
+(seven small methods) and pass it to `Compactor` and `Offloader`; see
+[docs/extending.md](https://github.com/monaccode/astromesh-context/blob/main/docs/extending.md).
+More framework integrations are on the roadmap, not in this release.

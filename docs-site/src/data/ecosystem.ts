@@ -233,16 +233,15 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Context',
     short: 'Context',
     group: 'runtime',
-    version: '0.0.0',
+    version: '0.1.0',
     released: '2026-10-15',
     tagline:
       'Decides what goes into the model’s window — knowledge, memory, history — within one token budget, with a trace per item and an eval that measures the choice.',
     latest:
-      'Design outlined in the README: one budget across RAG, OKF, memory and history; three policies compared by `ContextEval`; cache-stable ordering; a compactor and a tool-result offloader for the agent loop. No code yet.',
-    install: 'Not installable yet',
+      'Engine that fills one budget across sources and returns a trace per item; three policies; containment dedupe that inherits OKF deprecation; Compactor and Offloader for the agent loop; ContextEval with a published level-1 table; LangChain, PydanticAI and MCP integrations.',
+    install: 'pip install astromesh-context',
     href: '/astromesh/context/introduction/',
     repo: 'https://github.com/monaccode/astromesh-context',
-    inDevelopment: true,
   },
   {
     id: 'herald',
