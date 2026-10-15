@@ -135,6 +135,16 @@ export default defineConfig({
           ],
         },
         {
+          label: 'RAG',
+          items: [
+            { label: 'Introduction', slug: 'rag/introduction' },
+            { label: 'Patterns', slug: 'rag/patterns' },
+            { label: 'YAML Reference', slug: 'rag/yaml-reference' },
+            { label: 'Extending', slug: 'rag/extending' },
+            { label: 'Benchmark', slug: 'rag/benchmark' },
+          ],
+        },
+        {
           label: 'SDD Skills',
           items: [
             { label: 'Introduction', slug: 'sdd/introduction' },

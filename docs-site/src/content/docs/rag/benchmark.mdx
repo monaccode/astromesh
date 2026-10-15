@@ -1,0 +1,87 @@
+---
+title: Benchmark
+description: A simulated corpus built to make retrieval fail in labeled ways, and a script that ranks the four patterns on it, with and without a reranker.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Which pattern should you use? The repository ships **Nimbus**, a simulated corpus built to
+make retrieval fail in specific, labeled ways, and a script that ranks the four patterns on it,
+with and without a reranker. The point is to show *when each pattern wins and why*, not only
+that it runs.
+
+<Aside type="note" title="No results yet">
+The benchmark is in the repository and reproducible today. Its results will be published
+after the first recorded run; until then, the tables on this page describe what is measured,
+not what it found.
+</Aside>
+
+## The corpus
+
+Nimbus is the documentation of a fictional cloud-storage service: 200 documents (Spanish
+first, about 20 % English) and 60 hand-labeled questions. `examples/corpus/generate.py` is
+stdlib only and seeded, and a test checks that regenerating gives the committed bytes.
+
+| Family | Docs | Trap | What makes it hard |
+|---|---|---|---|
+| Error articles | 40 | `exact` | 15 sibling pairs (`ERR-4012` / `ERR-4013`) share almost every word; only the code and the deciding detail differ |
+| Plans | 20 | `exact` | Monthly and annual SKUs (`SKU-52M` / `SKU-52A`) differ only in limits and price |
+| Billing and account FAQs | 50 | `paraphrase` | Formal wording ("cargo duplicado", "baja de la suscripción") that colloquial questions never use |
+| Policies, 2024 and 2026 | 30 | `distractor` | Same title and text, different numbers; 2024 says it is superseded by 2026 |
+| Release notes and blog posts | 60 | `noise` | Reuse product words and even error codes without answering anything |
+
+## The questions
+
+Written by hand after reading the corpus, not generated; 13 of the 60 are in English. Each
+type carries a hypothesis that the run confirms or refutes.
+
+| Type | Count | Example | Hypothesis |
+|---|---|---|---|
+| `exact` | 15 | "¿Qué significa ERR-4012?" | `hybrid` wins: BM25 matches the code token |
+| `paraphrase` | 20 | "me cobraron dos veces este mes" | `multi_query` and `hyde` win: the rewrite bridges vocabulary |
+| `distractor` | 15 | "¿Cuántos días tengo para pedir que me devuelvan la plata?" | A reranker helps tell versions apart |
+| `noise` | 10 | "¿Cómo activo la verificación en dos pasos?" | A reranker pushes the look-alike posts down |
+
+Labeling rules: `relevant` lists only the documents that **directly answer** the question;
+when more than one does, all are listed. A `distractor` question counts **only the 2026
+policy** as correct, because the superseded 2024 one gives a wrong answer with the same words.
+`noise` questions have real answers in the corpus; the noise is the posts around them.
+
+## Metrics
+
+Rankings are scored per document: chunk hits are mapped to their document and deduplicated.
+
+| Metric | Cutoff | What it tells you |
+|---|---|---|
+| recall@k | `--k` (5) | How many of the relevant documents made the top k |
+| precision@k | `--k` (5) | How much of the top k is relevant |
+| hit rate@k | `--k` (5) | Whether at least one relevant document made the top k |
+| MRR@10 | 10 | How high the first relevant document lands |
+| nDCG@10 | 10 | How well the whole ranking orders the relevant documents |
+| p50 / p95 latency | — | Wall time of one `query()` call, after one untimed warmup per pipeline |
+| LLM calls per query | — | The `transform` stages in the trace |
+
+The same functions are in `astromesh_rag.metrics` for your own evaluations: `recall_at_k`,
+`precision_at_k`, `hit_rate_at_k`, `mrr`, `ndcg_at_k` and `dedupe`.
+
+## Models
+
+Embeddings: `sentence-transformers/all-MiniLM-L6-v2`. Reranker:
+`cross-encoder/ms-marco-MiniLM-L-6-v2`. LLM for `multi_query` and `hyde`: any
+OpenAI-compatible endpoint, configured with environment variables.
+
+## Reproduce it
+
+```bash
+git clone https://github.com/monaccode/astromesh-rag && cd astromesh-rag
+uv sync --extra sentence-transformers --extra openai
+export RAG_BENCH_BASE_URL=https://your-gateway/v1 RAG_BENCH_API_KEY=... RAG_BENCH_MODEL=...
+uv run python examples/benchmark.py --embedder st --rerank both --k 5 --out results/
+```
+
+It prints the overall and per-type tables and writes `results/<date>-st.json` with the
+config, the corpus hash and every per-query row. `--rerank` takes `both`, `on` or `off`.
+
+Without `RAG_BENCH_*` the script falls back to a fake LLM, and `--embedder hash` (the default)
+uses a test embedder. Both run offline and both print a warning, because their scores mean
+nothing: they check that the pipeline runs, not which pattern wins.

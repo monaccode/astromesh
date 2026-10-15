@@ -41,6 +41,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.19.0` | Author | Shipped |
 | **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.5.0` | Author | Shipped |
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
+| **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped (GitHub tag and TestPyPI; PyPI pending) |
 | **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.7.4` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.10.1` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.1.0` | Ship | In development |
@@ -119,6 +120,7 @@ All authoring tools produce the same agent spec that the core runtime understand
 - **Core Runtime** — Loads YAML agents, routes roles to models, runs orchestration patterns, manages memory/tools/guardrails.
 - **Glyph** — Optional action-language pattern inside the runtime. Requires the `glyph` extra or a local editable install.
 - **OKF** (own repo, `astromesh-okf`) — The Open Knowledge Format reader behind `spec.knowledge.bundle`, as a standalone library for other frameworks. Depends only on PyYAML; the core is expected to depend on it in a later release, not today.
+- **RAG** (own repo, `astromesh-rag`) — Retrieval-augmented generation library: splitters, embedders, vector indexes, BM25, fusion, rerankers and four retrieval patterns, loadable from `kind: RAGPipeline` YAML. Extracted from the core's RAG module; depends only on PyYAML, every model and database is an optional extra. The core does not depend on it today.
 - **SDD** (own repo, `astromesh-sdd`) — Spec-Driven Development skills and Claude Code plugin for coding agents. No code dependency on the core or any other component: it is Markdown skills, two installers and a validator.
 
 ### 3.3 Reach layer

@@ -1,6 +1,6 @@
 ---
 title: The Astromesh Ecosystem
-description: How the core runtime, Glyph, OKF, SDD, ADK, CLI, Node, OS, Forge, Cortex, Orbit, Prisma, Nexus, Herald, Leia, and Nebula fit together
+description: How the core runtime, Glyph, OKF, RAG, SDD, ADK, CLI, Node, OS, Forge, Cortex, Orbit, Prisma, Nexus, Herald, Leia, and Nebula fit together
 ---
 
 Astromesh is not a single tool — it's an **ecosystem** designed to cover the full lifecycle of AI agents: **define, build, run, deploy, and manage**. The core runtime is the foundation, and a set of satellite projects extend it for specific use cases.
@@ -16,6 +16,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 18 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.70.0 |
 | **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.3 |
 | **OKF** | Open-source library: agents in LangChain, CrewAI, ADK and six more frameworks (or any MCP client) navigate an Open Knowledge Format bundle with trust and freshness signals | [`astromesh-okf`](https://github.com/monaccode/astromesh-okf) | v0.1.0 |
+| **RAG** | Open-source library: retrieval-augmented generation from swappable parts — `naive`, `hybrid`, `multi_query` and `hyde` patterns, optional reranking, five vector stores, a trace per query, in Python or `kind: RAGPipeline` YAML | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | v0.1.0 *(TestPyPI; PyPI pending)* |
 | **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.4.0 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.3.1 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.10 |
@@ -72,6 +73,7 @@ flowchart LR
 - **Leia** drives the whole flow in plain English from inside Claude Code.
 - **[SDD](/astromesh/sdd/introduction/)** is how you build the software *around* agents with a coding agent: Claude Code, Codex, OpenCode, Kimi and others write a spec, a plan and tasks before the code, and verify against the spec at the end. It does not touch the runtime.
 - **Core Runtime** is the engine that executes agents.
+- **[RAG](/astromesh/rag/introduction/)** is a standalone library for giving a model the right documents: ingest, retrieve with one of four patterns, rerank, and build the context, with a trace of every stage. It came out of the core's RAG module and fixes the bugs found while porting it; like **[OKF](/astromesh/okf/introduction/)**, it works in any Python project.
 - **Node** installs the runtime as a native system service (`astromeshd`); **OS** ships it as a sealed appliance image; **Docker/Helm** package it for containers.
 - **CLI** is the `astromeshctl` management interface.
 - **Orbit** provisions cloud infrastructure with Terraform; **Nexus** is the multi-tenant managed control plane — it keeps agent specs in PostgreSQL with versioning and dispatches runs to a shared runtime pool, metering and billing what each one consumes.
@@ -110,6 +112,7 @@ In short: reach for **Forge** when you want an instant, in-node visual builder; 
 | Provision cloud infrastructure with Terraform | [**Astromesh Orbit**](/astromesh/orbit/introduction/) |
 | Run a multi-tenant agent platform on Kubernetes | [**Astromesh Nexus**](/astromesh/nexus/introduction/) |
 | Put an agent on WhatsApp, and let it message people back | [**Astromesh Herald**](/astromesh/herald/introduction/) |
+| Give a model the right documents, with a pattern you can switch and a trace you can read | [**Astromesh RAG**](/astromesh/rag/introduction/) |
 | Replace a long tool-calling loop with one reviewed program | [**Glyph**](/astromesh/glyph/introduction/) |
 | Manage nodes and clusters from the command line | [**Astromesh CLI**](/astromesh/reference/cli-commands/) |
 | Hand the workload to a cloud's own managed AI service | [**Astromesh Prisma**](/astromesh/prisma/introduction/) *(in development)* |
@@ -166,4 +169,5 @@ flowchart TB
 | Herald | [Herald Introduction](/astromesh/herald/introduction/) — channels in, proactive messages out |
 | Glyph | [Glyph Introduction](/astromesh/glyph/introduction/) — the action language, and when it actually pays |
 | OKF | [OKF Introduction](/astromesh/okf/introduction/) — navigating knowledge bundles from any framework |
+| RAG | [RAG Introduction](/astromesh/rag/introduction/) — retrieval patterns from swappable parts, and how to choose one |
 | Nebula | [Nebula Introduction](/astromesh/nebula/introduction/) — the open-model foundry where our models are born |
