@@ -42,6 +42,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.5.0` | Author | Shipped |
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
 | **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped (GitHub tag and TestPyPI; PyPI pending) |
+| **Context** | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | `0.0.0` | Execute | In design |
 | **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.7.4` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.10.1` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.1.0` | Ship | In development |
@@ -119,8 +120,9 @@ All authoring tools produce the same agent spec that the core runtime understand
 
 - **Core Runtime** — Loads YAML agents, routes roles to models, runs orchestration patterns, manages memory/tools/guardrails.
 - **Glyph** — Optional action-language pattern inside the runtime. Requires the `glyph` extra or a local editable install.
-- **OKF** (own repo, `astromesh-okf`) — The Open Knowledge Format reader behind `spec.knowledge.bundle`, as a standalone library for other frameworks. Depends only on PyYAML; the core is expected to depend on it in a later release, not today.
+- **OKF** (own repo, `astromesh-okf`) — The Open Knowledge Format reader behind `spec.knowledge.bundle`, as a standalone library for other frameworks. Depends only on PyYAML. Since core 0.69.0 the core depends on it (`astromesh-okf>=0.1,<0.2`) instead of carrying its own reader.
 - **RAG** (own repo, `astromesh-rag`) — Retrieval-augmented generation library: splitters, embedders, vector indexes, BM25, fusion, rerankers and four retrieval patterns, loadable from `kind: RAGPipeline` YAML. Extracted from the core's RAG module; depends only on PyYAML, every model and database is an optional extra. The core does not depend on it today.
+- **Context** (own repo, `astromesh-context`, in design) — Context-window assembly: one token budget across sources, calibrated selection, cache-stable ordering, a compactor and a tool-result offloader, and an eval. Planned to depend only on PyYAML, with RAG and OKF as optional extras. No code yet; the core does not depend on it.
 - **SDD** (own repo, `astromesh-sdd`) — Spec-Driven Development skills and Claude Code plugin for coding agents. No code dependency on the core or any other component: it is Markdown skills, two installers and a validator.
 
 ### 3.3 Reach layer
