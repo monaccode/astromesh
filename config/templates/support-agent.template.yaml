@@ -68,7 +68,7 @@ template:
       orchestration:
         pattern: plan_and_execute
         max_iterations: 8
-        timeout_seconds: 60
+        timeout_seconds: 120
       tools:
         - name: knowledge_search
           type: rag
@@ -85,6 +85,9 @@ template:
           ttl: 86400
         semantic:
           backend: chromadb
+          embeddings:
+            provider: ollama
+            model: nomic-embed-text
           similarity_threshold: 0.7
           max_results: 5
       guardrails:

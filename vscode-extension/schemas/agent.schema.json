@@ -179,7 +179,7 @@
             },
             "timeout_seconds": {
               "type": "integer",
-              "description": "Maximum wall-clock seconds before the run is aborted.",
+              "description": "Maximum wall-clock seconds before the run is cut (HTTP 504, error 'timeout'). The provider HTTP timeout is 120 s, so use >= 120 or omit.",
               "minimum": 1
             },
             "timeout": {
@@ -206,6 +206,11 @@
                 "maxLength": 40
               },
               "description": "Pipeline stage names (pattern: pipeline): 2 to 6 names of 1 to 40 characters. Without it: analyze, process, synthesize."
+            },
+            "max_handoffs": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Only for pattern: swarm. Maximum chain of handoffs between agents (default 3)."
             }
           }
         },
@@ -326,18 +331,53 @@
             },
             "semantic": {
               "type": "object",
-              "description": "Vector-embedding (semantic) memory.",
+              "description": "Vector-embedding (semantic) memory. Requires `embeddings` and the backend's extra (astromesh[chromadb|faiss|qdrant|postgres|embeddings]).",
               "additionalProperties": false,
+              "required": [
+                "embeddings"
+              ],
               "properties": {
                 "backend": {
                   "type": "string",
-                  "description": "Vector store backend identifier.",
+                  "description": "Vector store backend.",
                   "enum": [
                     "chromadb",
+                    "faiss",
                     "pgvector",
-                    "qdrant",
-                    "in_memory"
+                    "qdrant"
                   ]
+                },
+                "embeddings": {
+                  "type": "object",
+                  "description": "Embedder, same shape as the RAG embedder (provider, model, endpoint).",
+                  "additionalProperties": true,
+                  "properties": {
+                    "provider": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Local storage path (chromadb, faiss)."
+                },
+                "connection": {
+                  "type": "object",
+                  "description": "Connection settings; `url` is required for pgvector.",
+                  "additionalProperties": true,
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "dimension": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Vector dimension; required for faiss, pgvector and qdrant."
                 },
                 "similarity_threshold": {
                   "type": "number",
@@ -354,8 +394,25 @@
             },
             "episodic": {
               "type": "object",
-              "description": "Event-log (episodic) memory.",
-              "additionalProperties": true
+              "description": "Event-log (episodic) memory: one episode per run.",
+              "additionalProperties": true,
+              "properties": {
+                "backend": {
+                  "type": "string",
+                  "enum": [
+                    "postgres"
+                  ]
+                },
+                "connection": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
             }
           }
         },
@@ -443,57 +500,21 @@
         },
         "permissions": {
           "type": "object",
-          "description": "Runtime permission constraints.",
+          "description": "Tool whitelist/blacklist by registered tool name (fnmatch wildcards). `denied_actions` wins. Other keys are ignored with a warning.",
           "additionalProperties": true,
           "properties": {
             "allowed_actions": {
               "type": "array",
-              "description": "Explicit list of tool/action names the agent may invoke.",
+              "description": "Registered tool names the agent may use (wildcards allowed). A name that matches no tool leaves it out.",
               "items": {
                 "type": "string"
               }
             },
-            "filesystem": {
-              "type": "object",
-              "description": "Filesystem access restrictions.",
-              "additionalProperties": false,
-              "properties": {
-                "read": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "write": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "network": {
-              "type": "object",
-              "description": "Network access restrictions.",
-              "additionalProperties": false,
-              "properties": {
-                "allowed": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            },
-            "execution": {
-              "type": "object",
-              "description": "Execution mode restrictions.",
-              "additionalProperties": false,
-              "properties": {
-                "dry_run": {
-                  "type": "boolean",
-                  "description": "If true, side-effecting tools are simulated."
-                }
+            "denied_actions": {
+              "type": "array",
+              "description": "Registered tool names (wildcards allowed) the agent may never use.",
+              "items": {
+                "type": "string"
               }
             }
           }

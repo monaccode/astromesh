@@ -68,7 +68,7 @@ template:
       orchestration:
         pattern: react
         max_iterations: 8
-        timeout_seconds: 60
+        timeout_seconds: 120
       tools:
         - name: search_listings
           type: rag

@@ -49,7 +49,7 @@ spec:
   orchestration:
     pattern: react
     max_iterations: 5
-    timeout_seconds: 30
+    timeout_seconds: 120
 
   memory:
     conversational:
@@ -67,8 +67,3 @@ spec:
     output:
       - type: pii_detection
         action: redact
-
-  permissions:
-    allowed_actions:
-      - search_knowledge_base
-      - get_user_context

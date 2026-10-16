@@ -52,11 +52,3 @@ spec:
       strategy: sliding_window
       max_turns: 20
 
-  permissions:
-    filesystem:
-      read: ["./config/", "./docs/"]
-      write: ["./config/agents/", "./config/workflows/"]
-    network:
-      allowed: ["localhost:8000"]
-    execution:
-      dry_run: true

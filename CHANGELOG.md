@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**Breaking for existing manifests.** Secciones que se aceptaban sin efecto ahora hacen algo:
+
+- `orchestration.timeout_seconds` corta la corrida (HTTP 504 en REST y en
+  `POST /v1/workflows/{name}/run`; evento WebSocket `error` con `error: "timeout"`). Valores de
+  30-90 s cortan corridas con tools o modelos lentos; el timeout HTTP del provider es 120 s.
+  Recomendado: >= 120 o quitar la clave. Los manifiestos y templates del repo pasan a 120.
+- `permissions.allowed_actions`/`denied_actions` son una whitelist/blacklist de nombres
+  **registrados** (`<slug>_<accion>` en integration/api/mcp, `kb_*` en bundles; comodines
+  `fnmatch`); un nombre que no matchea deja esa tool afuera.
+- `memory.semantic` sin `embeddings` no carga (`AgentConfigError`); cada backend pide su extra.
+  `memory.episodic` (`postgres`) tambien se construye.
+- `pattern: swarm` sin tools `type: agent` no carga.
+- `permissions.filesystem/network/execution` y otras claves se ignoran con warning.
+- `register_internal(...)` y `register_agent_tool(...)` con `permissions=` ahora levantan
+  `TypeError` (se elimino `ToolDefinition.permissions`).
+
 ### Added (Backend)
 
 - Un episodio por corrida en `memory.episodic` (`MemoryManager.record_run`): resultado
@@ -50,6 +66,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `prompts.context` como mensaje y respeta el tope de resultados de tools; ya no agrega un
   system propio ni interpreta JSON `{"handoff": ...}`. `ciclo_de_tools` gana `finales`.
   `SwarmPattern(workers, max_handoffs=3)` reemplaza a `SwarmPattern(agent_configs)`.
+
+### Changed (Config)
+
+- Manifiestos y templates del repo al dia con las secciones aplicadas: `timeout_seconds` >= 120,
+  `allowed_actions` con nombres reales, `permissions` sin claves inertes, `embeddings` en los
+  templates con `memory.semantic`; el schema del editor (`agent.schema.json`) refleja las
+  secciones nuevas (`denied_actions`, `max_handoffs`, backends semanticos, `episodic`).
 
 ### Changed (Release coordination)
 

@@ -73,7 +73,7 @@ template:
       orchestration:
         pattern: react
         max_iterations: 6
-        timeout_seconds: 45
+        timeout_seconds: 120
       tools:
         - name: check_debt
           type: client
