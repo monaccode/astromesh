@@ -23,7 +23,7 @@ class RunResult:
     #: `guardrail` says which rule ({direction, rule, reason}), never the blocked content.
     blocked: bool = False
     guardrail: dict | None = None
-    #: Writes proposed by `mode: propose` tools, not executed (remote runs only).
+    #: Writes proposed by `mode: propose` tools, not executed (local and remote runs).
     propuestas: list[dict] = field(default_factory=list)
     #: Per-(provider, model, role) usage, as core's `usage.by_model`.
     by_model: list[dict] = field(default_factory=list)

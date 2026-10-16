@@ -37,6 +37,30 @@ result = Greeter().run("Hello, what can you search for?")
 print(result.answer)
 ```
 
+## Confirmación y propuestas en local
+
+Las corridas locales usan la misma compuerta que el core.
+
+```python
+@tool(description="Paga", requires_approval=True)
+async def pagar(monto: int) -> str: ...
+
+@tool(description="Crea un registro", mode="propose")
+async def crear(nombre: str) -> str: ...
+```
+
+- `requires_approval=True`: la primera vez la tool no se ejecuta; `result.answer` termina con
+  `Para confirmar respondé SI. Voy a ejecutar: pagar con monto: 10`. Confirmar es lo mismo que
+  en remoto: re-correr en la **misma `session_id`** con `"si"` (o `confirmo`, `dale`, `ok`,
+  `listo`). Se ejecuta una vez, y sólo si el modelo repite la llamada con los mismos
+  argumentos; cualquier otro mensaje descarta lo pendiente.
+- `mode="propose"`: la tool nunca se ejecuta; la llamada sale en `result.propuestas`
+  (`tool`, `tipo: "adk"`, `destino` = nombre del agente, `operacion`, `argumentos`) para que
+  quien invocó la corrida la apruebe y la ejecute.
+- En un equipo, el "si" lo lee la corrida del equipo, nunca la de un miembro (su query la
+  escribió un modelo), y un miembro no puede proponer: se le contesta al modelo que no se
+  registró nada.
+
 ## CLI
 
 The ADK ships with a small project CLI:

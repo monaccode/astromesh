@@ -16,6 +16,11 @@ from astromesh.core.guardrails import GuardrailBlocked, GuardrailsEngine
 from astromesh.core.model_router import ModelRouter
 from astromesh.core.tokens import estimate_tokens, resolve_context_window
 from astromesh.errors import AgentConfigError
+from astromesh.integrations.propuestas import (
+    CLAVE_PROPUESTAS,
+    SOLO_PRINCIPAL,
+    handler_de_propuesta,
+)
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.orchestration.observaciones import DEFAULT_MAX_TOOL_RESULT_TOKENS
 from astromesh.orchestration.patterns import (
@@ -27,6 +32,7 @@ from astromesh.orchestration.patterns import (
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
 from astromesh.providers.base import CompletionResponse
+from astromesh.runtime.confirmacion import Pendientes, con_aviso, gate
 
 from astromesh_adk.context import RunContext
 from astromesh_adk.providers import parse_model_string, resolve_provider
@@ -111,6 +117,8 @@ class ADKRuntime:
     def __init__(self, provider_factory: Any = resolve_provider) -> None:
         self._provider_factory = provider_factory
         self._memory_cache: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
+        # Core's gate, with its own in-process slot per session (core keeps one per process too).
+        self._pendientes = Pendientes()
 
     def _adk_tools_to_specs(self, tools: list | None) -> list[dict]:
         specs = []
@@ -194,7 +202,19 @@ class ADKRuntime:
 
         return model_fn
 
-    def _make_tool_fn(self, tools: list | None, tctx: TracingContext | None = None, callbacks=None):
+    def _make_tool_fn(
+        self,
+        tools: list | None,
+        tctx: TracingContext | None = None,
+        callbacks=None,
+        *,
+        session_id: str | None = None,
+        agent_name: str = "",
+        propuestas: list | str | None = None,
+    ):
+        """With `session_id` (a model-driven run) `requires_approval` goes through core's
+        `gate` and `mode="propose"` tools are recorded in `propuestas`, never executed.
+        Without it (`ctx.call_tool` from handler code) tools run as written."""
         index = {}
         for t in tools or []:
             name = getattr(t, "tool_name", getattr(t, "name", None))
@@ -205,9 +225,27 @@ class ADKRuntime:
             if name not in index:
                 raise KeyError(f"tool {name!r} not registered")
             t = index[name]
+            gated = session_id is not None
+            if (
+                gated
+                and getattr(t, "requires_approval", False)
+                and (rechazo := gate(self._pendientes, session_id, name, args)) is not None
+            ):
+                return rechazo
             span = tctx.start_span("tool.call", {"tool": name}) if tctx else None
             try:
-                if hasattr(t, "execute"):
+                if gated and getattr(t, "mode", "execute") == "propose":
+                    handler = handler_de_propuesta(
+                        name,
+                        tipo="adk",
+                        destino=agent_name,
+                        operacion=name,
+                        schema=getattr(t, "parameters_schema", {}) or {},
+                    )
+                    result = await handler(
+                        _run_context={CLAVE_PROPUESTAS: propuestas}, **(args or {})
+                    )
+                elif hasattr(t, "execute"):
                     result = await t.execute(args)
                 else:
                     result = await t(**(args or {}))
@@ -346,7 +384,10 @@ class ADKRuntime:
         session_id: str = "default",
         context: dict | None = None,
         callbacks: Any = None,
+        desde_humano: bool = True,
     ) -> RunResult:
+        """`desde_humano=False` is a team member's run: its query was written by a model, so
+        it can neither confirm a pending call nor propose (core's re-entrant run)."""
         tctx = TracingContext(agent_wrapper.name, session_id)
         root = tctx.start_span("agent.run", {"agent": agent_wrapper.name})
         engine = GuardrailsEngine(
@@ -355,6 +396,9 @@ class ADKRuntime:
         guard = {"engine": engine, "counted": 0, "cut": None}
         memory = self._get_memory(agent_wrapper)
         tools = getattr(agent_wrapper, "tools", [])
+        propuestas: list | str = [] if desde_humano else SOLO_PRINCIPAL
+        if desde_humano:
+            self._pendientes.habilitar(session_id, query)  # raw text, before guardrails
         try:
             # Input rules run before memory and the model, so both see the filtered text.
             if engine.has_input:
@@ -388,7 +432,14 @@ class ADKRuntime:
                 answer, steps = handler_out, []
             else:
                 model_fn = self._make_model_fn(agent_wrapper, tctx, guard)
-                tool_fn = self._make_tool_fn(tools, tctx, callbacks)
+                tool_fn = self._make_tool_fn(
+                    tools,
+                    tctx,
+                    callbacks,
+                    session_id=session_id,
+                    agent_name=agent_wrapper.name,
+                    propuestas=propuestas,
+                )
                 result = await self._execute(
                     _build_pattern(agent_wrapper),
                     query,
@@ -402,6 +453,8 @@ class ADKRuntime:
                 answer = result.get("answer", "")
                 steps = result.get("steps", [])
             answer, steps = self._filter_output(engine, answer, self._steps_to_dicts(steps))
+            if desde_humano:
+                answer = con_aviso(self._pendientes, session_id, answer)
 
             if memory is not None:
                 await self._persist(memory, agent_wrapper.name, session_id, query, answer)
@@ -409,13 +462,32 @@ class ADKRuntime:
         except GuardrailBlocked as blocked:
             # A block is an answer, not an error (core 0.70): blocked input never enters
             # the history; any other block stores the (filtered) query and the refusal.
+            if desde_humano:
+                self._cerrar_sin_confirmar(session_id)
             if memory is not None and blocked.direction != "input":
                 await self._persist(memory, agent_wrapper.name, session_id, query, blocked.message)
             return self._blocked_result(tctx, root, blocked)
         except Exception:
             tctx.finish_span(root, SpanStatus.ERROR)
             raise
-        return RunResult.from_runtime({"answer": answer, "steps": steps, "trace": tctx.to_dict()})
+        finally:
+            if desde_humano:
+                self._pendientes.cerrar_si_confirmado(session_id)
+        return RunResult.from_runtime(
+            {
+                "answer": answer,
+                "steps": steps,
+                "trace": tctx.to_dict(),
+                "propuestas": propuestas if isinstance(propuestas, list) else [],
+            }
+        )
+
+    def _cerrar_sin_confirmar(self, session_id: str) -> None:
+        """A refusal replaced the answer that showed the proposal: a "si" next turn must not
+        authorize something the person never saw (core `engine.py`, `GuardrailBlocked`)."""
+        pendiente = self._pendientes.pendiente(session_id)
+        if pendiente is not None and not pendiente["ok"]:
+            self._pendientes.cerrar(session_id)
 
     @staticmethod
     async def _execute(pattern, query, run_ctx, model_fn, tool_fn, specs, max_iterations, guard):
@@ -500,8 +572,12 @@ class ADKRuntime:
 
     async def _run_member(self, member: Any, query: str, session_id: str, context, callbacks=None):
         if self._is_team(member):
-            return await self.run_team(member, query, session_id, context, callbacks)
-        return await self.run_agent(member, query, session_id, context, callbacks)
+            return await self.run_team(
+                member, query, session_id, context, callbacks, desde_humano=False
+            )
+        return await self.run_agent(
+            member, query, session_id, context, callbacks, desde_humano=False
+        )
 
     def _aggregate(
         self, name: str, session_id: str, children: list[tuple[str, RunResult]]
@@ -547,7 +623,25 @@ class ADKRuntime:
         session_id: str = "default",
         context: dict | None = None,
         callbacks: Any = None,
+        desde_humano: bool = True,
     ) -> RunResult:
+        """Members run with `desde_humano=False`; the team's own run is the one that talks to
+        the person, so it reads the "si" and appends the confirmation notice (like core's
+        top-level run over its sub-agents)."""
+        if not desde_humano:
+            return await self._run_team(team, query, session_id, context, callbacks)
+        self._pendientes.habilitar(session_id, query)
+        try:
+            r = await self._run_team(team, query, session_id, context, callbacks)
+            if r.blocked:
+                self._cerrar_sin_confirmar(session_id)
+            else:
+                r.answer = con_aviso(self._pendientes, session_id, r.answer)
+            return r
+        finally:
+            self._pendientes.cerrar_si_confirmado(session_id)
+
+    async def _run_team(self, team, query, session_id, context, callbacks) -> RunResult:
         pattern = team.pattern
         members = team.agents
 
@@ -588,7 +682,7 @@ class ADKRuntime:
         async def delegating_tool_fn(name: str, args: dict):
             if name in workers:
                 r = await self.run_agent(
-                    workers[name], args.get("query", query), session_id, context
+                    workers[name], args.get("query", query), session_id, context, desde_humano=False
                 )
                 return r.answer
             raise KeyError(f"worker {name!r} not found")
@@ -611,7 +705,7 @@ class ADKRuntime:
             # `args["query"]` already carries the conversation.
             if name in agents:
                 r = await self.run_agent(
-                    agents[name], args.get("query", query), session_id, context
+                    agents[name], args.get("query", query), session_id, context, desde_humano=False
                 )
                 return {"answer": r.answer}
             raise KeyError(f"agent {name!r} not found")

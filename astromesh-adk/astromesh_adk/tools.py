@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import types
 from abc import ABC, abstractmethod
-from typing import Any, Union, get_args, get_origin, get_type_hints
+from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
 # Python type → JSON schema type
 _TYPE_MAP = {
@@ -97,7 +97,10 @@ class ToolDefinitionWrapper:
         requires_approval: bool = False,
         timeout: int = 30,
         max_result_tokens: int | None = None,
+        mode: Literal["execute", "propose"] = "execute",
     ):
+        if mode not in ("execute", "propose"):
+            raise ValueError(f"mode {mode!r} does not exist; valid: execute, propose")
         self._func = func
         self.tool_name = func.__name__
         self.tool_description = description
@@ -106,6 +109,7 @@ class ToolDefinitionWrapper:
         self.requires_approval = requires_approval
         self.timeout = timeout
         self.max_result_tokens = max_result_tokens
+        self.mode = mode
 
     async def __call__(self, *args, **kwargs):
         # If called only with kwargs and the function takes a single Pydantic
@@ -138,11 +142,15 @@ def tool(
     requires_approval: bool = False,
     timeout: int = 30,
     max_result_tokens: int | None = None,
+    mode: Literal["execute", "propose"] = "execute",
 ):
     """Decorator to define a tool from an async function.
 
     JSON schema is auto-generated from type hints. ``max_result_tokens`` caps what the
     model sees of this tool's result (overrides the agent's ``max_tool_result_tokens``).
+    ``requires_approval=True``: the run asks the person first and executes only when they
+    re-run the same session with "si" and the model repeats the exact call.
+    ``mode="propose"``: never executed; the call is returned in ``RunResult.propuestas``.
     """
 
     def decorator(func):
@@ -153,6 +161,7 @@ def tool(
             requires_approval=requires_approval,
             timeout=timeout,
             max_result_tokens=max_result_tokens,
+            mode=mode,
         )
 
     return decorator
