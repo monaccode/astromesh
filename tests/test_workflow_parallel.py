@@ -157,3 +157,22 @@ async def test_retry_por_rama():
 def test_step_spec_rechaza_parallel_junto_a_agent():
     with pytest.raises(ValueError, match="exactly one"):
         StepSpec(name="x", agent="a", parallel=[StepSpec(name="s", agent="b")])
+
+
+async def test_timeout_de_una_rama_paralela_sube():
+    from astromesh.errors import AgentRunTimeout
+
+    class _RT:
+        async def run(self, agent_name, *a, **k):
+            if agent_name == "b":
+                raise AgentRunTimeout("b", 60)
+            return {"answer": "ok", "steps": []}
+
+    steps = [
+        _paralelo(
+            StepSpec(name="x", agent="a", input_template="q", on_error="continue"),
+            StepSpec(name="y", agent="b", input_template="q", on_error="continue"),
+        )
+    ]
+    with pytest.raises(AgentRunTimeout):
+        await _correr(_RT(), steps)

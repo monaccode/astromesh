@@ -187,6 +187,9 @@ class StepExecutor:
         errores: dict[str, str] = {}
         sub_results: dict[str, StepResult] = {}
 
+        for crudo in resultados:
+            if isinstance(crudo, AgentRunTimeout):
+                raise crudo
         for sub, crudo in zip(subs, resultados, strict=True):
             # gather(return_exceptions=True): una rama que revienta fuera del
             # manejo de execute_step llega acá como excepción, no como StepResult.

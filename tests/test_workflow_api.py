@@ -90,3 +90,14 @@ class TestWorkflowAPI:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             resp = await ac.post("/v1/workflows/any/run", json={"query": "hi"})
         assert resp.status_code == 503
+
+
+async def test_run_workflow_timeout_devuelve_504(mock_engine):
+    from astromesh.errors import AgentRunTimeout
+
+    mock_engine.run = AsyncMock(side_effect=AgentRunTimeout("a", 60))
+    set_workflow_engine(mock_engine)
+    async with AsyncClient(transport=ASGITransport(app=_make_app()), base_url="http://test") as ac:
+        resp = await ac.post("/v1/workflows/wf-alpha/run", json={"query": "hi"})
+    assert resp.status_code == 504
+    assert resp.json()["detail"] == {"error": "timeout", "agent": "a", "timeout_seconds": 60}

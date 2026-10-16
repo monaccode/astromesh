@@ -35,8 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `orchestration.timeout_seconds` corta la corrida: `AgentRunTimeout`, HTTP 504
   `{"error": "timeout", "agent", "timeout_seconds"}` y evento WebSocket `error` con
   `error: "timeout"`; deja un episodio `timeout` y cierra la confirmación pendiente. Valor
-  inválido (<= 0, bool, no numérico) es `AgentConfigError`. `timeout` es un alias deprecado. Una tool en vuelo se cierra con `tool_result`
-  `{ok: false, cancelled: true}`; los workflows/cadenas dejan subir el timeout (no lo reintentan).
+  inválido (<= 0, bool, no numérico) es `AgentConfigError`. `timeout` es un alias deprecado. Una tool en vuelo se cierra con
+  `tool_result` `{ok: false, cancelled: true}`; los workflows/cadenas (incluidas las ramas `parallel`) dejan subir el timeout sin reintentarlo,
+  y `POST /v1/workflows/{name}/run` responde 504.
 - **`pattern: swarm` hace handoff real.** Los agentes destino son las tools `type: agent` del
   manifiesto (sin ninguna, `AgentConfigError`, como `supervisor`); pasar el control = llamar a
   esa tool, y si el destino contesta, su respuesta **es la respuesta final** (no vuelve al que

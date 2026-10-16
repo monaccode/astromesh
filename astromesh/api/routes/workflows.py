@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from astromesh.errors import AgentRunTimeout
 from astromesh.workflow.loader import WorkflowLoader
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -182,6 +183,11 @@ async def run_workflow(name: str, request: WorkflowRunRequest):
     trigger = request.trigger or {"query": request.query}
     try:
         result = await _engine.run(name, trigger=trigger)
+    except AgentRunTimeout as e:
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "timeout", "agent": e.agent, "timeout_seconds": e.timeout_seconds},
+        ) from e
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
