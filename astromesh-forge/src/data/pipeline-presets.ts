@@ -12,6 +12,17 @@ export const DEFAULT_CONVERSATIONAL: MemoryConfig = {
   max_turns: 20,
 };
 
+/** `connection` with `url` set, or without it when blank; undefined when nothing is left. */
+export function withConnectionUrl(
+  connection: MemoryConfig["connection"],
+  url: string,
+): MemoryConfig["connection"] {
+  const out = { ...connection };
+  if (url) out.url = url;
+  else delete out.url;
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Backend dropdown: `redis` only; an unknown current value stays visible instead of being rewritten. */
 export function memoryBackendOptions(current: string) {
   const opts = [{ value: "redis", label: "Redis" }];

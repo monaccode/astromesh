@@ -25,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed (Astromesh Forge)
 
 - **Forge abre agentes con `model.default` + `model.roles`** (el shape de core 0.29+, Cortex y
-  Nexus) sin romper el canvas ni el wizard; el canvas edita los dos primeros candidatos de
-  `default` y conserva el resto de candidatos y los roles.
+  Nexus) sin romper el canvas ni el wizard; el canvas edita los candidatos de `default` y
+  conserva los roles.
 - **Guardar desde el canvas ya no pierde datos:** los bloques de modelo conservan
   `context_window`, `timeout`, `api_key_env`, `source`/`providerRef`, etc.; la memoria
   `episodic` sobrevive; dos reglas de guardrail del mismo tipo (o dos tools con el mismo
@@ -42,7 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tipos de tool según core:** `builtin`, `agent`, `client`, `integration`, `api` y `mcp`
   (los que `engine.py` cablea). Editar una tool en el canvas ya no borra `connection`,
   `actions`, `rate_limit` ni el manifiesto de `api`/`mcp`; se puede fijar
-  `max_result_tokens` por tool en el canvas y en el wizard.
+  `max_result_tokens` por tool en el canvas y en el wizard. Forge no escribe claves que core
+  ignora para el tipo (`description` sólo en `agent`/`client`/`api`, y vacía sólo si ya
+  estaba; `connection` de memoria sólo con URL), y `api`/`mcp` sólo se ofrecen a una tool
+  que ya es de ese tipo, porque sin su manifiesto core no arranca el agente.
+- **El canvas muestra cada candidato de `model.default` como un nodo:** borrar uno saca
+  exactamente ese candidato y los guardados siguientes no siguen borrando el siguiente.
 
 ### Changed (Astromesh Forge)
 

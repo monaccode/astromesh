@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { agentToNodes } from "../agent-to-nodes";
 import { nodesToAgent } from "../nodes-to-agent";
 import { agentToYaml, yamlToAgent } from "../yaml";
-import { modelSlots, toRoleShape, withModelSlots, withSource } from "../model";
+import { toRoleShape, withSource } from "../model";
 import type { AgentConfig } from "../../types/agent";
 
 // A manifest using sections Forge has no dedicated UI for (core 0.70.0). Nothing may be lost.
@@ -85,13 +85,34 @@ describe("core 0.70 manifest round-trip", () => {
     expect(canvasRoundTrip(cfg).spec.guardrails?.input).toHaveLength(2);
   });
 
-  it("editing the first candidate keeps the third candidate and roles", () => {
+  it("shows every default candidate as a node and editing one keeps the rest", () => {
     const cfg = yamlToAgent(RICH);
-    const { primary } = modelSlots(cfg.spec.model);
-    const m = withModelSlots(cfg.spec.model, { ...primary, model: "qwen" }, undefined);
-    expect(m.default?.candidates.map((c) => c.model)).toEqual(["qwen", "anthropic/claude"]);
+    const { nodes } = agentToNodes(cfg);
+    expect(nodes.filter((n) => n.data.category === "model").map((n) => n.id)).toEqual([
+      "model-primary",
+      "model-fallback",
+      "model-2",
+    ]);
+    const snaps = nodes.map((n) => ({
+      id: n.id,
+      data: n.id === "model-primary" ? { ...n.data, config: { ...n.data.config, model: "qwen" } } : n.data,
+    }));
+    const m = nodesToAgent(snaps, cfg).spec.model;
+    expect(m.default?.candidates.map((c) => c.model)).toEqual(["qwen", "kimi-k2", "anthropic/claude"]);
     expect(m.default?.candidates[0].context_window).toBe(8192);
     expect(m.roles).toEqual(cfg.spec.model.roles);
+  });
+
+  it("removing the fallback node removes exactly that candidate, stable across saves", () => {
+    const cfg = yamlToAgent(RICH);
+    const snaps = agentToNodes(cfg)
+      .nodes.filter((n) => n.id !== "model-fallback")
+      .map((n) => ({ id: n.id, data: n.data }));
+    const once = nodesToAgent(snaps, cfg);
+    const twice = nodesToAgent(snaps, once);
+    const models = (c: AgentConfig) => c.spec.model.default?.candidates.map((x) => x.model);
+    expect(models(once)).toEqual(["llama3.1:8b", "anthropic/claude"]);
+    expect(models(twice)).toEqual(models(once));
   });
 
   it("converts legacy model to the default role", () => {
@@ -125,5 +146,16 @@ describe("memory defaults", () => {
     expect(DEFAULT_CONVERSATIONAL.connection?.url).toMatch(/^redis:\/\//);
     const mem = PIPELINE_PRESETS.filter((p) => p.section === "memory").map((p) => p.build().config);
     expect(mem.every((c) => c.backend === "redis" && (c.connection as { url?: string })?.url)).toBe(true);
+  });
+});
+
+describe("applyToolEdit", () => {
+  it("writes description only for types that read it, when non-empty or already present", async () => {
+    const { applyToolEdit } = await import("../tools");
+    const edit = { name: "t", agent: "", description: "", max_result_tokens: undefined };
+    expect(applyToolEdit({ name: "t", type: "builtin", description: "x" }, { ...edit, type: "builtin" })).toEqual({ name: "t", type: "builtin" });
+    expect(applyToolEdit({ name: "t", type: "client" }, { ...edit, type: "client" })).toEqual({ name: "t", type: "client" });
+    expect(applyToolEdit({ name: "t", type: "client", description: "old" }, { ...edit, type: "client" })).toEqual({ name: "t", type: "client", description: "" });
+    expect(applyToolEdit({ name: "t", type: "client" }, { ...edit, type: "client", description: "d" })).toEqual({ name: "t", type: "client", description: "d" });
   });
 });

@@ -6,18 +6,9 @@ import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
 import { Select } from "../../ui/Select";
 import { GuardrailRuleFields } from "../../guardrails/GuardrailRuleFields";
-import { memoryBackendOptions } from "../../../data/pipeline-presets";
-import { candidateLabel, candidateSource, providerOptions, withSource } from "../../../utils/model";
-
-const TOOL_TYPES: { value: ToolConfig["type"]; label: string }[] = [
-  { value: "builtin", label: "Built-in" },
-  { value: "agent", label: "Sub-agent" },
-  { value: "client", label: "Client (runs in the caller)" },
-  { value: "integration", label: "Integration" },
-  { value: "api", label: "API (manifest kept as-is)" },
-  { value: "mcp", label: "MCP (manifest kept as-is)" },
-];
-
+import { memoryBackendOptions, withConnectionUrl } from "../../../data/pipeline-presets";
+import { applyToolEdit, readsDescription, toolTypeOptions } from "../../../utils/tools";
+import { modelNodeLabel, candidateSource, providerOptions, withSource } from "../../../utils/model";
 
 interface PipelinePropertiesPanelProps {
   node: Node | null;
@@ -168,8 +159,7 @@ function ModelFields({
       endpoint: local.endpoint || undefined,
       parameters: { ...c.parameters, temperature: local.temperature },
     };
-    const label =
-      nodeKey === "model-fallback" ? `Fallback: ${candidateLabel(next)}` : candidateLabel(next);
+    const label = modelNodeLabel(nodeKey, next);
     onApply(nodeId, {
       ...d,
       label,
@@ -253,16 +243,7 @@ function ToolFields({
 
   function push() {
     // Spread the original: connection, actions, rate_limit, api/mcp manifests… must survive.
-    const next: ToolConfig = {
-      ...c,
-      name: local.name,
-      type: local.type,
-      description: local.description,
-      max_result_tokens: local.max_result_tokens,
-    };
-    if (local.type === "agent") next.agent = local.agent || local.name;
-    else delete next.agent;
-    if (next.max_result_tokens === undefined) delete next.max_result_tokens;
+    const next = applyToolEdit(c, local);
     onApply(nodeId, {
       ...d,
       label: next.name,
@@ -281,7 +262,7 @@ function ToolFields({
       <Select
         label="Type"
         id="t-type"
-        options={TOOL_TYPES}
+        options={toolTypeOptions(c.type)}
         value={local.type}
         onChange={(e) =>
           setLocal((s) => ({ ...s, type: e.target.value as ToolConfig["type"] }))
@@ -309,14 +290,16 @@ function ToolFields({
           }))
         }
       />
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-500">Description</label>
-        <textarea
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 min-h-[80px]"
-          value={local.description}
-          onChange={(e) => setLocal((s) => ({ ...s, description: e.target.value }))}
-        />
-      </div>
+      {readsDescription(local.type) && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-500">Description</label>
+          <textarea
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 min-h-[80px]"
+            value={local.description}
+            onChange={(e) => setLocal((s) => ({ ...s, description: e.target.value }))}
+          />
+        </div>
+      )}
       <Button variant="primary" className="w-full text-sm" onClick={push}>
         Apply
       </Button>
@@ -365,13 +348,14 @@ function MemoryFields({
     const next: MemoryConfig = {
       ...c,
       backend: local.backend,
-      connection: { ...c.connection, url: local.url },
+      connection: withConnectionUrl(c.connection, local.url),
       strategy: local.strategy || undefined,
       max_turns: local.max_turns,
       max_results: local.max_results,
       similarity_threshold: local.similarity_threshold,
       ttl: local.ttl,
     };
+    if (!next.connection) delete next.connection;
     onApply(nodeId, { ...d, config: { ...next } as unknown as Record<string, unknown> });
   }
 

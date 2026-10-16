@@ -53,18 +53,54 @@ export function modelSlots(m: ModelSpec): { primary?: ModelConfig; fallback?: Mo
   return { primary: m.primary, fallback: m.fallback };
 }
 
-/** Write the two slots back without touching other candidates, roles or keys. */
-export function withModelSlots(
+/**
+ * Every candidate the canvas shows as a node. Role shape: all of `default.candidates`, in
+ * core's order (the router tries them in list order, reordered only by the strategy).
+ * Legacy: `primary`, `fallback`.
+ */
+export function modelCandidates(m: ModelSpec): ModelConfig[] {
+  if (isRoleShape(m)) return m.default?.candidates ?? [];
+  return [m.primary, m.fallback].filter((c): c is ModelConfig => !!c);
+}
+
+/** Node id for candidate `i`: `model-primary`, `model-fallback`, then `model-<i>`. */
+export function modelNodeId(i: number): string {
+  return i === 0 ? "model-primary" : i === 1 ? "model-fallback" : `model-${i}`;
+}
+
+export function modelNodeIndex(id: string): number {
+  if (id === "model-primary") return 0;
+  if (id === "model-fallback") return 1;
+  const n = /^model-(\d+)$/.exec(id);
+  return n ? Number(n[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+export function modelNodeLabel(id: string, c: ModelConfig | undefined): string {
+  const i = modelNodeIndex(id);
+  if (i === 0) return candidateLabel(c);
+  if (i === 1) return `Fallback: ${candidateLabel(c)}`;
+  return `Candidate ${i + 1}: ${candidateLabel(c)}`;
+}
+
+/**
+ * Write the canvas model nodes back. Each node is one candidate, so removing a node removes
+ * exactly that candidate and nothing is inferred from a missing node on later saves.
+ * Removing every model node keeps the base models (an agent with no model cannot run).
+ */
+export function withModelNodes(
   m: ModelSpec,
-  primary: ModelConfig | undefined,
-  fallback: ModelConfig | undefined,
+  nodes: { id: string; config: ModelConfig }[],
 ): ModelSpec {
+  if (!nodes.length) return m;
+  const byId = (id: string) => nodes.find((n) => n.id === id)?.config;
   if (isRoleShape(m)) {
-    const rest = (m.default?.candidates ?? []).slice(2);
-    const candidates = [primary, fallback, ...rest].filter((c): c is ModelConfig => !!c);
+    const candidates = [...nodes]
+      .sort((a, b) => modelNodeIndex(a.id) - modelNodeIndex(b.id))
+      .map((n) => n.config);
     return { ...m, default: { ...m.default, candidates } };
   }
-  const out: ModelSpec = { ...m, primary };
+  const out: ModelSpec = { ...m, primary: byId("model-primary") ?? m.primary };
+  const fallback = byId("model-fallback");
   if (fallback) out.fallback = fallback;
   else delete out.fallback;
   return out;

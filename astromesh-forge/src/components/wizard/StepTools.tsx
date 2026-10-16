@@ -210,11 +210,7 @@ export function StepTools() {
       const toolName = activeIdStr.replace("available-", "");
       const tool = availableTools.find((t) => t.name === toolName);
       if (tool && !agentToolNames.has(toolName)) {
-        const newTool: ToolConfig = {
-          name: tool.name,
-          type: "builtin",
-          description: tool.description,
-        };
+        const newTool: ToolConfig = { name: tool.name, type: "builtin" };
         updateSpec("tools", [...agentTools, newTool]);
       }
       return;

@@ -5,7 +5,7 @@ import type {
   ModelConfig,
   ToolConfig,
 } from "../types/agent";
-import { modelSlots, withModelSlots } from "./model";
+import { withModelNodes } from "./model";
 
 export interface PipelineNodeSnapshot {
   id: string;
@@ -34,13 +34,11 @@ export function nodesToAgent(
 
   // Node configs are the candidate blocks verbatim, so keys the canvas does not edit
   // (context_window, timeout, api_key_env, ...) survive. Works for both model shapes.
-  const slots = modelSlots(config.spec.model);
-  const primary = nodes.find((n) => n.id === "model-primary");
-  const fallback = nodes.find((n) => n.id === "model-fallback");
-  config.spec.model = withModelSlots(
+  config.spec.model = withModelNodes(
     config.spec.model,
-    primary ? (primary.data.config as ModelConfig) : slots.primary,
-    fallback ? (fallback.data.config as ModelConfig) : undefined,
+    nodes
+      .filter((n) => n.data.category === "model")
+      .map((n) => ({ id: n.id, config: n.data.config as ModelConfig })),
   );
 
   const tools = nodes

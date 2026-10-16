@@ -1,6 +1,6 @@
 import type { AgentConfig } from "../types/agent";
 import type { ForgeEdge } from "../types/canvas";
-import { candidateLabel, modelSlots } from "./model";
+import { modelCandidates, modelNodeId, modelNodeLabel } from "./model";
 
 interface PipelineNode {
   id: string;
@@ -49,13 +49,10 @@ export function agentToNodes(config: AgentConfig): {
   addNode("prompt", "System Prompt", "prompt", { system: config.spec.prompts?.system ?? "" });
 
   // Model
-  const { primary, fallback } = modelSlots(config.spec.model ?? {});
-  if (primary) {
-    addNode("model-primary", candidateLabel(primary), "model", primary as Record<string, unknown>);
-  }
-  if (fallback) {
-    addNode("model-fallback", `Fallback: ${candidateLabel(fallback)}`, "model", fallback as Record<string, unknown>);
-  }
+  modelCandidates(config.spec.model ?? {}).forEach((c, i) => {
+    const id = modelNodeId(i);
+    addNode(id, modelNodeLabel(id, c), "model", c as Record<string, unknown>);
+  });
 
   // Tools
   const tools = config.spec.tools || [];
