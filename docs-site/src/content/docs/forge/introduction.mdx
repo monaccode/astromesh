@@ -35,6 +35,7 @@ A built-in playground for live agent testing and debugging:
 - **Interactive chat** — Send messages to deployed agents and see responses in real time.
 - **Parameter overrides** — Change model, temperature, max tokens, and toggle tools without editing the agent config.
 - **Trace timeline** — Hierarchical span tree showing the full execution pipeline with token usage, latency, and tool call details.
+- **Run results** — A guardrail rejection (`blocked`, with rule, direction and reason) is marked instead of passing for a normal answer; writes proposed by `mode: propose` tools (`propuestas`) are listed under the response; cached tokens and per-model/role usage (`usage.by_model`) appear in the bubble and the summary bar.
 - **Run comparison** — Select two runs for side-by-side span-by-span diff with delta stats.
 
 ### Templates Gallery

@@ -92,7 +92,7 @@ Provided by the `astromesh-node` plugin.
 
 | Command | Flags | Description |
 |---------|-------|-------------|
-| `astromeshctl new agent <name>` | `--provider`, `--model`, `--orchestration`, `--tools`, `--output-dir`, `--force` | Generate a new agent YAML configuration |
+| `astromeshctl new agent <name>` | `--provider`, `--model`, `--orchestration`, `--tools`, `--context-window`, `--output-dir`, `--force` | Generate a new agent YAML configuration |
 | `astromeshctl new workflow <name>` | `--output-dir`, `--force` | Generate a new workflow YAML configuration |
 | `astromeshctl new tool <name>` | `--description`, `--output-dir`, `--force` | Scaffold a new custom tool Python file |
 
@@ -104,8 +104,11 @@ Provided by the `astromesh-node` plugin.
 | `--model` | `llama3.1:8b` | Model name |
 | `--orchestration` | `react` | Orchestration pattern |
 | `--tools` | -- | Tools to include (repeatable) |
+| `--context-window` | -- | Model context window in tokens; without it the key is written commented out |
 | `--output-dir` | `./config/agents` | Output directory |
 | `--force` | `false` | Overwrite existing file |
+
+The generated template carries guardrails valid for core 0.70 (`pii_detection` on input and output, `max_length`, `cost_limit` 4000), `context_window` and a commented `knowledge.bundle`.
 
 **`new workflow` flags:**
 
@@ -127,6 +130,7 @@ Provided by the `astromesh-node` plugin.
 | Command | Flags | Description |
 |---------|-------|-------------|
 | `astromeshctl run <agent> "query"` | `--session`, `--json`, `--timeout`, `--workflow`, `--input` | Execute an agent with a query |
+| `astromeshctl eval <config_dir> [files...]` | `--out` | Run the `kind: Eval` files with the core runner (the same as `astromesh-eval`) |
 | `astromeshctl dev` | `--host`, `--port`, `--config`, `--no-open` | Start the dev server with hot-reload |
 
 **`run` flags:**
@@ -139,7 +143,9 @@ Provided by the `astromesh-node` plugin.
 | `--workflow` | `false` | Run as workflow instead of agent |
 | `--input` | -- | Workflow input data as JSON string |
 
-By default `run` prints the answer in a panel and, when the response carries `usage.by_model`, a **Por modelo** table below it with one row per provider, model and role: calls, input and output tokens, and cost (`—` when the cost is unknown). `--json` prints the raw response instead. `astromeshctl ask` shows the same table.
+By default `run` prints the answer in a panel and, when the response carries `usage.by_model`, a **Por modelo** table below it with one row per provider, model and role: calls, input and output tokens, and cost (`—` when the cost is unknown). The table adds a `Cached` column (`tokens_cached`). When a guardrail blocks the run (core 0.70 answers HTTP 200 with the rejection as `answer`), `run` prints a **BLOCKED by guardrail** panel with direction, rule and reason; the writes recorded by `mode: propose` tools (`propuestas`) are listed in a table. `--json` prints the raw response instead. `astromeshctl ask` shows the same table.
+
+**`eval`:** `--out report.json` writes the report. Exit `0` if every eval meets its threshold, `1` if one falls below it, `2` on a load error (an invalid eval runs no case).
 
 **`dev` flags:**
 

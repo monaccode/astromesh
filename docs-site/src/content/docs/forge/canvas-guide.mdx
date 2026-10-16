@@ -54,8 +54,8 @@ Selecting any node on the canvas opens a contextual properties panel on the righ
 |-----------|------------|
 | **Agent** | Name, model, orchestration pattern, status |
 | **Tool** | Name, type (`builtin`/`agent`), target agent for `agent`, description |
-| **Model** | Provider, model name, endpoint, parameters (temperature, top_p, max_tokens) |
-| **Guardrail** | Type, action (block/redact), specific configuration |
+| **Model** | Provider, model name, endpoint, parameters (temperature, top_p, max_tokens), `context_window`. Saving keeps `timeout`, `api_key_env`, `source`/`providerRef` |
+| **Guardrail** | Type, action, message and the fields of that type (see the [wizard](/astromesh/forge/wizard-guide/#guardrails)) |
 | **Memory** | Backend, strategy, max_turns, TTL |
 
 Edit properties directly in the panel. Changes are applied immediately to the agent configuration.
@@ -69,3 +69,7 @@ The wizard and canvas share the same data model. This means:
 - The generated YAML is always consistent regardless of which editor you use.
 
 You can switch between the wizard and canvas at any point during agent creation or editing using the toggle in the top toolbar.
+
+### Sections without a canvas node
+
+Forge 0.27 adds minimal editors for per-role models (`model.default` + `model.roles`, with candidates and strategy per role), `prompts.context`, the `glyph` pattern and its `program`, `orchestration.stages`, `max_tool_result_tokens`, `role_map` and `max_result_tokens` per tool; `prefetch`, `output_schema` and `chain` are edited as YAML. Anything without an editor is saved untouched. Agents written with `model.default` + `model.roles` open without breaking the canvas or the wizard.

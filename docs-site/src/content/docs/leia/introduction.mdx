@@ -10,13 +10,11 @@ agent you need, in English or Spanish, and Leia designs a complete `astromesh/v1
 a real system prompt, shows it to you, and can deploy it, test it and diagnose it on a
 [Nexus](/astromesh/nexus/introduction/) hub. It is named after a lemon beagle.
 
-<Aside type="caution" title="v0.7.0 targets an older Nexus">
-Leia's operations (deploy, status, logs, test, bootstrap, doctor) were written for **Nexus
-0.3.x**, when Nexus was a Kubernetes operator. Against the current managed Nexus (0.26.x) they
-do not work as written: Leia sends the API key as `Authorization: Bearer`, and Nexus only reads
-API keys from `X-API-Key`, so its API calls are refused. Its tenant checks also use resources
-that no longer exist. **Agent design, templates and the schema knowledge work regardless of
-Nexus.** See [Compatibility](#compatibility).
+<Aside type="note" title="v0.8.0 targets Nexus 0.26">
+Leia's operations (deploy, status, logs, test, bootstrap, doctor) authenticate against the
+managed Nexus (0.26.x) with `X-API-Key`. Until 0.7 they sent the key as `Authorization: Bearer`,
+which Nexus reads only as a JWT, so every call was refused with `401`. See
+[Compatibility](#compatibility).
 </Aside>
 
 ## What Leia is
@@ -61,32 +59,30 @@ flowchart LR
 
 ## Compatibility
 
-| Part | Nexus 0.3.x (operator) | Nexus 0.26.x (managed hub) |
+| Leia | Nexus | Astromesh core knowledge |
 |---|---|---|
-| `/leia create` (design, preview, write YAML) | Works | Works |
-| `/leia templates` | Works | Works |
-| `/leia config` | Works | Works |
-| Publishing (`create` → deploy, `/leia deploy`) | Works | **Refused (`401`)**: key sent as `Bearer` |
-| `/leia status`, `logs`, `test` | Works | **Refused (`401`)**; status also reads tenant CRDs |
-| `/leia bootstrap local`, `teardown` | Works | **Installs the old operator**: Nexus's `hack/bootstrap.sh` still does |
-| `/leia bootstrap remote` | Works | Auth check fails (`401`) |
-| `leia-doctor` checks 3–8 | Works | Use `kubectl` resources that no longer exist |
+| 0.8.x | 0.26.x | 0.29 – 0.70.x |
+| 0.7.x | 0.3.x | 0.29 – 0.70.x |
+| 0.6.x | 0.3.x | 0.29 – 0.68.x |
+| 0.5.x | 0.3.x | 0.29 – 0.38.x |
+| 0.4.x | 0.3.x | 0.29 – 0.36.x |
+| 0.2.x | 0.3.x | 0.18 – 0.28.9 |
 
-Until Leia is synced with the managed hub, design with Leia and publish the YAML with
-[Cortex](/astromesh/cortex/nexus/) or the [Nexus API](/astromesh/nexus/api-reference/):
+From 0.8.0 the operator, tester, doctor, `bootstrap` and `logs` send the API key in `X-API-Key`,
+and the bundled `schemas/nexus-api.md` describes Nexus 0.26.11: `/run`, `/run/stream`,
+invocations, usage, versions, subscriptions and the `/admin` plane. The tester reads the 0.70
+response (`blocked`/`guardrail`, `propuestas`, `usage.by_model`): an expected block passes, an
+unexpected one fails and names the rule. Nexus 0.26.11 does not forward `blocked`/`guardrail`
+(0.26.12 does), so against 0.26.11 the tester infers the block from the `answer`.
+
+Leia 0.7.x and earlier target Nexus 0.3.x; against 0.26.x design with them and publish the YAML
+with [Cortex](/astromesh/cortex/nexus/) or the [Nexus API](/astromesh/nexus/api-reference/):
 
 ```bash
 curl -X POST "$NEXUS_URL/api/v1/agents" \
   -H "X-API-Key: $NEXUS_API_KEY" -H "Content-Type: application/yaml" \
   --data-binary @agents/my-agent.yaml
 ```
-
-| Leia | Nexus | Astromesh core knowledge |
-|---|---|---|
-| 0.6.x | 0.3.x | 0.29 – 0.68.x |
-| 0.5.x | 0.3.x | 0.29 – 0.38.x |
-| 0.4.x | 0.3.x | 0.29 – 0.36.x |
-| 0.2.x | 0.3.x | 0.18 – 0.28.9 |
 
 ## What each release taught it
 
@@ -95,7 +91,8 @@ version.
 
 | Version | Synced to | Added |
 |---|---|---|
-| **0.7.0** | core 0.70.0 | Guardrails are enforced in core 0.70, so the architect emits them again: the real rule types per side, `message`, and the cautions (no input PII redaction when tools need IDs or phones, `cost_limit` ≈ 4000 for the whole run, US-format PII patterns). Templates carry input `max_length` and `cost_limit`, and output PII redaction where it fits. |
+| **0.8.0** | Nexus 0.26.11, core 0.70.0 | Operations use `X-API-Key` (Bearer gave `401`); `nexus-api.md` rewritten for 0.26.11; the tester understands `blocked`/`guardrail`, `propuestas` and `by_model`; `kind: Eval`, OKF bundle and `RAGPipeline` schemas; `/leia deploy --node` for standalone nodes. |
+| 0.7.0 | core 0.70.0 | Guardrails are enforced in core 0.70, so the architect emits them again: the real rule types per side, `message`, and the cautions (no input PII redaction when tools need IDs or phones, `cost_limit` ≈ 4000 for the whole run, US-format PII patterns). Templates carry input `max_length` and `cost_limit`, and output PII redaction where it fits. |
 | 0.6.0 | core 0.68.0 | The whole manifest again: `integration`, `api` and `mcp` tools with `confirm`/`mode`, `prefetch`, `prompts.context` and `context_window`, `max_result_tokens`, pipeline `stages`, Glyph, and `spec.knowledge` with OKF bundles. It also says what 0.68 accepts but never applies: `spec.guardrails`, `permissions.allowed_actions`, semantic and episodic memory, a swarm handoff, `orchestration.timeout_seconds` |
 | 0.5.0 | core 0.38.1 | `spec.chain` and `spec.output_schema`: when to offer them, that every agent in `on_complete` must be deployed first, and that an older runtime ignores both silently. The doctor checks chain declarations |
 | 0.4.0 | core 0.36.0 | Only `builtin`, `agent` and `client` tools load from YAML; which model keys each source reads; the streaming contract and `usage.by_model`; RAG pipeline and workflow endpoints |

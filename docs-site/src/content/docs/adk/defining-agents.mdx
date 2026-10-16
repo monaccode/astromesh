@@ -45,10 +45,37 @@ The class docstring is the system prompt. `on_before_run` and `on_after_run` are
 | `model` | `str` | Provider/model (e.g., `"openai/gpt-4o"`) |
 | `description` | `str` | Shown when the agent is used as a tool. Defaults to `name` |
 | `tools` | `list` | Tools available to the agent |
-| `pattern` | `str` | Orchestration: `react` (default), `plan_and_execute`, `parallel_fan_out`, `pipeline`. An unknown value falls back to `react`. `supervisor`, `swarm` and `parallel` are [team](/astromesh/adk/multi-agent/) patterns |
+| `pattern` | `str` | Orchestration: `react` (default), `plan_and_execute`, `parallel_fan_out`, `pipeline`. An unknown value raises `AgentConfigError` when the agent is defined. `supervisor` also works for a single agent (its workers are tools made with `other_agent.as_tool()`); `swarm` and `parallel` are [team](/astromesh/adk/multi-agent/) patterns |
+| `stages` | `list[str]` | Stage names for `pattern="pipeline"` |
 | `max_iterations` | `int` | Orchestration iteration cap. Default `10` |
 | `memory` | `str \| dict` | Conversational memory, built by the core factory — only `redis` is supported, with its URL: `{"conversational": {"backend": "redis", "connection": {"url": "redis://..."}}}` and the core `redis` extra. Any other backend makes the run raise |
-| `guardrails` | `dict` | Input/output guardrails |
+| `guardrails` | `dict` | Input/output guardrails, [enforced locally](#guardrails) |
+| `roles` | `dict[str, str]` | Model per pattern role (`reasoner`, `planner`, `worker`, `synthesizer`, `supervisor`, `stage:<name>`); roles not listed use `model` |
+| `max_tool_result_tokens` | `int` | Cap on each tool result entering the model (default `8000`, as in the core); `@tool(max_result_tokens=N)` overrides it per tool |
+| `context_window` | `int` | With memory, the history is trimmed to a budget of 90% of the window minus prompt, tools and answer. Without it the litellm window is used when known; if not, no trimming |
 | `fallback_model` | `str` | Fallback provider/model |
 | `routing` | `str` | Routing strategy. Default `cost_optimized` |
 | `model_config` | `dict` | Extra model parameters |
+
+## Guardrails
+
+`guardrails=` runs on the core's `GuardrailsEngine`, as in a node: input rules before memory and the model, output rules on the answer and the steps, and `cost_limit` before each model call. The short form `["pii_detection"]` expands to `{"type": "pii_detection"}` and the core sets the default action.
+
+A block is a result, not an error. `RunResult.blocked` is `True`, `answer` is the rejection message and `guardrail` says `{direction, rule, reason}`. A blocked input does not enter the history. Teams: the guardrails of the supervisor (or entry) agent apply.
+
+```python
+result = await my_agent.run("...")
+if result.blocked:
+    print(result.guardrail["rule"], result.guardrail["reason"])
+```
+
+`RunResult` also carries `propuestas` (writes a `mode: propose` tool recorded without executing) and `by_model` (the core's `usage.by_model`, with `tokens_cached`). Remote runs copy them from the node's response.
+
+## Per-role models
+
+```python
+@agent(name="analyst", model="openai/gpt-4o-mini",
+       roles={"planner": "openai/gpt-4o", "synthesizer": "openai/gpt-4o"},
+       pattern="plan_and_execute")
+async def analyst(ctx): """..."""
+```

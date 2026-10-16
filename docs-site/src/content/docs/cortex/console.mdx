@@ -43,6 +43,10 @@ closes.
 
 The footer adds up the session: tokens in and out, time and number of messages.
 
+### Blocked runs
+
+When a guardrail rejects the run (core ≥ 0.70), the message shows a chip with the rule instead of reading like a normal answer. `blocked` and `guardrail` (`direction`, `rule`, `reason`) are read from the HTTP response and from the WebSocket `done` event.
+
 ### Proposed writes
 
 An `api` or `mcp` operation marked `writes: true` with `mode: propose` is not executed by the

@@ -19,11 +19,11 @@ These directories ship from this repository on their own tags and versions.
 |-----------|---------|-----------|---------|----------------|----------------------|
 | **Core Runtime** | `astromesh` | `astromesh/` | `0.70.0` | `astromesh/__init__.py` | Python 3.12 |
 | **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.3` | `astromesh_glyph/__init__.py` | Python 3.12 |
-| **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.4.0` | `astromesh_adk/__init__.py` | Python 3.12 |
-| **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.3.1` | `astromesh_cli/__init__.py` | Python 3.12 |
+| **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.5.0` | `astromesh_adk/__init__.py` | Python 3.12 |
+| **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.4.0` | `astromesh_cli/__init__.py` | Python 3.12 |
 | **Node** | `astromesh-node` | `astromesh-node/` | `0.1.10` | `src/astromesh_node/__init__.py` | Python 3.12 |
 | **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.4` | `astromesh_orbit/__init__.py` | Python 3.12 |
-| **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.26.0` | `package.json` | Node 22.12 |
+| **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.27.0` | `package.json` | Node 22.12 |
 | **Docs site** | `docs-site` | `docs-site/` | `0.1.0` | `package.json` | Node (site build) |
 | **VS Code extension** | `vscode-extension` | `vscode-extension/` | `0.1.0` | `package.json` | Node (build) |
 | **Native extension** | `astromesh-native` | `native/` | `0.1.0` | `Cargo.toml` | Rust |
@@ -38,14 +38,14 @@ These components are part of the Astromesh ecosystem but live in their own repos
 
 | Component | Repository | Current version | Ecosystem group | Status |
 |-----------|------------|-----------------|-----------------|--------|
-| **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.25.0` | Author | Shipped |
-| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.7.0` | Author | Shipped |
+| **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.26.0` | Author | Shipped |
+| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.8.0` | Author | Shipped |
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
 | **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped (GitHub tag and TestPyPI; PyPI pending) |
 | **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.11.0` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.13.7` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.2.1` | Ship | In development |
-| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.26.11` | Operate | Shipped |
+| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.26.12` | Operate | Shipped |
 | **Nebula** | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | `0.1.0` | Models | Preview |
 
 ## 2. Dependency graph (monorepo)
@@ -73,8 +73,8 @@ flowchart TB
         orbit["astromesh-orbit"]
     end
 
-    adk -->|>=0.59.0| core
-    cli -->|>=0.59.0| core
+    adk -->|>=0.70.0| core
+    cli -->|>=0.70.0| core
     node -->|>=0.60.0| core
     node -->|>=0.3.1| cli
     core -->|">=0.1,<0.2"| okf["astromesh-okf"]
@@ -86,8 +86,8 @@ flowchart TB
 
 | Consumer package | Declared dependency | Minimum version | Notes |
 |------------------|---------------------|-----------------|-------|
-| `astromesh-adk` | `astromesh` | `>=0.59.0` | Editable path source in the monorepo (`..`) |
-| `astromesh-cli` | `astromesh` | `>=0.59.0` | Editable path source in the monorepo (`..`) |
+| `astromesh-adk` | `astromesh` | `>=0.70.0` | Editable path source in the monorepo (`..`) |
+| `astromesh-cli` | `astromesh` | `>=0.70.0` | Editable path source in the monorepo (`..`) |
 | `astromesh-node` | `astromesh` | `>=0.60.0` | Editable path source in the monorepo (`..`) |
 | `astromesh-node` | `astromesh-cli` | `>=0.3.1` | Editable path source (`../astromesh-cli`) |
 | `astromesh` | `astromesh-okf` | `>=0.1,<0.2` | Base dependency: the core imports it for `spec.knowledge.bundle` and the `kb_*` tools. Published on PyPI, not a path source |

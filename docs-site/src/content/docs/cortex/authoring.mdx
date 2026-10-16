@@ -62,10 +62,17 @@ The builder and the YAML editor are two views of the agent stored in the runtime
 live mirror. After saving in one, reopen the other to see the change.
 
 <Aside type="caution">
-The Memory, Guardrails and Permissions inspectors, and the prompt *templates* list, write
-shapes older than the current schema: for example `guardrails.input` as named keys instead of
-a list of rules. Edit these sections in YAML, where the schema validates them.
+The Permissions inspector and the prompt *templates* list are basic and can write shapes older
+than the current schema. Edit those sections in YAML, where the schema validates them. The
+Guardrails inspector edits the rule list core enforces, and the Memory inspector edits
+`memory.conversational` (`backend: redis`, `connection.url`, `strategy`, `max_turns`, `ttl`).
 </Aside>
+
+### Eval files
+
+`*.eval.yaml` files (`kind: Eval`, run by `astromesh-eval`) are validated against their own
+schema: `agent`, `thresholds.pass_rate`, `judge`, `cases` or `cases_file`, with every case
+needing an `expect` or a `rubric`. The editor offers the `eval-skeleton` snippet.
 
 ### Migrations on open
 

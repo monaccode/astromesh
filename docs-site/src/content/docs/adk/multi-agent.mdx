@@ -67,3 +67,7 @@ team = AgentTeam(
     agents=[market_analyst, tech_analyst, competitor_analyst],
 )
 ```
+
+## Guardrails in teams
+
+The guardrails of the supervisor (or entry) agent apply to the team run; a block returns a `RunResult` with `blocked=True`.

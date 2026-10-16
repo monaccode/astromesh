@@ -78,12 +78,17 @@ Select which memory types to enable:
 
 ### Guardrails
 
-Add input and/or output guardrails:
+Forge offers the five rule types core 0.70 enforces, each on the side core accepts:
 
-- **Input guardrails** — Applied before the prompt is sent to the model (e.g., PII filter, max input length, topic restriction).
-- **Output guardrails** — Applied after the model responds (e.g., content filter, cost limit, format validation).
+| Type | Side | Actions (default first) | Fields |
+|---|---|---|---|
+| `pii_detection` | input, output | `redact`, `block`, `warn` | |
+| `topic_filter` | input | `block`, `warn` | forbidden topics |
+| `max_length` | input | `truncate`, `block`, `warn` | `max_chars` |
+| `content_filter` | output | `redact`, `block`, `warn` | patterns / keywords |
+| `cost_limit` | input | `block` | `max_tokens_per_turn`, `count` |
 
-Each guardrail has an action: `block` (reject the message) or `redact` (modify the content).
+Every rule takes an optional rejection `message`. A block returns a normal response with `blocked: true`. The security presets only produce valid rules (`cost_limit` at 4000). The same rules are edited in the canvas panel.
 
 ### Permissions
 

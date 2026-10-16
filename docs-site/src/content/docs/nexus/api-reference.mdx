@@ -83,12 +83,15 @@ Optional header `Idempotency-Key`: replaying a key returns the existing invocati
   "pricing_status": "priced",
   "data": {},
   "chain": {},
-  "propuestas": []
+  "propuestas": [],
+  "blocked": true,
+  "guardrail": { "direction": "input", "rule": "…", "reason": "…" }
 }
 ```
 
 - `by_model[]` holds provider, model, role and tokens per model, including `tokens_cached`.
 - `data` is present when the agent declares `spec.output_schema` (`null` if the answer did not validate). `chain` is present when `spec.chain` fired. `propuestas` lists the writes that `mode: propose` tools recorded without executing. Each key is **omitted**, not `null`, when the runtime sent nothing.
+- `blocked` and `guardrail` (`direction`, `rule`, `reason`) are present when a guardrail of the agent (core 0.70) rejected the run: `answer` is the rejection message. The stream's `done` event carries them too. They are omitted when nothing was blocked, and Nexus does not store `blocked` on the invocation (since 0.26.12; 0.26.11 dropped them).
 - At 80 % or more of the period's credit cap, the response carries `X-Nexus-Credit-Usage: <percent>`.
 
 ### `GET /api/v1/agents/:name/run/stream` (WebSocket)

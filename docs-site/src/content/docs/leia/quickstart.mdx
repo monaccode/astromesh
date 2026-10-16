@@ -21,7 +21,7 @@ git clone https://github.com/monaccode/astromesh-leia.git
 claude --plugin-dir ./astromesh-leia
 ```
 
-`--plugin-dir` loads it for that session. The latest packaged release, `v0.7.0`, is a `.zip` and
+`--plugin-dir` loads it for that session. The latest packaged release, `v0.8.0`, is a `.zip` and
 a `.tar.gz` on the [releases page](https://github.com/monaccode/astromesh-leia/releases).
 
 Run `/leia` with no arguments to see the welcome menu. Claude Code lists the other commands
@@ -54,8 +54,8 @@ channel, business name, description, and two or three questions specific to the 
 
 ## Get it onto Nexus
 
-Against a **Nexus 0.3.x** cluster, answering `yes` deploys the agent and polls until it is
-`Ready`. Then:
+Answering `yes` publishes the agent to your Nexus (0.26.x with Leia 0.8; 0.3.x clusters need Leia 0.7 or
+earlier) and confirms it registered. Then:
 
 ```
 /leia status
@@ -63,7 +63,7 @@ Against a **Nexus 0.3.x** cluster, answering `yes` deploys the agent and polls u
 /leia logs pizzeria-reservas --follow
 ```
 
-Against the **current Nexus**, publish the file Leia wrote with Cortex or the API:
+You can also publish the file Leia wrote with Cortex or the API:
 
 ```bash
 curl -X POST "$NEXUS_URL/api/v1/agents" \

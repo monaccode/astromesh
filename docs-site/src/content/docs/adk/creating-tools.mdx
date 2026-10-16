@@ -108,3 +108,16 @@ The runner fires `on_tool_result` after each tool call succeeds and `on_error` (
 | `timeout` | `int` | Timeout in seconds. Default `30` |
 
 `rate_limit`, `requires_approval` and `timeout` are stored on the tool but not enforced by the ADK runner.
+
+## Result size and knowledge bundles
+
+`@tool(max_result_tokens=N)` caps one tool's result before it reaches the model (the agent-wide default is `max_tool_result_tokens`, `8000`).
+
+`kb_tools(path)` returns the core's `kb_index`, `kb_read` and `kb_find` tools over an OKF knowledge bundle directory; they return errors as results instead of raising:
+
+```python
+from astromesh_adk import agent, kb_tools
+
+@agent(name="docs", model="openai/gpt-4o", tools=[*kb_tools("./kb")])
+async def docs(ctx): """Answer from the knowledge bundle."""
+```
