@@ -158,3 +158,27 @@ def test_mode_invalido_es_error():
 
     with pytest.raises(ValueError, match="mode"):
         tool("d", mode="dry")(f)
+
+
+async def test_un_agente_como_tool_no_autoconfirma_y_el_aviso_llega_a_la_persona():
+    # El modelo padre le pasa "pagá 10" y después "si" al hijo, en UNA corrida del padre.
+    ejecutadas = []
+    pagar10 = ("", [_call("pagar", monto=10)])
+    hijo = _agente([_pagar(ejecutadas)], name="hijo", model="claude-w")
+    padre = _agente([hijo.as_tool()], name="padre", model="claude-p")
+    provs = {
+        "claude-p": Provider(
+            "claude-p",
+            [
+                ("", [_call("hijo", query="pagá 10")]),
+                ("", [_call("hijo", query="si")]),
+                ("fin", []),
+            ],
+        ),
+        "claude-w": Provider("claude-w", [pagar10, ("pido ok", []), pagar10, ("listo", [])]),
+    }
+    rt = _rt(provs)
+    r = await padre.run("pagá 10", session_id="persona-1", runtime=rt)
+    assert ejecutadas == []
+    assert "Voy a ejecutar: pagar con monto: 10" in r.answer
+    assert rt._pendientes.pendiente("default") is None

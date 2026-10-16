@@ -57,9 +57,12 @@ async def crear(nombre: str) -> str: ...
 - `mode="propose"`: la tool nunca se ejecuta; la llamada sale en `result.propuestas`
   (`tool`, `tipo: "adk"`, `destino` = nombre del agente, `operacion`, `argumentos`) para que
   quien invocó la corrida la apruebe y la ejecute.
-- En un equipo, el "si" lo lee la corrida del equipo, nunca la de un miembro (su query la
-  escribió un modelo), y un miembro no puede proponer: se le contesta al modelo que no se
-  registró nada.
+- Esto vale para las llamadas que hace el modelo. Una tool llamada desde el código del handler
+  (`ctx.call_tool`) se ejecuta tal cual: no pasa por la compuerta ni propone.
+- En un equipo o con un agente como tool (`otro.as_tool()`), el "si" lo lee la corrida que
+  atiende a la persona, nunca la del miembro o sub-agente (su query la escribió un modelo).
+  Éste corre en la misma sesión, su aviso sale en la respuesta de la corrida de arriba, y no
+  puede proponer: se le contesta al modelo que no se registró nada.
 
 ## CLI
 

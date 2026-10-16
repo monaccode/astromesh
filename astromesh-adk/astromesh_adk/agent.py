@@ -141,6 +141,8 @@ class AgentWrapper:
         )
         wrapper.tool_name = self.name
         wrapper.is_agent_tool = True  # a `supervisor` pattern delegates only to these
+        # A local run calls this agent as a sub-run of the caller's session (runner.tool_fn).
+        wrapper.agent = self
         wrapper.parameters_schema = {
             "type": "object",
             "properties": {
@@ -319,6 +321,8 @@ class Agent:
         )
         wrapper.tool_name = self.name
         wrapper.is_agent_tool = True  # a `supervisor` pattern delegates only to these
+        # A local run calls this agent as a sub-run of the caller's session (runner.tool_fn).
+        wrapper.agent = self
         wrapper.parameters_schema = {
             "type": "object",
             "properties": {

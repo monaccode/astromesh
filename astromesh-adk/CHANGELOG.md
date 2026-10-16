@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `requires_approval=True` no se ejecuta hasta que la persona re-corre la misma sesión con
   "si" y el modelo repite la llamada exacta (la misma forma que en remoto); la respuesta lleva
   el aviso de qué se va a ejecutar. `@tool(mode="propose")` no ejecuta: la llamada sale en
-  `RunResult.propuestas` con `tipo: "adk"`. Los miembros de un equipo corren como no-humanos:
-  no confirman ni proponen. `mode` inválido es `ValueError`.
+  `RunResult.propuestas` con `tipo: "adk"`. Los miembros de un equipo y los agentes usados como
+  tool (`as_tool()`) corren como sub-corridas de la misma sesión: no confirman ni proponen, y
+  su aviso sale en la respuesta que lee la persona. `mode` inválido es `ValueError`.
 
 ### Changed
 - **Equipos `swarm` con handoff por tool call.** El agente de entrada recibe a los miembros

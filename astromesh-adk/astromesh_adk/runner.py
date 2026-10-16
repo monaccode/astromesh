@@ -245,6 +245,13 @@ class ADKRuntime:
                     result = await handler(
                         _run_context={CLAVE_PROPUESTAS: propuestas}, **(args or {})
                     )
+                elif gated and self._local_agent(t):
+                    # An agent tool is a sub-run in THIS session, not a person's turn: its
+                    # query was written by the model, so it cannot confirm, and what it
+                    # proposes surfaces through this run's notice (core's `type: agent`).
+                    query = (args or {}).get("query", (args or {}).get("task", ""))
+                    sub = await self._run_sub_agent(t.agent, query, session_id)
+                    result = sub.answer
                 elif hasattr(t, "execute"):
                     result = await t.execute(args)
                 else:
@@ -481,6 +488,20 @@ class ADKRuntime:
                 "propuestas": propuestas if isinstance(propuestas, list) else [],
             }
         )
+
+    @staticmethod
+    def _local_agent(t: Any) -> bool:
+        from astromesh_adk.agent import _remote_connection
+
+        child = getattr(t, "agent", None)
+        return child is not None and _remote_connection(child) is None
+
+    async def _run_sub_agent(self, child: Any, query: str, session_id: str) -> RunResult:
+        from astromesh_adk.agent import Agent
+
+        if isinstance(child, Agent):
+            return await self.run_class_agent(child, query, session_id, desde_humano=False)
+        return await self.run_agent(child, query, session_id, desde_humano=False)
 
     def _cerrar_sin_confirmar(self, session_id: str) -> None:
         """A refusal replaced the answer that showed the proposal: a "si" next turn must not
@@ -742,6 +763,7 @@ class ADKRuntime:
         session_id="default",
         context=None,
         callbacks=None,
+        desde_humano: bool = True,
     ) -> RunResult:
         ctx = self._build_context(agent_instance, query, session_id, context)
         await agent_instance.on_before_run(ctx)
@@ -751,7 +773,9 @@ class ADKRuntime:
                 return None
 
             agent_instance._handler = _noop  # type: ignore[attr-defined]
-        result = await self.run_agent(agent_instance, query, session_id, context, callbacks)
+        result = await self.run_agent(
+            agent_instance, query, session_id, context, callbacks, desde_humano=desde_humano
+        )
         await agent_instance.on_after_run(ctx, result)
         return result
 
