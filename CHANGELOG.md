@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Astromesh Forge)
+
+- **Forge abre agentes con `model.default` + `model.roles`** (el shape de core 0.29+, Cortex y
+  Nexus) sin romper el canvas ni el wizard; el canvas edita los dos primeros candidatos de
+  `default` y conserva el resto de candidatos y los roles.
+- **Guardar desde el canvas ya no pierde datos:** los bloques de modelo conservan
+  `context_window`, `timeout`, `api_key_env`, `source`/`providerRef`, etc.; la memoria
+  `episodic` sobrevive; dos reglas de guardrail del mismo tipo (o dos tools con el mismo
+  nombre) ya no colisionan en el id del nodo.
+- **Proveedores y estrategias según core:** el dropdown ofrece sólo lo que
+  `build_candidate_provider` construye (`ollama`, `openai_compat`, `openai`, `azure_openai`,
+  `litellm`, `centinela`, o auto/`providerRef`) y suma `capability_match`; un valor viejo
+  (`vllm`, `onnx`…) se muestra marcado en vez de reescribirse.
+
 ### Changed (Astromesh Forge)
 
 - **Forge emite y edita las reglas de guardrails que core 0.70.0 aplica.** Sólo ofrece los

@@ -1,5 +1,6 @@
 import type { AgentConfig } from "../types/agent";
 import type { ForgeEdge } from "../types/canvas";
+import { candidateLabel, modelSlots } from "./model";
 
 interface PipelineNode {
   id: string;
@@ -28,9 +29,10 @@ export function agentToNodes(config: AgentConfig): {
 
   // Input guardrails
   const inputGuardrails = config.spec.guardrails?.input || [];
-  for (const g of inputGuardrails) {
-    addNode(`ig-${g.type}`, `Input: ${g.type}`, "guardrail", g as unknown as Record<string, unknown>);
-  }
+  // Ids carry the index: two rules of the same type (or two same-named tools) must not collide.
+  inputGuardrails.forEach((g, i) => {
+    addNode(`ig-${i}-${g.type}`, `Input: ${g.type}`, "guardrail", g as unknown as Record<string, unknown>);
+  });
 
   // Memory
   if (config.spec.memory?.conversational) {
@@ -39,27 +41,33 @@ export function agentToNodes(config: AgentConfig): {
   if (config.spec.memory?.semantic) {
     addNode("memory-sem", "Semantic Memory", "memory", config.spec.memory.semantic as unknown as Record<string, unknown>);
   }
+  if (config.spec.memory?.episodic) {
+    addNode("memory-epi", "Episodic Memory", "memory", config.spec.memory.episodic as unknown as Record<string, unknown>);
+  }
 
   // Prompt
-  addNode("prompt", "System Prompt", "prompt", { system: config.spec.prompts.system });
+  addNode("prompt", "System Prompt", "prompt", { system: config.spec.prompts?.system ?? "" });
 
   // Model
-  addNode("model-primary", `${config.spec.model.primary.provider}/${config.spec.model.primary.model}`, "model", config.spec.model.primary as unknown as Record<string, unknown>);
-  if (config.spec.model.fallback) {
-    addNode("model-fallback", `Fallback: ${config.spec.model.fallback.provider}/${config.spec.model.fallback.model}`, "model", config.spec.model.fallback as unknown as Record<string, unknown>);
+  const { primary, fallback } = modelSlots(config.spec.model ?? {});
+  if (primary) {
+    addNode("model-primary", candidateLabel(primary), "model", primary as Record<string, unknown>);
+  }
+  if (fallback) {
+    addNode("model-fallback", `Fallback: ${candidateLabel(fallback)}`, "model", fallback as Record<string, unknown>);
   }
 
   // Tools
   const tools = config.spec.tools || [];
-  for (const t of tools) {
-    addNode(`tool-${t.name}`, t.name, "tool", t as unknown as Record<string, unknown>);
-  }
+  tools.forEach((t, i) => {
+    addNode(`tool-${i}-${t.name}`, t.name, "tool", t as unknown as Record<string, unknown>);
+  });
 
   // Output guardrails
   const outputGuardrails = config.spec.guardrails?.output || [];
-  for (const g of outputGuardrails) {
-    addNode(`og-${g.type}`, `Output: ${g.type}`, "guardrail", g as unknown as Record<string, unknown>);
-  }
+  outputGuardrails.forEach((g, i) => {
+    addNode(`og-${i}-${g.type}`, `Output: ${g.type}`, "guardrail", g as unknown as Record<string, unknown>);
+  });
 
   return { nodes, edges };
 }

@@ -26,6 +26,7 @@ import type { AgentNodeData, PipelineNodeData } from "../../types/canvas";
 import { AgentNode } from "./nodes/AgentNode";
 import { ToolNode } from "./nodes/ToolNode";
 import { ModelNode } from "./nodes/ModelNode";
+import { candidateLabel, modelSlots } from "../../utils/model";
 import { GuardrailNode } from "./nodes/GuardrailNode";
 import { MemoryNode } from "./nodes/MemoryNode";
 import { PromptNode } from "./nodes/PromptNode";
@@ -322,7 +323,7 @@ export function CanvasEditor() {
   );
 
   const handleAddFallbackModel = useCallback(() => {
-    const fb = expandedBaseConfig?.spec.model.fallback ?? {
+    const fb = (expandedBaseConfig && modelSlots(expandedBaseConfig.spec.model).fallback) ?? {
       provider: "ollama",
       model: "llama3.1:8b",
       endpoint: "http://127.0.0.1:11434",
@@ -333,7 +334,7 @@ export function CanvasEditor() {
       type: "model",
       position: pos,
       data: {
-        label: `Fallback: ${fb.provider}/${fb.model}`,
+        label: `Fallback: ${candidateLabel(fb)}`,
         category: "model",
         config: { ...fb } as unknown as Record<string, unknown>,
       },

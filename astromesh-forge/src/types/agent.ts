@@ -6,16 +6,29 @@ export interface AgentMeta {
   status: "draft" | "deployed" | "paused";
 }
 
+/** A model candidate. Core selects the adapter by `source` (new) or `provider` (legacy). */
 export interface ModelConfig {
-  provider: string;
-  model: string;
+  provider?: string;
+  source?: string;
+  /** ProviderConfig entry name; inherits source/endpoint/model from the registry. */
+  providerRef?: string;
+  model?: string;
+  context_window?: number;
   endpoint?: string;
   api_key_env?: string;
   parameters?: {
     temperature?: number;
     top_p?: number;
     max_tokens?: number;
+    [key: string]: unknown;
   };
+  [key: string]: unknown;
+}
+
+export interface ModelRole {
+  candidates: ModelConfig[];
+  strategy?: string;
+  [key: string]: unknown;
 }
 
 export interface ToolConfig {
@@ -64,13 +77,17 @@ export interface AgentConfig {
       description: string;
       avatar?: string;
     };
+    /** Legacy `primary`/`fallback`/`routing`, or per-role `default` + `roles` (core 0.29+). */
     model: {
-      primary: ModelConfig;
+      primary?: ModelConfig;
       fallback?: ModelConfig;
       routing?: {
         strategy: string;
         health_check_interval?: number;
       };
+      default?: ModelRole;
+      roles?: Record<string, ModelRole>;
+      [key: string]: unknown;
     };
     prompts: {
       system: string;

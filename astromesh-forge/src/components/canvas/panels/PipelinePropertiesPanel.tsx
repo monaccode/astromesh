@@ -6,13 +6,7 @@ import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
 import { Select } from "../../ui/Select";
 import { GuardrailRuleFields } from "../../guardrails/GuardrailRuleFields";
-
-const PROVIDERS = [
-  { value: "ollama", label: "Ollama" },
-  { value: "openai_compat", label: "OpenAI compatible" },
-  { value: "vllm", label: "vLLM" },
-  { value: "llamacpp", label: "llama.cpp" },
-];
+import { candidateLabel, candidateSource, providerOptions, withSource } from "../../../utils/model";
 
 const TOOL_TYPES: { value: ToolConfig["type"]; label: string }[] = [
   { value: "builtin", label: "Built-in" },
@@ -148,7 +142,7 @@ function ModelFields({
 }) {
   const c = d.config as unknown as ModelConfig;
   const [local, setLocal] = useState({
-    provider: c.provider ?? "ollama",
+    provider: candidateSource(c),
     model: c.model ?? "",
     endpoint: c.endpoint ?? "",
     temperature: c.parameters?.temperature ?? 0.7,
@@ -161,7 +155,7 @@ function ModelFields({
     // hook-refactor spec.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
-      provider: nc.provider ?? "ollama",
+      provider: candidateSource(nc),
       model: nc.model ?? "",
       endpoint: nc.endpoint ?? "",
       temperature: nc.parameters?.temperature ?? 0.7,
@@ -169,16 +163,15 @@ function ModelFields({
   }, [nodeKey, d.config]);
 
   function push() {
+    // Spread the original block: keys this panel does not edit must survive.
     const next: ModelConfig = {
-      provider: local.provider,
+      ...withSource(c, local.provider),
       model: local.model,
       endpoint: local.endpoint || undefined,
-      parameters: { temperature: local.temperature },
+      parameters: { ...c.parameters, temperature: local.temperature },
     };
     const label =
-      nodeKey === "model-fallback"
-        ? `Fallback: ${next.provider}/${next.model}`
-        : `${next.provider}/${next.model}`;
+      nodeKey === "model-fallback" ? `Fallback: ${candidateLabel(next)}` : candidateLabel(next);
     onApply(nodeId, {
       ...d,
       label,
@@ -191,7 +184,7 @@ function ModelFields({
       <Select
         label="Provider"
         id="m-prov"
-        options={PROVIDERS}
+        options={providerOptions(local.provider)}
         value={local.provider}
         onChange={(e) => setLocal((s) => ({ ...s, provider: e.target.value }))}
       />

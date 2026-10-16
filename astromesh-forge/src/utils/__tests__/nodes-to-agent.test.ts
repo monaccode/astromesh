@@ -35,7 +35,7 @@ describe("nodesToAgent", () => {
     }));
     const out = nodesToAgent(snapshots, SAMPLE);
     expect(out.spec.prompts.system).toBe(SAMPLE.spec.prompts.system);
-    expect(out.spec.model.primary.provider).toBe("ollama");
+    expect(out.spec.model.primary?.provider).toBe("ollama");
     expect(out.spec.tools).toHaveLength(1);
     expect(out.spec.tools?.[0].name).toBe("search");
     expect(out.spec.guardrails?.input).toHaveLength(1);
