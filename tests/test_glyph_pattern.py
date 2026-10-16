@@ -121,10 +121,9 @@ def test_a_tool_without_permission_never_reaches_the_glyph_catalog():
         lambda **kw: "ok",
         "Requiere permiso",
         {"type": "object", "properties": {}},
-        permissions=["admin"],
     )
 
-    schemas = registry.get_tool_schemas(agent_permissions=["usuario"])
+    schemas = registry.get_tool_schemas({"publica"})
     caps = PatternCapabilities(tools=schemas, tool_fn=None, model_fn=None)
     names = {c.name for c in caps.list_capabilities()}
 

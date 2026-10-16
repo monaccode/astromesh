@@ -343,7 +343,6 @@ def _agent_with(routers, role_map=None):
         system_prompt="sys",
         prompt_engine=PromptEngine(),
         guardrails={},
-        permissions={},
         orchestration_config={"role_map": role_map or {}},
     )
 

@@ -50,7 +50,6 @@ def _runner(rag):
         system_prompt="hola",
         prompt_engine=pe,
         guardrails={},
-        permissions={},
         orchestration_config={},
         rag=rag,
     )

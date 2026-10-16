@@ -78,7 +78,7 @@ def _make_agent(pattern, tool_impl=None, model_content="thinking"):
     agent._pattern = pattern
     agent._role_map = {}
     agent._orchestration_config = {"pattern": "recording"}
-    agent._permissions = {}
+    agent._permitidas = None
     agent._output_schema = None
     agent._guardrails = GuardrailsEngine(None)
     agent._rag = None

@@ -66,27 +66,9 @@ def test_get_tool_schemas(registry):
 
 
 def test_get_tool_schemas_filtered(registry):
-    registry.register_internal(
-        name="admin_tool",
-        handler=double_handler,
-        description="Admin only",
-        parameters={},
-        permissions=["admin"],
-    )
-    registry.register_internal(
-        name="public_tool",
-        handler=double_handler,
-        description="Public tool",
-        parameters={},
-    )
-    # Agent with "user" permission should not see admin_tool but should see public_tool
-    schemas = registry.get_tool_schemas(agent_permissions=["user"])
-    names = [s["function"]["name"] for s in schemas]
-    assert "public_tool" in names
-    assert "admin_tool" not in names
-
-    # Agent with "admin" permission should see both
-    schemas_admin = registry.get_tool_schemas(agent_permissions=["admin"])
-    names_admin = [s["function"]["name"] for s in schemas_admin]
-    assert "admin_tool" in names_admin
-    assert "public_tool" in names_admin
+    for n in ("admin_tool", "public_tool"):
+        registry.register_internal(name=n, handler=double_handler, description=n, parameters={})
+    names = lambda ps: [s["function"]["name"] for s in registry.get_tool_schemas(ps)]  # noqa: E731
+    assert {"admin_tool", "public_tool"} <= set(names(None))
+    assert names({"public_tool"}) == ["public_tool"]
+    assert names(frozenset()) == []

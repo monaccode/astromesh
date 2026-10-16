@@ -479,36 +479,3 @@ class TestAgentAsToolIntegration:
         names = {s["function"]["name"] for s in schemas}
         assert "research-agent" in names
         assert "calculator" in names
-
-    @pytest.mark.asyncio
-    async def test_agent_tool_with_permissions(self):
-        """Agent tools respect permission filtering in get_tool_schemas()."""
-        registry = ToolRegistry()
-        registry.register_agent_tool(
-            name="admin-agent",
-            agent_name="admin",
-            description="Admin operations",
-            permissions=["admin"],
-        )
-        registry.register_agent_tool(
-            name="secret-agent",
-            agent_name="secret",
-            description="Secret operations",
-            permissions=["secret"],
-        )
-        registry.register_agent_tool(
-            name="public-agent",
-            agent_name="public",
-            description="Public operations",
-        )
-
-        # No filter — all visible
-        schemas = registry.get_tool_schemas()
-        assert len(schemas) == 3
-
-        # Filter by admin — admin-agent (matches) + public-agent (no perms = always visible)
-        schemas = registry.get_tool_schemas(agent_permissions=["admin"])
-        names = {s["function"]["name"] for s in schemas}
-        assert "admin-agent" in names
-        assert "public-agent" in names
-        assert "secret-agent" not in names

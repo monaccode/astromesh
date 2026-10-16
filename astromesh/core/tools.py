@@ -1,7 +1,7 @@
 import os
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -52,7 +52,6 @@ class ToolDefinition:
     """
     timeout_seconds: int = 30
     rate_limit: dict | None = None
-    permissions: list[str] = field(default_factory=list)
     agent_config: dict | None = None
     context_transform: str | None = None
     integration_config: dict | None = None
@@ -347,14 +346,10 @@ class ToolRegistry:
         """
         return self._tools.get(name)
 
-    def get_tool_schemas(self, agent_permissions=None) -> list[dict]:
+    def get_tool_schemas(self, permitidas: Collection[str] | None = None) -> list[dict]:
         schemas = []
         for name, tool in self._tools.items():
-            if (
-                agent_permissions
-                and tool.permissions
-                and not any(p in agent_permissions for p in tool.permissions)
-            ):
+            if permitidas is not None and name not in permitidas:
                 continue
             schemas.append(
                 {

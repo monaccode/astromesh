@@ -43,6 +43,7 @@ from astromesh.orchestration.patterns import (
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
 from astromesh.runtime.confirmacion import Pendientes, huella
+from astromesh.runtime.permisos import resolver_permisos
 from astromesh.runtime.prefetch import ejecutar_prefetch, validar_prefetch
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
 
@@ -1225,9 +1226,8 @@ class AgentRuntime:
         for nombre, (quien, definicion) in vigiladas.items():
             if tools._tools.get(nombre) is not definicion:
                 raise ValueError(f"{quien} se registraría como '{nombre}', que el agente ya tiene")
-        pattern = self._build_pattern(
-            spec, tools.get_tool_schemas(spec.get("permissions", {}).get("allowed_actions"))
-        )
+        permitidas = resolver_permisos(metadata["name"], tools._tools, spec.get("permissions"))
+        pattern = self._build_pattern(spec, tools.get_tool_schemas(permitidas))
         if _per_query_vars_in(prompts_spec.get("system")):
             logger.warning(
                 "agent %r: el system prompt usa algo que cambia en cada query (knowledge, "
@@ -1261,6 +1261,13 @@ class AgentRuntime:
         prefetch = validar_prefetch(
             metadata["name"], spec.get("prefetch"), tools, prompt_engine=self._prompt_engine
         )
+        if permitidas is not None:
+            for entrada in prefetch:
+                if entrada["tool"] not in permitidas:
+                    raise AgentConfigError(
+                        f"agent {metadata['name']!r}: prefetch {entrada['name']!r} usa la tool "
+                        f"{entrada['tool']!r}, que permissions no permite"
+                    )
         return Agent(
             name=metadata["name"],
             version=metadata.get("version", "0.1.0"),
@@ -1273,7 +1280,7 @@ class AgentRuntime:
             system_prompt=prompts_spec.get("system", ""),
             prompt_engine=self._prompt_engine,
             guardrails=GuardrailsEngine(spec.get("guardrails") or {}, agent_name=metadata["name"]),
-            permissions=spec.get("permissions", {}),
+            permitidas=permitidas,
             orchestration_config=spec.get("orchestration", {}),
             rag=rag,
             bundle=bundle,
@@ -1561,8 +1568,8 @@ class Agent:
         system_prompt,
         prompt_engine,
         guardrails,
-        permissions,
         orchestration_config,
+        permitidas=None,
         rag=None,
         output_schema=None,
         prefetch=None,
@@ -1600,7 +1607,7 @@ class Agent:
             if isinstance(guardrails, GuardrailsEngine)
             else GuardrailsEngine(guardrails or {}, agent_name=name)
         )
-        self._permissions = permissions
+        self._permitidas = permitidas
         self._output_schema = output_schema
         self._orchestration_config = orchestration_config
         self._prefetch = prefetch or []
@@ -1821,7 +1828,7 @@ class Agent:
                 parent_span_id=root_span.span_id,
             )
 
-            tool_schemas = self._tools.get_tool_schemas(self._permissions.get("allowed_actions"))
+            tool_schemas = self._tools.get_tool_schemas(self._permitidas)
 
             prompt_span = tracing.start_span("prompt_render")
             variables = {
@@ -2021,6 +2028,14 @@ class Agent:
                     raise
 
             async def tool_fn(name, args):
+                if self._permitidas is not None and name not in self._permitidas:
+                    denied_span = tracing.start_span(
+                        "tool.call",
+                        {"tool": name, "tool.denied": True},
+                        parent_span_id=root_span.span_id,
+                    )
+                    tracing.finish_span(denied_span, status=SpanStatus.ERROR)
+                    return {"error": f"tool '{name}' no permitida por permissions"}
                 tool_def = self._tools.get(name)
                 if tool_def is not None and tool_def.needs_confirmation:
                     fp = huella(name, args)

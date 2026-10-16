@@ -105,7 +105,6 @@ def _runner(bundle):
         system_prompt="hola",
         prompt_engine=pe,
         guardrails={},
-        permissions={},
         orchestration_config={},
         bundle=bundle,
     )

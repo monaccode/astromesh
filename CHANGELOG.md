@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- `permissions.allowed_actions`/`denied_actions` restringen de verdad: whitelist de nombres
+  **registrados** con comodines `fnmatch`, `denied` gana, se aplica al ofrecer y al ejecutar.
+  Un patrón sin match o un resultado sin tools avisa en el log; un `prefetch` que nombra una tool
+  no permitida es `AgentConfigError`. Se elimina `ToolDefinition.permissions`
+  (`get_tool_schemas` ahora recibe `permitidas`).
+
 ### Changed (Release coordination)
 
 - **astromesh-adk 0.5.0**: al día con core 0.70.0 — guardrails aplicados en corridas locales con

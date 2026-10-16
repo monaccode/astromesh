@@ -189,7 +189,7 @@ async def test_a_client_tool_reaches_a_consumer_live_and_in_steps():
     agent._pattern = _CallsTheClientTool()
     agent._role_map = {}
     agent._orchestration_config = {"pattern": "test"}
-    agent._permissions = {}
+    agent._permitidas = None
     agent._output_schema = None
     agent._guardrails = GuardrailsEngine(None)
     agent._rag = None

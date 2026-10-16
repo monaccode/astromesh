@@ -86,7 +86,7 @@ def _agent(tools: ToolRegistry, pattern) -> Agent:
     agent._pattern = pattern
     agent._role_map = {}
     agent._orchestration_config = {"pattern": "test"}
-    agent._permissions = {}
+    agent._permitidas = None
     agent._output_schema = None
     agent._guardrails = GuardrailsEngine(None)
     agent._rag = None
