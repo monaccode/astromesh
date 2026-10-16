@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `connection.url` (default `redis://redis:6379/0`), en el wizard, el panel del canvas y el
   preset. Se quitan los presets de memoria semántica/episódica, que core ignora; si un agente
   ya las declara, se conservan intactas y se avisa.
+- **Tipos de tool según core:** `builtin`, `agent`, `client`, `integration`, `api` y `mcp`
+  (los que `engine.py` cablea). Editar una tool en el canvas ya no borra `connection`,
+  `actions`, `rate_limit` ni el manifiesto de `api`/`mcp`; se puede fijar
+  `max_result_tokens` por tool en el canvas y en el wizard.
 
 ### Changed (Astromesh Forge)
 

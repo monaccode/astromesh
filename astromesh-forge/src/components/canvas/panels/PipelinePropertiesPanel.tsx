@@ -12,6 +12,10 @@ import { candidateLabel, candidateSource, providerOptions, withSource } from "..
 const TOOL_TYPES: { value: ToolConfig["type"]; label: string }[] = [
   { value: "builtin", label: "Built-in" },
   { value: "agent", label: "Sub-agent" },
+  { value: "client", label: "Client (runs in the caller)" },
+  { value: "integration", label: "Integration" },
+  { value: "api", label: "API (manifest kept as-is)" },
+  { value: "mcp", label: "MCP (manifest kept as-is)" },
 ];
 
 
@@ -229,6 +233,7 @@ function ToolFields({
     type: c.type ?? "builtin",
     agent: c.agent ?? "",
     description: c.description ?? "",
+    max_result_tokens: c.max_result_tokens,
   });
 
   useEffect(() => {
@@ -242,17 +247,22 @@ function ToolFields({
       type: nc.type ?? "builtin",
       agent: nc.agent ?? "",
       description: nc.description ?? "",
+      max_result_tokens: nc.max_result_tokens,
     });
   }, [nodeId, d.config]);
 
   function push() {
+    // Spread the original: connection, actions, rate_limit, api/mcp manifests… must survive.
     const next: ToolConfig = {
+      ...c,
       name: local.name,
       type: local.type,
-      ...(local.type === "agent" ? { agent: local.agent || local.name } : {}),
       description: local.description,
-      parameters: c.parameters,
+      max_result_tokens: local.max_result_tokens,
     };
+    if (local.type === "agent") next.agent = local.agent || local.name;
+    else delete next.agent;
+    if (next.max_result_tokens === undefined) delete next.max_result_tokens;
     onApply(nodeId, {
       ...d,
       label: next.name,
@@ -286,6 +296,19 @@ function ToolFields({
           onChange={(e) => setLocal((s) => ({ ...s, agent: e.target.value }))}
         />
       )}
+      <Input
+        label="Max result tokens (optional)"
+        id="t-mrt"
+        type="number"
+        min={1}
+        value={local.max_result_tokens ?? ""}
+        onChange={(e) =>
+          setLocal((s) => ({
+            ...s,
+            max_result_tokens: e.target.value ? Number(e.target.value) : undefined,
+          }))
+        }
+      />
       <div className="flex flex-col gap-1">
         <label className="text-xs text-gray-500">Description</label>
         <textarea

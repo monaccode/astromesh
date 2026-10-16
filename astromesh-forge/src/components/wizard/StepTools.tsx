@@ -53,9 +53,11 @@ function DraggableAvailableTool({ tool }: { tool: AvailableTool }) {
 function SortableAgentTool({
   tool,
   onRemove,
+  onChange,
 }: {
   tool: ToolConfig;
   onRemove: () => void;
+  onChange: (t: ToolConfig) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -96,18 +98,42 @@ function SortableAgentTool({
             </button>
           </div>
         </div>
-        {expanded && tool.parameters && (
-          <div className="mt-3 pt-3 border-t border-gray-700">
-            <p className="text-xs text-gray-400 mb-2">Parameters:</p>
-            {Object.entries(tool.parameters).map(([key, param]) => (
-              <div key={key} className="text-xs text-gray-300 mb-1">
-                <span className="text-cyan-400">{key}</span>
-                <span className="text-gray-500"> ({param.type})</span>
-                {param.description && (
-                  <span className="text-gray-400"> - {param.description}</span>
-                )}
-              </div>
-            ))}
+        {expanded && (
+          <div
+            className="mt-3 pt-3 border-t border-gray-700 space-y-2"
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <Input
+              label="Max result tokens"
+              id={`tool-${tool.name}-mrt`}
+              type="number"
+              min={1}
+              value={tool.max_result_tokens ?? ""}
+              onChange={(e) => {
+                const { max_result_tokens: _drop, ...rest } = tool;
+                onChange(e.target.value ? { ...rest, max_result_tokens: Number(e.target.value) } : rest);
+              }}
+              placeholder="orchestration default"
+            />
+            {tool.parameters && (
+              <>
+                <p className="text-xs text-gray-400">Parameters:</p>
+                {Object.entries(tool.parameters).map(([key, param]) => (
+                  <div key={key} className="text-xs text-gray-300 mb-1">
+                    <span className="text-cyan-400">{key}</span>
+                    {typeof param === "object" && param && (
+                      <>
+                        <span className="text-gray-500"> ({String(param.type)})</span>
+                        {param.description && (
+                          <span className="text-gray-400"> - {param.description}</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </Card>
@@ -273,6 +299,12 @@ export function StepTools() {
                         key={tool.name}
                         tool={tool}
                         onRemove={() => removeTool(tool.name)}
+                        onChange={(t) =>
+                          updateSpec(
+                            "tools",
+                            agentTools.map((x) => (x === tool ? t : x)),
+                          )
+                        }
                       />
                     ))}
                   </div>

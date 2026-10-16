@@ -33,11 +33,18 @@ export interface ModelRole {
 
 export interface ToolConfig {
   name: string;
-  type: "builtin" | "agent";
+  /** Types core wires in runtime/engine.py; api/mcp/integration carry their own manifest keys. */
+  type: "builtin" | "agent" | "client" | "integration" | "api" | "mcp";
   /** Target agent name; required by the runtime when `type` is "agent". */
   agent?: string;
-  description: string;
+  description?: string;
   parameters?: Record<string, { type: string; description: string }>;
+  /** Per-tool cap on the result fed back to the model (core 0.66). */
+  max_result_tokens?: number;
+  /** integration: connection name and the actions to expose. */
+  connection?: unknown;
+  actions?: string[];
+  [key: string]: unknown;
 }
 
 export interface GuardrailConfig {
