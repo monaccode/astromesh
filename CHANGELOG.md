@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Release coordination)
+
+- **astromesh-adk 0.5.0**: al día con core 0.70.0 — guardrails aplicados en corridas locales con
+  el `GuardrailsEngine` del core (`RunResult.blocked`/`guardrail`), modelos por rol, topes de
+  resultados de tools, `context_window`, `kb_tools()`, pattern desconocido = `AgentConfigError`.
+  Ver `astromesh-adk/CHANGELOG.md`.
+- **astromesh-cli 0.4.0**: `astromeshctl eval`, `run` muestra bloqueos y propuestas, plantilla de
+  agente con guardrails/`context_window`/knowledge. Ver `astromesh-cli/CHANGELOG.md`.
+- Ambos suben el piso de `astromesh` a `>=0.70.0`. `astromesh-node` no cambia (su lock registra
+  astromesh-cli 0.4.0).
+
 ### Changed (Astromesh Forge)
 
 - **Forge emite y edita las reglas de guardrails que core 0.70.0 aplica.** Sólo ofrece los

@@ -1,4 +1,5 @@
 """Tests for ADKRuntime (local in-process execution)."""
+
 import pytest
 
 from astromesh_adk.runner import _provider_and_model
@@ -22,6 +23,7 @@ def test_provider_and_model_unknown_defaults_openai():
 
 from astromesh.observability.tracing import TracingContext
 from astromesh.providers.base import CompletionResponse
+
 from astromesh_adk.runner import ADKRuntime
 
 
@@ -41,9 +43,13 @@ class FakeProvider:
             self._fail_times -= 1
             raise RuntimeError("boom")
         return CompletionResponse(
-            content=self._content, model=self._model, provider="fake",
-            usage={"input_tokens": 11, "output_tokens": 7}, latency_ms=5.0,
-            cost=0.002, tool_calls=list(self._tool_calls),
+            content=self._content,
+            model=self._model,
+            provider="fake",
+            usage={"input_tokens": 11, "output_tokens": 7},
+            latency_ms=5.0,
+            cost=0.002,
+            tool_calls=list(self._tool_calls),
         )
 
     async def stream(self, messages, **kwargs):  # pragma: no cover - not used here
@@ -68,7 +74,7 @@ def _agent(name="a", model="claude-x", fallback=None, routing="quality_first"):
     @agent(name=name, model=model, fallback_model=fallback, routing=routing)
     async def _h(ctx):
         """SYSTEM-PROMPT-MARK"""
-        return None
+        return
 
     return _h
 
@@ -173,7 +179,7 @@ async def test_run_agent_runs_tool_then_finishes():
     @agent(name="t", model="claude-x", tools=[echo])
     async def _h(ctx):
         """sys"""
-        return None
+        return
 
     class TwoStep(FakeProvider):
         def __init__(self):
@@ -184,14 +190,21 @@ async def test_run_agent_runs_tool_then_finishes():
             self._n += 1
             if self._n == 1:
                 return CompletionResponse(
-                    content="thinking", model="claude-x", provider="fake",
-                    usage={"input_tokens": 1, "output_tokens": 1}, latency_ms=1.0,
+                    content="thinking",
+                    model="claude-x",
+                    provider="fake",
+                    usage={"input_tokens": 1, "output_tokens": 1},
+                    latency_ms=1.0,
                     cost=0.0,
                     tool_calls=[{"id": "1", "name": "echo", "arguments": {"text": "hi"}}],
                 )
             return CompletionResponse(
-                content="done", model="claude-x", provider="fake",
-                usage={"input_tokens": 1, "output_tokens": 1}, latency_ms=1.0, cost=0.0,
+                content="done",
+                model="claude-x",
+                provider="fake",
+                usage={"input_tokens": 1, "output_tokens": 1},
+                latency_ms=1.0,
+                cost=0.0,
                 tool_calls=[],
             )
 
@@ -208,7 +221,8 @@ from astromesh_adk.team import AgentTeam
 async def test_run_team_parallel_aggregates_and_sums():
     rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m, content=m))
     team = AgentTeam(
-        name="par", pattern="parallel",
+        name="par",
+        pattern="parallel",
         agents=[_agent(name="x", model="claude-x"), _agent(name="y", model="gpt-y")],
     )
     result = await rt.run_team(team, "q", "s")
@@ -230,7 +244,8 @@ async def test_run_team_pipeline_threads_output_and_nests():
     rt = ADKRuntime(provider_factory=lambda p, m, c: RecordingProvider(m, content=f"out-{m}"))
     inner = AgentTeam(name="inner", pattern="parallel", agents=[_agent(name="a", model="claude-a")])
     team = AgentTeam(
-        name="pipe", pattern="pipeline",
+        name="pipe",
+        pattern="pipeline",
         agents=[inner, _agent(name="b", model="claude-b")],
     )
     result = await rt.run_team(team, "start", "s")
@@ -241,18 +256,17 @@ async def test_run_team_pipeline_threads_output_and_nests():
 
 @pytest.mark.asyncio
 async def test_run_team_supervisor_delegates_to_worker():
-    import json
     from astromesh_adk.agent import agent
 
     @agent(name="sup", model="claude-sup")
     async def _sup(ctx):
         """supervisor"""
-        return None
+        return
 
     @agent(name="worker", model="claude-w", description="does the work")
     async def _w(ctx):
         """worker"""
-        return None
+        return
 
     class SupProvider(FakeProvider):
         def __init__(self):
@@ -262,17 +276,23 @@ async def test_run_team_supervisor_delegates_to_worker():
         async def complete(self, messages, **kwargs):
             self._n += 1
             if self._n == 1:
-                # SupervisorPattern expects JSON with "delegate" key in content
+                # core >=0.65: the supervisor delegates by calling its workers as tools
                 return CompletionResponse(
-                    content=json.dumps({"delegate": "worker", "task": "do it"}),
-                    model="claude-sup", provider="fake",
-                    usage={"input_tokens": 1, "output_tokens": 1}, latency_ms=1.0, cost=0.0,
-                    tool_calls=[],
+                    content="",
+                    model="claude-sup",
+                    provider="fake",
+                    usage={"input_tokens": 1, "output_tokens": 1},
+                    latency_ms=1.0,
+                    cost=0.0,
+                    tool_calls=[{"id": "1", "name": "worker", "arguments": {"query": "do it"}}],
                 )
             return CompletionResponse(
-                content=json.dumps({"final_answer": "final from sup"}),
-                model="claude-sup", provider="fake",
-                usage={"input_tokens": 1, "output_tokens": 1}, latency_ms=1.0, cost=0.0,
+                content="final from sup",
+                model="claude-sup",
+                provider="fake",
+                usage={"input_tokens": 1, "output_tokens": 1},
+                latency_ms=1.0,
+                cost=0.0,
                 tool_calls=[],
             )
 

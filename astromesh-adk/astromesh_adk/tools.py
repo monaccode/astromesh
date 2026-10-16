@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import types
 from abc import ABC, abstractmethod
-from typing import Any, get_type_hints, get_origin, get_args, Union
+from typing import Any, Union, get_args, get_origin, get_type_hints
 
 # Python type → JSON schema type
 _TYPE_MAP = {
@@ -96,6 +96,7 @@ class ToolDefinitionWrapper:
         rate_limit: dict | None = None,
         requires_approval: bool = False,
         timeout: int = 30,
+        max_result_tokens: int | None = None,
     ):
         self._func = func
         self.tool_name = func.__name__
@@ -104,6 +105,7 @@ class ToolDefinitionWrapper:
         self.rate_limit = rate_limit
         self.requires_approval = requires_approval
         self.timeout = timeout
+        self.max_result_tokens = max_result_tokens
 
     async def __call__(self, *args, **kwargs):
         # If called only with kwargs and the function takes a single Pydantic
@@ -135,10 +137,12 @@ def tool(
     rate_limit: dict | None = None,
     requires_approval: bool = False,
     timeout: int = 30,
+    max_result_tokens: int | None = None,
 ):
     """Decorator to define a tool from an async function.
 
-    JSON schema is auto-generated from type hints.
+    JSON schema is auto-generated from type hints. ``max_result_tokens`` caps what the
+    model sees of this tool's result (overrides the agent's ``max_tool_result_tokens``).
     """
 
     def decorator(func):
@@ -148,6 +152,7 @@ def tool(
             rate_limit=rate_limit,
             requires_approval=requires_approval,
             timeout=timeout,
+            max_result_tokens=max_result_tokens,
         )
 
     return decorator
@@ -158,6 +163,7 @@ class Tool(ABC):
 
     name: str = ""
     description: str = ""
+    max_result_tokens: int | None = None
 
     @abstractmethod
     def parameters(self) -> dict:
@@ -169,3 +175,41 @@ class Tool(ABC):
 
     async def cleanup(self) -> None:
         """Clean up resources. Called during runtime shutdown."""
+
+
+class _CoreTool:
+    """A tool registered in a core ToolRegistry, exposed with the ADK tool shape."""
+
+    max_result_tokens: int | None = None
+
+    def __init__(self, definition):
+        self.tool_name = definition.name
+        self.tool_description = definition.description
+        self.parameters_schema = definition.parameters
+        self._handler = definition.handler
+
+    async def execute(self, args: dict) -> Any:
+        return await self._handler(**(args or {}))
+
+    def __repr__(self):
+        return f"<Tool {self.tool_name!r}>"
+
+
+def kb_tools(bundle: str) -> list:
+    """The ``kb_index``/``kb_read``/``kb_find`` tools over an OKF knowledge bundle directory.
+
+    Core's own tools (``astromesh.knowledge.tools``), as ``spec.knowledge.bundle`` registers
+    them; use with ``tools=[*kb_tools("./kb")]``. They never raise: errors come back as results.
+    """
+    from pathlib import Path
+
+    from astromesh.core.tools import ToolRegistry
+    from astromesh.knowledge.okf import Bundle
+    from astromesh.knowledge.tools import register_bundle_tools
+
+    path = Path(bundle)
+    if not path.is_dir():
+        raise ValueError(f"knowledge bundle {bundle!r} is not a directory")
+    registry = ToolRegistry()
+    register_bundle_tools(registry, Bundle(path))
+    return [_CoreTool(d) for d in registry._tools.values()]

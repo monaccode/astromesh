@@ -1,6 +1,6 @@
 """Astromesh Agent Development Kit."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from astromesh_adk.agent import Agent, AgentWrapper, agent
 from astromesh_adk.callbacks import Callbacks
@@ -10,7 +10,7 @@ from astromesh_adk.mcp import mcp_tools
 from astromesh_adk.result import RunResult, StreamEvent
 from astromesh_adk.runner import ADKRuntime
 from astromesh_adk.team import AgentTeam
-from astromesh_adk.tools import Tool, tool
+from astromesh_adk.tools import Tool, kb_tools, tool
 
 __all__ = [
     "ADKRuntime",
@@ -26,6 +26,7 @@ __all__ = [
     "agent",
     "connect",
     "disconnect",
+    "kb_tools",
     "mcp_tools",
     "remote",
     "tool",

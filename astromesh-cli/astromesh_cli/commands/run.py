@@ -2,7 +2,6 @@
 
 import json
 import uuid
-from typing import Optional
 
 import typer
 from rich.panel import Panel
@@ -36,16 +35,44 @@ def _format_run_output(data: dict) -> tuple[str, str, list[dict]]:
     return text, subtitle, rows
 
 
+def _print_guardrail_and_propuestas(data: dict) -> None:
+    """Core 0.70: a blocked run is HTTP 200 with the refusal as `answer`; say so."""
+    if data.get("blocked"):
+        g = data.get("guardrail") or {}
+        console.print(
+            Panel(
+                f"{g.get('direction', '?')} rule [bold]{g.get('rule', '?')}[/bold]: "
+                f"{g.get('reason', '')}",
+                title="[red]BLOCKED by guardrail[/red]",
+                border_style="red",
+            )
+        )
+    propuestas = [p for p in data.get("propuestas") or [] if isinstance(p, dict)]
+    if propuestas:
+        table = Table(title="Propuestas (sin ejecutar)", show_header=True)
+        for col in ("Tool", "Tipo", "Destino", "Operación", "Argumentos"):
+            table.add_column(col, style="cyan" if col == "Tool" else None)
+        for p in propuestas:
+            table.add_row(
+                str(p.get("tool", "")),
+                str(p.get("tipo", "")),
+                str(p.get("destino", "")),
+                str(p.get("operacion", "")),
+                json.dumps(p.get("argumentos", {}), ensure_ascii=False),
+            )
+        console.print(table)
+
+
 def run_command(
     name: str = typer.Argument(..., help="Agent or workflow name to run"),
     query: str = typer.Argument("", help="Query to send to the agent"),
-    session: Optional[str] = typer.Option(
+    session: str | None = typer.Option(
         None, "--session", help="Session ID (auto-generated if not set)"
     ),
     json_output: bool = typer.Option(False, "--json", help="Output raw JSON response"),
     timeout: float = typer.Option(60.0, "--timeout", help="Request timeout in seconds"),
     workflow: bool = typer.Option(False, "--workflow", help="Run as workflow instead of agent"),
-    input_data: Optional[str] = typer.Option(None, "--input", help="Workflow input data (JSON)"),
+    input_data: str | None = typer.Option(None, "--input", help="Workflow input data (JSON)"),
 ) -> None:
     """Execute an agent with a query or run a workflow."""
     if workflow:
@@ -64,7 +91,7 @@ def run_command(
             json={"query": query, "session_id": session_id},
             timeout=timeout,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print_error(f"Failed to run agent '{name}': {e}")
         raise typer.Exit(code=1)
 
@@ -78,18 +105,24 @@ def run_command(
             text,
             title=f"[cyan]{name}[/cyan]",
             subtitle=subtitle,
-            border_style="blue",
+            border_style="red" if data.get("blocked") else "blue",
         )
     )
+    _print_guardrail_and_propuestas(data)
     if by_model_rows:
         table = Table(title="Por modelo", show_header=True)
-        for col in ("Provider", "Model", "Role", "Calls", "In", "Out", "Cost"):
+        for col in ("Provider", "Model", "Role", "Calls", "In", "Cached", "Out", "Cost"):
             table.add_column(col, style="cyan" if col == "Provider" else None)
         for r in by_model_rows:
             cost = r.get("cost", 0.0) or 0.0
             table.add_row(
-                r.get("provider", ""), r.get("model", ""), r.get("role", ""),
-                str(r.get("calls", 0)), str(r.get("tokens_in", 0)), str(r.get("tokens_out", 0)),
+                r.get("provider", ""),
+                r.get("model", ""),
+                r.get("role", ""),
+                str(r.get("calls", 0)),
+                str(r.get("tokens_in", 0)),
+                str(r.get("tokens_cached", 0)),
+                str(r.get("tokens_out", 0)),
                 f"${cost:.4f}" if cost else "—",
             )
         console.print(table)
@@ -115,7 +148,7 @@ def _run_workflow(
             json=payload,
             timeout=timeout,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print_error(f"Failed to run workflow '{name}': {e}")
         raise typer.Exit(code=1)
 

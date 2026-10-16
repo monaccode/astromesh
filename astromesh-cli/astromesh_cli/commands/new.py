@@ -1,7 +1,6 @@
 """astromeshctl new — Scaffold new agents, workflows, and tools."""
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from jinja2 import Environment, FileSystemLoader
@@ -27,6 +26,7 @@ def render_agent_template(
     temperature: float = 0.3,
     max_tokens: int = 2048,
     description: str = "",
+    context_window: int | None = None,
 ) -> str:
     """Render an agent YAML template."""
     env = _get_jinja_env()
@@ -42,6 +42,7 @@ def render_agent_template(
         tools=tools or [],
         temperature=temperature,
         max_tokens=max_tokens,
+        context_window=context_window,
     )
 
 
@@ -80,7 +81,10 @@ def new_agent(
     provider: str = typer.Option("ollama", "--provider", help="LLM provider"),
     model: str = typer.Option("llama3.1:8b", "--model", help="Model name"),
     orchestration: str = typer.Option("react", "--orchestration", help="Orchestration pattern"),
-    tools: Optional[list[str]] = typer.Option(None, "--tools", help="Tools to include"),
+    tools: list[str] | None = typer.Option(None, "--tools", help="Tools to include"),  # noqa: B008
+    context_window: int | None = typer.Option(
+        None, "--context-window", help="Model context window in tokens (sizes the history)"
+    ),
     output_dir: str = typer.Option("./config/agents", "--output-dir", help="Output directory"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing file"),
 ) -> None:
@@ -99,6 +103,7 @@ def new_agent(
         model=model,
         orchestration_pattern=orchestration,
         tools=tools,
+        context_window=context_window,
     )
     dest.write_text(content)
     console.print(

@@ -21,6 +21,7 @@ from astromesh_cli.commands import (
     tools,
     traces,
 )
+from astromesh_cli.commands import eval as eval_cmd
 
 app = typer.Typer(
     name="astromeshctl",
@@ -44,12 +45,14 @@ app.command("trace")(traces.trace_command)
 app.command("metrics")(metrics.metrics_command)
 app.command("cost")(metrics.cost_command)
 app.command("ask")(ask.ask_command)
+app.command("eval")(eval_cmd.eval_command)
 
 
 @app.command()
 def version():
     """Show astromesh version."""
-    from importlib.metadata import PackageNotFoundError, version as _pkg_version
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as _pkg_version
 
     typer.echo(f"astromesh-cli {__version__}")
     try:
@@ -70,7 +73,7 @@ def _load_plugins(app: typer.Typer) -> None:
         try:
             register_fn = ep.load()
             register_fn(app)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             typer.echo(f"Warning: failed to load plugin '{ep.name}': {exc}", err=True)
 
 

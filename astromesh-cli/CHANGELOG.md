@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-16
+
+### Added
+- `astromeshctl eval <config_dir> [archivos...] [--out reporte.json]`: corre los `kind: Eval` con
+  el runner del core (`astromesh.evals`, el mismo de `astromesh-eval`). Exit 0 si todos cumplen,
+  1 si alguno queda bajo umbral, 2 por error de carga (un eval inválido no corre ningún caso).
+- `run` muestra un panel **BLOCKED by guardrail** con dirección, regla y motivo cuando el core
+  0.70 bloquea la corrida (que vuelve HTTP 200 con el rechazo como `answer`), y una tabla con las
+  `propuestas` de las tools `mode: propose`. La tabla por modelo suma la columna `Cached`
+  (`tokens_cached`).
+- `new agent --context-window N`; la plantilla trae `guardrails` válidos para el core 0.70
+  (`pii_detection` en entrada y salida, `max_length`, `cost_limit` 4000), `context_window`
+  (comentado si no se pasa) y un `knowledge.bundle` comentado. Un test la carga con
+  `AgentRuntime` sin warnings de guardrails.
+
+### Changed
+- Piso del core `astromesh>=0.70.0`.
+
 ## [0.3.1] - 2026-09-27
 
 ### Changed
