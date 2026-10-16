@@ -30,5 +30,7 @@ def test_secciones_del_manifiesto_tienen_efecto(archivo):
         assert any(fnmatch.fnmatchcase(n, p) or n.startswith(p.rstrip("*")) for n in nombres), p
     sem = (spec.get("memory") or {}).get("semantic")
     assert sem is None or "embeddings" in sem
-    t = (spec.get("orchestration") or {}).get("timeout_seconds")
-    assert t is None or t >= 120
+    orq = spec.get("orchestration") or {}
+    for clave in ("timeout_seconds", "timeout"):  # `timeout` es el alias deprecado
+        t = orq.get(clave)
+        assert t is None or t >= 120, clave
