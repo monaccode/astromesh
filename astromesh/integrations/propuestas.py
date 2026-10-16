@@ -49,7 +49,7 @@ SIN_CANAL = "este canal no admite escrituras con aprobación: no se registró na
 
 def handler_de_propuesta(
     tool: str,
-    tipo: Literal["api", "mcp"],
+    tipo: Literal["api", "mcp", "adk"],
     destino: str,
     operacion: str,
     schema: dict,

@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- La compuerta de confirmación vive en `runtime/confirmacion.py` (`gate`, `aviso_confirmacion`,
+  `con_aviso`) para reusarla desde el ADK; sin cambio de comportamiento.
 - `orchestration.timeout_seconds` corta la corrida: `AgentRunTimeout`, HTTP 504
   `{"error": "timeout", "agent", "timeout_seconds"}` y evento WebSocket `error` con
   `error: "timeout"`; deja un episodio `timeout` y cierra la confirmación pendiente. Valor

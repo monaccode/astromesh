@@ -46,7 +46,12 @@ from astromesh.orchestration.patterns import (
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import CLAVE_HANDOFFS, SwarmPattern, handoffs_de
-from astromesh.runtime.confirmacion import Pendientes, huella
+from astromesh.runtime.confirmacion import (
+    Pendientes,
+    aviso_confirmacion,
+    con_aviso,
+    gate,
+)
 from astromesh.runtime.permisos import resolver_permisos
 from astromesh.runtime.prefetch import ejecutar_prefetch, validar_prefetch
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
@@ -245,48 +250,8 @@ def claves_ignoradas(tool_def: dict) -> list[str]:
     return sorted(set(tool_def) - _CLAVES_COMUNES - conocidas)
 
 
-def _aviso_confirmacion(tool_name: str, argumentos: dict) -> str:
-    """La frase que le dice a la persona qué va a pasar si confirma.
-
-    La escribe el runtime, nunca el modelo — es la pieza que cierra el bypass
-    de "el modelo le pregunta una cosa a la persona y usa el sí para otra":
-    lo que la persona lee acá es, por construcción, lo mismo que `tool_fn` va
-    a ejecutar si responde que sí.
-
-    Los argumentos se listan `clave: valor` en vez de volcar el dict crudo:
-    un `{'monto': 999999}` con comillas y llaves es ruido en un chat de
-    WhatsApp.
-
-    El orden de inserción del dict lo controla el MODELO — es él quien arma
-    `arguments` para la tool call. Truncar el string ya renderizado (como
-    hacía la versión anterior) dejaba que un argumento de texto libre puesto
-    primero se comiera el resto: `_aviso_confirmacion('praxis_crear_record',
-    {'nota': 'x'*480, 'monto': 999999})` cortaba antes de llegar a `monto`.
-    Eso convierte el aviso en algo que el modelo puede curar en vez de un
-    disclosure real. Por eso se ordenan las claves (alfabético, no depende
-    del modelo) y se trunca CADA VALOR por separado con un tope chico: así
-    toda clave aparece siempre, con una porción acotada de su valor. 80 chars
-    alcanza para leer un monto, un ID o el arranque de un texto libre sin que
-    un solo argumento gigante tape a los demás; el corte de 500 en el total
-    ya no hace falta con el tope por valor.
-
-    Dos límites que este aviso NO cierra, a propósito:
-    - Si la corrida lanza DESPUÉS de que `tool_fn` registró el pendiente, el
-      bloque que arma este aviso nunca se ejecuta (vive después del loop del
-      agente) y el `finally` que envuelve la corrida no toca pendientes en
-      `ok=False`. El pendiente sobrevive sin que nadie lo haya mostrado, y un
-      "si" en el próximo turno lo ejecutaría. Acotado en la práctica — ese
-      turno fallido no se persiste, así que el modelo tendría que rearmar los
-      mismos argumentos de memoria — pero real.
-    - La garantía de esta función es "se redactó", no "le llegó a la
-      persona": si el envío por el canal (WhatsApp, etc.) falla después de
-      que `result["answer"]` ya lleva el aviso, quien recibe el error no vio
-      el detalle, y el pendiente sigue vivo para el próximo turno.
-    """
-    claves = sorted((argumentos or {}).keys())
-    partes = ", ".join(f"{k}: {_truncate(str(argumentos[k]), 80)}" for k in claves)
-    detalle = f"{tool_name} con {partes}" if partes else tool_name
-    return f"Para confirmar respondé SI. Voy a ejecutar: {detalle}"
+# Alias: los tests (y quien lo importaba de acá) siguen encontrándolo en engine.
+_aviso_confirmacion = aviso_confirmacion
 
 
 def _parse_args(args):
@@ -2116,47 +2081,9 @@ class Agent:
                     return {"error": f"tool '{name}' no permitida por permissions"}
                 tool_def = self._tools.get(name)
                 if tool_def is not None and tool_def.needs_confirmation:
-                    fp = huella(name, args)
-                    if not _PENDIENTES.permitido(session_id, name, fp):
-                        # No se ejecuta. Se registra la propuesta (si el slot
-                        # está libre — si no, `registrar` no pisa lo que ya
-                        # había, ver su docstring) y se le devuelve al modelo
-                        # una observación con el pendiente REAL: `tool` +
-                        # `argumentos` tal como quedaron guardados, no los que
-                        # esta llamada acaba de intentar. Sin esto, un modelo
-                        # que re-deriva los argumentos de memoria en vez de
-                        # repetirlos (p.ej. "pedido de 2 cajas" → "pedido de
-                        # dos cajas") ve un rechazo genérico, no sabe qué
-                        # cambió, y puede quemar un "sí" ya dicho sin ejecutar
-                        # nada — el `mensaje` le dice explícitamente que
-                        # repita ESTO, no que proponga de nuevo a ciegas.
-                        _PENDIENTES.registrar(session_id, name, fp, args)
-                        pendiente = _PENDIENTES.pendiente(session_id)
-                        return {
-                            "error": "confirmacion_requerida",
-                            "pendiente": {
-                                "tool": pendiente["tool"],
-                                "argumentos": pendiente["argumentos"],
-                            },
-                            "mensaje": (
-                                "Ya hay una propuesta esperando confirmación. "
-                                "Contale a la persona exactamente qué vas a hacer "
-                                "con estos argumentos y pedile que responda SI. Si "
-                                "ya te habían dicho que sí, repetí EXACTAMENTE "
-                                "estos argumentos — no los vuelvas a redactar de "
-                                "memoria."
-                            ),
-                        }
-                    # Se consume ACÁ, antes de ejecutar — no al final de la
-                    # corrida. Un "sí" autoriza esta llamada UNA vez: sin este
-                    # `cerrar`, `permitido` seguía devolviendo True el resto de
-                    # la corrida y un patrón que reintenta (o un modelo que
-                    # alucina el mismo llamado dos veces) volvía a escribir con
-                    # la misma confirmación. Incondicional a `desde_humano`: la
-                    # licencia ya fue otorgada por una corrida humana anterior
-                    # de esta sesión (`habilitar` es lo único que gatea eso),
-                    # así que usarla una vez la agota sea quien sea quien la usó.
-                    _PENDIENTES.cerrar(session_id)
+                    rechazo = gate(_PENDIENTES, session_id, name, args)
+                    if rechazo is not None:
+                        return rechazo
 
                 # One id per call so a consumer can pair the result with its call.
                 call_id = str(uuid.uuid4())
@@ -2350,17 +2277,7 @@ class Agent:
             # turno en que hay una confirmación pendiente.
             respuesta_sin_aviso = result.get("answer", "")
             if desde_humano:
-                pendiente = _PENDIENTES.pendiente(session_id)
-                if pendiente is not None and not pendiente["ok"]:
-                    aviso = _aviso_confirmacion(pendiente["tool"], pendiente["argumentos"])
-                    respuesta = result.get("answer")
-                    # Todos los patrones del repo arman "answer" como str
-                    # (patterns.py y glyph_pattern.py lo pasan por str()/
-                    # json.dumps antes de devolverlo) — esto es sólo para no
-                    # romper si el día de mañana alguno no lo hace.
-                    if not isinstance(respuesta, str):
-                        respuesta = "" if respuesta is None else str(respuesta)
-                    result["answer"] = f"{respuesta}\n\n{aviso}" if respuesta else aviso
+                result["answer"] = con_aviso(_PENDIENTES, session_id, result.get("answer"))
 
             await self._persistir_turno(
                 session_id, query, result.get("answer", ""), tracing, root_span

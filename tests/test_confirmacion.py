@@ -1,4 +1,4 @@
-from astromesh.runtime.confirmacion import Pendientes, es_confirmacion, huella
+from astromesh.runtime.confirmacion import Pendientes, con_aviso, es_confirmacion, gate, huella
 
 
 class TestEsConfirmacion:
@@ -132,3 +132,27 @@ class TestPendientes:
         p.habilitar("s1", "si")
         p.pendiente("s1")
         assert p.permitido("s1", "praxis_crear_record", "fp1") is True
+
+
+def test_gate_sin_confirmacion_registra_y_devuelve_el_pendiente():
+    p = Pendientes()
+    r = gate(p, "s", "t", {"a": 1})
+    assert r["error"] == "confirmacion_requerida"
+    assert r["pendiente"] == {"tool": "t", "argumentos": {"a": 1}}
+
+
+def test_gate_confirmado_deja_pasar_una_sola_vez():
+    p = Pendientes()
+    gate(p, "s", "t", {"a": 1})
+    p.habilitar("s", "si")
+    assert gate(p, "s", "t", {"a": 1}) is None
+    assert gate(p, "s", "t", {"a": 1})["error"] == "confirmacion_requerida"
+
+
+def test_con_aviso_agrega_el_texto_del_runtime():
+    p = Pendientes()
+    gate(p, "s", "t", {"a": 1})
+    assert con_aviso(p, "s", "hecho").endswith(
+        "Para confirmar respondé SI. Voy a ejecutar: t con a: 1"
+    )
+    assert con_aviso(Pendientes(), "s", "hecho") == "hecho"
