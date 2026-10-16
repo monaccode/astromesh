@@ -17,12 +17,12 @@ These directories ship from this repository on their own tags and versions.
 
 | Component | Package | Directory | Version | Version source | Min Python / Runtime |
 |-----------|---------|-----------|---------|----------------|----------------------|
-| **Core Runtime** | `astromesh` | `astromesh/` | `0.59.0` | `astromesh/__init__.py` | Python 3.12 |
-| **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.2` | `astromesh_glyph/__init__.py` | Python 3.12 |
-| **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.3.0` | `astromesh_adk/__init__.py` | Python 3.12 |
-| **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.3.0` | `astromesh_cli/__init__.py` | Python 3.12 |
-| **Node** | `astromesh-node` | `astromesh-node/` | `0.1.2` | `src/astromesh_node/__init__.py` | Python 3.12 |
-| **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.1` | `astromesh_orbit/__init__.py` | Python 3.12 |
+| **Core Runtime** | `astromesh` | `astromesh/` | `0.70.0` | `astromesh/__init__.py` | Python 3.12 |
+| **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.3` | `astromesh_glyph/__init__.py` | Python 3.12 |
+| **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.4.0` | `astromesh_adk/__init__.py` | Python 3.12 |
+| **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.3.1` | `astromesh_cli/__init__.py` | Python 3.12 |
+| **Node** | `astromesh-node` | `astromesh-node/` | `0.1.10` | `src/astromesh_node/__init__.py` | Python 3.12 |
+| **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.4` | `astromesh_orbit/__init__.py` | Python 3.12 |
 | **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.26.0` | `package.json` | Node 22.12 |
 | **Docs site** | `docs-site` | `docs-site/` | `0.1.0` | `package.json` | Node (site build) |
 | **VS Code extension** | `vscode-extension` | `vscode-extension/` | `0.1.0` | `package.json` | Node (build) |
@@ -38,14 +38,14 @@ These components are part of the Astromesh ecosystem but live in their own repos
 
 | Component | Repository | Current version | Ecosystem group | Status |
 |-----------|------------|-----------------|-----------------|--------|
-| **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.19.0` | Author | Shipped |
-| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.5.0` | Author | Shipped |
+| **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.25.0` | Author | Shipped |
+| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.7.0` | Author | Shipped |
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
 | **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped (GitHub tag and TestPyPI; PyPI pending) |
-| **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.7.4` | Reach | Shipped |
-| **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.10.1` | Ship | Shipped |
-| **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.1.0` | Ship | In development |
-| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.23.1` | Operate | Shipped |
+| **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.11.0` | Reach | Shipped |
+| **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.13.7` | Ship | Shipped |
+| **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.2.1` | Ship | In development |
+| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.26.11` | Operate | Shipped |
 | **Nebula** | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | `0.1.0` | Models | Preview |
 
 ## 2. Dependency graph (monorepo)
@@ -73,10 +73,11 @@ flowchart TB
         orbit["astromesh-orbit"]
     end
 
-    adk -->|>=0.40.0| core
-    cli -->|>=0.40.0| core
-    node -->|>=0.40.0| core
-    node -->|>=0.3.0| cli
+    adk -->|>=0.59.0| core
+    cli -->|>=0.59.0| core
+    node -->|>=0.60.0| core
+    node -->|>=0.3.1| cli
+    core -->|">=0.1,<0.2"| okf["astromesh-okf"]
     core -.optional: extra glyph.->|>=0.1.1| glyph
     orbit -.plugin for.-> cli
 ```
@@ -85,10 +86,11 @@ flowchart TB
 
 | Consumer package | Declared dependency | Minimum version | Notes |
 |------------------|---------------------|-----------------|-------|
-| `astromesh-adk` | `astromesh` | `>=0.40.0` | Editable path source in the monorepo (`..`) |
-| `astromesh-cli` | `astromesh` | `>=0.40.0` | Editable path source in the monorepo (`..`) |
-| `astromesh-node` | `astromesh` | `>=0.40.0` | Editable path source in the monorepo (`..`) |
-| `astromesh-node` | `astromesh-cli` | `>=0.3.0` | Editable path source (`../astromesh-cli`) |
+| `astromesh-adk` | `astromesh` | `>=0.59.0` | Editable path source in the monorepo (`..`) |
+| `astromesh-cli` | `astromesh` | `>=0.59.0` | Editable path source in the monorepo (`..`) |
+| `astromesh-node` | `astromesh` | `>=0.60.0` | Editable path source in the monorepo (`..`) |
+| `astromesh-node` | `astromesh-cli` | `>=0.3.1` | Editable path source (`../astromesh-cli`) |
+| `astromesh` | `astromesh-okf` | `>=0.1,<0.2` | Base dependency: the core imports it for `spec.knowledge.bundle` and the `kb_*` tools. Published on PyPI, not a path source |
 | `astromesh` | `astromesh-glyph` | `>=0.1.1` | Optional extra only (`astromesh[glyph]`); editable path source in the monorepo |
 
 These are the floors the packages actually declare, read from their `pyproject.toml`. They
@@ -119,7 +121,7 @@ All authoring tools produce the same agent spec that the core runtime understand
 
 - **Core Runtime** — Loads YAML agents, routes roles to models, runs orchestration patterns, manages memory/tools/guardrails.
 - **Glyph** — Optional action-language pattern inside the runtime. Requires the `glyph` extra or a local editable install.
-- **OKF** (own repo, `astromesh-okf`) — The Open Knowledge Format reader behind `spec.knowledge.bundle`, as a standalone library for other frameworks. Depends only on PyYAML; the core is expected to depend on it in a later release, not today.
+- **OKF** (own repo, `astromesh-okf`) — The Open Knowledge Format reader behind `spec.knowledge.bundle`, as a standalone library for other frameworks. Depends only on PyYAML; the core depends on it (`astromesh-okf>=0.1,<0.2`) since 0.69.0.
 - **RAG** (own repo, `astromesh-rag`) — Retrieval-augmented generation library: splitters, embedders, vector indexes, BM25, fusion, rerankers and four retrieval patterns, loadable from `kind: RAGPipeline` YAML. Extracted from the core's RAG module; depends only on PyYAML, every model and database is an optional extra. The core does not depend on it today.
 - **SDD** (own repo, `astromesh-sdd`) — Spec-Driven Development skills and Claude Code plugin for coding agents. No code dependency on the core or any other component: it is Markdown skills, two installers and a validator.
 
