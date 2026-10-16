@@ -6,7 +6,12 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from astromesh.api.usage import usage_from_trace
-from astromesh.errors import AgentConfigError, ModelProviderError, model_provider_error_payload
+from astromesh.errors import (
+    AgentConfigError,
+    AgentRunTimeout,
+    ModelProviderError,
+    model_provider_error_payload,
+)
 
 
 def _steps_to_dicts(steps: list | None) -> list[dict]:
@@ -330,6 +335,11 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
             blocked=bool(result.get("blocked")),
             guardrail=result.get("guardrail"),
         )
+    except AgentRunTimeout as e:
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "timeout", "agent": e.agent, "timeout_seconds": e.timeout_seconds},
+        ) from e
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ModelProviderError as e:

@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from astromesh.api.usage import usage_from_trace
+from astromesh.errors import AgentRunTimeout
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -110,6 +111,18 @@ async def _run_and_stream(websocket: WebSocket, agent_name: str, session_id: str
 
     try:
         result = await run_task
+    except AgentRunTimeout as e:
+        await manager.send_message(
+            {
+                "type": "error",
+                "error": "timeout",
+                "message": str(e),
+                "agent": e.agent,
+                "timeout_seconds": e.timeout_seconds,
+            },
+            websocket,
+        )
+        return
     except Exception as e:
         logger.exception("agent run failed agent=%s session=%s", agent_name, session_id)
         await manager.send_message({"type": "error", "message": str(e)}, websocket)

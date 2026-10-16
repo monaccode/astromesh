@@ -18,6 +18,16 @@ class AgentConfigError(ValueError):
     """
 
 
+class AgentRunTimeout(TimeoutError):
+    """La corrida pasó `orchestration.timeout_seconds`. Una tool que levanta
+    `TimeoutError` por su cuenta NO es esto: no hay plazo de la corrida vencido."""
+
+    def __init__(self, agent: str, timeout_seconds: float):
+        super().__init__(f"agent {agent!r} timed out after {timeout_seconds}s")
+        self.agent = agent
+        self.timeout_seconds = timeout_seconds
+
+
 class ModelProviderError(RuntimeError):
     """All model backends failed or none are configured."""
 

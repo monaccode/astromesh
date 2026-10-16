@@ -20,7 +20,7 @@ from astromesh.core.prompt_engine import PromptEngine
 from astromesh.core.schema import InvalidToolParameters, normalize_tool_parameters
 from astromesh.core.tokens import DEFAULT_CONTEXT_WINDOW, estimate_tokens, resolve_context_window
 from astromesh.core.tools import ToolRegistry
-from astromesh.errors import AgentConfigError
+from astromesh.errors import AgentConfigError, AgentRunTimeout
 from astromesh.integrations import default_catalog
 from astromesh.integrations.api import manifiesto_de_api
 from astromesh.integrations.credentials import CredentialResolver
@@ -1256,6 +1256,7 @@ class AgentRuntime:
             self._prompt_engine.register_template(name, tmpl, scope=metadata["name"])
         _cerrar(pendiente)
         orq = spec.get("orchestration") or {}
+        timeout_seconds = _timeout_de(metadata["name"], orq)
         tope_agente = None
         if "max_tool_result_tokens" in orq:
             tope_agente = _tokens_validos(orq["max_tool_result_tokens"])
@@ -1295,6 +1296,7 @@ class AgentRuntime:
             orchestration_config=spec.get("orchestration", {}),
             rag=rag,
             bundle=bundle,
+            timeout_seconds=timeout_seconds,
             output_schema=normalize_output_schema(spec.get("output_schema")),
             prefetch=prefetch,
             context_window=context_window,
@@ -1574,6 +1576,26 @@ class AgentRuntime:
         return spec.name
 
 
+def _timeout_de(nombre: str, orq: dict) -> float | None:
+    """`orchestration.timeout_seconds` (o su alias deprecado `timeout`), validado."""
+    clave = "timeout_seconds"
+    if clave not in orq and "timeout" in orq:
+        clave = "timeout"
+        logger.warning(
+            "agent %r: orchestration.timeout está deprecado; usá orchestration.timeout_seconds",
+            nombre,
+        )
+    if clave not in orq:
+        return None
+    v = orq[clave]
+    if isinstance(v, bool) or not isinstance(v, int | float) or not v > 0:
+        raise AgentConfigError(
+            f"agent {nombre!r}: orchestration.{clave}={v!r} no es válido; "
+            "tiene que ser un número > 0 (segundos)"
+        )
+    return v
+
+
 class Agent:
     # Default de clase: hay tests que arman un Agent sin pasar por `__init__`.
     _presupuesto_tools: ClassVar[dict] = {
@@ -1581,6 +1603,7 @@ class Agent:
         "por_tool": {},
     }
     _bundle = None
+    _timeout_seconds: float | None = None
 
     def __init__(
         self,
@@ -1606,7 +1629,9 @@ class Agent:
         context_prompt="",
         presupuesto_tools=None,
         bundle=None,
+        timeout_seconds: float | None = None,
     ):
+        self._timeout_seconds = timeout_seconds
         self._presupuesto_tools = presupuesto_tools or {
             "default": DEFAULT_MAX_TOOL_RESULT_TOKENS,
             "por_tool": {},
@@ -2192,34 +2217,40 @@ class Agent:
                 parent_span_id=root_span.span_id,
             )
             try:
-                result = await self._pattern.execute(
-                    query=query,
-                    # El context del llamador viaja al patrón dentro del dict que ya
-                    # va, bajo una clave reservada — misma convención que
-                    # `_history_messages`. Antes se perdía acá: sólo llegaba a
-                    # renderizar el prompt, así que un patrón no podía leer los
-                    # parámetros de la invocación.
-                    #
-                    # Va filtrado: las claves `_` son del runtime, no del llamador, y
-                    # `_provider_override` lleva una API key. Ver `_public_caller_context`.
-                    context=(
-                        {
-                            **memory_context,
-                            "_caller_context": _public_caller_context(context),
-                            # Handoffs encadenados del swarm (lo pone la rama AGENT
-                            # de `ToolRegistry.execute` en el context del hijo).
-                            CLAVE_HANDOFFS: handoffs,
-                        }
-                        if isinstance(memory_context, dict)
-                        else memory_context
-                    ),
-                    model_fn=model_fn,
-                    tool_fn=tool_fn,
-                    tools=tool_schemas,
-                    max_iterations=max_iterations,
-                )
+                async with asyncio.timeout(self._timeout_seconds) as plazo:
+                    result = await self._pattern.execute(
+                        query=query,
+                        # El context del llamador viaja al patrón dentro del dict que ya
+                        # va, bajo una clave reservada — misma convención que
+                        # `_history_messages`. Antes se perdía acá: sólo llegaba a
+                        # renderizar el prompt, así que un patrón no podía leer los
+                        # parámetros de la invocación.
+                        #
+                        # Va filtrado: las claves `_` son del runtime, no del llamador, y
+                        # `_provider_override` lleva una API key. Ver `_public_caller_context`.
+                        context=(
+                            {
+                                **memory_context,
+                                "_caller_context": _public_caller_context(context),
+                                # Handoffs encadenados del swarm (lo pone la rama AGENT
+                                # de `ToolRegistry.execute` en el context del hijo).
+                                CLAVE_HANDOFFS: handoffs,
+                            }
+                            if isinstance(memory_context, dict)
+                            else memory_context
+                        ),
+                        model_fn=model_fn,
+                        tool_fn=tool_fn,
+                        tools=tool_schemas,
+                        max_iterations=max_iterations,
+                    )
             except GuardrailBlocked:
                 tracing.finish_span(orch_span, status=SpanStatus.ERROR)
+                raise
+            except TimeoutError:
+                tracing.finish_span(orch_span, status=SpanStatus.ERROR)
+                if plazo.expired():
+                    raise AgentRunTimeout(self.name, self._timeout_seconds) from None
                 raise
             except Exception:
                 # Glyph convierte el error de una capacidad en el suyo y
@@ -2384,6 +2415,15 @@ class Agent:
             rechazo["trace"] = tracing.to_dict()
             return rechazo
 
+        except AgentRunTimeout:
+            if desde_humano:
+                pendiente = _PENDIENTES.pendiente(session_id)
+                if pendiente is not None and not pendiente["ok"]:
+                    _PENDIENTES.cerrar(session_id)
+            root_span.set_attribute("timeout", True)
+            await _episodio("timeout")
+            tracing.finish_span(root_span, status=SpanStatus.ERROR)
+            raise
         except Exception as e:
             logger.exception("agent.run failed agent=%s session=%s", self.name, session_id)
             root_span.set_attribute("error_message", str(e))

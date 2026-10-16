@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `orchestration.timeout_seconds` corta la corrida: `AgentRunTimeout`, HTTP 504
+  `{"error": "timeout", "agent", "timeout_seconds"}` y evento WebSocket `error` con
+  `error: "timeout"`; deja un episodio `timeout` y cierra la confirmación pendiente. Valor
+  inválido (<= 0, bool, no numérico) es `AgentConfigError`. `timeout` es un alias deprecado.
 - **`pattern: swarm` hace handoff real.** Los agentes destino son las tools `type: agent` del
   manifiesto (sin ninguna, `AgentConfigError`, como `supervisor`); pasar el control = llamar a
   esa tool, y si el destino contesta, su respuesta **es la respuesta final** (no vuelve al que
