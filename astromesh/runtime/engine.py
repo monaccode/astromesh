@@ -1743,6 +1743,23 @@ class Agent:
             contados = 0  # tokens contados para `cost_limit` (Task 3)
             corte: GuardrailBlocked | None = None  # el corte de `cost_limit`
             query_text = _texto_de(query)
+            tools_llamadas: list[str] = []
+            uso = {"input": 0, "output": 0}
+
+            async def _episodio(
+                resultado: str, regla: str | None = None, con_query: bool = True
+            ) -> None:
+                # Sin query si la entrada se bloqueó (puede ser PII). Un episodio nunca
+                # rompe la corrida (ni con una memoria sin `record_run`).
+                with contextlib.suppress(Exception):
+                    await self._memory.record_run(
+                        session_id,
+                        query=query_text if con_query else None,
+                        resultado=resultado,
+                        tools=list(tools_llamadas),
+                        tokens=dict(uso),
+                        regla=regla,
+                    )
 
             # El texto del humano llega UNA vez por corrida; la tool puede llamarse
             # varias. Por eso la habilitación se lee acá y no dentro de `tool_fn`.
@@ -1970,6 +1987,8 @@ class Agent:
                     except Exception:  # noqa: BLE001, S110  (métrica best-effort: no puede alterar ni ensuciar la corrida)
                         pass
                     if hasattr(response, "usage") and response.usage:
+                        uso["input"] += response.usage.get("input_tokens", 0) or 0
+                        uso["output"] += response.usage.get("output_tokens", 0) or 0
                         llm_span.set_attribute(
                             "input_tokens", response.usage.get("input_tokens", 0)
                         )
@@ -2101,6 +2120,7 @@ class Agent:
                     "tool.call", {"tool": name}, parent_span_id=root_span.span_id
                 )
                 try:
+                    tools_llamadas.append(name)
                     observation = await self._tools.execute(
                         name,
                         args,
@@ -2275,6 +2295,7 @@ class Agent:
             await self._persistir_turno(
                 session_id, query, result.get("answer", ""), tracing, root_span
             )
+            await _episodio("ok")
 
             if self._guardrails.cost_limit is not None:
                 root_span.set_attribute("guardrail.tokens_counted", contados)
@@ -2316,6 +2337,7 @@ class Agent:
                 # El texto bloqueado de entrada no entra al historial; el resto
                 # guarda la pregunta (ya filtrada) y el rechazo.
                 await self._persistir_turno(session_id, query, bloqueo.message, tracing, root_span)
+            await _episodio("blocked", regla=bloqueo.rule, con_query=bloqueo.direction != "input")
             root_span.set_attribute("guardrail.blocked", True)
             root_span.set_attribute("guardrail.rule", bloqueo.rule)
             if self._guardrails.cost_limit is not None:
@@ -2340,6 +2362,7 @@ class Agent:
             logger.exception("agent.run failed agent=%s session=%s", self.name, session_id)
             root_span.set_attribute("error_message", str(e))
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
+            await _episodio("error")
             raise
         finally:
             # Barre lo que `habilitar` dejó confirmado y sin usar (la persona

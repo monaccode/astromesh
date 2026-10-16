@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Backend)
 
+- Un episodio por corrida en `memory.episodic` (`MemoryManager.record_run`): resultado
+  `ok|blocked|error|timeout`, tools llamadas, tokens y regla de guardrail; si se bloqueó la
+  entrada se graba sin la query. Al prompt, `memory.semantic` llega como
+  `{content, similarity, source}` (sin el vector) y `memory.episodic` sólo con episodios de la
+  misma sesión (los 5 más recientes).
 - `permissions.allowed_actions`/`denied_actions` restringen de verdad: whitelist de nombres
   **registrados** con comodines `fnmatch`, `denied` gana, se aplica al ofrecer y al ejecutar.
   Un patrón sin match o un resultado sin tools avisa en el log; un `prefetch` que nombra una tool

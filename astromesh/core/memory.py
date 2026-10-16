@@ -2,7 +2,7 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 from astromesh.core.tokens import estimate_tokens
 
@@ -153,9 +153,14 @@ class MemoryManager:
             max_results = self.config.get("semantic", {}).get("max_results", 10)
             try:
                 query_emb = await self._embed(current_query)
-                context["semantic"] = await self._semantic.search(
+                encontrados = await self._semantic.search(
                     self.agent_id, query_emb, top_k=max_results, threshold=threshold
                 )
+                # Sin el vector: al prompt van el texto y de dónde viene.
+                context["semantic"] = [
+                    {"content": m.content, "similarity": m.similarity, "source": m.source}
+                    for m in encontrados
+                ]
             except Exception:
                 logger.warning(
                     "memory.semantic: la búsqueda falló para agent=%s; sigue sin ella",
@@ -165,7 +170,21 @@ class MemoryManager:
 
         if self._episodic:
             try:
-                context["episodic"] = await self._episodic.recall(self.agent_id, limit=5)
+                recientes = await self._episodic.recall(self.agent_id, limit=50)
+                # Un episodio de otra sesión puede traer la query de otra persona.
+                propios = [
+                    e for e in recientes if (e.context or {}).get("session_id") == session_id
+                ]
+                context["episodic"] = [
+                    {
+                        "event_type": e.event_type,
+                        "summary": e.summary,
+                        "context": e.context,
+                        "outcome": e.outcome,
+                        "timestamp": e.timestamp.isoformat(),
+                    }
+                    for e in propios[:5]
+                ]
             except Exception:
                 logger.warning(
                     "memory.episodic: recall falló para agent=%s; sigue sin ella",
@@ -174,6 +193,38 @@ class MemoryManager:
                 )
 
         return context
+
+    async def record_run(
+        self,
+        session_id: str,
+        *,
+        query: str | None,
+        resultado: str,
+        tools: list[str],
+        tokens: dict[str, int],
+        regla: str | None = None,
+    ) -> None:
+        """Un episodio por corrida. Nunca levanta; no-op sin backend episódico."""
+        if not self._episodic:
+            return
+        try:
+            await self._preparar()
+            await self._episodic.record(
+                self.agent_id,
+                EpisodicMemory(
+                    event_type="run",
+                    summary=(query or "")[:500],
+                    context={"session_id": session_id, "tools": tools},
+                    outcome={"result": resultado, "tokens": tokens, "guardrail": regla},
+                    timestamp=datetime.now(UTC),
+                ),
+            )
+        except Exception:
+            logger.warning(
+                "memory.episodic: no se pudo grabar el episodio de agent=%s",
+                self.agent_id,
+                exc_info=True,
+            )
 
     def fit_history(self, context, budget):
         """Recorta `context["conversation"]` (y el resumen) a `budget` tokens.
