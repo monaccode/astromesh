@@ -3,7 +3,8 @@ import { defaultGuardrail } from "../utils/guardrails";
 
 /**
  * Core only builds `redis` conversational memory (memory/factory.py) and needs
- * `connection.url`; semantic/episodic are ignored, so no presets offer them.
+ * `connection.url`; semantic/episodic need embeddings, dimension and extras per backend, so no presets offer them;
+ * an agent that declares them keeps them unchanged.
  */
 export const DEFAULT_CONVERSATIONAL: MemoryConfig = {
   backend: "redis",

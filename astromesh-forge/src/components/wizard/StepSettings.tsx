@@ -200,12 +200,20 @@ export function StepSettings() {
           }
           onChange={(m) => updateMemory("conversational", m)}
         />
-        {(memory.semantic || memory.episodic) && (
+        {memory.semantic && (
+          <p className="text-xs text-gray-400">
+            Semantic memory: {memory.semantic.backend}, embeddings{" "}
+            {memory.semantic.embeddings ? "set" : "missing"}. Kept unchanged.
+          </p>
+        )}
+        {memory.semantic && !memory.semantic.embeddings && (
           <p className="text-xs text-amber-400">
-            This agent declares {memory.semantic ? "semantic" : ""}
-            {memory.semantic && memory.episodic ? " and " : ""}
-            {memory.episodic ? "episodic" : ""} memory. Core 0.70 does not use it; it is kept
-            unchanged.
+            memory.semantic needs embeddings: the runtime does not load the agent without them.
+          </p>
+        )}
+        {memory.episodic && (
+          <p className="text-xs text-gray-400">
+            Episodic memory: {memory.episodic.backend}. Kept unchanged.
           </p>
         )}
       </div>

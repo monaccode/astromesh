@@ -131,6 +131,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (Astromesh Forge)
 
+- **Forge al dia con las secciones que core 0.71 aplica.** El tipo del manifiesto trae
+  `permissions.denied_actions` y `orchestration.max_handoffs` y deja de declarar
+  `permissions.filesystem/network/execution` (core las ignora); el wizard ya no dice que
+  core no usa la memoria semantica/episodica, sino que resume backend y `embeddings` (con
+  aviso si faltan: el runtime no carga el agente), el patron `swarm` se describe como handoff a
+  una tool `type: agent` y suma el campo `max_handoffs`. El test de ida y vuelta cubre
+  permissions, semantica con embeddings, episodica, `max_handoffs` y `timeout_seconds`.
+  (`astromesh-forge`)
 - **Forge emite y edita las reglas de guardrails que core 0.70.0 aplica.** Sólo ofrece los
   cinco tipos soportados (`pii_detection`, `topic_filter`, `max_length`, `content_filter`,
   `cost_limit`), cada uno en la dirección que core acepta (`topic_filter` y `max_length` sólo

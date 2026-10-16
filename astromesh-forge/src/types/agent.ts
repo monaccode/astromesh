@@ -110,6 +110,8 @@ export interface AgentConfig {
       pattern: string;
       max_iterations: number;
       timeout_seconds?: number;
+      /** `swarm`: cap on chained handoffs (integer >= 1, core default 3). */
+      max_handoffs?: number;
       /** `pipeline`: 2–6 stage names. */
       stages?: string[];
       max_tool_result_tokens?: number;
@@ -129,9 +131,7 @@ export interface AgentConfig {
     };
     permissions?: {
       allowed_actions?: string[];
-      filesystem?: { read?: string[]; write?: string[] };
-      network?: { allowed?: string[] };
-      execution?: { dry_run?: boolean };
+      denied_actions?: string[];
     };
     /** program (glyph), prefetch, output_schema, chain, observability… kept verbatim. */
     [key: string]: unknown;

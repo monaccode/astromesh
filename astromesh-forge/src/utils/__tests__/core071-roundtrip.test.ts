@@ -30,6 +30,8 @@ spec:
   orchestration:
     pattern: pipeline
     max_iterations: 4
+    max_handoffs: 2
+    timeout_seconds: 120
     stages: [draft, review]
     max_tool_result_tokens: 2000
     role_map: {plan: planner}
@@ -47,15 +49,15 @@ spec:
   knowledge: {pipeline: docs, top_k: 3}
   memory:
     conversational: {backend: redis, connection: {url: "redis://r:6379/0"}, strategy: summary, max_turns: 30}
-    semantic: {backend: chromadb, similarity_threshold: 0.8}
-    episodic: {backend: sqlite}
+    semantic: {backend: faiss, dimension: 768, embeddings: {provider: ollama, model: nomic-embed-text}}
+    episodic: {backend: postgres, connection: {url: "postgresql://x"}}
   guardrails:
     input:
       - {type: topic_filter, blocked_topics: [a]}
       - {type: topic_filter, blocked_topics: [b]}
     output:
       - {type: cost_limit, max_tokens_per_turn: 100}
-  permissions: {allowed_actions: [read]}
+  permissions: {allowed_actions: ["kb_*"], denied_actions: [kb_read]}
   observability: {sample_rate: 1}
 `;
 
@@ -64,7 +66,7 @@ function canvasRoundTrip(cfg: AgentConfig): AgentConfig {
   return nodesToAgent(nodes.map((n) => ({ id: n.id, data: n.data })), cfg);
 }
 
-describe("core 0.70 manifest round-trip", () => {
+describe("core 0.71 manifest round-trip", () => {
   it("canvas + YAML round-trip keeps every section unchanged", () => {
     const cfg = yamlToAgent(RICH);
     const out = yamlToAgent(agentToYaml(canvasRoundTrip(cfg)));

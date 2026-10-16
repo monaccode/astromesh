@@ -38,7 +38,7 @@ const PATTERNS = [
     id: "swarm",
     name: "Swarm",
     description:
-      "Agents hand off control to each other dynamically based on context.",
+      "Hands control to a `type: agent` tool; its answer is final.",
   },
   {
     id: "glyph",
@@ -156,6 +156,19 @@ export function StepOrchestration() {
           }
           placeholder="no cap"
         />
+        {orch.pattern === "swarm" && (
+          <Input
+            label="Max handoffs"
+            id="max-handoffs"
+            type="number"
+            min={1}
+            value={orch.max_handoffs ?? ""}
+            onChange={(e) =>
+              setOrch("max_handoffs", e.target.value ? Number(e.target.value) : undefined)
+            }
+            placeholder="3"
+          />
+        )}
         {orch.pattern === "pipeline" && (
           <Input
             label="Pipeline stages (2–6, comma-separated)"
