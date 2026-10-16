@@ -55,11 +55,14 @@ export interface GuardrailConfig {
 
 export interface MemoryConfig {
   backend: string;
+  /** `redis` (the only conversational backend core builds) requires `connection.url`. */
+  connection?: { url?: string; [key: string]: unknown };
   strategy?: string;
   max_turns?: number;
   ttl?: number;
   similarity_threshold?: number;
   max_results?: number;
+  [key: string]: unknown;
 }
 
 export interface AgentConfig {

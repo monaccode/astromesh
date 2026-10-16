@@ -6,6 +6,7 @@ import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
 import { Select } from "../../ui/Select";
 import { GuardrailRuleFields } from "../../guardrails/GuardrailRuleFields";
+import { memoryBackendOptions } from "../../../data/pipeline-presets";
 import { candidateLabel, candidateSource, providerOptions, withSource } from "../../../utils/model";
 
 const TOOL_TYPES: { value: ToolConfig["type"]; label: string }[] = [
@@ -13,13 +14,6 @@ const TOOL_TYPES: { value: ToolConfig["type"]; label: string }[] = [
   { value: "agent", label: "Sub-agent" },
 ];
 
-const MEMORY_BACKENDS = [
-  { value: "redis", label: "Redis" },
-  { value: "postgres", label: "PostgreSQL" },
-  { value: "chromadb", label: "ChromaDB" },
-  { value: "sqlite", label: "SQLite" },
-  { value: "in_memory", label: "In-memory" },
-];
 
 interface PipelinePropertiesPanelProps {
   node: Node | null;
@@ -319,6 +313,7 @@ function MemoryFields({
   const c = d.config as unknown as MemoryConfig;
   const [local, setLocal] = useState({
     backend: c.backend ?? "redis",
+    url: c.connection?.url ?? "",
     strategy: c.strategy ?? "",
     max_turns: c.max_turns ?? 20,
     max_results: c.max_results ?? 8,
@@ -334,6 +329,7 @@ function MemoryFields({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
       backend: nc.backend ?? "redis",
+      url: nc.connection?.url ?? "",
       strategy: nc.strategy ?? "",
       max_turns: nc.max_turns ?? 20,
       max_results: nc.max_results ?? 8,
@@ -344,7 +340,9 @@ function MemoryFields({
 
   function push() {
     const next: MemoryConfig = {
+      ...c,
       backend: local.backend,
+      connection: { ...c.connection, url: local.url },
       strategy: local.strategy || undefined,
       max_turns: local.max_turns,
       max_results: local.max_results,
@@ -359,9 +357,16 @@ function MemoryFields({
       <Select
         label="Backend"
         id="mem-back"
-        options={MEMORY_BACKENDS}
+        options={memoryBackendOptions(local.backend)}
         value={local.backend}
         onChange={(e) => setLocal((s) => ({ ...s, backend: e.target.value }))}
+      />
+      <Input
+        label="Connection URL"
+        id="mem-url"
+        value={local.url}
+        onChange={(e) => setLocal((s) => ({ ...s, url: e.target.value }))}
+        placeholder="redis://redis:6379/0"
       />
       <Input
         label="Strategy"

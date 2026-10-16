@@ -1,6 +1,24 @@
 import type { GuardrailConfig, MemoryConfig } from "../types/agent";
 import { defaultGuardrail } from "../utils/guardrails";
 
+/**
+ * Core only builds `redis` conversational memory (memory/factory.py) and needs
+ * `connection.url`; semantic/episodic are ignored, so no presets offer them.
+ */
+export const DEFAULT_CONVERSATIONAL: MemoryConfig = {
+  backend: "redis",
+  connection: { url: "redis://redis:6379/0" },
+  strategy: "sliding_window",
+  max_turns: 20,
+};
+
+/** Backend dropdown: `redis` only; an unknown current value stays visible instead of being rewritten. */
+export function memoryBackendOptions(current: string) {
+  const opts = [{ value: "redis", label: "Redis" }];
+  if (current && current !== "redis") opts.push({ value: current, label: `${current} (not built by core)` });
+  return opts;
+}
+
 export type PresetSection = "builtin" | "memory" | "safety";
 
 export interface PipelinePreset {
@@ -75,26 +93,7 @@ export const PIPELINE_PRESETS: PipelinePreset[] = [
     "Chat memory",
     "Short-term conversation context (e.g. Redis)",
     "conv",
-    { backend: "redis", strategy: "sliding_window", max_turns: 20 },
-  ),
-  memoryPreset(
-    "mem-vec",
-    "Vector store",
-    "Embeddings + similarity search (e.g. Chroma)",
-    "sem",
-    {
-      backend: "chromadb",
-      strategy: "similarity",
-      max_results: 8,
-      similarity_threshold: 0.72,
-    },
-  ),
-  memoryPreset(
-    "mem-epi",
-    "Event log",
-    "Append-only history for auditing",
-    "epi",
-    { backend: "sqlite", strategy: "append_only", ttl: 86400 },
+    DEFAULT_CONVERSATIONAL,
   ),
   guardPreset("safe-pii", "input", "PII redaction", "Mask emails, phones, etc.", defaultGuardrail("pii_detection")),
   guardPreset("safe-topics", "input", "Topic filter", "Warn on blocked topics (edit the list)", {

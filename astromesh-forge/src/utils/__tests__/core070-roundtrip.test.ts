@@ -117,3 +117,13 @@ describe("core 0.70 manifest round-trip", () => {
     expect(withSource({ provider: "ollama", providerRef: "g" }, "")).toEqual({ providerRef: "g" });
   });
 });
+
+describe("memory defaults", () => {
+  it("conversational default is a backend core builds, with connection.url", async () => {
+    const { DEFAULT_CONVERSATIONAL, PIPELINE_PRESETS } = await import("../../data/pipeline-presets");
+    expect(DEFAULT_CONVERSATIONAL.backend).toBe("redis");
+    expect(DEFAULT_CONVERSATIONAL.connection?.url).toMatch(/^redis:\/\//);
+    const mem = PIPELINE_PRESETS.filter((p) => p.section === "memory").map((p) => p.build().config);
+    expect(mem.every((c) => c.backend === "redis" && (c.connection as { url?: string })?.url)).toBe(true);
+  });
+});

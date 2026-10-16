@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `build_candidate_provider` construye (`ollama`, `openai_compat`, `openai`, `azure_openai`,
   `litellm`, `centinela`, o auto/`providerRef`) y suma `capability_match`; un valor viejo
   (`vllm`, `onnx`…) se muestra marcado en vez de reescribirse.
+- **La memoria que arma Forge es la que core construye:** conversacional `redis` con
+  `connection.url` (default `redis://redis:6379/0`), en el wizard, el panel del canvas y el
+  preset. Se quitan los presets de memoria semántica/episódica, que core ignora; si un agente
+  ya las declara, se conservan intactas y se avisa.
 
 ### Changed (Astromesh Forge)
 

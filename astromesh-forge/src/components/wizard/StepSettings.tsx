@@ -4,15 +4,10 @@ import { Select } from "../ui/Select";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import type { MemoryConfig, GuardrailConfig } from "../../types/agent";
+import { DEFAULT_CONVERSATIONAL, memoryBackendOptions } from "../../data/pipeline-presets";
 import { GuardrailRuleFields } from "../guardrails/GuardrailRuleFields";
 import { defaultGuardrail, guardrailTypesFor, type GuardrailSide } from "../../utils/guardrails";
 
-const MEMORY_BACKENDS = [
-  { value: "in_memory", label: "In-Memory" },
-  { value: "redis", label: "Redis" },
-  { value: "postgres", label: "PostgreSQL" },
-  { value: "chromadb", label: "ChromaDB" },
-];
 
 const MEMORY_STRATEGIES = [
   { value: "sliding_window", label: "Sliding Window" },
@@ -21,8 +16,6 @@ const MEMORY_STRATEGIES = [
 ];
 
 type MemoryType = "conversational" | "semantic" | "episodic";
-
-const MEMORY_TYPES: MemoryType[] = ["conversational", "semantic", "episodic"];
 
 function MemorySection({
   type,
@@ -47,7 +40,7 @@ function MemorySection({
             <Select
               label="Backend"
               id={`${type}-backend`}
-              options={MEMORY_BACKENDS}
+              options={memoryBackendOptions(mem.backend)}
               value={mem.backend}
               onChange={(e) => onChange({ ...mem, backend: e.target.value })}
             />
@@ -59,6 +52,15 @@ function MemorySection({
               onChange={(e) => onChange({ ...mem, strategy: e.target.value })}
             />
           </div>
+          <Input
+            label="Connection URL"
+            id={`${type}-connection-url`}
+            value={mem.connection?.url ?? ""}
+            onChange={(e) =>
+              onChange({ ...mem, connection: { ...mem.connection, url: e.target.value } })
+            }
+            placeholder="redis://redis:6379/0"
+          />
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Max Turns"
@@ -189,25 +191,23 @@ export function StepSettings() {
       {/* Memory */}
       <div className="space-y-4">
         <h3 className="text-md font-medium text-gray-200">Memory</h3>
-        {MEMORY_TYPES.map((type) => (
-          <MemorySection
-            key={type}
-            type={type}
-            enabled={!!memory[type]}
-            mem={memory[type]}
-            onToggle={(enabled) => {
-              if (enabled) {
-                updateMemory(type, {
-                  backend: "in_memory",
-                  strategy: "sliding_window",
-                });
-              } else {
-                updateMemory(type, undefined);
-              }
-            }}
-            onChange={(m) => updateMemory(type, m)}
-          />
-        ))}
+        <MemorySection
+          type="conversational"
+          enabled={!!memory.conversational}
+          mem={memory.conversational}
+          onToggle={(enabled) =>
+            updateMemory("conversational", enabled ? { ...DEFAULT_CONVERSATIONAL } : undefined)
+          }
+          onChange={(m) => updateMemory("conversational", m)}
+        />
+        {(memory.semantic || memory.episodic) && (
+          <p className="text-xs text-amber-400">
+            This agent declares {memory.semantic ? "semantic" : ""}
+            {memory.semantic && memory.episodic ? " and " : ""}
+            {memory.episodic ? "episodic" : ""} memory. Core 0.70 does not use it; it is kept
+            unchanged.
+          </p>
+        )}
       </div>
 
       {/* Guardrails */}
