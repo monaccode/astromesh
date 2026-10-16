@@ -1,6 +1,7 @@
 import { useAgentEditorStore } from "../../stores/agent";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
+import { YamlField } from "../ui/YamlField";
 
 const PATTERNS = [
   {
@@ -39,13 +40,39 @@ const PATTERNS = [
     description:
       "Agents hand off control to each other dynamically based on context.",
   },
+  {
+    id: "glyph",
+    name: "Glyph",
+    description:
+      "Runs the Glyph program in spec.program (needs the glyph extra on the node).",
+  },
 ];
+
+/** Spec sections edited here as YAML; anything else in the spec is untouched. */
+const YAML_SECTIONS = [
+  { key: "prefetch", hint: "Tools run before the model, exposed to prompts as {{ prefetch.<as> }}." },
+  { key: "output_schema", hint: "JSON Schema for a structured answer (returned as `data`)." },
+  { key: "chain", hint: "Agents run in sequence after this one." },
+] as const;
 
 export function StepOrchestration() {
   const config = useAgentEditorStore((s) => s.config);
   const updateSpec = useAgentEditorStore((s) => s.updateSpec);
+  const setConfig = useAgentEditorStore((s) => s.setConfig);
 
   const orch = config.spec.orchestration;
+
+  function setOrch(key: string, value: unknown) {
+    const next = { ...orch, [key]: value };
+    if (value === undefined) delete next[key];
+    updateSpec("orchestration", next);
+  }
+
+  function setSpecKey(key: string, value: unknown) {
+    const spec = { ...config.spec, [key]: value };
+    if (value === undefined) delete spec[key];
+    setConfig({ ...config, spec });
+  }
 
   return (
     <div className="space-y-6">
@@ -118,6 +145,61 @@ export function StepOrchestration() {
           }
           placeholder="300"
         />
+        <Input
+          label="Max tool result tokens"
+          id="max-tool-result-tokens"
+          type="number"
+          min={1}
+          value={orch.max_tool_result_tokens ?? ""}
+          onChange={(e) =>
+            setOrch("max_tool_result_tokens", e.target.value ? Number(e.target.value) : undefined)
+          }
+          placeholder="no cap"
+        />
+        {orch.pattern === "pipeline" && (
+          <Input
+            label="Pipeline stages (2–6, comma-separated)"
+            id="pipeline-stages"
+            value={(orch.stages ?? []).join(", ")}
+            onChange={(e) => {
+              const stages = e.target.value
+                .split(",")
+                .map((x) => x.trim())
+                .filter(Boolean);
+              setOrch("stages", stages.length ? stages : undefined);
+            }}
+            placeholder="draft, review"
+          />
+        )}
+      </div>
+
+      <div className="space-y-4 pt-4 border-t border-gray-700">
+        <h3 className="text-md font-medium text-gray-200">Advanced (YAML)</h3>
+        <YamlField
+          label="orchestration.role_map"
+          id="role-map"
+          value={orch.role_map}
+          onChange={(v) => setOrch("role_map", v)}
+          hint="Pattern step role → model role (see the Model step)."
+        />
+        {orch.pattern === "glyph" && (
+          <YamlField
+            label="program"
+            id="spec-program"
+            value={config.spec.program}
+            onChange={(v) => setSpecKey("program", v)}
+          />
+        )}
+        {YAML_SECTIONS.map(({ key, hint }) => (
+          <YamlField
+            key={key}
+            label={key}
+            id={`spec-${key}`}
+            value={config.spec[key]}
+            onChange={(v) => setSpecKey(key, v)}
+            hint={hint}
+          />
+        ))}
       </div>
     </div>
   );

@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   propuestas (`propuestas`, sin ejecutar) se listan bajo la respuesta; los tokens cacheados
   y el consumo por modelo/rol (`usage.by_model`) aparecen en la burbuja y en la barra de
   resumen.
+- **Editores mínimos para secciones de core que Forge no tocaba:** modelos por rol
+  (`model.default` + `model.roles`, con candidatos y estrategia por rol, y conversión desde
+  `primary`/`fallback`), `providerRef` y `context_window` por candidato, `prompts.context`,
+  el patrón `glyph` (+ `program`), `orchestration.stages`, `max_tool_result_tokens` y
+  `role_map`, y `prefetch`/`output_schema`/`chain` como YAML. Lo que no tiene editor viaja
+  intacto: un test de ida y vuelta con un manifiesto completo lo fija. Forge → 0.27.0.
+  (`astromesh-forge`)
 
 ### Fixed (Astromesh Forge)
 

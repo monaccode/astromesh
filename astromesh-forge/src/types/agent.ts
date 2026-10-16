@@ -101,12 +101,20 @@ export interface AgentConfig {
     };
     prompts: {
       system: string;
+      /** Per-query template rendered apart from `system`, so the system prompt stays cacheable (0.64). */
+      context?: string;
       templates?: Record<string, string>;
+      [key: string]: unknown;
     };
     orchestration: {
       pattern: string;
       max_iterations: number;
       timeout_seconds?: number;
+      /** `pipeline`: 2–6 stage names. */
+      stages?: string[];
+      max_tool_result_tokens?: number;
+      role_map?: Record<string, string>;
+      [key: string]: unknown;
     };
     tools?: ToolConfig[];
     knowledge?: { pipeline?: string; top_k?: number; bundle?: string };
@@ -125,5 +133,7 @@ export interface AgentConfig {
       network?: { allowed?: string[] };
       execution?: { dry_run?: boolean };
     };
+    /** program (glyph), prefetch, output_schema, chain, observability… kept verbatim. */
+    [key: string]: unknown;
   };
 }
