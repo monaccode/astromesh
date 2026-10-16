@@ -180,3 +180,101 @@ def test_history_budget_uses_declared_context_window():
 
     budget = ADKRuntime()._history_budget(w, [])
     assert 0 < budget < 9_000
+
+
+def _team_members():
+    @agent(
+        name="sup",
+        model="claude-sup",
+        guardrails={
+            "input": [{"type": "pii_detection", "action": "block"}],
+            "output": [{"type": "cost_limit", "max_tokens_per_turn": 40}],
+        },
+    )
+    async def sup(ctx):
+        """sys"""
+
+    @agent(name="worker", model="claude-w")
+    async def worker(ctx):
+        """sys"""
+
+    return sup, worker
+
+
+async def test_supervisor_team_applies_the_supervisor_input_rules():
+    from astromesh_adk.team import AgentTeam
+
+    sup, worker = _team_members()
+    prov = Provider("claude-sup", [])
+    team = AgentTeam(name="t", pattern="supervisor", supervisor=sup, workers=[worker])
+    result = await team.run("mail a@b.co", runtime=_rt(prov))
+    assert result.blocked is True and result.guardrail["rule"] == "pii_detection"
+    assert prov.calls == []
+
+
+async def test_supervisor_team_applies_the_supervisor_cost_limit():
+    from astromesh_adk.team import AgentTeam
+
+    sup, worker = _team_members()
+    call = {"id": "1", "name": "worker", "arguments": {"query": "x"}}
+    provs = {"claude-sup": Provider("claude-sup", [("", [call]), ("never", [])])}
+
+    def factory(p, m, c):
+        return provs.get(m) or Provider(m, [("work", [])])
+
+    team = AgentTeam(name="t", pattern="supervisor", supervisor=sup, workers=[worker])
+    result = await team.run("go", runtime=ADKRuntime(provider_factory=factory))
+    assert result.blocked is True and result.guardrail["rule"] == "cost_limit"
+    assert len(provs["claude-sup"].calls) == 1
+
+
+async def test_pipeline_stops_at_a_blocked_stage_and_reports_it():
+    from astromesh_adk.team import AgentTeam
+
+    @agent(
+        name="first",
+        model="claude-x",
+        guardrails={"input": [{"type": "pii_detection", "action": "block", "message": "no"}]},
+    )
+    async def first(ctx):
+        """sys"""
+
+    @agent(name="second", model="claude-x")
+    async def second(ctx):
+        """sys"""
+
+    prov = Provider("claude-x", [("second ran", [])])
+    team = AgentTeam(name="p", pattern="pipeline", agents=[first, second])
+    result = await team.run("mail a@b.co", runtime=_rt(prov))
+    assert result.blocked is True and result.answer == "no"
+    assert result.guardrail["rule"] == "pii_detection"
+    assert prov.calls == []
+
+
+def test_history_budget_reserves_the_model_max_tokens():
+    @agent(name="w2", model="claude-x", context_window=10_000, model_config={"max_tokens": 4000})
+    async def w2(ctx):
+        """sys"""
+
+    @agent(name="w3", model="claude-x", context_window=10_000)
+    async def w3(ctx):
+        """sys"""
+
+    rt = ADKRuntime()
+    assert rt._history_budget(w3, []) - rt._history_budget(w2, []) == 4000 - 1024
+
+
+async def test_local_by_model_carries_provider_and_cached_tokens():
+    class Cached(Provider):
+        async def complete(self, messages, **kwargs):
+            resp = await super().complete(messages, **kwargs)
+            resp.usage = {**resp.usage, "cache_read_input_tokens": 3}
+            return resp
+
+    @agent(name="k", model="claude-x")
+    async def k(ctx):
+        """sys"""
+
+    result = await k.run("hi", runtime=_rt(Cached("claude-x", [("ok", [])])))
+    assert result.by_model[0]["provider"] == "fake"
+    assert result.by_model[0]["tokens_cached"] == 3

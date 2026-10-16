@@ -18,9 +18,14 @@ Al día con el core 0.70.0. El modo local reusa componentes del core en vez de c
   un error: `RunResult.blocked=True`, `answer` es el mensaje de rechazo y `guardrail` dice
   `{direction, rule, reason}`. La entrada bloqueada no entra al historial. Hasta ahora la config
   se guardaba y no se aplicaba.
+  En los equipos `supervisor` y `swarm` rigen las reglas del supervisor / agente de entrada
+  (entrada, salida y `cost_limit` de sus llamadas); en `pipeline` y `parallel` el bloqueo de un
+  miembro llega al resultado del equipo, y un `pipeline` se corta en la etapa bloqueada (el
+  rechazo no pasa como query a la siguiente).
 - `RunResult.blocked`, `guardrail`, `propuestas` y `by_model` (el `usage.by_model` del core, con
   `tokens_cached`). El modo remoto los copia de la respuesta del nodo (`/run` y el `done` del WS);
-  el local calcula `by_model` del trace con `astromesh.api.usage.usage_from_trace`.
+  el local calcula `by_model` del trace con `astromesh.api.usage.usage_from_trace` (los spans
+  `llm.complete` llevan `provider` y `cached_tokens`, como en el core).
 - **Modelos por rol:** `@agent(roles={"planner": "...", "synthesizer": "..."})`. Cada rol que
   pide el patrón (`reasoner`, `planner`, `worker`, `synthesizer`, `supervisor`, `stage:<x>`) va a
   su modelo; los demás al `model` del agente. Antes `role=` se ignoraba.
@@ -28,8 +33,9 @@ Al día con el core 0.70.0. El modo local reusa componentes del core en vez de c
   `@agent(max_tool_result_tokens=N)` arman el `_presupuesto_tools` que leen los patrones del core
   (default 8000, como el core).
 - `@agent(context_window=N)`: con memoria, el historial se recorta al presupuesto como en el core
-  (`MemoryManager.fit_history`, 90% de la ventana menos prompt, tools y respuesta). Sin el
-  parámetro se intenta la ventana de litellm; si no se conoce, no se recorta.
+  (`MemoryManager.fit_history`, 90% de la ventana menos prompt, tools y el `max_tokens` del
+  modelo — 1024 si no lo declara). Sin el parámetro se intenta la ventana de litellm; si no se
+  conoce, no se recorta.
 - `kb_tools(path)`: las tools `kb_index`/`kb_read`/`kb_find` del core sobre un bundle OKF
   (`tools=[*kb_tools("./kb")]`).
 - `pattern="supervisor"` para un agente suelto: sus trabajadores son las tools hechas con

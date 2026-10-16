@@ -42,7 +42,7 @@ PATTERNS = {
     "supervisor": SupervisorPattern,
 }
 _BLOCKED = "[blocked by guardrail]"  # same marker core's engine puts on filtered steps
-_RESPONSE_TOKENS = 1024  # core's DEFAULT_RESPONSE_TOKENS, reserved when sizing history
+_RESPONSE_TOKENS = 1024  # core's DEFAULT_RESPONSE_TOKENS, when the model sets no max_tokens
 
 
 def _tool_name(t: Any) -> str:
@@ -183,9 +183,12 @@ class ADKRuntime:
             if guard is not None:
                 guard["counted"] += guard["engine"].tokens_of(usage)
             span.set_attribute("model", resp.model)
+            span.set_attribute("provider", resp.provider)
             span.set_attribute("cost", resp.cost)
             span.set_attribute("input_tokens", usage.get("input_tokens", 0))
             span.set_attribute("output_tokens", usage.get("output_tokens", 0))
+            # Same attribute core's engine writes; `usage_from_trace` reads it as tokens_cached.
+            span.set_attribute("cached_tokens", usage.get("cache_read_input_tokens", 0))
             tctx.finish_span(span, SpanStatus.OK)
             return resp
 
@@ -317,7 +320,9 @@ class ADKRuntime:
         base = (
             estimate_tokens(getattr(agent, "system_prompt", "") or "")
             + estimate_tokens(json.dumps(specs, default=str))
-            + _RESPONSE_TOKENS
+            + int(
+                (getattr(agent, "model_config", None) or {}).get("max_tokens") or _RESPONSE_TOKENS
+            )
         )
         return max(0, int(window * 0.9) - base)
 
@@ -384,39 +389,19 @@ class ADKRuntime:
             else:
                 model_fn = self._make_model_fn(agent_wrapper, tctx, guard)
                 tool_fn = self._make_tool_fn(tools, tctx, callbacks)
-                pattern = _build_pattern(agent_wrapper)
-                try:
-                    result = await pattern.execute(
-                        query,
-                        run_ctx,
-                        model_fn,
-                        tool_fn,
-                        specs,
-                        max_iterations=getattr(agent_wrapper, "max_iterations", 10),
-                    )
-                except GuardrailBlocked:
-                    raise
-                except Exception:
-                    # A pattern that wraps the budget error in its own is still a refusal.
-                    if guard["cut"] is not None:
-                        raise guard["cut"] from None
-                    raise
-                if guard["cut"] is not None:
-                    raise guard["cut"]
+                result = await self._execute(
+                    _build_pattern(agent_wrapper),
+                    query,
+                    run_ctx,
+                    model_fn,
+                    tool_fn,
+                    specs,
+                    getattr(agent_wrapper, "max_iterations", 10),
+                    guard,
+                )
                 answer = result.get("answer", "")
                 steps = result.get("steps", [])
-            steps = self._steps_to_dicts(steps)
-
-            if engine.has_output:
-                # Steps travel in the result: what `answer` hides can't leak through them.
-                for step in steps:
-                    for key in ("thought", "observation", "result"):
-                        if isinstance(step.get(key), str) and step[key]:
-                            filtered = engine.filter_stream(step[key])
-                            step[key] = _BLOCKED if filtered is None else filtered
-                answer = engine.check_output(
-                    answer if isinstance(answer, str) else str(answer)
-                ).text
+            answer, steps = self._filter_output(engine, answer, self._steps_to_dicts(steps))
 
             if memory is not None:
                 await self._persist(memory, agent_wrapper.name, session_id, query, answer)
@@ -426,18 +411,84 @@ class ADKRuntime:
             # the history; any other block stores the (filtered) query and the refusal.
             if memory is not None and blocked.direction != "input":
                 await self._persist(memory, agent_wrapper.name, session_id, query, blocked.message)
-            root.set_attribute("guardrail.blocked", True)
-            root.set_attribute("guardrail.rule", blocked.rule)
-            tctx.finish_span(root, SpanStatus.OK)
-            return RunResult.from_runtime(
-                {
-                    "answer": blocked.message,
-                    "steps": [],
-                    "trace": tctx.to_dict(),
-                    "blocked": True,
-                    "guardrail": blocked.as_dict(),
-                }
+            return self._blocked_result(tctx, root, blocked)
+        except Exception:
+            tctx.finish_span(root, SpanStatus.ERROR)
+            raise
+        return RunResult.from_runtime({"answer": answer, "steps": steps, "trace": tctx.to_dict()})
+
+    @staticmethod
+    async def _execute(pattern, query, run_ctx, model_fn, tool_fn, specs, max_iterations, guard):
+        try:
+            result = await pattern.execute(
+                query, run_ctx, model_fn, tool_fn, specs, max_iterations=max_iterations
             )
+        except GuardrailBlocked:
+            raise
+        except Exception:
+            # A pattern that wraps the budget error in its own is still a refusal.
+            if guard["cut"] is not None:
+                raise guard["cut"] from None
+            raise
+        if guard["cut"] is not None:
+            raise guard["cut"]
+        return result
+
+    @staticmethod
+    def _filter_output(engine: GuardrailsEngine, answer: Any, steps: list[dict]):
+        """Output rules on the answer and on the steps (they travel in the result too)."""
+        if not engine.has_output:
+            return answer, steps
+        for step in steps:
+            for key in ("thought", "observation", "result"):
+                if isinstance(step.get(key), str) and step[key]:
+                    filtered = engine.filter_stream(step[key])
+                    step[key] = _BLOCKED if filtered is None else filtered
+        text = answer if isinstance(answer, str) else str(answer)
+        return engine.check_output(text).text, steps
+
+    @staticmethod
+    def _blocked_result(tctx: TracingContext, root, blocked: GuardrailBlocked) -> RunResult:
+        root.set_attribute("guardrail.blocked", True)
+        root.set_attribute("guardrail.rule", blocked.rule)
+        tctx.finish_span(root, SpanStatus.OK)
+        return RunResult.from_runtime(
+            {
+                "answer": blocked.message,
+                "steps": [],
+                "trace": tctx.to_dict(),
+                "blocked": True,
+                "guardrail": blocked.as_dict(),
+            }
+        )
+
+    async def _run_lead(self, lead, query, session_id, context, pattern, tool_fn, specs):
+        """A team pattern under its lead agent's guardrails (supervisor / swarm entry), the way
+        core runs a chain: the lead's rules filter the team's input and output, its
+        `cost_limit` budgets the lead's model calls, and a block is the team's answer."""
+        tctx = TracingContext(lead.name, session_id)
+        root = tctx.start_span("agent.run", {"agent": lead.name})
+        engine = GuardrailsEngine(getattr(lead, "guardrails_config", None), agent_name=lead.name)
+        guard = {"engine": engine, "counted": 0, "cut": None}
+        try:
+            if engine.has_input:
+                query = engine.check_input(query).text
+            result = await self._execute(
+                pattern,
+                query,
+                dict(context or {}),
+                self._make_model_fn(lead, tctx, guard),
+                tool_fn,
+                specs,
+                getattr(lead, "max_iterations", 10),
+                guard,
+            )
+            answer, steps = self._filter_output(
+                engine, result.get("answer", ""), self._steps_to_dicts(result.get("steps", []))
+            )
+            tctx.finish_span(root, SpanStatus.OK)
+        except GuardrailBlocked as blocked:
+            return self._blocked_result(tctx, root, blocked)
         except Exception:
             tctx.finish_span(root, SpanStatus.ERROR)
             raise
@@ -461,6 +512,7 @@ class ADKRuntime:
         tin = tout = 0
         latency = 0.0
         parts = []
+        blocked = next((r for _, r in children if r.blocked), None)
         for agent_name, r in children:
             cost += r.cost
             tin += r.tokens.get("input", 0)
@@ -484,6 +536,8 @@ class ADKRuntime:
             tokens={"input": tin, "output": tout},
             latency_ms=latency,
             model="multi",
+            blocked=blocked is not None,
+            guardrail=blocked.guardrail if blocked is not None else None,
         )
 
     async def run_team(
@@ -516,6 +570,8 @@ class ADKRuntime:
                 children.append((getattr(m, "name", f"stage{i}"), r))
                 current = r.answer
                 last = r
+                if r.blocked:  # a refusal is not the next stage's query
+                    break
             agg = self._aggregate(team.name, session_id, children)
             agg.answer = last.answer if last else ""
             return agg
@@ -527,11 +583,7 @@ class ADKRuntime:
         raise ValueError(f"unknown team pattern {pattern!r}")
 
     async def _run_supervisor(self, team, query, session_id, context) -> RunResult:
-        supervisor = team.supervisor
         workers = {w.name: w for w in team.workers}
-        tctx = TracingContext(supervisor.name, session_id)
-        root = tctx.start_span("agent.run", {"agent": supervisor.name})
-        model_fn = self._make_model_fn(supervisor, tctx)
 
         async def delegating_tool_fn(name: str, args: dict):
             if name in workers:
@@ -541,34 +593,18 @@ class ADKRuntime:
                 return r.answer
             raise KeyError(f"worker {name!r} not found")
 
-        pattern = SupervisorPattern(list(workers))
-        try:
-            result = await pattern.execute(
-                query,
-                context or {},
-                model_fn,
-                delegating_tool_fn,
-                self._adk_tools_to_specs([w.as_tool() for w in team.workers]),
-                max_iterations=getattr(supervisor, "max_iterations", 10),
-            )
-            tctx.finish_span(root, SpanStatus.OK)
-        except Exception:
-            tctx.finish_span(root, SpanStatus.ERROR)
-            raise
-        return RunResult.from_runtime(
-            {
-                "answer": result.get("answer", ""),
-                "steps": self._steps_to_dicts(result.get("steps", [])),
-                "trace": tctx.to_dict(),
-            }
+        return await self._run_lead(
+            team.supervisor,
+            query,
+            session_id,
+            context,
+            SupervisorPattern(list(workers)),
+            delegating_tool_fn,
+            self._adk_tools_to_specs([w.as_tool() for w in team.workers]),
         )
 
     async def _run_swarm(self, team, query, session_id, context) -> RunResult:
         agents = {a.name: a for a in team.agents}
-        entry = team.entry_agent or team.agents[0]
-        tctx = TracingContext(entry.name, session_id)
-        root = tctx.start_span("agent.run", {"agent": entry.name})
-        model_fn = self._make_model_fn(entry, tctx)
 
         async def handoff_tool_fn(name: str, args: dict):
             if name in agents:
@@ -578,26 +614,14 @@ class ADKRuntime:
                 return r.answer
             raise KeyError(f"agent {name!r} not found")
 
-        pattern = SwarmPattern(team._build_agent_configs())
-        try:
-            result = await pattern.execute(
-                query,
-                context or {},
-                model_fn,
-                handoff_tool_fn,
-                [],
-                max_iterations=getattr(entry, "max_iterations", 10),
-            )
-            tctx.finish_span(root, SpanStatus.OK)
-        except Exception:
-            tctx.finish_span(root, SpanStatus.ERROR)
-            raise
-        return RunResult.from_runtime(
-            {
-                "answer": result.get("answer", ""),
-                "steps": self._steps_to_dicts(result.get("steps", [])),
-                "trace": tctx.to_dict(),
-            }
+        return await self._run_lead(
+            team.entry_agent or team.agents[0],
+            query,
+            session_id,
+            context,
+            SwarmPattern(team._build_agent_configs()),
+            handoff_tool_fn,
+            [],
         )
 
     async def stream_agent(
