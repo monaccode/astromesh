@@ -251,3 +251,22 @@ spec:
         assert result.trace is not None
         assert "trace_id" in result.trace
         assert len(result.trace["spans"]) >= 2  # workflow.run + step span
+
+
+async def test_agent_run_timeout_sube_por_el_engine(workflows_dir, mock_tool_registry):
+    from astromesh.errors import AgentRunTimeout
+
+    _write_workflow(
+        workflows_dir,
+        "t",
+        "apiVersion: astromesh/v1\nkind: Workflow\nmetadata:\n  name: t\n"
+        "spec:\n  steps:\n    - name: s1\n      agent: a1\n      input: hi\n",
+    )
+    rt = AsyncMock()
+    rt.run = AsyncMock(side_effect=AgentRunTimeout("a1", 60))
+    engine = WorkflowEngine(
+        workflows_dir=str(workflows_dir), runtime=rt, tool_registry=mock_tool_registry
+    )
+    await engine.bootstrap()
+    with pytest.raises(AgentRunTimeout):
+        await engine.run("t", trigger={"query": "q"})

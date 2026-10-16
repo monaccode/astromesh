@@ -10,6 +10,7 @@ from jinja2 import BaseLoader, StrictUndefined, Undefined
 from jinja2.exceptions import UndefinedError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 
+from astromesh.errors import AgentRunTimeout
 from astromesh.workflow.models import StepResult, StepSpec, StepStatus, StepType
 
 
@@ -86,6 +87,10 @@ class StepExecutor:
                 if step.when is not None:
                     result.condition_matched = True
                 return result
+            except AgentRunTimeout:
+                # El plazo de la corrida del agente no es el del paso: no se
+                # reintenta ni se baja a estado; sube para que la ruta responda 504.
+                raise
             except TimeoutError:
                 last_error = f"Step '{step.name}' timed out after {step.timeout_seconds}s"
             except Exception as exc:  # noqa: BLE001  (el fallo del paso se reporta como estado, no se propaga)

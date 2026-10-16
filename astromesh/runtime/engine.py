@@ -2095,6 +2095,11 @@ class Agent:
                     if response.content and contenido is not None:
                         _emit(on_event, {"type": "token", "content": contenido})
                     return response
+                except asyncio.CancelledError:
+                    # El plazo de la corrida cancela la llamada en vuelo.
+                    llm_span.set_attribute("cancelled", True)
+                    tracing.finish_span(llm_span, status=SpanStatus.ERROR)
+                    raise
                 except Exception as e:
                     llm_span.set_attribute("error_message", str(e))
                     tracing.finish_span(llm_span, status=SpanStatus.ERROR)
@@ -2205,6 +2210,14 @@ class Agent:
                     tracing.finish_span(tool_span)
                     _emit(on_event, {"type": "tool_result", "id": call_id, "ok": True})
                     return observation
+                except asyncio.CancelledError:
+                    tool_span.set_attribute("cancelled", True)
+                    tracing.finish_span(tool_span, status=SpanStatus.ERROR)
+                    _emit(
+                        on_event,
+                        {"type": "tool_result", "id": call_id, "ok": False, "cancelled": True},
+                    )
+                    raise
                 except Exception as e:
                     tool_span.set_attribute("error_message", str(e))
                     tracing.finish_span(tool_span, status=SpanStatus.ERROR)
@@ -2416,6 +2429,12 @@ class Agent:
             return rechazo
 
         except AgentRunTimeout:
+            logger.warning(
+                "agent.run timed out agent=%s session=%s timeout_seconds=%s",
+                self.name,
+                session_id,
+                self._timeout_seconds,
+            )
             if desde_humano:
                 pendiente = _PENDIENTES.pendiente(session_id)
                 if pendiente is not None and not pendiente["ok"]:

@@ -97,3 +97,26 @@ async def test_timeout_deja_episodio_timeout(tmp_path):
     with pytest.raises(AgentRunTimeout):
         await agente.run("q", "s1")
     assert fake.grabados[0].outcome["result"] == "timeout"
+
+
+class _ToolLenta:
+    async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
+        await tool_fn("leer", {})
+        return {"answer": "x", "steps": []}
+
+
+async def test_timeout_cierra_la_tool_en_vuelo(tmp_path, caplog):
+    agente, _ = await _agente(tmp_path, _man(timeout_seconds=0.05))
+
+    async def lenta(*a, **k):
+        await asyncio.sleep(5)
+
+    agente._pattern = _ToolLenta()
+    agente._tools.execute = lenta
+    eventos = []
+    with caplog.at_level(logging.WARNING), pytest.raises(AgentRunTimeout):
+        await agente.run("q", "s1", on_event=eventos.append)
+    res = [e for e in eventos if e["type"] == "tool_result"]
+    assert len(res) == 1
+    assert (res[0]["ok"], res[0]["cancelled"]) == (False, True)
+    assert any("timed out" in r.getMessage() for r in caplog.records)

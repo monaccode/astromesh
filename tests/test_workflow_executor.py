@@ -209,3 +209,18 @@ def test_render_y_when_del_workflow_en_sandbox(executor):
     assert (
         executor._render("{{ steps.a.output | upper }}", {"steps": {"a": {"output": "x"}}}) == "X"
     )
+
+
+async def test_agent_run_timeout_propaga_sin_reintentos(executor, mock_runtime):
+    from astromesh.errors import AgentRunTimeout
+
+    mock_runtime.run = AsyncMock(side_effect=AgentRunTimeout("a", 60))
+    step = StepSpec(
+        name="s",
+        agent="a",
+        input_template="q",
+        retry=RetryConfig(max_attempts=3, initial_delay_seconds=0),
+    )
+    with pytest.raises(AgentRunTimeout):
+        await executor.execute_step(step, {"trigger": {}, "steps": {}})
+    assert mock_runtime.run.await_count == 1

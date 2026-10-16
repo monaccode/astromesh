@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from astromesh.errors import AgentRunTimeout
 from astromesh.observability.tracing import SpanStatus, TracingContext
 from astromesh.workflow.executor import StepExecutor
 from astromesh.workflow.loader import WorkflowLoader
@@ -345,6 +346,13 @@ class WorkflowEngine:
                 await self._store.save(run)
                 i += 1
 
+        except AgentRunTimeout:
+            # El plazo de la corrida de un agente sube tal cual (la ruta responde 504).
+            run.status = "failed"
+            run.updated_at = datetime.now(UTC).isoformat()
+            await self._store.save(run)
+            tracing.finish_span(root_span, status=SpanStatus.ERROR)
+            raise
         except Exception:  # noqa: BLE001  (el fallo del paso se reporta como estado, no se propaga)
             status = "failed"
             run.status = status
