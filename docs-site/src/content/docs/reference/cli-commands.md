@@ -139,6 +139,8 @@ Provided by the `astromesh-node` plugin.
 | `--workflow` | `false` | Run as workflow instead of agent |
 | `--input` | -- | Workflow input data as JSON string |
 
+By default `run` prints the answer in a panel and, when the response carries `usage.by_model`, a **Por modelo** table below it with one row per provider, model and role: calls, input and output tokens, and cost (`—` when the cost is unknown). `--json` prints the raw response instead. `astromeshctl ask` shows the same table.
+
 **`dev` flags:**
 
 | Flag | Default | Description |

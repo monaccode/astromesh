@@ -16,6 +16,23 @@ async def web_search(query: str, max_results: int = 5) -> str:
 
 Supported types: `str`, `int`, `float`, `bool`, `list`, `dict`, `Optional`, `X | None`.
 
+### A Pydantic model as the only parameter
+
+When a `@tool` function takes a single parameter annotated as a Pydantic `BaseModel`, the model's own JSON schema is what the LLM sees, so it fills the real fields instead of a generic string. The ADK builds the model from the arguments before calling your function:
+
+```python
+from pydantic import BaseModel
+from astromesh_adk import tool
+
+class Ticket(BaseModel):
+    title: str
+    priority: int = 3
+
+@tool(description="Open a support ticket")
+async def open_ticket(ticket: Ticket) -> str:
+    return f"opened {ticket.title} (P{ticket.priority})"
+```
+
 ## Class-Based Tools
 
 For tools with state or lifecycle management:
@@ -61,6 +78,25 @@ async def dev_agent(ctx):
     """Developer agent."""
     return None
 ```
+
+## Callbacks
+
+Pass a `Callbacks` subclass to `run()` or `stream()` to observe a run. Callbacks are read-only: they cannot change or block execution, and an exception inside a callback is swallowed.
+
+```python
+from astromesh_adk import Callbacks
+
+class Log(Callbacks):
+    async def on_tool_result(self, tool_name, args, result):
+        print("tool", tool_name, args, "->", result)
+
+    async def on_error(self, error, context):
+        print("tool failed:", context["tool"], error)
+
+await my_agent.run("hi", callbacks=Log())
+```
+
+The runner fires `on_tool_result` after each tool call succeeds and `on_error` (with `{"tool": name}`) when a tool raises. `on_step` and `on_model_call` exist on the base class but the runner does not call them yet.
 
 ## Tool Options
 

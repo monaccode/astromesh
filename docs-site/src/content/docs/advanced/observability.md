@@ -105,7 +105,8 @@ Every call to `Agent.run()` produces these spans automatically:
 
 | Span Name | Parent | Attributes | Description |
 |-----------|--------|-----------|-------------|
-| `agent.run` | (root) | `agent`, `session` | Full execution lifecycle |
+| `agent.run` | (root) | `agent`, `session`, `guardrail.blocked`, `guardrail.rule`, `guardrail.tokens_counted` | Full execution lifecycle. The `guardrail.*` attributes appear only when a guardrail blocked the run (`guardrail.blocked`, `guardrail.rule`) or the agent declares `cost_limit` (`guardrail.tokens_counted`) |
+| `guardrails.input` | `agent.run` | `rules`, `redactions`, `warnings`, `blocked_by`, `reason` | Input guardrails. `blocked_by` and `reason` only when a rule blocks; the span never carries the text |
 | `memory_build` | `agent.run` | — | Build memory context |
 | `prompt_render` | `agent.run` | — | Render Jinja2 prompt |
 | `context_fit` | `prompt_render` | `context.window`, `context.window_source`, `context.base_tokens`, `history.budget`, `history.turns_kept`, `history.turns_dropped`, `history.tokens`, `history.delivery`, `history.summary_used`, `turn_context.tokens`, `turn_context.delivery` | How history and `prompts.context` fit the window (`history.budget` is -1 when unbounded) |
@@ -113,8 +114,11 @@ Every call to `Agent.run()` produces these spans automatically:
 | `tool.prefetch` | `agent.run` | `tool` | Each `spec.prefetch` lookup, when its `when` holds |
 | `llm.complete` | `agent.run` | `input_tokens`, `output_tokens`, `cached_tokens`, `cache.hit_ratio`, `model`, `provider`, `cost`, `latency_ms` | Each LLM call |
 | `tool.call` | `agent.run` | `tool`, `tool.result_tokens` | Each tool execution (`tool.result_tokens` is the estimated size of the result the tool returned, before the cap) |
-| `orchestration` | `agent.run` | `pattern` | Orchestration pattern execution |
+| `orchestration` | `agent.run` | `pattern` | Orchestration pattern execution. Closes with error status when `cost_limit` cuts the run |
+| `guardrails.output` | `agent.run` | `rules`, `redactions`, `warnings`, `blocked_by`, `reason` | Output guardrails, same attributes as `guardrails.input` |
 | `memory_persist` | `agent.run` | — | Persist conversation turns |
+
+Orchestration steps whose tool result was cut to the result budget carry `truncated` and `omitted` (since **v0.66.0**).
 
 `cached_tokens` on `llm.complete` is the part of `input_tokens` the provider served from its prompt cache (0 when it reports none). Without it every input token reads as full price and a prefix-caching optimization can't be verified. Available since astromesh **v0.48.0**; the run response sums it per model as `usage.by_model[].tokens_cached` since **v0.54.0**.
 
