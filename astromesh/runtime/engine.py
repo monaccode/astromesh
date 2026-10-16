@@ -2277,7 +2277,12 @@ class Agent:
             # turno en que hay una confirmación pendiente.
             respuesta_sin_aviso = result.get("answer", "")
             if desde_humano:
-                result["answer"] = con_aviso(_PENDIENTES, session_id, result.get("answer"))
+                respuesta = result.get("answer")
+                con = con_aviso(_PENDIENTES, session_id, respuesta)
+                # Sin pendiente `con_aviso` devuelve el mismo objeto: no se toca
+                # `result` (ni se crea "answer" si el patrón no lo puso).
+                if con is not respuesta:
+                    result["answer"] = con
 
             await self._persistir_turno(
                 session_id, query, result.get("answer", ""), tracing, root_span

@@ -258,17 +258,18 @@ def aviso_confirmacion(tool_name: str, argumentos: dict) -> str:
     return f"Para confirmar respondé SI. Voy a ejecutar: {detalle}"
 
 
-def con_aviso(pendientes: Pendientes, session_id: str, answer: object) -> str:
+def con_aviso(pendientes: Pendientes, session_id: str, answer: object) -> object:
     """`answer` con el aviso de confirmación pegado, si esta sesión tiene un
-    pendiente sin confirmar (`ok=False`: lo registró esta corrida); si no,
-    `answer` como str.
+    pendiente sin confirmar (`ok=False`: lo registró esta corrida).
 
-    Todos los patrones del repo arman "answer" como str — la conversión es
-    sólo para no romper si el día de mañana alguno no lo hace.
+    Sin pendiente devuelve `answer` intacto — el MISMO objeto, sin convertir:
+    no todos los patrones arman "answer" como str (ReAct devuelve
+    `response.content` tal cual, que puede ser None), y quien llama usa la
+    identidad para no tocar su resultado. Con pendiente el resultado es str.
     """
-    respuesta = "" if answer is None else answer if isinstance(answer, str) else str(answer)
     pendiente = pendientes.pendiente(session_id)
     if pendiente is None or pendiente["ok"]:
-        return respuesta
+        return answer
     aviso = aviso_confirmacion(pendiente["tool"], pendiente["argumentos"])
+    respuesta = "" if answer is None else answer if isinstance(answer, str) else str(answer)
     return f"{respuesta}\n\n{aviso}" if respuesta else aviso

@@ -156,3 +156,12 @@ def test_con_aviso_agrega_el_texto_del_runtime():
         "Para confirmar respondé SI. Voy a ejecutar: t con a: 1"
     )
     assert con_aviso(Pendientes(), "s", "hecho") == "hecho"
+
+
+def test_con_aviso_sin_pendiente_devuelve_answer_intacto():
+    p = Pendientes()
+    assert con_aviso(p, "s", None) is None
+    contenido = ["no", "es", "str"]
+    assert con_aviso(p, "s", contenido) is contenido
+    p.registrar("s", "t", "fp", {"a": 1})
+    assert con_aviso(p, "s", None) == "Para confirmar respondé SI. Voy a ejecutar: t con a: 1"
