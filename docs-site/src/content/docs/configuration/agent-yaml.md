@@ -119,7 +119,7 @@ spec:
   orchestration:
     pattern: react                  # Reasoning and execution pattern
     max_iterations: 5               # Maximum reasoning loop iterations before stopping
-    timeout_seconds: 60             # Hard timeout for the entire agent execution
+    timeout_seconds: 120            # Cuts the run when exceeded (HTTP 504); keep it >= 120
 
   # --- Tools ---
   tools:
@@ -170,7 +170,13 @@ spec:
       max_turns: 20                 # Turns read from the store (and kept verbatim)
       ttl: 3600                     # Time-to-live in seconds (default: 259200 — 72h)
 
-    # semantic / episodic memory: not built from a manifest (see spec.memory below)
+    semantic:                       # Optional; embeddings are required (see spec.memory below)
+      backend: faiss
+      dimension: 768
+      embeddings: {provider: ollama, model: nomic-embed-text}
+    episodic:                       # Optional; one event per run
+      backend: postgres
+      connection: {url: postgresql://user:pass@localhost:5432/astromesh}
 
   # --- Guardrails ---
   guardrails:
@@ -190,9 +196,10 @@ spec:
 
   # --- Permissions ---
   permissions:
-    allowed_actions:                # Not enforced as an allowlist today (see spec.permissions)
+    allowed_actions:                # Whitelist of registered tool names (fnmatch wildcards)
       - lookup_company
       - search_crm
+    denied_actions: []              # Blacklist; wins over allowed_actions
 ```
 
 ## Per-role Models
@@ -346,7 +353,8 @@ Prompt templates in a manifest (`prompts.system`, `prompts.context`, the `when` 
 | `pattern` | Yes | The orchestration pattern. See the patterns table below. |
 | `max_iterations` | No | Maximum number of reasoning iterations. Prevents infinite loops. Default: `10`. |
 | `stages` | No | For `pipeline`: 2 to 6 stage names of 1 to 40 characters. Default: `analyze`, `process`, `synthesize`. Anything else fails at load time. |
-| `timeout_seconds` | No | Hard timeout in seconds for the entire agent execution. When exceeded, the agent returns whatever partial result it has. |
+| `timeout_seconds` | No | Hard timeout in seconds for the entire agent execution. When exceeded the run is cut: HTTP `504` `{"error": "timeout", "agent", "timeout_seconds"}` on `/v1/agents/{name}/run` and `POST /v1/workflows/{name}/run`, and an `error` event with `error: "timeout"` on the WebSocket. An in-flight tool is closed with a `tool_result` `{ok: false, cancelled: true}`, and a `timeout` episode is recorded if episodic memory is on. Must be a number > 0, otherwise the agent fails to load. `timeout` is a deprecated alias. The provider's own HTTP timeout is 120 s, so values under 120 cut runs with tools or slow models. |
+| `max_handoffs` | No | For `swarm`: integer >= 1, default `3`. Caps chained handoffs; once reached, handoffs are no longer offered or executed. |
 | `max_tool_result_tokens` | No | Default cap, in tokens, for each tool result that reaches the model. Overridden per tool by `max_result_tokens`. Default: `8000`. See [Tool result budget](#tool-result-budget). |
 
 Pattern behavior (since core 0.65.0):
@@ -371,7 +379,7 @@ Each tool is an object in the `tools` array:
 
 #### Tool result budget
 
-A tool can return far more than the model needs. Each result is capped when it enters the conversation, so one large response cannot fill the window. It applies to the patterns that share the tool loop: `react`, `plan_and_execute`, `pipeline`, `parallel_fan_out` and `supervisor`. `swarm` is not covered. Glyph programs receive the full data, uncapped.
+A tool can return far more than the model needs. Each result is capped when it enters the conversation, so one large response cannot fill the window. It applies to the patterns that share the tool loop: `react`, `plan_and_execute`, `pipeline`, `parallel_fan_out` and `supervisor`. `swarm` is covered too. Glyph programs receive the full data, uncapped.
 
 - `dict` and `list` results reach the model as compact JSON, not as a Python `repr`.
 - A list keeps its first elements and ends with `{"_omitidos": N, "_nota": "..."}`.
@@ -439,8 +447,13 @@ Entries run in order, after RAG and before the prompt is rendered, through
 | `conversational.max_turns` | No | Number of turns read back per run. With `summary`, turns beyond it are folded into the summary. |
 | `conversational.ttl` | No | Time-to-live in seconds. Default `259200` (72h). |
 
-:::note[No semantic or episodic memory from a manifest]
-Only `conversational` memory is wired by the runtime. `memory.semantic` and `memory.episodic` are not read: the `MemoryManager` is built with the conversational backend alone, so no vector retrieval or event log happens for agents loaded from YAML.
+:::note[Semantic and episodic memory]
+Both are built from the manifest (since core 0.71.0).
+
+- `memory.semantic.backend`: `chromadb`, `faiss`, `pgvector` or `qdrant`. `embeddings` is **required** (`provider`: `ollama`, `hf` or `sentence_transformer`, plus `model`; same shape as a RAG pipeline's embedder), with no implicit default. `dimension` is required for `faiss`, `pgvector` and `qdrant`; `connection.url` for `pgvector` (optional for `qdrant`). Each backend needs its extra (`astromesh[chromadb]`, `[faiss]`, `[qdrant]`, `[postgres]`; `[embeddings]` for `sentence_transformer`).
+- `memory.episodic.backend`: `postgres` only, with `connection.url` (extra `astromesh[postgres]`).
+- A manifest that gets any of this wrong, or lacks the extra, stays in `draft` with an `AgentConfigError`. A backend that fails at run time is logged and the run continues without that memory.
+- Semantic memory reaches the prompt as `memory.semantic` (`{content, similarity, source}`, no vector). Episodic memory writes **one episode per run** (result `ok`, `blocked`, `error` or `timeout`, tools called, tokens and the guardrail rule; when the input was blocked the query is not stored) and `memory.episodic` carries only the 5 most recent episodes of the same session.
 :::
 
 :::caution[The schema announces more backends than the factory builds]
@@ -496,11 +509,25 @@ Each guardrail is an object in the `input` or `output` array. Rules run in decla
 Before 0.70.0 `spec.guardrails` was not enforced. Manifests that already declare guardrails change behavior: input `pii_detection` now redacts by default (the phone pattern matches any 10-digit number, so order IDs and card numbers stop reaching tools; move redaction to the output if tools need them), `max_length` truncates at 10000 characters by default, and `cost_limit.max_tokens_per_turn` is a real run-wide budget, so old values of 500-1500 cut runs that use tools (around 4000 is recommended). A block returns `blocked: true` instead of an error.
 :::
 
+:::caution[Breaking since core 0.71.0]
+Sections that used to load with no effect now do something, so existing manifests can change:
+
+- `orchestration.timeout_seconds` cuts the run (HTTP 504). Values of 30-90 s cut runs with tools or slow models; use 120 or more, or drop the key.
+- `permissions.allowed_actions` / `denied_actions` are a whitelist / blacklist of registered tool names; a name that matches nothing leaves that tool out.
+- `memory.semantic` without `embeddings` does not load; each backend needs its extra. `memory.episodic` (`postgres`) is also built.
+- `pattern: swarm` without a `type: agent` tool does not load.
+- `permissions.filesystem`, `network` and `execution`, and other keys, are ignored with a warning.
+- `register_internal(...)` and `register_agent_tool(...)` with `permissions=` now raise `TypeError` (`ToolDefinition.permissions` was removed).
+:::
+
 ### `spec.permissions`
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `allowed_actions` | No | **Not enforced as an allowlist.** It only filters tools that carry their own `permissions`, which tools declared in `spec.tools` do not. Every tool in `spec.tools` is available to the agent. `denied_actions` is not read at all. To limit an agent, declare only the tools it should have. |
+| `allowed_actions` | No | Whitelist of **registered** tool names, with `fnmatch` wildcards (`kb_*`). A tool that matches no pattern is neither offered to the model nor executable. Registered names are `<slug>_<action>` for `integration`, `api` and `mcp` tools and `kb_*` for knowledge bundles. |
+| `denied_actions` | No | Blacklist with the same rules. It wins over `allowed_actions`. |
+
+Both are applied when tools are offered and when they run. A pattern that matches nothing, or a result with no tools left, is logged as a warning; a `prefetch` that names a disallowed tool is an `AgentConfigError`. Any other key under `permissions` (`filesystem`, `network`, `execution`...) is ignored with a warning.
 
 ## Orchestration Patterns
 
@@ -511,7 +538,7 @@ Before 0.70.0 `spec.guardrails` was not enforced. Manifests that already declare
 | Parallel Fan-Out | `parallel_fan_out` | Tasks that benefit from multiple parallel perspectives, merged into a single answer. |
 | Pipeline | `pipeline` | Sequential processing chains where each step transforms the output. |
 | Supervisor | `supervisor` | Task delegation to specialized sub-agents managed by a coordinator. Needs at least one `type: agent` tool: those are its workers. |
-| Swarm | `swarm` | Intended for handoff between agents, but handoff does not invoke other agents yet (see [Multi-Agent](/astromesh/configuration/multi-agent/#swarm-pattern)). |
+| Swarm | `swarm` | Hands control to a `type: agent` tool; the target's answer is the final answer. Needs at least one `type: agent` tool; `max_handoffs` caps chains (see [Multi-Agent](/astromesh/configuration/multi-agent/#swarm-pattern)). |
 
 ## Memory Strategies
 

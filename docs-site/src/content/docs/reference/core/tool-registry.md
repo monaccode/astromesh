@@ -240,21 +240,24 @@ The generated schema is passed to the provider's `complete()` or `stream()` meth
 
 ## Permissions
 
-`spec.permissions.allowed_actions` in the agent YAML is passed to the registry when the tool schemas are generated, but it is **not an enforced allowlist** today:
+`spec.permissions` in the agent YAML restricts the **registered** tool names an agent can use (since core 0.71.0):
 
 ```yaml
 spec:
   permissions:
     allowed_actions:
       - web_search
+      - kb_*
+    denied_actions:
+      - kb_read
 ```
 
-| Field | Current behavior |
-|-------|------------------|
-| `allowed_actions` | Only filters out tools that themselves carry a non-empty `permissions` list with no match. Tools declared from an agent YAML never carry one, so in practice every tool in `spec.tools` stays available. |
-| `denied_actions` | Not read by the runtime. |
+| Field | Behavior |
+|-------|----------|
+| `allowed_actions` | Whitelist of registered tool names with `fnmatch` wildcards. A tool that matches no pattern is neither offered nor executable. |
+| `denied_actions` | Blacklist with the same rules. It wins over `allowed_actions`. |
 
-To restrict what an agent can call, declare only the tools it needs in `spec.tools` (and use `confirm` for [writes that need a human yes](/astromesh/configuration/confirmation-gate/)).
+The filter runs both when `get_tool_schemas(permitidas)` builds the schemas and when a tool executes. Registered names are `<slug>_<action>` for `integration`, `api` and `mcp` tools and `kb_*` for knowledge bundles. A pattern that matches no tool, or a result with no tools left, is logged as a warning; a `prefetch` that names a disallowed tool is an `AgentConfigError`. `ToolDefinition.permissions` no longer exists: `register_internal(...)` and `register_agent_tool(...)` with `permissions=` raise `TypeError`. Use `confirm` for [writes that need a human yes](/astromesh/configuration/confirmation-gate/).
 
 ## Rate Limiting
 

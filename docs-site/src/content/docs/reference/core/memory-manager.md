@@ -101,14 +101,16 @@ spec:
       strategy: sliding_window
       max_turns: 20
     semantic:
-      backend: chroma
-      collection: "agent_memory"
+      backend: faiss
+      dimension: 768
+      embeddings: {provider: ollama, model: nomic-embed-text}
     episodic:
       backend: postgres
+      connection: {url: "postgresql://user:pass@localhost:5432/astromesh"}
 ```
 
-:::caution[Only conversational memory is built from a manifest]
-The agent runtime constructs the `MemoryManager` with the conversational backend only. `memory.semantic` and `memory.episodic` in an agent YAML are not read, so semantic retrieval and episodic logging described on this page do not happen for agents loaded from manifests. The classes exist and work when built in code.
+:::note[Semantic and episodic memory are built from a manifest]
+Since core 0.71.0 the runtime builds both (`build_semantic_memory`, `build_episodic_backend` in `astromesh/memory/factory.py`). Semantic: `chromadb`, `faiss`, `pgvector` or `qdrant`; `embeddings` is required (`ollama`, `hf` or `sentence_transformer`), `dimension` for `faiss`/`pgvector`/`qdrant`, `connection.url` for `pgvector`. Episodic: `postgres` with `connection.url`. A bad declaration or a missing extra leaves the agent in `draft` with an `AgentConfigError`; a backend that fails at run time is logged and the run goes on without it. Episodic memory records **one `run` episode per run** through `record_run` (result `ok`, `blocked`, `error` or `timeout`, tools, tokens, guardrail rule; a blocked input is stored without the query). The prompt gets `memory.semantic` as `{content, similarity, source}` and `memory.episodic` with the 5 most recent episodes of the same session. See [agent YAML](/astromesh/configuration/agent-yaml/#specmemory).
 :::
 
 ## Core Methods

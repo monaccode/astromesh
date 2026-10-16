@@ -91,7 +91,7 @@ Optional header `Idempotency-Key`: replaying a key returns the existing invocati
 
 - `by_model[]` holds provider, model, role and tokens per model, including `tokens_cached`.
 - `data` is present when the agent declares `spec.output_schema` (`null` if the answer did not validate). `chain` is present when `spec.chain` fired. `propuestas` lists the writes that `mode: propose` tools recorded without executing. Each key is **omitted**, not `null`, when the runtime sent nothing.
-- `blocked` and `guardrail` (`direction`, `rule`, `reason`) are present when a guardrail of the agent (core 0.70) rejected the run: `answer` is the rejection message. The stream's `done` event carries them too. They are omitted when nothing was blocked, and Nexus does not store `blocked` on the invocation (since 0.26.12; 0.26.11 dropped them).
+- `blocked` and `guardrail` (`direction`, `rule`, `reason`) are present when a guardrail of the agent (core 0.70) rejected the run: `answer` is the rejection message. The stream's `done` event carries them too. They are omitted when nothing was blocked. Since Nexus 0.26.13 `blocked` and `guardrail` are also persisted on the invocation.
 - At 80 % or more of the period's credit cap, the response carries `X-Nexus-Credit-Usage: <percent>`.
 
 ### `GET /api/v1/agents/:name/run/stream` (WebSocket)
@@ -115,7 +115,7 @@ Closing the socket cancels the run on the server and records it `cancelled`, cha
 | `429` | `concurrency_exceeded` or `rate_limited`. |
 | `502` | The runtime failed, or the agent could not be loaded. |
 | `503` | Nexus could not resolve the tenant's limits or record the invocation, and refuses to run unrecorded. |
-| `504` | The run exceeded the run timeout. |
+| `504` | The run exceeded the run timeout (the agent's `orchestration.timeout_seconds` in core, or Nexus's own). Since 0.26.13 Nexus maps the core `504` to the invocation status `timeout`. |
 
 Admission rejections are recorded as invocations with status `rejected` and the reason in `error_code`.
 

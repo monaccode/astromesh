@@ -69,6 +69,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   system propio ni interpreta JSON `{"handoff": ...}`. `ciclo_de_tools` gana `finales`.
   `SwarmPattern(workers, max_handoffs=3)` reemplaza a `SwarmPattern(agent_configs)`.
 
+### Changed (Docs)
+
+- docs-site documenta lo que core 0.71 aplica: `permissions`, memoria semantica/episodica,
+  `swarm` con `max_handoffs`, `timeout_seconds` (504), el bloque "Breaking since core 0.71.0",
+  la confirmacion/`mode="propose"` en local del ADK (con el limite de sub-agentes remotos) y la
+  persistencia de `blocked`/`guardrail` y el estado `timeout` en Nexus 0.26.13.
+
 ### Changed (Config)
 
 - Manifiestos y templates del repo al dia con las secciones aplicadas: `timeout_seconds` >= 120,

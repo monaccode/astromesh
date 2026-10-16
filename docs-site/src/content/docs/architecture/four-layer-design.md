@@ -310,7 +310,7 @@ Orchestration patterns control how agents reason and use tools. Each pattern imp
 | `ParallelFanOut` | `patterns.py` | Send the same query to multiple sub-models simultaneously, merge results. | Ensemble approaches, multi-perspective analysis |
 | `Pipeline` | `patterns.py` | Chain multiple processing steps sequentially, where each step's output feeds the next. | Data transformation, multi-stage processing |
 | `Supervisor` | `supervisor.py` | A coordinator that delegates to the agent's `type: agent` tools and answers with what they return. | Complex tasks requiring specialized sub-agents |
-| `Swarm` | `swarm.py` | Intended for peer handoff; handoff does not invoke other agents yet. | Customer service routing, multi-domain conversations |
+| `Swarm` | `swarm.py` | Peer handoff to the agent's `type: agent` tools; the target's answer is final, capped by `max_handoffs`. | Customer service routing, multi-domain conversations |
 
 ### RAG Pipeline
 

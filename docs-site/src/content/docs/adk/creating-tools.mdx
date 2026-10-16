@@ -107,7 +107,25 @@ The runner fires `on_tool_result` after each tool call succeeds and `on_error` (
 | `requires_approval` | `bool` | Require approval before execution. Default `False` |
 | `timeout` | `int` | Timeout in seconds. Default `30` |
 
-`rate_limit`, `requires_approval` and `timeout` are stored on the tool but not enforced by the ADK runner.
+`rate_limit` and `timeout` are stored on the tool but not enforced by the ADK runner. `requires_approval` and `mode` are (see below).
+
+## Confirmation and proposals in local runs
+
+Local runs use the same gate as the core.
+
+```python
+@tool(description="Pay", requires_approval=True)
+async def pay(amount: int) -> str: ...
+
+@tool(description="Create a record", mode="propose")
+async def create(name: str) -> str: ...
+```
+
+- `requires_approval=True`: the first time the tool does not run, and `result.answer` ends with `Para confirmar respondé SI. Voy a ejecutar: pay con amount: 10`. Confirm exactly as on a node: run again in the **same `session_id`** with `"si"` (also `confirmo`, `dale`, `ok`, `listo`), e.g. `await agent.run("si", session_id=...)`. It runs once, and only if the model repeats the call with the same arguments; any other message discards what was pending.
+- `mode="propose"`: the tool never runs; the call comes out in `result.propuestas` (`tool`, `tipo: "adk"`, `destino` = agent name, `operacion`, `argumentos`) for the caller to approve and execute.
+- This covers calls the model makes. A tool called from handler code (`ctx.call_tool`) runs as is.
+- In a team or with an agent as a tool (`other.as_tool()`), the "si" is read by the run that talks to the person, never by the member or sub-agent. The child runs in the same session, its prompt appears in the parent's answer, and it cannot propose: the model is told nothing was recorded.
+- **Limit: remote sub-agents.** An agent with `bind()`/`connect()`/`remote()` used as a tool runs on the remote node as a person's turn in the `"default"` session, so the parent model can pass it `"si"` and satisfy the remote gate by itself. The local gate does not protect remote children. Keep write tools that need human approval on the agent that talks to the person, or call the remote agent directly.
 
 ## Result size and knowledge bundles
 

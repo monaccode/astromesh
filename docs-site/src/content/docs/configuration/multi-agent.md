@@ -5,7 +5,7 @@ description: Using agents as tools, context transforms, and multi-agent orchestr
 
 Astromesh lets you compose agents into multi-agent systems where one agent can invoke another as a tool. A supervisor agent can delegate sub-tasks to specialist agents, a supervisor can coordinate workers, and any agent can call another agent the same way it would call any other tool.
 
-This page covers the agent-as-tool mechanism, context transforms for reshaping data between agents, and how the Supervisor pattern builds on them. The Swarm pattern is also described, with its current limitation.
+This page covers the agent-as-tool mechanism, context transforms for reshaping data between agents, and how the Supervisor pattern builds on them. The Swarm pattern is also described.
 
 ## Agent-as-Tool
 
@@ -373,11 +373,7 @@ Worker agents are standard Astromesh agents with their own YAML definitions. The
 
 ## Swarm Pattern
 
-:::caution[Handoff between agents is not wired]
-The `swarm` pattern is designed for peer-to-peer handoff, but the runtime builds it without any agent configuration, so a handoff (`{"handoff": "...", "context": "..."}`) switches the pattern's current agent label and invokes **no** other agent. The `type: agent` tools of a swarm agent are offered to the model as ordinary tools and work like they do in `react`. For delegation that really runs the target agent, use [Supervisor](#supervisor-pattern) or `type: agent` tools in `react`.
-:::
-
-The Swarm pattern is meant to let agents hand off conversations to each other based on context, without a central coordinator.
+The Swarm pattern lets an agent hand the conversation to another agent. The targets are the agent's `type: agent` tools: passing control means calling one of them. If the target answers, **its answer is the final answer**; it does not come back to the agent that delegated. An error from the target (rate limit, permission, `confirmacion_requerida`...) goes back to the model like any other tool result. A swarm agent with no `type: agent` tool fails to load, as `supervisor` does.
 
 ### Configuration
 
@@ -391,6 +387,7 @@ spec:
   orchestration:
     pattern: swarm
     max_iterations: 10
+    max_handoffs: 3                 # chained handoffs allowed (default 3)
 
   tools:
     - name: billing-agent
@@ -399,18 +396,21 @@ spec:
       description: "Handle billing and payment questions"
 ```
 
-### What Runs Today
+### How It Runs
 
-1. The agent receives the user's query with a prompt that lists handoff targets
-2. If the model answers with `{"handoff": ...}` JSON, the pattern records a handoff step and changes its current agent name, but calls no agent
-3. If the model calls a tool (including a `type: agent` tool), the tool runs and its result goes back to the model
-4. A plain text response ends the run
+1. The agent receives the query with the conversation history and `prompts.context` (as a message) and sees its `type: agent` tools; tool results are capped by `max_tool_result_tokens`.
+2. If the model calls a `type: agent` tool, the target agent runs with the conversation history in its `query`. When it answers, that answer ends the run.
+3. If the model calls any other tool, the tool runs and its result goes back to the model.
+4. A plain text response ends the run.
 
---------|-----------|-------|
-| **Coordination** | Central supervisor decomposes and delegates | Peer-to-peer, agents decide independently |
-| **Control flow** | Supervisor always gets results back | Control transfers fully to the next agent |
+`orchestration.max_handoffs` (integer >= 1, default `3`) caps chained handoffs. The runtime passes the counter to the child agent, so every sub-agent inherits it, and the model cannot lower it. Once the cap is reached, handoffs are no longer offered or executed.
+
+| | Supervisor | Swarm |
+|---|-----------|-------|
+| **Coordination** | Central supervisor decomposes and delegates | The model decides which `type: agent` tool to hand off to |
+| **Control flow** | Supervisor always gets results back | Control transfers to the target, whose answer is final |
 | **Best for** | Complex tasks requiring planning and synthesis | Routing-style workflows (support triage, handoffs) |
-| **Final response** | Supervisor synthesizes from all worker results | Whichever agent responds last |
+| **Final response** | Supervisor synthesizes from all worker results | The handoff target's answer |
 
 ---
 

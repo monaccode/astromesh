@@ -328,7 +328,7 @@ When one LLM response asks for several tools, ReAct appends **one** assistant me
 
 **Supervisor** is a coordinator that only delegates: its workers are the manifest's `type: agent` tools, offered to the model as native tool calls (an agent with none fails to load).
 
-**Swarm** is meant for handoff between peer agents, but handoff is not wired in the runtime yet: see [Multi-Agent](/astromesh/configuration/multi-agent/#swarm-pattern).
+**Swarm** hands control to one of the agent's `type: agent` tools; the target's answer is the final answer and `orchestration.max_handoffs` (default 3) caps chains: see [Multi-Agent](/astromesh/configuration/multi-agent/#swarm-pattern).
 
 ---
 
