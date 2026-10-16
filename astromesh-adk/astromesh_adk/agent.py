@@ -3,16 +3,28 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
+from astromesh.errors import AgentConfigError
+
+from astromesh_adk.callbacks import Callbacks
+from astromesh_adk.connection import RemoteConnection, get_connection
 from astromesh_adk.context import RunContext
-from astromesh_adk.exceptions import AgentNotFoundError
 from astromesh_adk.guardrails import normalize_guardrails_config
 from astromesh_adk.memory import normalize_memory_config
 from astromesh_adk.result import RunResult, StreamEvent
 from astromesh_adk.tools import ToolDefinitionWrapper
-from astromesh_adk.callbacks import Callbacks
-from astromesh_adk.connection import RemoteConnection, get_connection
+
+
+def _check_pattern(pattern: str) -> None:
+    """Unknown patterns fail at definition time, like core 0.65 (`AgentConfigError`)."""
+    from astromesh_adk.runner import PATTERNS
+
+    if pattern not in PATTERNS:
+        raise AgentConfigError(
+            f"pattern {pattern!r} does not exist; valid: {', '.join(sorted(PATTERNS))}"
+        )
 
 
 def _remote_connection(agent_obj) -> RemoteConnection | None:
@@ -39,7 +51,12 @@ class AgentWrapper:
         max_iterations: int = 10,
         memory: str | dict | None = None,
         guardrails: dict | None = None,
+        roles: dict[str, str] | None = None,
+        context_window: int | None = None,
+        max_tool_result_tokens: int | None = None,
+        stages: list[str] | None = None,
     ):
+        _check_pattern(pattern)
         self._handler = handler
         self.name = name
         self.model = model
@@ -53,6 +70,10 @@ class AgentWrapper:
         self.max_iterations = max_iterations
         self.memory_config = normalize_memory_config(memory)
         self.guardrails_config = normalize_guardrails_config(guardrails)
+        self.roles = roles or {}
+        self.context_window = context_window
+        self.max_tool_result_tokens = max_tool_result_tokens
+        self.stages = stages
 
         # Remote binding (set via .bind())
         self._remote_url: str | None = None
@@ -101,11 +122,14 @@ class AgentWrapper:
         from astromesh_adk.runner import get_or_create_runtime
 
         rt = runtime or get_or_create_runtime()
-        async for event in rt.stream_agent(self, query, session_id, context, stream_steps, callbacks):
+        async for event in rt.stream_agent(
+            self, query, session_id, context, stream_steps, callbacks
+        ):
             yield event
 
     def as_tool(self) -> ToolDefinitionWrapper:
         """Convert this agent to a tool that can be used by other agents."""
+
         async def _agent_tool_handler(**kwargs):
             query = kwargs.get("query", kwargs.get("task", ""))
             result = await self.run(query)
@@ -116,6 +140,7 @@ class AgentWrapper:
             description=f"Delegate to agent '{self.name}': {self.description}",
         )
         wrapper.tool_name = self.name
+        wrapper.is_agent_tool = True  # a `supervisor` pattern delegates only to these
         wrapper.parameters_schema = {
             "type": "object",
             "properties": {
@@ -146,11 +171,21 @@ def agent(
     max_iterations: int = 10,
     memory: str | dict | None = None,
     guardrails: dict | None = None,
+    roles: dict[str, str] | None = None,
+    context_window: int | None = None,
+    max_tool_result_tokens: int | None = None,
+    stages: list[str] | None = None,
 ):
     """Decorator to define an agent from an async function.
 
     The function's docstring becomes the system prompt.
     The function body is the run handler (return None for default orchestration).
+
+    ``roles`` maps a pattern role (reasoner, planner, worker, synthesizer, supervisor,
+    ``stage:<name>``) to its own model string; unlisted roles use ``model``.
+    ``context_window`` sizes the conversational history budget (core 0.64), and
+    ``max_tool_result_tokens`` caps each tool result the model sees (core default 8000).
+    ``guardrails`` are enforced locally by core's GuardrailsEngine (core 0.70 rules).
     """
 
     def decorator(func):
@@ -167,6 +202,10 @@ def agent(
             max_iterations=max_iterations,
             memory=memory,
             guardrails=guardrails,
+            roles=roles,
+            context_window=context_window,
+            max_tool_result_tokens=max_tool_result_tokens,
+            stages=stages,
         )
 
     return decorator
@@ -186,13 +225,18 @@ class Agent:
     fallback_model: str | None = None
     routing: str = "cost_optimized"
     model_config: dict | None = None
-    tools: list = []
+    tools: list = []  # noqa: RUF012 — copied per instance in __init__
     pattern: str = "react"
     max_iterations: int = 10
     memory: str | dict | None = None
     guardrails: dict | None = None
+    roles: dict[str, str] | None = None
+    context_window: int | None = None
+    max_tool_result_tokens: int | None = None
+    stages: list[str] | None = None
 
     def __init__(self):
+        _check_pattern(self.pattern)
         self.tools = list(self.__class__.tools)  # copy to avoid shared mutable default
         self.memory_config = normalize_memory_config(self.memory)
         self.guardrails_config = normalize_guardrails_config(self.guardrails)
@@ -256,11 +300,14 @@ class Agent:
         from astromesh_adk.runner import get_or_create_runtime
 
         rt = runtime or get_or_create_runtime()
-        async for event in rt.stream_class_agent(self, query, session_id, context, stream_steps, callbacks):
+        async for event in rt.stream_class_agent(
+            self, query, session_id, context, stream_steps, callbacks
+        ):
             yield event
 
     def as_tool(self) -> ToolDefinitionWrapper:
         """Convert this agent to a tool for other agents."""
+
         async def _handler(**kwargs):
             query = kwargs.get("query", kwargs.get("task", ""))
             result = await self.run(query)
@@ -271,6 +318,7 @@ class Agent:
             description=f"Delegate to agent '{self.name}': {self.description}",
         )
         wrapper.tool_name = self.name
+        wrapper.is_agent_tool = True  # a `supervisor` pattern delegates only to these
         wrapper.parameters_schema = {
             "type": "object",
             "properties": {

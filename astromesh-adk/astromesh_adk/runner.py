@@ -6,16 +6,18 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
 import logging
 import weakref
-from typing import TYPE_CHECKING, Any
+from datetime import UTC
+from typing import Any, Self
 
-from astromesh_adk.providers import parse_model_string, resolve_provider
+from astromesh.core.guardrails import GuardrailBlocked, GuardrailsEngine
 from astromesh.core.model_router import ModelRouter
+from astromesh.core.tokens import estimate_tokens, resolve_context_window
+from astromesh.errors import AgentConfigError
 from astromesh.observability.tracing import SpanStatus, TracingContext
-from astromesh.providers.base import CompletionResponse
-from astromesh_adk.context import RunContext
-from astromesh_adk.result import RunResult, StreamEvent
+from astromesh.orchestration.observaciones import DEFAULT_MAX_TOOL_RESULT_TOKENS
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
     PipelinePattern,
@@ -24,16 +26,48 @@ from astromesh.orchestration.patterns import (
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
 from astromesh.orchestration.swarm import SwarmPattern
+from astromesh.providers.base import CompletionResponse
 
-if TYPE_CHECKING:
-    pass
+from astromesh_adk.context import RunContext
+from astromesh_adk.providers import parse_model_string, resolve_provider
+from astromesh_adk.result import RunResult, StreamEvent
 
-_PATTERNS = {
+# Core's patterns the ADK can build for a single agent. `swarm` and `glyph` are left out:
+# swarm is a team pattern here (AgentTeam), glyph needs a compiled program.
+PATTERNS = {
     "react": ReActPattern,
     "plan_and_execute": PlanAndExecutePattern,
     "parallel_fan_out": ParallelFanOutPattern,
     "pipeline": PipelinePattern,
+    "supervisor": SupervisorPattern,
 }
+_BLOCKED = "[blocked by guardrail]"  # same marker core's engine puts on filtered steps
+_RESPONSE_TOKENS = 1024  # core's DEFAULT_RESPONSE_TOKENS, reserved when sizing history
+
+
+def _tool_name(t: Any) -> str:
+    return getattr(t, "tool_name", getattr(t, "name", "tool"))
+
+
+def _build_pattern(agent: Any):
+    """Like core's `AgentRuntime._build_pattern`: unknown patterns raise, never fall back."""
+    name = getattr(agent, "pattern", "react") or "react"
+    if name not in PATTERNS:
+        raise AgentConfigError(
+            f"pattern {name!r} does not exist; valid: {', '.join(sorted(PATTERNS))}"
+        )
+    if name == "supervisor":
+        workers = [_tool_name(t) for t in agent.tools if getattr(t, "is_agent_tool", False)]
+        if not workers:
+            raise AgentConfigError(
+                "pattern 'supervisor' needs at least one agent tool (other_agent.as_tool()): "
+                "they are its workers"
+            )
+        return SupervisorPattern(workers=workers)
+    if name == "pipeline":
+        return PipelinePattern(stages=getattr(agent, "stages", None))
+    return PATTERNS[name]()
+
 
 _default_runtime: ADKRuntime | None = None
 
@@ -81,6 +115,9 @@ class ADKRuntime:
     def _adk_tools_to_specs(self, tools: list | None) -> list[dict]:
         specs = []
         for t in tools or []:
+            if isinstance(t, dict):  # already a function-calling spec
+                specs.append(t)
+                continue
             specs.append(
                 {
                     "type": "function",
@@ -95,31 +132,45 @@ class ADKRuntime:
             )
         return specs
 
-    def _make_model_fn(self, agent: Any, tctx: TracingContext):
+    def _router(self, models: list[str], routing: str, model_config: dict | None) -> ModelRouter:
+        router = ModelRouter({"strategy": routing})
+        for m in models:
+            pname, mname = _provider_and_model(m)
+            router.register_provider(m, self._provider_factory(pname, mname, model_config))
+        return router
+
+    def _make_model_fn(self, agent: Any, tctx: TracingContext, guard: dict | None = None):
+        """`guard` = {"engine": GuardrailsEngine, "counted": int, "cut": GuardrailBlocked|None}:
+        `cost_limit` is checked before each call, like core's engine."""
         primary_model = agent.model
         fallback_model = getattr(agent, "fallback_model", None)
         routing = getattr(agent, "routing", "cost_optimized")
         model_config = getattr(agent, "model_config", None)
         system_prompt = getattr(agent, "system_prompt", "") or ""
 
-        router = ModelRouter({"strategy": routing})
-        for m in [primary_model] + ([fallback_model] if fallback_model else []):
-            pname, mname = _provider_and_model(m)
-            provider = self._provider_factory(pname, mname, model_config)
-            router.register_provider(m, provider)
+        default = [primary_model] + ([fallback_model] if fallback_model else [])
+        routers = {"default": (self._router(default, routing, model_config), primary_model)}
+        for role, m in (getattr(agent, "roles", None) or {}).items():
+            routers[role] = (self._router([m], routing, model_config), m)
 
         async def model_fn(
             messages: list[dict], tools: list | None = None, role: str | None = None
         ) -> CompletionResponse:
-            # Core orchestration patterns (astromesh >=0.29.0) request a per-role model via
-            # `role=`. The ADK binds a single ModelRouter per agent, so we accept the role for
-            # signature compatibility and route through that one router regardless.
+            # Core patterns ask for a per-role model via `role=`; an unmapped role uses
+            # the agent's model (core: `self._routers.get(role) or self._routers["default"]`).
+            if guard is not None:
+                try:
+                    guard["engine"].check_budget(guard["counted"])
+                except GuardrailBlocked as blocked:
+                    guard["cut"] = guard["cut"] or blocked
+                    raise guard["cut"] from None
+            router, model_name = routers.get(role) or routers["default"]
             full = list(messages)
             if system_prompt and not (full and full[0].get("role") == "system"):
                 full = [{"role": "system", "content": system_prompt}] + full
 
             specs = self._adk_tools_to_specs(tools)
-            span = tctx.start_span("llm.complete", {"model": primary_model})
+            span = tctx.start_span("llm.complete", {"model": model_name, "role": role or "default"})
             try:
                 kwargs: dict = {}
                 if specs:
@@ -129,6 +180,8 @@ class ADKRuntime:
                 tctx.finish_span(span, SpanStatus.ERROR)
                 raise
             usage = resp.usage or {}
+            if guard is not None:
+                guard["counted"] += guard["engine"].tokens_of(usage)
             span.set_attribute("model", resp.model)
             span.set_attribute("cost", resp.cost)
             span.set_attribute("input_tokens", usage.get("input_tokens", 0))
@@ -138,9 +191,7 @@ class ADKRuntime:
 
         return model_fn
 
-    def _make_tool_fn(
-        self, tools: list | None, tctx: "TracingContext | None" = None, callbacks=None
-    ):
+    def _make_tool_fn(self, tools: list | None, tctx: TracingContext | None = None, callbacks=None):
         index = {}
         for t in tools or []:
             name = getattr(t, "tool_name", getattr(t, "name", None))
@@ -163,16 +214,16 @@ class ADKRuntime:
                 if callbacks is not None:
                     try:
                         await callbacks.on_error(exc, {"tool": name})
-                    except Exception:  # noqa: BLE001 — callbacks are best-effort
-                        pass
+                    except Exception:  # callbacks are best-effort
+                        logger.debug("callbacks.on_error failed", exc_info=True)
                 raise
             if span is not None and tctx is not None:
                 tctx.finish_span(span, SpanStatus.OK)
             if callbacks is not None:
                 try:
                     await callbacks.on_tool_result(name, args, result)
-                except Exception:  # noqa: BLE001 — callbacks are best-effort
-                    pass
+                except Exception:  # callbacks are best-effort
+                    logger.debug("callbacks.on_tool_result failed", exc_info=True)
             return result
 
         return tool_fn
@@ -210,8 +261,8 @@ class ADKRuntime:
             return None
         mgr = self._memory_cache.get(agent)
         if mgr is None:
-            from astromesh.memory.factory import build_conversation_backend
             from astromesh.core.memory import MemoryManager
+            from astromesh.memory.factory import build_conversation_backend
 
             backend = build_conversation_backend(conv)
             if backend is None:
@@ -229,6 +280,60 @@ class ADKRuntime:
             out.append(s if isinstance(s, dict) else dataclasses.asdict(s))
         return out
 
+    @staticmethod
+    async def _persist(memory, agent_name: str, session_id: str, query: str, answer: str):
+        from datetime import datetime
+
+        from astromesh.core.memory import ConversationTurn
+
+        now = datetime.now(UTC)
+        try:
+            await memory.persist_turn(
+                session_id, ConversationTurn(role="user", content=query, timestamp=now)
+            )
+            await memory.persist_turn(
+                session_id, ConversationTurn(role="assistant", content=answer, timestamp=now)
+            )
+        except Exception:
+            logger.warning(
+                "memory.persist_turn failed for agent=%s session=%s; "
+                "returning answer without persisting this turn",
+                agent_name,
+                session_id,
+                exc_info=True,
+            )
+
+    def _history_budget(self, agent: Any, specs: list[dict]) -> int | None:
+        """Tokens left for history, as core's engine sizes it; None if the window is unknown."""
+        declared = getattr(agent, "context_window", None)
+        models = [agent.model] + ([agent.fallback_model] if agent.fallback_model else [])
+        candidates = []
+        for m in models:
+            pname, mname = _provider_and_model(m)
+            candidates.append({"provider": pname, "model": mname, "context_window": declared})
+        window, source = resolve_context_window(candidates)
+        if source == "default":
+            return None
+        base = (
+            estimate_tokens(getattr(agent, "system_prompt", "") or "")
+            + estimate_tokens(json.dumps(specs, default=str))
+            + _RESPONSE_TOKENS
+        )
+        return max(0, int(window * 0.9) - base)
+
+    @staticmethod
+    def _tool_budget(agent: Any) -> dict:
+        """The `_presupuesto_tools` core patterns read (`presupuesto_de`)."""
+        return {
+            "default": getattr(agent, "max_tool_result_tokens", None)
+            or DEFAULT_MAX_TOOL_RESULT_TOKENS,
+            "por_tool": {
+                _tool_name(t): t.max_result_tokens
+                for t in getattr(agent, "tools", [])
+                if getattr(t, "max_result_tokens", None)
+            },
+        }
+
     async def run_agent(
         self,
         agent_wrapper: Any,
@@ -239,13 +344,23 @@ class ADKRuntime:
     ) -> RunResult:
         tctx = TracingContext(agent_wrapper.name, session_id)
         root = tctx.start_span("agent.run", {"agent": agent_wrapper.name})
+        engine = GuardrailsEngine(
+            getattr(agent_wrapper, "guardrails_config", None), agent_name=agent_wrapper.name
+        )
+        guard = {"engine": engine, "counted": 0, "cut": None}
+        memory = self._get_memory(agent_wrapper)
+        tools = getattr(agent_wrapper, "tools", [])
         try:
-            memory = self._get_memory(agent_wrapper)
+            # Input rules run before memory and the model, so both see the filtered text.
+            if engine.has_input:
+                query = engine.check_input(query).text
             run_ctx = dict(context or {})
+            run_ctx["_presupuesto_tools"] = self._tool_budget(agent_wrapper)
+            specs = self._adk_tools_to_specs(tools)
             if memory is not None:
                 try:
                     mctx = await memory.build_context(session_id, query)
-                except Exception:  # noqa: BLE001 — memory is best-effort
+                except Exception:
                     logger.warning(
                         "memory.build_context failed for agent=%s session=%s; "
                         "proceeding without injected history",
@@ -254,9 +369,10 @@ class ADKRuntime:
                         exc_info=True,
                     )
                     mctx = {}
+                if mctx:
+                    memory.fit_history(mctx, self._history_budget(agent_wrapper, specs))
                 history_msgs = [
-                    {"role": t.role, "content": t.content}
-                    for t in mctx.get("conversation", [])
+                    {"role": t.role, "content": t.content} for t in mctx.get("conversation", [])
                 ]
                 if history_msgs:
                     run_ctx["_history_messages"] = history_msgs
@@ -266,56 +382,66 @@ class ADKRuntime:
             if isinstance(handler_out, str):
                 answer, steps = handler_out, []
             else:
-                model_fn = self._make_model_fn(agent_wrapper, tctx)
-                tool_fn = self._make_tool_fn(getattr(agent_wrapper, "tools", []), tctx, callbacks)
-                pattern_cls = _PATTERNS.get(
-                    getattr(agent_wrapper, "pattern", "react"), ReActPattern
-                )
-                pattern = pattern_cls()
-                result = await pattern.execute(
-                    query,
-                    run_ctx,
-                    model_fn,
-                    tool_fn,
-                    getattr(agent_wrapper, "tools", []),
-                    max_iterations=getattr(agent_wrapper, "max_iterations", 10),
-                )
+                model_fn = self._make_model_fn(agent_wrapper, tctx, guard)
+                tool_fn = self._make_tool_fn(tools, tctx, callbacks)
+                pattern = _build_pattern(agent_wrapper)
+                try:
+                    result = await pattern.execute(
+                        query,
+                        run_ctx,
+                        model_fn,
+                        tool_fn,
+                        specs,
+                        max_iterations=getattr(agent_wrapper, "max_iterations", 10),
+                    )
+                except GuardrailBlocked:
+                    raise
+                except Exception:
+                    # A pattern that wraps the budget error in its own is still a refusal.
+                    if guard["cut"] is not None:
+                        raise guard["cut"] from None
+                    raise
+                if guard["cut"] is not None:
+                    raise guard["cut"]
                 answer = result.get("answer", "")
                 steps = result.get("steps", [])
+            steps = self._steps_to_dicts(steps)
+
+            if engine.has_output:
+                # Steps travel in the result: what `answer` hides can't leak through them.
+                for step in steps:
+                    for key in ("thought", "observation", "result"):
+                        if isinstance(step.get(key), str) and step[key]:
+                            filtered = engine.filter_stream(step[key])
+                            step[key] = _BLOCKED if filtered is None else filtered
+                answer = engine.check_output(
+                    answer if isinstance(answer, str) else str(answer)
+                ).text
 
             if memory is not None:
-                from astromesh.core.memory import ConversationTurn
-                from datetime import datetime, timezone
-
-                now = datetime.now(timezone.utc)
-                try:
-                    await memory.persist_turn(
-                        session_id, ConversationTurn(role="user", content=query, timestamp=now)
-                    )
-                    await memory.persist_turn(
-                        session_id,
-                        ConversationTurn(role="assistant", content=answer, timestamp=now),
-                    )
-                except Exception:  # noqa: BLE001 — memory is best-effort
-                    logger.warning(
-                        "memory.persist_turn failed for agent=%s session=%s; "
-                        "returning answer without persisting this turn",
-                        agent_wrapper.name,
-                        session_id,
-                        exc_info=True,
-                    )
-
+                await self._persist(memory, agent_wrapper.name, session_id, query, answer)
             tctx.finish_span(root, SpanStatus.OK)
+        except GuardrailBlocked as blocked:
+            # A block is an answer, not an error (core 0.70): blocked input never enters
+            # the history; any other block stores the (filtered) query and the refusal.
+            if memory is not None and blocked.direction != "input":
+                await self._persist(memory, agent_wrapper.name, session_id, query, blocked.message)
+            root.set_attribute("guardrail.blocked", True)
+            root.set_attribute("guardrail.rule", blocked.rule)
+            tctx.finish_span(root, SpanStatus.OK)
+            return RunResult.from_runtime(
+                {
+                    "answer": blocked.message,
+                    "steps": [],
+                    "trace": tctx.to_dict(),
+                    "blocked": True,
+                    "guardrail": blocked.as_dict(),
+                }
+            )
         except Exception:
             tctx.finish_span(root, SpanStatus.ERROR)
             raise
-        return RunResult.from_runtime(
-            {
-                "answer": answer,
-                "steps": self._steps_to_dicts(steps),
-                "trace": tctx.to_dict(),
-            }
-        )
+        return RunResult.from_runtime({"answer": answer, "steps": steps, "trace": tctx.to_dict()})
 
     @staticmethod
     def _is_team(obj: Any) -> bool:
@@ -415,14 +541,14 @@ class ADKRuntime:
                 return r.answer
             raise KeyError(f"worker {name!r} not found")
 
-        pattern = SupervisorPattern(team._build_workers_dict())
+        pattern = SupervisorPattern(list(workers))
         try:
             result = await pattern.execute(
                 query,
                 context or {},
                 model_fn,
                 delegating_tool_fn,
-                [],
+                self._adk_tools_to_specs([w.as_tool() for w in team.workers]),
                 max_iterations=getattr(supervisor, "max_iterations", 10),
             )
             tctx.finish_span(root, SpanStatus.OK)
@@ -530,7 +656,7 @@ class ADKRuntime:
     async def shutdown(self) -> None:
         pass
 
-    async def __aenter__(self) -> ADKRuntime:
+    async def __aenter__(self) -> Self:
         await self.start()
         return self
 

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+
+from astromesh.api.usage import usage_from_trace
 
 
 @dataclass
@@ -18,6 +19,14 @@ class RunResult:
     latency_ms: float
     model: str
     metadata: dict = field(default_factory=dict)
+    #: True when a guardrail blocked the run; `answer` is then the refusal message and
+    #: `guardrail` says which rule ({direction, rule, reason}), never the blocked content.
+    blocked: bool = False
+    guardrail: dict | None = None
+    #: Writes proposed by `mode: propose` tools, not executed (remote runs only).
+    propuestas: list[dict] = field(default_factory=list)
+    #: Per-(provider, model, role) usage, as core's `usage.by_model`.
+    by_model: list[dict] = field(default_factory=list)
 
     @classmethod
     def from_runtime(cls, runtime_result: dict) -> RunResult:
@@ -41,6 +50,7 @@ class RunResult:
                 if span.get("parent_span_id") is None:
                     latency_ms = span.get("duration_ms", 0.0)
 
+        usage = usage_from_trace(trace) or {}
         return cls(
             answer=runtime_result.get("answer", ""),
             steps=runtime_result.get("steps", []),
@@ -49,6 +59,10 @@ class RunResult:
             tokens={"input": input_tokens, "output": output_tokens},
             latency_ms=latency_ms,
             model=model,
+            blocked=bool(runtime_result.get("blocked")),
+            guardrail=runtime_result.get("guardrail"),
+            propuestas=runtime_result.get("propuestas") or [],
+            by_model=usage.get("by_model") or [],
         )
 
 

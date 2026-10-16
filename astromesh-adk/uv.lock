@@ -35,9 +35,10 @@ wheels = [
 
 [[package]]
 name = "astromesh"
-version = "0.62.0"
+version = "0.70.0"
 source = { editable = "../" }
 dependencies = [
+    { name = "astromesh-okf" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "jinja2" },
@@ -52,6 +53,7 @@ requires-dist = [
     { name = "aiosqlite", marker = "extra == 'sqlite'", specifier = ">=0.20.0" },
     { name = "astromesh", extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss", "embeddings", "onnx", "observability", "mcp", "mesh", "litellm", "centinela", "glyph"], marker = "extra == 'all'" },
     { name = "astromesh-glyph", marker = "extra == 'glyph'", editable = "../astromesh-glyph" },
+    { name = "astromesh-okf", specifier = ">=0.1,<0.2" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.30.0" },
     { name = "chromadb", marker = "extra == 'chromadb'", specifier = ">=0.5.0" },
     { name = "faiss-cpu", marker = "extra == 'faiss'", specifier = ">=1.8.0" },
@@ -95,7 +97,7 @@ dev = [
 
 [[package]]
 name = "astromesh-adk"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "astromesh" },
@@ -138,6 +140,18 @@ requires-dist = [
     { name = "websockets", specifier = ">=13.0" },
 ]
 provides-extras = ["dev", "test", "all"]
+
+[[package]]
+name = "astromesh-okf"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a5/33/ccf8f70e6cd22021dff6e11cba7c34b3d25d504675a1a417f18bc7c37730/astromesh_okf-0.1.0.tar.gz", hash = "sha256:acb932dc0a6969a77b52588e3572c147b0b69f5136860818c1b83474b503c7cf", size = 51340, upload-time = "2026-10-14T02:03:58.256Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/9d/cf840f718086009198c763516beec46abaf5d2346ea2afde34c9c6be94b3/astromesh_okf-0.1.0-py3-none-any.whl", hash = "sha256:8be5fa9d80cbd331decc02f2f28b3b614d79f5fc7d7967ed15cb1f0aa20b2bab", size = 28989, upload-time = "2026-10-14T02:03:57.036Z" },
+]
 
 [[package]]
 name = "certifi"

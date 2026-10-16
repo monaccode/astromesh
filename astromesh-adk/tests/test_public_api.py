@@ -1,9 +1,9 @@
 def test_all_public_exports():
     """All documented public API names are importable from the top-level package."""
     from astromesh_adk import (
+        ADKRuntime,
         Agent,
         AgentTeam,
-        ADKRuntime,
         Callbacks,
         RunContext,
         RunResult,
@@ -37,5 +37,6 @@ def test_all_public_exports():
 
 def test_version():
     import astromesh_adk
+
     assert hasattr(astromesh_adk, "__version__")
-    assert astromesh_adk.__version__ == "0.4.0"
+    assert astromesh_adk.__version__ == "0.5.0"

@@ -205,3 +205,30 @@ async def test_stream_error_frame_raises(monkeypatch):
     connect(NODE, api_key="k")
     with pytest.raises(RemoteError, match="boom"):
         _ = [e async for e in support.stream("hi")]
+
+
+@respx.mock
+async def test_blocked_run_and_propuestas_reach_the_result():
+    body = {
+        **RESPONSE,
+        "answer": "I can't help with that request.",
+        "blocked": True,
+        "guardrail": {"direction": "input", "rule": "pii_detection", "reason": "pii detected"},
+    }
+    respx.post(f"{NODE}/v1/agents/support/run").mock(return_value=httpx.Response(200, json=body))
+    connect(NODE, api_key="")
+    result = await support.run("my ssn is 123-45-6789")
+    assert result.blocked is True
+    assert result.guardrail["rule"] == "pii_detection"
+    assert result.propuestas[0]["tool"] == "erp_crear"
+    assert result.by_model[0]["model"] == "gpt-4o"
+
+
+@respx.mock
+async def test_unblocked_remote_run_defaults():
+    respx.post(f"{NODE}/v1/agents/support/run").mock(
+        return_value=httpx.Response(200, json={"answer": "ok"})
+    )
+    connect(NODE, api_key="")
+    result = await support.run("hi")
+    assert (result.blocked, result.guardrail, result.propuestas) == (False, None, [])

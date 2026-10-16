@@ -49,6 +49,10 @@ def _result(body: dict, latency_ms: float, url: str) -> RunResult:
             "data": body.get("data"),
             "chain": body.get("chain"),
         },
+        blocked=bool(body.get("blocked")),
+        guardrail=body.get("guardrail"),
+        propuestas=body.get("propuestas") or [],
+        by_model=by_model,
     )
 
 
