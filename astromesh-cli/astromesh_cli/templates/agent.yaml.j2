@@ -12,6 +12,12 @@ spec:
       model: {{ model }}
       temperature: {{ temperature }}
       max_tokens: {{ max_tokens }}
+{% if context_window %}
+      context_window: {{ context_window }}
+{% else %}
+      # Declare the model's window so the runtime sizes the history budget:
+      # context_window: 128000
+{% endif %}
     routing:
       strategy: quality_first
   prompts:
@@ -27,3 +33,15 @@ spec:
     - name: {{ tool }}
 {% endfor %}
 {% endif %}
+  guardrails:
+    input:
+      - type: pii_detection   # redact (default) | block | warn
+      - type: max_length      # truncate (default) | block
+        max_chars: 10000
+    output:
+      - type: pii_detection
+      - type: cost_limit      # blocks the run past this many output tokens
+        max_tokens_per_turn: 4000
+  # An OKF knowledge bundle (a directory) adds the kb_index/kb_read/kb_find tools:
+  # knowledge:
+  #   bundle: ./knowledge/{{ name }}
