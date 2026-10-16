@@ -4,6 +4,7 @@ Antes el engine construía sólo la conversacional: un agente que declaraba
 memoria semántica corría sin ella, sin un error en ningún lado.
 """
 
+import asyncio
 import logging
 
 import pytest
@@ -147,3 +148,19 @@ async def test_initialize_que_falla_se_reintenta(monkeypatch, caplog):
     assert len(llamadas) == 2
     await agente.run("otra", "s1")
     assert len(llamadas) == 2
+
+
+async def test_dos_primeras_llamadas_concurrentes_inicializan_una_vez():
+    from astromesh.core.memory import MemoryManager
+
+    fake = FakeSemantic()
+    orig = fake.initialize
+
+    async def init_lento():
+        await asyncio.sleep(0.01)  # cede el loop: la otra llamada entra mientras tanto
+        await orig()
+
+    fake.initialize = init_lento
+    memoria = MemoryManager("a", {}, semantic=fake, embedding_fn=_embed)
+    await asyncio.gather(memoria.build_context("s1", "q"), memoria.build_context("s2", "q"))
+    assert fake.inits == 1

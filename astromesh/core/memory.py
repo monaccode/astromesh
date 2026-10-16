@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -96,24 +97,30 @@ class MemoryManager:
         self._summarize = summarize_fn
         # Backends con `initialize()` que todavía no lo corrieron con éxito.
         self._sin_preparar = [b for b in (semantic, episodic) if hasattr(b, "initialize")]
+        # Dos primeras corridas concurrentes no pueden inicializar dos veces (pgvector
+        # abriría dos pools).
+        self._preparando = asyncio.Lock()
 
     async def _preparar(self):
         """`initialize()` una vez en los backends que lo tienen (pools de Postgres).
 
         Si falla se loguea y se reintenta en la próxima llamada: la corrida sigue
         sin esa memoria, igual que con un `search`/`store` caído."""
-        for backend in list(self._sin_preparar):
-            try:
-                await backend.initialize()
-            except Exception:
-                logger.warning(
-                    "memory: initialize() de %s falló para agent=%s; se reintenta",
-                    type(backend).__name__,
-                    self.agent_id,
-                    exc_info=True,
-                )
-                continue
-            self._sin_preparar.remove(backend)
+        if not self._sin_preparar:
+            return
+        async with self._preparando:
+            for backend in list(self._sin_preparar):
+                try:
+                    await backend.initialize()
+                except Exception:
+                    logger.warning(
+                        "memory: initialize() de %s falló para agent=%s; se reintenta",
+                        type(backend).__name__,
+                        self.agent_id,
+                        exc_info=True,
+                    )
+                    continue
+                self._sin_preparar.remove(backend)
 
     async def build_context(self, session_id, current_query, max_tokens=None):
         """Historial + semántica + episódica. Recorta el historial sólo si se pasa
