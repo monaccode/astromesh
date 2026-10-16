@@ -46,3 +46,8 @@ export function getSpanDotColor(name: string): string {
   if (name.startsWith("tool.")) return "text-orange-400";
   return "text-gray-400";
 }
+
+/** Cached input tokens across every model of a run (only `usage.by_model` carries them). */
+export function cachedTokens(usage: { by_model?: { tokens_cached?: number }[] } | null | undefined): number {
+  return (usage?.by_model ?? []).reduce((sum, m) => sum + (m.tokens_cached ?? 0), 0);
+}

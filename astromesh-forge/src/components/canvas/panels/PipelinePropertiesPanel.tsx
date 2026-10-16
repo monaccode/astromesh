@@ -6,26 +6,9 @@ import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
 import { Select } from "../../ui/Select";
 import { GuardrailRuleFields } from "../../guardrails/GuardrailRuleFields";
-
-const PROVIDERS = [
-  { value: "ollama", label: "Ollama" },
-  { value: "openai_compat", label: "OpenAI compatible" },
-  { value: "vllm", label: "vLLM" },
-  { value: "llamacpp", label: "llama.cpp" },
-];
-
-const TOOL_TYPES: { value: ToolConfig["type"]; label: string }[] = [
-  { value: "builtin", label: "Built-in" },
-  { value: "agent", label: "Sub-agent" },
-];
-
-const MEMORY_BACKENDS = [
-  { value: "redis", label: "Redis" },
-  { value: "postgres", label: "PostgreSQL" },
-  { value: "chromadb", label: "ChromaDB" },
-  { value: "sqlite", label: "SQLite" },
-  { value: "in_memory", label: "In-memory" },
-];
+import { memoryBackendOptions, withConnectionUrl } from "../../../data/pipeline-presets";
+import { applyToolEdit, readsDescription, toolTypeOptions } from "../../../utils/tools";
+import { modelNodeLabel, candidateSource, providerOptions, withSource } from "../../../utils/model";
 
 interface PipelinePropertiesPanelProps {
   node: Node | null;
@@ -148,7 +131,7 @@ function ModelFields({
 }) {
   const c = d.config as unknown as ModelConfig;
   const [local, setLocal] = useState({
-    provider: c.provider ?? "ollama",
+    provider: candidateSource(c),
     model: c.model ?? "",
     endpoint: c.endpoint ?? "",
     temperature: c.parameters?.temperature ?? 0.7,
@@ -161,7 +144,7 @@ function ModelFields({
     // hook-refactor spec.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
-      provider: nc.provider ?? "ollama",
+      provider: candidateSource(nc),
       model: nc.model ?? "",
       endpoint: nc.endpoint ?? "",
       temperature: nc.parameters?.temperature ?? 0.7,
@@ -169,16 +152,14 @@ function ModelFields({
   }, [nodeKey, d.config]);
 
   function push() {
+    // Spread the original block: keys this panel does not edit must survive.
     const next: ModelConfig = {
-      provider: local.provider,
+      ...withSource(c, local.provider),
       model: local.model,
       endpoint: local.endpoint || undefined,
-      parameters: { temperature: local.temperature },
+      parameters: { ...c.parameters, temperature: local.temperature },
     };
-    const label =
-      nodeKey === "model-fallback"
-        ? `Fallback: ${next.provider}/${next.model}`
-        : `${next.provider}/${next.model}`;
+    const label = modelNodeLabel(nodeKey, next);
     onApply(nodeId, {
       ...d,
       label,
@@ -191,7 +172,7 @@ function ModelFields({
       <Select
         label="Provider"
         id="m-prov"
-        options={PROVIDERS}
+        options={providerOptions(local.provider)}
         value={local.provider}
         onChange={(e) => setLocal((s) => ({ ...s, provider: e.target.value }))}
       />
@@ -242,6 +223,7 @@ function ToolFields({
     type: c.type ?? "builtin",
     agent: c.agent ?? "",
     description: c.description ?? "",
+    max_result_tokens: c.max_result_tokens,
   });
 
   useEffect(() => {
@@ -255,17 +237,13 @@ function ToolFields({
       type: nc.type ?? "builtin",
       agent: nc.agent ?? "",
       description: nc.description ?? "",
+      max_result_tokens: nc.max_result_tokens,
     });
   }, [nodeId, d.config]);
 
   function push() {
-    const next: ToolConfig = {
-      name: local.name,
-      type: local.type,
-      ...(local.type === "agent" ? { agent: local.agent || local.name } : {}),
-      description: local.description,
-      parameters: c.parameters,
-    };
+    // Spread the original: connection, actions, rate_limit, api/mcp manifests… must survive.
+    const next = applyToolEdit(c, local);
     onApply(nodeId, {
       ...d,
       label: next.name,
@@ -284,7 +262,7 @@ function ToolFields({
       <Select
         label="Type"
         id="t-type"
-        options={TOOL_TYPES}
+        options={toolTypeOptions(c.type)}
         value={local.type}
         onChange={(e) =>
           setLocal((s) => ({ ...s, type: e.target.value as ToolConfig["type"] }))
@@ -299,14 +277,29 @@ function ToolFields({
           onChange={(e) => setLocal((s) => ({ ...s, agent: e.target.value }))}
         />
       )}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-500">Description</label>
-        <textarea
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 min-h-[80px]"
-          value={local.description}
-          onChange={(e) => setLocal((s) => ({ ...s, description: e.target.value }))}
-        />
-      </div>
+      <Input
+        label="Max result tokens (optional)"
+        id="t-mrt"
+        type="number"
+        min={1}
+        value={local.max_result_tokens ?? ""}
+        onChange={(e) =>
+          setLocal((s) => ({
+            ...s,
+            max_result_tokens: e.target.value ? Number(e.target.value) : undefined,
+          }))
+        }
+      />
+      {readsDescription(local.type) && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-500">Description</label>
+          <textarea
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 min-h-[80px]"
+            value={local.description}
+            onChange={(e) => setLocal((s) => ({ ...s, description: e.target.value }))}
+          />
+        </div>
+      )}
       <Button variant="primary" className="w-full text-sm" onClick={push}>
         Apply
       </Button>
@@ -326,6 +319,7 @@ function MemoryFields({
   const c = d.config as unknown as MemoryConfig;
   const [local, setLocal] = useState({
     backend: c.backend ?? "redis",
+    url: c.connection?.url ?? "",
     strategy: c.strategy ?? "",
     max_turns: c.max_turns ?? 20,
     max_results: c.max_results ?? 8,
@@ -341,6 +335,7 @@ function MemoryFields({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs props into local state
     setLocal({
       backend: nc.backend ?? "redis",
+      url: nc.connection?.url ?? "",
       strategy: nc.strategy ?? "",
       max_turns: nc.max_turns ?? 20,
       max_results: nc.max_results ?? 8,
@@ -351,13 +346,16 @@ function MemoryFields({
 
   function push() {
     const next: MemoryConfig = {
+      ...c,
       backend: local.backend,
+      connection: withConnectionUrl(c.connection, local.url),
       strategy: local.strategy || undefined,
       max_turns: local.max_turns,
       max_results: local.max_results,
       similarity_threshold: local.similarity_threshold,
       ttl: local.ttl,
     };
+    if (!next.connection) delete next.connection;
     onApply(nodeId, { ...d, config: { ...next } as unknown as Record<string, unknown> });
   }
 
@@ -366,9 +364,16 @@ function MemoryFields({
       <Select
         label="Backend"
         id="mem-back"
-        options={MEMORY_BACKENDS}
+        options={memoryBackendOptions(local.backend)}
         value={local.backend}
         onChange={(e) => setLocal((s) => ({ ...s, backend: e.target.value }))}
+      />
+      <Input
+        label="Connection URL"
+        id="mem-url"
+        value={local.url}
+        onChange={(e) => setLocal((s) => ({ ...s, url: e.target.value }))}
+        placeholder="redis://redis:6379/0"
       />
       <Input
         label="Strategy"

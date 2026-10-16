@@ -1,3 +1,4 @@
+import { modelSlots } from "../../utils/model";
 import { SlidersHorizontal } from "lucide-react";
 import { useConsoleStore } from "../../stores/console";
 import { Toggle } from "../ui/Toggle";
@@ -6,6 +7,7 @@ export function OverrideControls() {
   const { agentConfig, overrides, setOverride } = useConsoleStore();
 
   const tools = agentConfig?.spec.tools ?? [];
+  const primary = agentConfig?.spec.model ? modelSlots(agentConfig.spec.model).primary : undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -19,7 +21,7 @@ export function OverrideControls() {
         <input
           type="text"
           className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-cyan-500"
-          placeholder={agentConfig?.spec.model?.primary?.model ?? "model"}
+          placeholder={primary?.model ?? "model"}
           value={overrides.model ?? ""}
           onChange={(e) =>
             setOverride("model", e.target.value || undefined)
@@ -31,7 +33,7 @@ export function OverrideControls() {
         <div className="flex justify-between text-xs mb-1">
           <span className="text-gray-400">Temperature</span>
           <span className="text-cyan-400">
-            {overrides.temperature ?? agentConfig?.spec.model?.primary?.parameters?.temperature ?? 0.7}
+            {overrides.temperature ?? primary?.parameters?.temperature ?? 0.7}
           </span>
         </div>
         <input
@@ -42,7 +44,7 @@ export function OverrideControls() {
           className="w-full accent-cyan-500"
           value={
             overrides.temperature ??
-            agentConfig?.spec.model?.primary?.parameters?.temperature ??
+            primary?.parameters?.temperature ??
             0.7
           }
           onChange={(e) => setOverride("temperature", Number(e.target.value))}

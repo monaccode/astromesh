@@ -1,6 +1,7 @@
 import { ArrowUp, ArrowDown } from "lucide-react";
 import type { ChatMessage, RunRecord } from "../../types/console";
 import { ToolUsageIndicator } from "./ToolUsageIndicator";
+import { cachedTokens } from "../../utils/trace-tree";
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -28,8 +29,31 @@ export function ChatBubble({ message, run }: ChatBubbleProps) {
               : "bg-gray-800 text-gray-100 rounded-2xl rounded-bl-sm"
           }`}
         >
+          {!isUser && run?.blocked && (
+            <div className="mb-1.5 text-[11px] text-red-400 font-semibold">
+              Blocked by guardrail
+              {run.guardrail && (
+                <span className="font-normal text-red-300">
+                  {" "}
+                  — {run.guardrail.direction} {run.guardrail.rule}: {run.guardrail.reason}
+                </span>
+              )}
+            </div>
+          )}
           {!isUser && run && <ToolUsageIndicator steps={run.steps} />}
           <span className="whitespace-pre-wrap">{message.content}</span>
+          {!isUser && !!run?.propuestas?.length && (
+            <details className="mt-2 text-[11px] text-amber-300">
+              <summary className="cursor-pointer">
+                {run.propuestas.length} proposed write{run.propuestas.length === 1 ? "" : "s"} (not executed)
+              </summary>
+              {run.propuestas.map((p, i) => (
+                <pre key={i} className="mt-1 bg-gray-900 rounded p-2 text-[10px] text-gray-300 overflow-x-auto">
+                  {`${p.tool} → ${p.destino} ${p.operacion}\n${JSON.stringify(p.argumentos, null, 2)}`}
+                </pre>
+              ))}
+            </details>
+          )}
         </div>
         <div
           className={`text-[10px] text-gray-600 mt-0.5 flex items-center gap-2 ${isUser ? "justify-end" : ""}`}
@@ -46,6 +70,9 @@ export function ChatBubble({ message, run }: ChatBubbleProps) {
                   <span className="inline-flex items-center gap-0.5 text-amber-400/60">
                     <ArrowDown size={8} /> {run.usage!.tokens_out}
                   </span>
+                  {cachedTokens(run.usage) > 0 && (
+                    <span className="text-green-400/60">{cachedTokens(run.usage)} cached</span>
+                  )}
                 </span>
               )}
             </>

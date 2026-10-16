@@ -6,25 +6,45 @@ export interface AgentMeta {
   status: "draft" | "deployed" | "paused";
 }
 
+/** A model candidate. Core selects the adapter by `source` (new) or `provider` (legacy). */
 export interface ModelConfig {
-  provider: string;
-  model: string;
+  provider?: string;
+  source?: string;
+  /** ProviderConfig entry name; inherits source/endpoint/model from the registry. */
+  providerRef?: string;
+  model?: string;
+  context_window?: number;
   endpoint?: string;
   api_key_env?: string;
   parameters?: {
     temperature?: number;
     top_p?: number;
     max_tokens?: number;
+    [key: string]: unknown;
   };
+  [key: string]: unknown;
+}
+
+export interface ModelRole {
+  candidates: ModelConfig[];
+  strategy?: string;
+  [key: string]: unknown;
 }
 
 export interface ToolConfig {
   name: string;
-  type: "builtin" | "agent";
+  /** Types core wires in runtime/engine.py; api/mcp/integration carry their own manifest keys. */
+  type: "builtin" | "agent" | "client" | "integration" | "api" | "mcp";
   /** Target agent name; required by the runtime when `type` is "agent". */
   agent?: string;
-  description: string;
+  description?: string;
   parameters?: Record<string, { type: string; description: string }>;
+  /** Per-tool cap on the result fed back to the model (core 0.66). */
+  max_result_tokens?: number;
+  /** integration: connection name and the actions to expose. */
+  connection?: unknown;
+  actions?: string[];
+  [key: string]: unknown;
 }
 
 export interface GuardrailConfig {
@@ -42,11 +62,14 @@ export interface GuardrailConfig {
 
 export interface MemoryConfig {
   backend: string;
+  /** `redis` (the only conversational backend core builds) requires `connection.url`. */
+  connection?: { url?: string; [key: string]: unknown };
   strategy?: string;
   max_turns?: number;
   ttl?: number;
   similarity_threshold?: number;
   max_results?: number;
+  [key: string]: unknown;
 }
 
 export interface AgentConfig {
@@ -64,22 +87,34 @@ export interface AgentConfig {
       description: string;
       avatar?: string;
     };
+    /** Legacy `primary`/`fallback`/`routing`, or per-role `default` + `roles` (core 0.29+). */
     model: {
-      primary: ModelConfig;
+      primary?: ModelConfig;
       fallback?: ModelConfig;
       routing?: {
         strategy: string;
         health_check_interval?: number;
       };
+      default?: ModelRole;
+      roles?: Record<string, ModelRole>;
+      [key: string]: unknown;
     };
     prompts: {
       system: string;
+      /** Per-query template rendered apart from `system`, so the system prompt stays cacheable (0.64). */
+      context?: string;
       templates?: Record<string, string>;
+      [key: string]: unknown;
     };
     orchestration: {
       pattern: string;
       max_iterations: number;
       timeout_seconds?: number;
+      /** `pipeline`: 2–6 stage names. */
+      stages?: string[];
+      max_tool_result_tokens?: number;
+      role_map?: Record<string, string>;
+      [key: string]: unknown;
     };
     tools?: ToolConfig[];
     knowledge?: { pipeline?: string; top_k?: number; bundle?: string };
@@ -98,5 +133,7 @@ export interface AgentConfig {
       network?: { allowed?: string[] };
       execution?: { dry_run?: boolean };
     };
+    /** program (glyph), prefetch, output_schema, chain, observability… kept verbatim. */
+    [key: string]: unknown;
   };
 }

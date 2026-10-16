@@ -18,6 +18,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ambos suben el piso de `astromesh` a `>=0.70.0`. `astromesh-node` no cambia (su lock registra
   astromesh-cli 0.4.0).
 
+### Added (Astromesh Forge)
+
+- **La consola muestra lo que devuelve `/run` desde core 0.70.0:** un rechazo de guardrail
+  (`blocked` + regla, dirección y motivo) ya no parece una respuesta normal; las escrituras
+  propuestas (`propuestas`, sin ejecutar) se listan bajo la respuesta; los tokens cacheados
+  y el consumo por modelo/rol (`usage.by_model`) aparecen en la burbuja y en la barra de
+  resumen.
+- **Editores mínimos para secciones de core que Forge no tocaba:** modelos por rol
+  (`model.default` + `model.roles`, con candidatos y estrategia por rol, y conversión desde
+  `primary`/`fallback`), `providerRef` y `context_window` por candidato, `prompts.context`,
+  el patrón `glyph` (+ `program`), `orchestration.stages`, `max_tool_result_tokens` y
+  `role_map`, y `prefetch`/`output_schema`/`chain` como YAML. Lo que no tiene editor viaja
+  intacto: un test de ida y vuelta con un manifiesto completo lo fija. Forge → 0.27.0.
+  (`astromesh-forge`)
+
+### Fixed (Astromesh Forge)
+
+- **Forge abre agentes con `model.default` + `model.roles`** (el shape de core 0.29+, Cortex y
+  Nexus) sin romper el canvas ni el wizard; el canvas edita los candidatos de `default` y
+  conserva los roles.
+- **Guardar desde el canvas ya no pierde datos:** los bloques de modelo conservan
+  `context_window`, `timeout`, `api_key_env`, `source`/`providerRef`, etc.; la memoria
+  `episodic` sobrevive; dos reglas de guardrail del mismo tipo (o dos tools con el mismo
+  nombre) ya no colisionan en el id del nodo.
+- **Proveedores y estrategias según core:** el dropdown ofrece sólo lo que
+  `build_candidate_provider` construye (`ollama`, `openai_compat`, `openai`, `azure_openai`,
+  `litellm`, `centinela`, o auto/`providerRef`) y suma `capability_match`; un valor viejo
+  (`vllm`, `onnx`…) se muestra marcado en vez de reescribirse.
+- **La memoria que arma Forge es la que core construye:** conversacional `redis` con
+  `connection.url` (default `redis://redis:6379/0`), en el wizard, el panel del canvas y el
+  preset. Se quitan los presets de memoria semántica/episódica, que core ignora; si un agente
+  ya las declara, se conservan intactas y se avisa.
+- **Tipos de tool según core:** `builtin`, `agent`, `client`, `integration`, `api` y `mcp`
+  (los que `engine.py` cablea). Editar una tool en el canvas ya no borra `connection`,
+  `actions`, `rate_limit` ni el manifiesto de `api`/`mcp`; se puede fijar
+  `max_result_tokens` por tool en el canvas y en el wizard. Forge no escribe claves que core
+  ignora para el tipo (`description` sólo en `agent`/`client`/`api`, y vacía sólo si ya
+  estaba; `connection` de memoria sólo con URL), y `api`/`mcp` sólo se ofrecen a una tool
+  que ya es de ese tipo, porque sin su manifiesto core no arranca el agente.
+- **El canvas muestra cada candidato de `model.default` como un nodo:** borrar uno saca
+  exactamente ese candidato y los guardados siguientes no siguen borrando el siguiente.
+
 ### Changed (Astromesh Forge)
 
 - **Forge emite y edita las reglas de guardrails que core 0.70.0 aplica.** Sólo ofrece los

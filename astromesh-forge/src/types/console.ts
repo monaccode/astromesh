@@ -56,11 +56,38 @@ export interface Trace {
   spans: TraceSpan[];
 }
 
+/** `ModelUsage` in api/routes/agents.py. */
+export interface ModelUsage {
+  provider: string;
+  model: string;
+  role: string;
+  calls: number;
+  tokens_in: number;
+  tokens_out: number;
+  tokens_cached: number;
+  cost: number;
+}
+
+/** A write a `mode: propose` tool recorded instead of executing (integrations/propuestas.py). */
+export interface Propuesta {
+  tool: string;
+  tipo: string;
+  destino: string;
+  operacion: string;
+  argumentos: unknown;
+  via?: string;
+}
+
 export interface RunResponse {
   answer: string;
   steps: Array<Record<string, unknown>>;
-  usage: { tokens_in: number; tokens_out: number; model: string } | null;
+  usage: { tokens_in: number; tokens_out: number; model: string; by_model?: ModelUsage[] } | null;
   trace: Trace | null;
+  data?: Record<string, unknown> | null;
+  propuestas?: Propuesta[];
+  /** True when a guardrail blocked the run; `answer` is then the refusal message. */
+  blocked?: boolean;
+  guardrail?: { direction: string; rule: string; reason: string } | null;
 }
 
 export interface ParameterOverrides {
@@ -88,6 +115,9 @@ export interface RunRecord {
   usage: RunResponse["usage"];
   trace: Trace | null;
   steps: Array<Record<string, unknown>>;
+  blocked?: boolean;
+  guardrail?: RunResponse["guardrail"];
+  propuestas?: Propuesta[];
 }
 
 export type CompareSelection = [string, string] | null;

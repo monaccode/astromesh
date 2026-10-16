@@ -5,6 +5,7 @@ import type {
   ModelConfig,
   ToolConfig,
 } from "../types/agent";
+import { withModelNodes } from "./model";
 
 export interface PipelineNodeSnapshot {
   id: string;
@@ -15,16 +16,6 @@ export interface PipelineNodeSnapshot {
   };
 }
 
-function asModelConfig(raw: Record<string, unknown>): ModelConfig {
-  const parameters = raw.parameters as ModelConfig["parameters"] | undefined;
-  return {
-    provider: String(raw.provider ?? "ollama"),
-    model: String(raw.model ?? ""),
-    endpoint: raw.endpoint != null ? String(raw.endpoint) : undefined,
-    api_key_env: raw.api_key_env != null ? String(raw.api_key_env) : undefined,
-    parameters: parameters ?? {},
-  };
-}
 
 export function nodesToAgent(
   nodes: PipelineNodeSnapshot[],
@@ -41,17 +32,14 @@ export function nodesToAgent(
     };
   }
 
-  const primary = nodes.find((n) => n.id === "model-primary");
-  if (primary) {
-    config.spec.model.primary = asModelConfig(primary.data.config);
-  }
-
-  const fallback = nodes.find((n) => n.id === "model-fallback");
-  if (fallback) {
-    config.spec.model.fallback = asModelConfig(fallback.data.config);
-  } else {
-    delete config.spec.model.fallback;
-  }
+  // Node configs are the candidate blocks verbatim, so keys the canvas does not edit
+  // (context_window, timeout, api_key_env, ...) survive. Works for both model shapes.
+  config.spec.model = withModelNodes(
+    config.spec.model,
+    nodes
+      .filter((n) => n.data.category === "model")
+      .map((n) => ({ id: n.id, config: n.data.config as ModelConfig })),
+  );
 
   const tools = nodes
     .filter((n) => n.data.category === "tool")
@@ -83,7 +71,11 @@ export function nodesToAgent(
 
   const memNodes = nodes.filter((n) => n.data.category === "memory");
   if (memNodes.length) {
-    const memory: NonNullable<AgentConfig["spec"]["memory"]> = {};
+    // Start from the base so memory keys the canvas has no node for are kept.
+    const memory: NonNullable<AgentConfig["spec"]["memory"]> = { ...config.spec.memory };
+    delete memory.conversational;
+    delete memory.semantic;
+    delete memory.episodic;
     for (const mn of memNodes) {
       const c = mn.data.config as unknown as MemoryConfig;
       if (mn.id.includes("conv")) {

@@ -26,6 +26,7 @@ import type { AgentNodeData, PipelineNodeData } from "../../types/canvas";
 import { AgentNode } from "./nodes/AgentNode";
 import { ToolNode } from "./nodes/ToolNode";
 import { ModelNode } from "./nodes/ModelNode";
+import { modelNodeLabel, modelSlots } from "../../utils/model";
 import { GuardrailNode } from "./nodes/GuardrailNode";
 import { MemoryNode } from "./nodes/MemoryNode";
 import { PromptNode } from "./nodes/PromptNode";
@@ -303,12 +304,8 @@ export function CanvasEditor() {
         id: `tool-${t.name}-${Date.now()}`,
         category: "tool",
         label: t.name,
-        config: {
-          name: t.name,
-          type: "builtin",
-          description: t.description,
-          parameters: {},
-        },
+        // builtin reads neither description nor parameters (engine.py _CLAVES_POR_TIPO).
+        config: { name: t.name, type: "builtin" },
       });
     },
     [appendPresetNode],
@@ -322,7 +319,7 @@ export function CanvasEditor() {
   );
 
   const handleAddFallbackModel = useCallback(() => {
-    const fb = expandedBaseConfig?.spec.model.fallback ?? {
+    const fb = (expandedBaseConfig && modelSlots(expandedBaseConfig.spec.model).fallback) ?? {
       provider: "ollama",
       model: "llama3.1:8b",
       endpoint: "http://127.0.0.1:11434",
@@ -333,7 +330,7 @@ export function CanvasEditor() {
       type: "model",
       position: pos,
       data: {
-        label: `Fallback: ${fb.provider}/${fb.model}`,
+        label: modelNodeLabel("model-fallback", fb),
         category: "model",
         config: { ...fb } as unknown as Record<string, unknown>,
       },

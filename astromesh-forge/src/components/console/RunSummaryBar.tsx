@@ -1,5 +1,6 @@
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { useConsoleStore } from "../../stores/console";
+import { cachedTokens } from "../../utils/trace-tree";
 
 export function RunSummaryBar() {
   const { runs } = useConsoleStore();
@@ -9,7 +10,14 @@ export function RunSummaryBar() {
   const totalIn = runs.reduce((sum, r) => sum + (r.usage?.tokens_in ?? 0), 0);
   const totalOut = runs.reduce((sum, r) => sum + (r.usage?.tokens_out ?? 0), 0);
   const totalDuration = runs.reduce((sum, r) => sum + r.durationMs, 0);
-  const lastModel = runs.findLast((r) => r.usage?.model)?.usage?.model ?? "—";
+  const totalCached = runs.reduce((sum, r) => sum + cachedTokens(r.usage), 0);
+  const lastUsage = runs.findLast((r) => r.usage?.model)?.usage;
+  // by_model attributes a multi-model run correctly; `usage.model` is only the first model seen.
+  const lastModel = lastUsage?.by_model?.length
+    ? lastUsage.by_model
+        .map((m) => `${m.role !== "default" ? `${m.role}:` : ""}${m.model} ×${m.calls} (${m.tokens_in}/${m.tokens_out})`)
+        .join(" · ")
+    : (lastUsage?.model ?? "—");
 
   return (
     <div className="px-4 py-1.5 border-t border-gray-800 bg-gray-950 flex items-center gap-4 text-[10px]">
@@ -22,6 +30,7 @@ export function RunSummaryBar() {
           <ArrowDown size={10} /> {totalOut}
         </span>
         {" tokens"}
+        {totalCached > 0 && <span className="text-green-400"> ({totalCached} cached)</span>}
       </div>
       <div className="text-gray-500">{lastModel}</div>
       <div className="text-gray-500">
