@@ -1,0 +1,138 @@
+---
+title: The map of context patterns
+description: Six questions every agent has to answer about context and knowledge, the patterns that answer each one, when each pattern wins, and where the Astromesh libraries stand.
+---
+
+An agent's answer is bounded by what the model reads before it answers. "Give the agent
+knowledge" sounds like one problem, but it is six different questions, and most failures come
+from answering one of them with a pattern built for another: chunk retrieval over a curated
+policy set, a vector store standing in for memory, or a bigger window standing in for a choice.
+
+This page lays out the six questions, the patterns that answer each, and when each pattern wins.
+It is the map the Astromesh libraries are built against.
+
+| Question | Family | In Astromesh |
+|---|---|---|
+| Which fragment helps? | Retrieval | [RAG](/astromesh/rag/introduction/) |
+| Where do I go next? | Navigation | [OKF](/astromesh/okf/introduction/) |
+| How do things relate? | Graphs | Not yet |
+| What have I learned? | Memory | Core runtime |
+| What fits in the window? | Context engineering | [Context](/astromesh/context/introduction/) *(in design)* |
+| Can I trust it? | Provenance | OKF signals, honored by Context |
+
+## Which fragment helps? Retrieval
+
+The corpus is large and unstructured, and the answer is somewhere in it. Retrieval splits it into
+chunks ahead of time and finds the closest ones at question time.
+
+- **Naive vector search** wins when questions are worded like the documents.
+- **Hybrid** (vector plus BM25, fused) wins on exact tokens an embedding blurs: error codes, SKUs,
+  version numbers, names.
+- **Multi-query** and **HyDE** win when users phrase things differently from the documents, at
+  the cost of a model call before the search.
+- **Reranking** with a cross-encoder sharpens any of them, at the cost of one more model pass.
+- **Contextual retrieval** (prepending a sentence of document context to each chunk before
+  embedding) and **parent-document retrieval** (search small chunks, return the larger section)
+  fix the commonest failure: a chunk that is relevant but meaningless on its own.
+
+Retrieval loses when the knowledge is small, curated and linked: chunking cuts through the
+structure the authors built, and the model reads fragments of a policy instead of the policy.
+[RAG](/astromesh/rag/introduction/) ships the first four as wirings of the same parts, with a
+trace per stage, and the [patterns page](/astromesh/rag/patterns/) explains how to choose.
+
+## Where do I go next? Navigation
+
+The knowledge is curated: policies, runbooks, metric definitions, a data catalog. A person would
+not search it; they would open the index and follow links. Navigation gives the agent tools to do
+the same.
+
+- **The index in the system prompt.** The table of contents does not change between questions,
+  so it belongs in the stable prefix, where it saves a tool call and caches well.
+- **Agentic search with tools.** Find, read, follow a link. The model reads whole documents and
+  can cite the one it answered from.
+- **Progressive disclosure.** Load a one-line description of everything and the full body only
+  when it is needed. Agent skills and `llms.txt` are the same idea.
+
+Navigation loses on thousands of unstructured documents with nothing to follow, and every step
+is a model turn, which adds latency. [OKF](/astromesh/okf/introduction/) implements it over Open
+Knowledge Format bundles, where every concept carries who verified it and when it goes stale.
+
+## How do things relate? Graphs
+
+Some questions are about connections rather than content: which services depend on this
+database, what changed between two contract versions, which customers share an account manager.
+Neither chunks nor documents answer them; the answer is a path.
+
+- **Entity knowledge graphs** extract entities and relations and answer by traversal.
+- **GraphRAG** clusters the graph into communities and summarizes each, which answers
+  corpus-wide questions ("what are the main themes?") that chunk retrieval cannot.
+- **Temporal graphs** add validity intervals to each fact, so "what was true in March" has an
+  answer.
+
+Graphs are expensive to build and keep correct, since extraction needs a model over the whole
+corpus. They pay off when the questions are relational. Astromesh has no graph library yet.
+
+## What have I learned? Memory
+
+Memory is knowledge the agent produces rather than reads: what this user prefers, what was
+decided last week, what failed the last time.
+
+- **Conversational memory** keeps the recent turns, trimmed by a sliding window, a summary, or a
+  token budget.
+- **Semantic memory** extracts durable facts ("the customer is on the Team plan") and retrieves
+  them by similarity.
+- **Episodic memory** logs what happened, so the agent can recall similar past situations.
+- **Self-managed memory** gives the agent tools to write, edit and forget its own memory, instead
+  of storing everything automatically.
+- **Consolidation** periodically merges, deduplicates and retires facts, so memory does not
+  become a second unstructured corpus.
+
+The common failure is treating memory as retrieval over raw transcripts: it grows without
+bound and retrieves contradictions. The Astromesh core implements the first three; to Context,
+memory is one more source competing for the window.
+
+## What fits in the window? Context engineering
+
+Every family above produces candidates. The model has one window, and long windows are not free:
+cost and latency grow with every token, and models attend unevenly to long contexts (the
+"lost in the middle" effect). Something has to choose.
+
+- **A budget across sources.** Fixed slices per source waste tokens: when retrieval finds nothing
+  useful, its slice fills with noise while memory gets cut. A shared budget on comparable scores
+  spends tokens where they help.
+- **Deduplication.** Different sources return the same content more often than expected; a
+  retrieved chunk and a navigated concept are frequently the same policy.
+- **Cache-stable ordering.** Providers cache the longest shared prompt prefix. Putting stable
+  content first and keeping it byte-identical turns repeat calls into cache hits.
+- **Compaction.** Long-running agents summarize old turns and keep recent ones verbatim, without
+  splitting a tool call from its result.
+- **Offloading.** A large tool result goes to storage and leaves a handle; the agent reads the
+  part it needs.
+- **Isolation.** A sub-agent explores in its own window and returns only its conclusion.
+
+This is the family most stacks leave implicit, spread across templates and trim functions.
+[Context](/astromesh/context/introduction/) is the Astromesh library for it, and its eval
+compares policies on accuracy, tokens and prefix reuse instead of asserting that one is better.
+
+## Can I trust it? Provenance
+
+Content in the window is a claim. The model needs to know where it came from, whether anyone
+checked it, and whether it still holds.
+
+- **Citations.** Every item keeps an identifier the answer can point to.
+- **Freshness.** Content past its review date is marked stale rather than silently trusted.
+- **Verification.** Human-reviewed content is distinguished from generated or imported content.
+- **Conflict handling.** When two sources disagree, the conflict is surfaced rather than resolved
+  by whichever came last.
+
+The principle Astromesh follows is from the OKF spec: signals are annotated, never used to hide
+content. [OKF](/astromesh/okf/introduction/) returns trust, staleness and deprecation with every
+concept, and Context carries them into its scoring and its trace.
+
+## Combining them
+
+The families are layers, not alternatives. A support agent might navigate a curated policy
+bundle, retrieve from a large ticket archive, remember the customer's plan, and let a context
+policy decide which of those the model reads on each turn. The first three families decide what
+*could* be relevant; context engineering decides what *is* read; provenance travels with all of
+it.

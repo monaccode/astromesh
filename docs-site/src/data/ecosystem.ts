@@ -69,14 +69,14 @@ export const GROUPS: Group[] = [
     blurb: 'What runs around the model: an action language for when a loop of tool calls is the wrong shape, and libraries that put the right knowledge in front of it.',
     accent: '#f472b6',
     start: 105,
-    sweep: 66,
+    sweep: 78,
   },
   {
     id: 'reach',
     label: 'Reach',
     blurb: 'The gateway between an agent and the person it is talking to, in both directions.',
     accent: '#10b981',
-    start: 171,
+    start: 183,
     sweep: 30,
   },
   {
@@ -84,8 +84,8 @@ export const GROUPS: Group[] = [
     label: 'Ship',
     blurb: 'Where the runtime lives: a system service, a sealed appliance, or cloud infrastructure you did not have to write.',
     accent: '#fb923c',
-    start: 201,
-    sweep: 87,
+    start: 213,
+    sweep: 75,
   },
   {
     id: 'operate',
@@ -227,6 +227,22 @@ export const COMPONENTS: Component[] = [
     install: 'pip install "git+https://github.com/monaccode/astromesh-rag@v0.1.0"',
     href: '/astromesh/rag/introduction/',
     repo: 'https://github.com/monaccode/astromesh-rag',
+  },
+  {
+    id: 'context',
+    name: 'Astromesh Context',
+    short: 'Context',
+    group: 'runtime',
+    version: '0.0.0',
+    released: '2026-10-15',
+    tagline:
+      'Decides what goes into the model’s window — knowledge, memory, history — within one token budget, with a trace per item and an eval that measures the choice.',
+    latest:
+      'Design outlined in the README: one budget across RAG, OKF, memory and history; three policies compared by `ContextEval`; cache-stable ordering; a compactor and a tool-result offloader for the agent loop. No code yet.',
+    install: 'Not installable yet',
+    href: '/astromesh/context/introduction/',
+    repo: 'https://github.com/monaccode/astromesh-context',
+    inDevelopment: true,
   },
   {
     id: 'herald',

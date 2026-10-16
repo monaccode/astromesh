@@ -1,0 +1,143 @@
+---
+title: Astromesh Context
+description: Decides what goes into the model's window — knowledge, memory, history — within one token budget, with a trace per item and an eval that measures the choice. In design.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="In design — not installable yet">
+These pages describe the design that v0.1 is being built against; code examples show the planned
+API. The [repository](https://github.com/monaccode/astromesh-context) is public and holds the
+logo and README. It is on the [ecosystem map](/astromesh/#ecosystem) because it is part of the
+shape of the stack, not because it has shipped.
+</Aside>
+
+**astromesh-context** <Badge text="in design" variant="caution" /> decides what goes into an
+agent's context window. Retrieval brings candidates, a knowledge base brings curated concepts,
+memory brings what the agent learned, and the conversation keeps growing. Something has to
+decide which of all that fits, in what order, and what stays out. Today that decision is
+scattered across prompt templates, a `top_k` in one place and a history trim in another, and
+nothing tells you whether it was a good one.
+
+This library makes the decision in one place:
+
+- **One budget for every source.** RAG hits, OKF concepts, memory facts and chat history
+  compete for the same tokens on a calibrated score, instead of each getting a fixed slice.
+- **A trace for every item.** Everything a source proposed comes back marked included or
+  excluded, with the reason: `budget`, `duplicate_of:…`, `below_floor`, `source_cap`,
+  `deprecated`.
+- **An order built for the prompt cache.** Stable content first, byte for byte, so
+  consecutive calls share the longest possible prefix.
+- **An eval that measures it.** `ContextEval` runs the same questions under different
+  policies and reports accuracy, tokens spent and prefix reuse side by side.
+
+[RAG](/astromesh/rag/introduction/) and [OKF](/astromesh/okf/introduction/) decide *what could
+be relevant*. Context decides *what the model actually reads*. Where it sits among the other
+ways to give an agent knowledge is laid out in
+[The map of context patterns](/astromesh/context/patterns/).
+
+## How a window is built
+
+```mermaid
+flowchart TB
+    Q([query]) --> S1[RAGSource]
+    Q --> S2[OKFSource]
+    Q --> S3[HistorySource]
+    Q --> S4[your Source]
+    S1 --> C[calibrate scores per source]
+    S2 --> C
+    S3 --> C
+    S4 --> C
+    C --> L[LLMScorer, optional]
+    L --> D[deduplicate]
+    D --> P[policy: fill the budget]
+    P --> O[order for the cache]
+    O --> W([window and trace])
+```
+
+Sources run in parallel and only **propose**: none of them knows the budget. Everything after
+them is a pure function, so the same candidates and the same policy always give the same window.
+
+1. **Calibrate.** A cosine of 0.82, a BM25 score of 14 and "the third most recent turn" are not
+   comparable. Scores are normalized by rank within each source, then weighted by how much you
+   trust that source. OKF signals adjust them where you can see it: a stale concept scores lower,
+   a human-reviewed one higher, a deprecated one is left out.
+2. **Score with a model (optional).** `LLMScorer` rescores the top candidates in one batched
+   call and blends its score with the calibrated one. If it fails or times out, the window is
+   built anyway on the calibrated scores and the trace says so.
+3. **Deduplicate.** Exact copies by hash, near-copies by word shingles. This catches RAG and OKF
+   returning the same policy twice.
+4. **Fill the budget.** Pinned items (the system prompt, the OKF root index) go in first. Then a
+   minimum per source (the last user turn, always), then the rest by value per token, within a
+   cap per source and above a score floor. If the pinned items alone exceed the budget, the
+   build fails with an explicit error rather than trimming them silently.
+5. **Order for the cache.** Stable items first in a fixed order, then session items, then
+   volatile ones, with the strongest at the edges of their block. History stays chronological
+   and last.
+
+## Planned API
+
+```python
+from astromesh_context import ContextEngine, ScoredKnapsack, StaticSource, HistorySource
+from astromesh_context.sources.rag import RAGSource
+from astromesh_context.sources.okf import OKFIndexSource, OKFSource
+
+engine = ContextEngine(
+    sources=[
+        StaticSource(system_prompt, kind="instruction", pinned=True),
+        OKFIndexSource("./kb"),            # the bundle index, pinned in the stable prefix
+        OKFSource("./kb", limit=10),       # whole concepts, with trust and freshness
+        RAGSource(pipeline, k=20),         # chunks from an astromesh-rag pipeline
+        HistorySource(messages),           # the conversation, newest turn always kept
+    ],
+    policy=ScoredKnapsack(),
+    budget=8_000,
+)
+
+window = await engine.build("Can I get a refund after 3 weeks on the Team plan?")
+messages = window.to_messages()            # OpenAI or Anthropic shape
+print(window.trace.explain())              # what went in, what stayed out, and why
+```
+
+The same engine is planned as `kind: ContextPolicy` YAML, next to `kind: Agent` and
+`kind: RAGPipeline`.
+
+## Policies
+
+A policy decides how candidates fill the budget. All three share one signature, so the eval
+compares them as equals.
+
+| Policy | What it does | Use it for |
+|---|---|---|
+| `ScoredKnapsack` | One budget, calibrated scores, value per token, caps and floors per source | The default |
+| `FixedSlots` | A fixed share of the budget per source, filled in priority order | The baseline most stacks run today |
+| `Everything` | Every candidate, or a clear error if they do not fit | The control: what "put it all in" costs |
+
+`LLMScorer` is not a policy: it is a scoring step that works with any of them.
+
+## Inside the agent loop
+
+Two optional pieces for long-running agents. They use the same types and do not need the
+engine: each works on a plain list of OpenAI or Anthropic messages.
+
+- **`Compactor`** summarizes old turns once history crosses a threshold and keeps the last turns
+  verbatim. It never splits a tool call from its result, which providers reject.
+- **`Offloader`** moves a tool result over the limit into a store and leaves a preview and a
+  handle. The agent reads what it needs with `ctx_read(handle, offset, limit)` and
+  `ctx_grep(handle, pattern)`.
+
+## How it relates to the Astromesh core
+
+The core assembles context today in several places: `MemoryManager.build_context` gathers
+memory, `fit_history` trims the conversation to a budget, and RAG and OKF content reaches the
+prompt through Jinja prefetch or tools. Nothing arbitrates between them. The plan is for the core
+to adopt this library once v0.1 ships, the way it adopted `astromesh-okf` in 0.69; that is a
+separate change and is not part of v0.1.
+
+## Status and license
+
+In design; version `0.0.0` on the ecosystem map means nothing has been released. v0.1 is
+planned to ship the engine, the three policies, `LLMScorer`, sources for RAG, OKF, history,
+static and callable content, the two loop pieces, `ContextEval` with a first published
+comparison, and integrations for LangChain/LangGraph, PydanticAI and MCP. Licensed under
+Apache-2.0. Source: [github.com/monaccode/astromesh-context](https://github.com/monaccode/astromesh-context).

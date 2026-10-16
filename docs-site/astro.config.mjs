@@ -145,6 +145,13 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Context',
+          items: [
+            { label: 'Introduction', slug: 'context/introduction' },
+            { label: 'The map of context patterns', slug: 'context/patterns' },
+          ],
+        },
+        {
           label: 'SDD Skills',
           items: [
             { label: 'Introduction', slug: 'sdd/introduction' },
