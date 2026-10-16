@@ -10,6 +10,16 @@ from astromesh.orchestration.patterns import (
 CLAVE_HANDOFFS = "_handoffs"
 
 
+def handoffs_de(valor) -> int:
+    """El contador validado: sólo un entero >= 0 que no sea bool; cualquier otra cosa es 0.
+
+    Llega del context de la corrida, que en `/v1/agents/{name}/run` escribe el llamador.
+    """
+    if isinstance(valor, int) and not isinstance(valor, bool) and valor >= 0:
+        return valor
+    return 0
+
+
 def _transcripcion(context) -> str:
     history = context.get("_history_messages", []) if isinstance(context, dict) else []
     return "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history)
@@ -30,7 +40,7 @@ class SwarmPattern(OrchestrationPattern):
         self._max_handoffs = max_handoffs
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
-        n = int((context or {}).get(CLAVE_HANDOFFS, 0))
+        n = handoffs_de(context.get(CLAVE_HANDOFFS) if isinstance(context, dict) else None)
         activos = set(self._workers) if n < self._max_handoffs else set()
         bloqueados = set(self._workers) - activos
         ofrecidas = [t for t in tools if t.get("function", {}).get("name") not in bloqueados]

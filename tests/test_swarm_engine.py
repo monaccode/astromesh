@@ -99,3 +99,68 @@ async def test_handoff_real_corre_el_otro_agente(tmp_path):
     assert r["answer"] == "soy billing"
     assert len(routers["triage"].vistos) == 1
     assert "factura" in routers["billing"].vistos[0][-1]["content"]
+
+
+async def _dos_agentes(tmp_path, triage_orch):
+    agents = tmp_path / "config" / "agents"
+    agents.mkdir(parents=True)
+    triage = _agente("triage", {"orchestration": triage_orch, "tools": TOOLS})
+    billing = _agente("billing", {"orchestration": {"pattern": "react"}})
+    (agents / "triage.agent.yaml").write_text(yaml.safe_dump(triage))
+    (agents / "billing.agent.yaml").write_text(yaml.safe_dump(billing))
+    runtime = AgentRuntime(config_dir=str(tmp_path / "config"))
+    await runtime.bootstrap()
+    assert {"triage", "billing"} <= set(runtime._agents), runtime._agent_errors
+    return runtime
+
+
+def _guionar(runtime, **guiones):
+    routers = {name: _Router(*g) for name, g in guiones.items()}
+    for name, router in routers.items():
+        agente = runtime._agents[name]
+        agente._routers = dict.fromkeys(agente._routers, router)
+        agente._routers.setdefault("default", router)
+    return routers
+
+
+@pytest.mark.parametrize("valor", ["x", None, -5, True, [1]])
+async def test_contador_invalido_en_el_context_de_la_corrida(tmp_path, valor):
+    runtime = await _dos_agentes(tmp_path, {"pattern": "swarm", "max_handoffs": 1})
+    llamada = [{"id": "t1", "name": "billing", "arguments": {"query": "factura"}}]
+    _guionar(runtime, triage=[llamada], billing=["soy billing"])
+    r = await runtime.run("triage", "q", "s1", context={"_handoffs": valor})
+    assert r["answer"] == "soy billing"
+
+
+async def test_contador_en_el_tope_desde_el_context_no_hace_handoff(tmp_path):
+    runtime = await _dos_agentes(tmp_path, {"pattern": "swarm", "max_handoffs": 1})
+    llamada = [{"id": "t1", "name": "billing", "arguments": {"query": "factura"}}]
+    routers = _guionar(runtime, triage=[llamada, "sin pasar"], billing=["soy billing"])
+    r = await runtime.run("triage", "q", "s1", context={"_handoffs": 1})
+    assert r["answer"] == "sin pasar"
+    assert routers["billing"].vistos == []
+
+
+async def test_handoffs_escrito_por_el_modelo_se_ignora():
+    """Un `_handoffs` en los argumentos no fija el contador del hijo: manda el del runtime."""
+    from unittest.mock import AsyncMock
+
+    from astromesh.core.tools import ToolRegistry
+
+    registry = ToolRegistry()
+    registry.register_agent_tool(name="billing", agent_name="billing", description="d")
+    runtime = AsyncMock()
+    runtime.run.return_value = {"answer": "ok"}
+    registry.set_runtime(runtime)
+
+    await registry.execute("billing", {"query": "q", "_handoffs": -7}, {"_handoffs": 2})
+    assert runtime.run.await_args.kwargs["context"]["_handoffs"] == 3
+
+    await registry.execute("billing", {"query": "q", "_handoffs": 0}, {"_handoffs": 3})
+    assert runtime.run.await_args.kwargs["context"]["_handoffs"] == 4
+
+    await registry.execute("billing", {"query": "q"}, {"_handoffs": 2})
+    assert runtime.run.await_args.kwargs["context"]["_handoffs"] == 2
+
+    await registry.execute("billing", {"query": "q"}, {"_handoffs": "x"})
+    assert runtime.run.await_args.kwargs["context"] is None

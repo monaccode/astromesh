@@ -34,9 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`pattern: swarm` hace handoff real.** Los agentes destino son las tools `type: agent` del
   manifiesto (sin ninguna, `AgentConfigError`, como `supervisor`); pasar el control = llamar a
-  esa tool, y la respuesta del destino **es la respuesta final** (no vuelve al que delegó). El
-  destino recibe la historia de la conversación en su `query`. `orchestration.max_handoffs`
-  (entero >= 1, default 3) corta las cadenas: el contador viaja al agente hijo y, al llegar al
+  esa tool, y si el destino contesta, su respuesta **es la respuesta final** (no vuelve al que
+  delegó); un error del destino (rate limit, permiso, `confirmacion_requerida`...) vuelve al
+  modelo como cualquier resultado de tool. El destino recibe la historia de la conversación en
+  su `query`. `orchestration.max_handoffs` (entero >= 1, default 3) corta las cadenas: el
+  contador lo lleva el runtime al agente hijo (todo sub-agente lo hereda; un `_handoffs` escrito
+  por el modelo o un valor inválido en el context de la corrida no lo bajan) y, al llegar al
   tope, ya no se ofrecen ni se ejecutan handoffs. Ahora además lee el historial, recibe
   `prompts.context` como mensaje y respeta el tope de resultados de tools; ya no agrega un
   system propio ni interpreta JSON `{"handoff": ...}`. `ciclo_de_tools` gana `finales`.

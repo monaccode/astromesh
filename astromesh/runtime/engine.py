@@ -45,7 +45,7 @@ from astromesh.orchestration.patterns import (
     ReActPattern,
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
-from astromesh.orchestration.swarm import CLAVE_HANDOFFS, SwarmPattern
+from astromesh.orchestration.swarm import CLAVE_HANDOFFS, SwarmPattern, handoffs_de
 from astromesh.runtime.confirmacion import Pendientes, huella
 from astromesh.runtime.permisos import resolver_permisos
 from astromesh.runtime.prefetch import ejecutar_prefetch, validar_prefetch
@@ -1825,6 +1825,8 @@ class Agent:
             # Muere con la corrida: no hay nada que rotar ni que revocar.
             run_secrets = {}
             run_token = (context or {}).get("_nexus_run_token")
+            # Handoffs encadenados del swarm; validado: el context lo escribe el llamador.
+            handoffs = handoffs_de((context or {}).get(CLAVE_HANDOFFS))
             if run_token:
                 run_secrets["NEXUS_RUN_TOKEN"] = run_token
 
@@ -2155,6 +2157,8 @@ class Agent:
                             "caller_context": caller_publico,
                             CLAVE_PROPUESTAS: propuestas,
                             CLAVE_VIA: via,
+                            # Lo hereda un sub-agente (`ToolRegistry.execute`, rama AGENT).
+                            CLAVE_HANDOFFS: handoffs,
                         },
                     )
                     with contextlib.suppress(Exception):  # la métrica no rompe la corrida
@@ -2204,7 +2208,7 @@ class Agent:
                             "_caller_context": _public_caller_context(context),
                             # Handoffs encadenados del swarm (lo pone la rama AGENT
                             # de `ToolRegistry.execute` en el context del hijo).
-                            CLAVE_HANDOFFS: int((context or {}).get(CLAVE_HANDOFFS, 0)),
+                            CLAVE_HANDOFFS: handoffs,
                         }
                         if isinstance(memory_context, dict)
                         else memory_context

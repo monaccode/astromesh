@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
 
+import pytest
+
 from astromesh.orchestration.swarm import CLAVE_HANDOFFS, SwarmPattern
 
 
@@ -102,7 +104,7 @@ async def test_ciclo_de_tools_final_no_ejecuta_las_demas_tool_calls():
     from astromesh.orchestration.patterns import ciclo_de_tools
 
     leer = {"id": "t2", "name": "leer", "arguments": {}}
-    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF, leer]), obs="texto plano")
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF, leer]))
     r = await ciclo_de_tools(
         [{"role": "user", "content": "q"}],
         model_fn,
@@ -112,6 +114,50 @@ async def test_ciclo_de_tools_final_no_ejecuta_las_demas_tool_calls():
         role="reasoner",
         finales={"especialista"},
     )
-    assert r["answer"] == "texto plano"
+    assert r["answer"] == "listo"
     assert r["final_agent"] == "especialista"
     assert tool_fn.await_count == 1
+
+
+@pytest.mark.parametrize(
+    ("obs", "marca"),
+    [
+        ({"error": "Rate limit exceeded for 'especialista'"}, "Rate limit"),
+        ({"error": "confirmacion_requerida", "tool": "especialista"}, "confirmacion_requerida"),
+        ({"data_error": "schema"}, "data_error"),
+        ("La tool «especialista» no está disponible para este agente.", "no está disponible"),
+    ],
+)
+async def test_handoff_fallido_vuelve_al_modelo_y_su_respuesta_es_la_final(obs, marca):
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF]), Resp("contesto yo"), obs=obs)
+    r = await SwarmPattern(workers=["especialista"]).execute("q", {}, model_fn, tool_fn, TOOLS)
+    assert model_fn.await_count == 2
+    visto = model_fn.await_args_list[1].args[0][-1]
+    assert visto["role"] == "tool"
+    assert marca in visto["content"]
+    assert r["answer"] == "contesto yo"
+    assert "final_agent" not in r
+
+
+@pytest.mark.parametrize("valor", ["x", None, -1, True, 1.5])
+async def test_contador_invalido_en_el_context_cuenta_como_cero(valor):
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF]))
+    await SwarmPattern(workers=["especialista"], max_handoffs=1).execute(
+        "q", {CLAVE_HANDOFFS: valor}, model_fn, tool_fn, TOOLS
+    )
+    assert tool_fn.await_args.args[1][CLAVE_HANDOFFS] == 1
+
+
+def test_handoffs_de():
+    from astromesh.orchestration.swarm import handoffs_de
+
+    assert [handoffs_de(v) for v in (0, 2, -3, "2", None, True, False, 2.0)] == [
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]
