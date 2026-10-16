@@ -3,9 +3,9 @@ title: Multi-agent Composition
 description: Using agents as tools, context transforms, and multi-agent orchestration patterns
 ---
 
-Astromesh lets you compose agents into multi-agent systems where one agent can invoke another as a tool. A supervisor agent can delegate sub-tasks to specialist agents, a swarm of agents can hand off conversations to each other, and any agent can call another agent the same way it would call any other tool.
+Astromesh lets you compose agents into multi-agent systems where one agent can invoke another as a tool. A supervisor agent can delegate sub-tasks to specialist agents, a supervisor can coordinate workers, and any agent can call another agent the same way it would call any other tool.
 
-This page covers the agent-as-tool mechanism, context transforms for reshaping data between agents, and how the Supervisor and Swarm orchestration patterns leverage these capabilities.
+This page covers the agent-as-tool mechanism, context transforms for reshaping data between agents, and how the Supervisor pattern builds on them. The Swarm pattern is also described, with its current limitation.
 
 ## Agent-as-Tool
 
@@ -337,12 +337,16 @@ spec:
 
 ### How It Works
 
-1. The supervisor LLM receives the task and the list of available workers
-2. It decides which worker to delegate to by returning JSON: `{"delegate": "researcher", "task": "Research the history of..."}`
-3. The Supervisor pattern calls `tool_fn(worker_name, {"query": task})`, which routes through the ToolRegistry and invokes the target agent
-4. The worker's result is added to the supervisor's context as an observation
-5. The supervisor decides the next action -- delegate to another worker, or return a final answer: `{"final_answer": "..."}`
-6. This loop continues until a final answer is produced or `max_iterations` is reached
+Since core 0.65.0 the supervisor runs on native tool calling, the same tool loop `react` uses:
+
+1. The workers are the manifest's `type: agent` tools, and they are the **only** tools offered to the model. A call to any other tool is not executed.
+2. The supervisor model (role `supervisor`) receives the task and decides which worker to call, with the tool's arguments as a normal tool call
+3. The call goes through the ToolRegistry, which invokes the target agent
+4. The worker's result goes back to the model as the tool result
+5. The model calls another worker, or answers with plain text, which is the final answer
+6. The loop stops at the final answer or at `max_iterations`
+
+A supervisor with no `type: agent` tool fails at load time with `AgentConfigError`.
 
 ```mermaid
 flowchart TB
@@ -351,7 +355,7 @@ flowchart TB
     researcher["researcher"]
     writer["writer"]
     reviewer["reviewer"]
-    final["final_answer: compiled report"]
+    final["final answer: compiled report"]
     sup -- delegate --> researcher
     researcher -- "returns findings" --> sup
     sup -- delegate --> writer
@@ -369,7 +373,11 @@ Worker agents are standard Astromesh agents with their own YAML definitions. The
 
 ## Swarm Pattern
 
-The Swarm pattern enables peer-to-peer agent collaboration where agents hand off conversations to each other based on context, without a central coordinator.
+:::caution[Handoff between agents is not wired]
+The `swarm` pattern is designed for peer-to-peer handoff, but the runtime builds it without any agent configuration, so a handoff (`{"handoff": "...", "context": "..."}`) switches the pattern's current agent label and invokes **no** other agent. The `type: agent` tools of a swarm agent are offered to the model as ordinary tools and work like they do in `react`. For delegation that really runs the target agent, use [Supervisor](#supervisor-pattern) or `type: agent` tools in `react`.
+:::
+
+The Swarm pattern is meant to let agents hand off conversations to each other based on context, without a central coordinator.
 
 ### Configuration
 
@@ -389,39 +397,16 @@ spec:
       type: agent
       agent: billing-specialist
       description: "Handle billing and payment questions"
-
-    - name: technical-agent
-      type: agent
-      agent: tech-support
-      description: "Handle technical issues and troubleshooting"
-
-    - name: escalation-agent
-      type: agent
-      agent: human-escalation
-      description: "Escalate to a human agent"
 ```
 
-### How It Works
+### What Runs Today
 
-1. The initial agent receives the user's query
-2. The agent either responds directly or hands off to another agent by returning JSON: `{"handoff": "billing-agent", "context": "Customer wants a refund for..."}`
-3. On handoff, the Swarm pattern invokes the target agent via `tool_fn` and switches the current agent identity
-4. The new agent continues the conversation, and can hand off again if needed
-5. When an agent produces a direct response (no handoff, no tool call), the conversation ends
+1. The agent receives the user's query with a prompt that lists handoff targets
+2. If the model answers with `{"handoff": ...}` JSON, the pattern records a handoff step and changes its current agent name, but calls no agent
+3. If the model calls a tool (including a `type: agent` tool), the tool runs and its result goes back to the model
+4. A plain text response ends the run
 
-```mermaid
-flowchart TB
-    cs["customer-support"]
-    bs["billing-specialist"]
-    he["human-escalation"]
-    cs -- handoff --> bs
-    bs -- handoff --> he
-```
-
-### Swarm vs. Supervisor
-
-| Aspect | Supervisor | Swarm |
-|--------|-----------|-------|
+--------|-----------|-------|
 | **Coordination** | Central supervisor decomposes and delegates | Peer-to-peer, agents decide independently |
 | **Control flow** | Supervisor always gets results back | Control transfers fully to the next agent |
 | **Best for** | Complex tasks requiring planning and synthesis | Routing-style workflows (support triage, handoffs) |
@@ -452,7 +437,7 @@ spec:
       model: "gpt-4o-mini"
 
   orchestration:
-    pattern: swarm
+    pattern: react
     max_iterations: 5
 
   prompts:
@@ -519,4 +504,4 @@ spec:
         action: redact
 ```
 
-This setup routes customers to the right agent automatically. The triage agent uses the Swarm pattern to hand off, while each specialist uses ReAct with its own tools and guardrails.
+This setup routes customers to the right agent automatically. The triage agent calls the specialists as `type: agent` tools, while each specialist uses ReAct with its own tools and guardrails.

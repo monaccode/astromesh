@@ -12,7 +12,7 @@ The Rust extensions cover seven modules that sit on hot paths in the agent execu
 | Module | Operations | Python Fallback |
 |--------|-----------|-----------------|
 | **chunking** | Fixed, recursive, and sentence text chunking; cosine similarity; semantic grouping | `astromesh.rag.chunking.*` |
-| **guardrails** | PII detection and redaction (`RustPiiRedactor`), topic filtering (`RustTopicFilter`) | `astromesh.core.guardrails` |
+| **guardrails** | PII detection and redaction (`RustPiiRedactor`) and topic filtering (`RustTopicFilter`) behind the `pii_detection` and `topic_filter` rules. `content_filter`, `max_length` and `cost_limit` always run in Python | `astromesh.core.guardrails` |
 | **tokens** | Token budget calculation (`RustTokenBudget`) | `astromesh.memory.strategies.token_budget` |
 | **ratelimit** | Sliding-window rate limiter (`RustRateLimiter`) | `astromesh.core.tools` |
 | **routing** | EMA latency updates, candidate ranking, vision detection | `astromesh.core.model_router` |

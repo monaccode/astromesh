@@ -211,6 +211,8 @@ The following variables are available in the system prompt template:
 | `current_date` | System | Current date/time string |
 | Custom variables | Agent YAML `prompts.variables` | Any additional configured variables |
 
+Manifest templates render in a Jinja sandbox (`ImmutableSandboxedEnvironment`, since core 0.59.1).
+
 ### SilentUndefined
 
 The Prompt Engine uses Jinja2's `SilentUndefined` mode. This means if a variable is referenced in the template but not available (e.g., no semantic memory is configured), it renders as an empty string rather than raising an error. This allows a single prompt template to work correctly whether or not optional features like semantic memory are enabled.
@@ -322,11 +324,11 @@ When one LLM response asks for several tools, ReAct appends **one** assistant me
 
 **ParallelFanOut** sends the query to multiple providers simultaneously and merges the results. Useful for getting diverse perspectives or ensemble-style responses.
 
-**Pipeline** chains multiple processing steps, where each step's output becomes the next step's input. Useful for data transformation workflows.
+**Pipeline** chains processing stages (`orchestration.stages`, 2 to 6 names; default `analyze`, `process`, `synthesize`), where each stage's output becomes the next stage's input. Useful for data transformation workflows.
 
-**Supervisor** uses a supervisor agent that decomposes the task and delegates sub-tasks to specialized worker agents.
+**Supervisor** is a coordinator that only delegates: its workers are the manifest's `type: agent` tools, offered to the model as native tool calls (an agent with none fails to load).
 
-**Swarm** allows multiple agents to hand off conversations to each other based on the conversation context, without a central coordinator.
+**Swarm** is meant for handoff between peer agents, but handoff is not wired in the runtime yet: see [Multi-Agent](/astromesh/configuration/multi-agent/#swarm-pattern).
 
 ---
 

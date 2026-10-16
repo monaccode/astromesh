@@ -170,10 +170,7 @@ spec:
       max_turns: 20                 # Turns read from the store (and kept verbatim)
       ttl: 3600                     # Time-to-live in seconds (default: 259200 — 72h)
 
-    semantic:                       # Vector-based memory for similarity search
-      backend: chromadb             # Vector store (pgvector, chromadb, qdrant, faiss)
-      similarity_threshold: 0.75   # Minimum cosine similarity to return a result
-      max_results: 5                # Maximum number of similar items to retrieve
+    # semantic / episodic memory: not built from a manifest (see spec.memory below)
 
   # --- Guardrails ---
   guardrails:
@@ -193,7 +190,7 @@ spec:
 
   # --- Permissions ---
   permissions:
-    allowed_actions:                # Restricts which tools this agent can invoke
+    allowed_actions:                # Not enforced as an allowlist today (see spec.permissions)
       - lookup_company
       - search_crm
 ```
@@ -336,9 +333,11 @@ prompts:
     {% if prefetch.stock %}CURRENT STOCK: {{ prefetch.stock }}{% endif %}
 ```
 
-Only the `react` and `glyph` patterns separate it from the system prompt. Every other pattern gets it appended to the end of the system prompt, and the agent logs a warning at load time. Do not iterate `memory.conversation` inside `prompts.context`: the history already travels as messages.
+Every pattern except `swarm` puts it in front of the current user message, apart from the system prompt. `swarm` gets it appended to the end of the system prompt, and the agent logs a warning at load time. Do not iterate `memory.conversation` inside `prompts.context`: the history already travels as messages.
 
 The agent also warns at load time when `prompts.system` uses `knowledge`, `prefetch` or `memory.semantic`/`episodic` inside Jinja blocks (`{{ }}` / `{% %}`), since that changes the prefix on every query and defeats the cache. Move it to `prompts.context`.
+
+Prompt templates in a manifest (`prompts.system`, `prompts.context`, the `when` of `prefetch`) are rendered in a Jinja sandbox (since core 0.59.1), so a template cannot reach Python internals; the system prompt can carry text a tenant writes.
 
 ### `spec.orchestration`
 
@@ -346,8 +345,17 @@ The agent also warns at load time when `prompts.system` uses `knowledge`, `prefe
 |-------|----------|-------------|
 | `pattern` | Yes | The orchestration pattern. See the patterns table below. |
 | `max_iterations` | No | Maximum number of reasoning iterations. Prevents infinite loops. Default: `10`. |
+| `stages` | No | For `pipeline`: 2 to 6 stage names of 1 to 40 characters. Default: `analyze`, `process`, `synthesize`. Anything else fails at load time. |
 | `timeout_seconds` | No | Hard timeout in seconds for the entire agent execution. When exceeded, the agent returns whatever partial result it has. |
 | `max_tool_result_tokens` | No | Default cap, in tokens, for each tool result that reaches the model. Overridden per tool by `max_result_tokens`. Default: `8000`. See [Tool result budget](#tool-result-budget). |
+
+Pattern behavior (since core 0.65.0):
+
+- An unknown `pattern` fails when the agent is built with `AgentConfigError` (it used to fall back to `react` silently). `pattern: null` means `react`.
+- `plan_and_execute`, `parallel_fan_out` and `pipeline` are conversational: the planner or decomposer and the synthesizer get the history and the turn context; in `pipeline` only the first stage does.
+- Every plan step, pipeline stage or subtask runs the same tool loop as `react` (without the history), so tool results go back to the model.
+- A plan has at most 6 steps and a fan-out at most 4 subtasks. `parallel_fan_out` cancels the remaining subtasks when one fails.
+- `supervisor` needs at least one `type: agent` tool, and offers the model only those tools.
 
 ### `spec.tools`
 
@@ -430,9 +438,10 @@ Entries run in order, after RAG and before the prompt is rendered, through
 | `conversational.strategy` | No | History management strategy. See the strategies table below. |
 | `conversational.max_turns` | No | Number of turns read back per run. With `summary`, turns beyond it are folded into the summary. |
 | `conversational.ttl` | No | Time-to-live in seconds. Default `259200` (72h). |
-| `semantic.backend` | No | Vector store: `pgvector`, `chromadb`, `qdrant`, `faiss`. |
-| `semantic.similarity_threshold` | No | Minimum cosine similarity score (0.0-1.0) for results. |
-| `semantic.max_results` | No | Maximum number of similar items to retrieve. |
+
+:::note[No semantic or episodic memory from a manifest]
+Only `conversational` memory is wired by the runtime. `memory.semantic` and `memory.episodic` are not read: the `MemoryManager` is built with the conversational backend alone, so no vector retrieval or event log happens for agents loaded from YAML.
+:::
 
 :::caution[The schema announces more backends than the factory builds]
 `agent.schema.json` accepts `redis`, `postgres`, `sqlite` and `in_memory` for
@@ -491,7 +500,7 @@ Before 0.70.0 `spec.guardrails` was not enforced. Manifests that already declare
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `allowed_actions` | No | List of tool names this agent is permitted to invoke. If omitted, the agent can use all tools defined in its `tools` section. |
+| `allowed_actions` | No | **Not enforced as an allowlist.** It only filters tools that carry their own `permissions`, which tools declared in `spec.tools` do not. Every tool in `spec.tools` is available to the agent. `denied_actions` is not read at all. To limit an agent, declare only the tools it should have. |
 
 ## Orchestration Patterns
 
@@ -501,8 +510,8 @@ Before 0.70.0 `spec.guardrails` was not enforced. Manifests that already declare
 | Plan and Execute | `plan_and_execute` | Complex multi-step tasks where upfront planning improves results. |
 | Parallel Fan-Out | `parallel_fan_out` | Tasks that benefit from multiple parallel perspectives, merged into a single answer. |
 | Pipeline | `pipeline` | Sequential processing chains where each step transforms the output. |
-| Supervisor | `supervisor` | Task delegation to specialized sub-agents managed by a coordinator. |
-| Swarm | `swarm` | Multi-agent conversations where agents hand off to each other based on context. |
+| Supervisor | `supervisor` | Task delegation to specialized sub-agents managed by a coordinator. Needs at least one `type: agent` tool: those are its workers. |
+| Swarm | `swarm` | Intended for handoff between agents, but handoff does not invoke other agents yet (see [Multi-Agent](/astromesh/configuration/multi-agent/#swarm-pattern)). |
 
 ## Memory Strategies
 

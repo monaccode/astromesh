@@ -240,24 +240,21 @@ The generated schema is passed to the provider's `complete()` or `stream()` meth
 
 ## Permissions
 
-Tool access is controlled via the `spec.permissions.allowed_actions` list in the agent YAML:
+`spec.permissions.allowed_actions` in the agent YAML is passed to the registry when the tool schemas are generated, but it is **not an enforced allowlist** today:
 
 ```yaml
 spec:
   permissions:
     allowed_actions:
       - web_search
-      - knowledge_base
-    denied_actions:
-      - send_email
 ```
 
-| Field | Description |
-|-------|-------------|
-| `allowed_actions` | Explicit allowlist of tool names this agent can use. If set, only these tools are available |
-| `denied_actions` | Denylist of tool names. If set, all tools except these are available |
+| Field | Current behavior |
+|-------|------------------|
+| `allowed_actions` | Only filters out tools that themselves carry a non-empty `permissions` list with no match. Tools declared from an agent YAML never carry one, so in practice every tool in `spec.tools` stays available. |
+| `denied_actions` | Not read by the runtime. |
 
-If neither `allowed_actions` nor `denied_actions` is specified, the agent can use all tools defined in its `spec.tools` array.
+To restrict what an agent can call, declare only the tools it needs in `spec.tools` (and use `confirm` for [writes that need a human yes](/astromesh/configuration/confirmation-gate/)).
 
 ## Rate Limiting
 

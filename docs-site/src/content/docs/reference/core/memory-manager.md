@@ -107,6 +107,10 @@ spec:
       backend: postgres
 ```
 
+:::caution[Only conversational memory is built from a manifest]
+The agent runtime constructs the `MemoryManager` with the conversational backend only. `memory.semantic` and `memory.episodic` in an agent YAML are not read, so semantic retrieval and episodic logging described on this page do not happen for agents loaded from manifests. The classes exist and work when built in code.
+:::
+
 ## Core Methods
 
 ### `build_context(agent_name, session_id, query)`

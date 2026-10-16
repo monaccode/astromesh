@@ -309,8 +309,8 @@ Orchestration patterns control how agents reason and use tools. Each pattern imp
 | `PlanAndExecute` | `patterns.py` | First, the LLM creates a plan (list of steps). Then, each step is executed sequentially. | Multi-step tasks with clear decomposition |
 | `ParallelFanOut` | `patterns.py` | Send the same query to multiple sub-models simultaneously, merge results. | Ensemble approaches, multi-perspective analysis |
 | `Pipeline` | `patterns.py` | Chain multiple processing steps sequentially, where each step's output feeds the next. | Data transformation, multi-stage processing |
-| `Supervisor` | `supervisor.py` | A supervisor agent delegates sub-tasks to worker agents and combines their results. | Complex tasks requiring specialized sub-agents |
-| `Swarm` | `swarm.py` | Agents hand off conversations to each other based on context. No central coordinator. | Customer service routing, multi-domain conversations |
+| `Supervisor` | `supervisor.py` | A coordinator that delegates to the agent's `type: agent` tools and answers with what they return. | Complex tasks requiring specialized sub-agents |
+| `Swarm` | `swarm.py` | Intended for peer handoff; handoff does not invoke other agents yet. | Customer service routing, multi-domain conversations |
 
 ### RAG Pipeline
 
