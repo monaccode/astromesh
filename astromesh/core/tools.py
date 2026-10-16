@@ -248,6 +248,11 @@ class ToolRegistry:
                     transform_ctx = json_mod.loads(rendered)
                 except Exception as exc:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     return {"error": f"Context transform failed: {exc}"}
+            from astromesh.orchestration.swarm import CLAVE_HANDOFFS
+
+            if CLAVE_HANDOFFS in arguments:
+                # Handoff del swarm: el hijo hereda el contador para cortar ciclos.
+                transform_ctx = {**(transform_ctx or {}), CLAVE_HANDOFFS: arguments[CLAVE_HANDOFFS]}
             parent_trace_id = (context or {}).get("trace_id")
             from astromesh.integrations.propuestas import CLAVE_PROPUESTAS
 

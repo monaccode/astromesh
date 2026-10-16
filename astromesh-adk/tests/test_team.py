@@ -1,24 +1,25 @@
 import pytest
-from astromesh_adk.team import AgentTeam
+
 from astromesh_adk.agent import agent
+from astromesh_adk.team import AgentTeam
 
 
 @agent(name="researcher", model="ollama/llama3", description="Research agent")
 async def researcher(ctx):
     """You research topics."""
-    return None
+    return
 
 
 @agent(name="writer", model="ollama/llama3", description="Writing agent")
 async def writer(ctx):
     """You write content."""
-    return None
+    return
 
 
 @agent(name="editor", model="ollama/llama3", description="Editing agent")
 async def editor(ctx):
     """You edit content."""
-    return None
+    return
 
 
 def test_supervisor_team_creation():
@@ -81,18 +82,6 @@ def test_team_build_workers_dict():
     assert "writer" in workers_dict
     assert "editor" in workers_dict
     assert workers_dict["writer"]["description"] == "Writing agent"
-
-
-def test_team_build_agent_configs():
-    team = AgentTeam(
-        name="t",
-        pattern="swarm",
-        agents=[researcher, writer],
-        entry_agent=researcher,
-    )
-    configs = team._build_agent_configs()
-    assert "researcher" in configs
-    assert "writer" in configs
 
 
 def test_team_build_stages():

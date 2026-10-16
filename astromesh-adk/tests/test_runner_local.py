@@ -311,6 +311,42 @@ async def test_run_team_supervisor_delegates_to_worker():
 
 
 @pytest.mark.asyncio
+async def test_run_team_swarm_handoff_answer_is_final():
+    from astromesh_adk.agent import agent
+
+    @agent(name="triage", model="claude-triage")
+    async def _triage(ctx):
+        """triage"""
+        return
+
+    @agent(name="writer", model="claude-writer", description="writes")
+    async def _writer(ctx):
+        """writer"""
+        return
+
+    handoff = [{"id": "1", "name": "writer", "arguments": {"query": "write it"}}]
+
+    providers = {}
+
+    def factory(p, m, c):
+        if m == "claude-triage":
+            providers[m] = FakeProvider(m, content="", tool_calls=handoff)
+        else:
+            providers[m] = FakeProvider(m, content="draft")
+        return providers[m]
+
+    rt = ADKRuntime(provider_factory=factory)
+    team = AgentTeam(name="t", pattern="swarm", agents=[_triage, _writer], entry_agent=_triage)
+    result = await rt.run_team(team, "need a draft", "s")
+    assert result.answer == "draft"
+    triage_calls = providers["claude-triage"].calls
+    assert len(triage_calls) == 1  # the handoff's answer is final: no second triage turn
+    offered = str(triage_calls[0][1].get("tools"))
+    assert "writer" in offered
+    assert "write it" in str(providers["claude-writer"].calls[0][0])
+
+
+@pytest.mark.asyncio
 async def test_stream_agent_emits_done_with_runresult():
     rt = ADKRuntime(provider_factory=lambda p, m, c: FakeProvider(m, content="streamed"))
     events = [e async for e in rt.stream_agent(_agent(model="claude-x"), "q", "s")]

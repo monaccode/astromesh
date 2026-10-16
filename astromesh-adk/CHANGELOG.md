@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Equipos `swarm` con handoff por tool call.** El agente de entrada recibe a los miembros
+  como tools y pasar el control es llamarlas; la respuesta del miembro es la respuesta del
+  equipo (core `SwarmPattern(workers=...)`, que trae el historial al destino y
+  `max_handoffs`). Se elimina `AgentTeam._build_agent_configs`.
+
 ## [0.5.0] - 2026-10-16
 
 Al día con el core 0.70.0. El modo local reusa componentes del core en vez de copiarlos.

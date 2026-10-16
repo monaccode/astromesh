@@ -1,75 +1,63 @@
-import json as json_mod
+from astromesh.orchestration.patterns import (
+    OrchestrationPattern,
+    ciclo_de_tools,
+    mensajes_de_conversacion,
+    presupuesto_de,
+)
 
-from astromesh.orchestration.patterns import AgentStep, OrchestrationPattern
+# Cuántos handoffs lleva la cadena. Viaja en el context de la corrida hija
+# (`ToolRegistry.execute`, rama AGENT) y `Agent.run` lo pasa al patrón.
+CLAVE_HANDOFFS = "_handoffs"
+
+
+def _transcripcion(context) -> str:
+    history = context.get("_history_messages", []) if isinstance(context, dict) else []
+    return "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history)
 
 
 class SwarmPattern(OrchestrationPattern):
-    """Agents hand off to each other based on context."""
+    """Pasa el control a otro agente: su respuesta es la final, no vuelve acá.
 
-    def __init__(self, agent_configs: dict | None = None):
-        self._agents = agent_configs or {}
+    Los agentes destino son las tools `type: agent` del manifiesto (las arma
+    `AgentRuntime._build_pattern`). El destino recibe la conversación entera en
+    `query`. Con `max_handoffs` encadenados ya no se ofrecen ni se ejecutan.
+    """
+
+    consumes_turn_context = True
+
+    def __init__(self, workers: list[str], max_handoffs: int = 3):
+        self._workers = list(workers)
+        self._max_handoffs = max_handoffs
 
     async def execute(self, query, context, model_fn, tool_fn, tools, max_iterations=10):
-        current_agent = "default"
-        steps = []
-        messages = [{"role": "user", "content": query}]
+        n = int((context or {}).get(CLAVE_HANDOFFS, 0))
+        activos = set(self._workers) if n < self._max_handoffs else set()
+        bloqueados = set(self._workers) - activos
+        ofrecidas = [t for t in tools if t.get("function", {}).get("name") not in bloqueados]
 
-        for _ in range(max_iterations):
-            agent_prompt = (
-                f"You are agent '{current_agent}'. "
-                f"Available agents to hand off to: "
-                f"{list(self._agents.keys()) or ['default']}\n"
-                "Respond with your answer, or hand off with JSON "
-                '{"handoff": "agent_name", "context": "..."}'
+        async def tool_con_handoff(name, args):
+            if name in bloqueados:
+                return f"La tool «{name}» no está disponible para este agente."
+            if name not in activos:
+                return await tool_fn(name, args)
+            historia = _transcripcion(context)
+            pedido = f"Pedido: {args.get('query', '')}"
+            return await tool_fn(
+                name,
+                {
+                    **args,
+                    "query": f"{historia}\n\n{pedido}" if historia else pedido,
+                    CLAVE_HANDOFFS: n + 1,
+                },
             )
 
-            full_messages = [{"role": "system", "content": agent_prompt}, *messages]
-            response = await model_fn(full_messages, tools, role="reasoner")
-
-            try:
-                parsed = json_mod.loads(response.content)
-                if "handoff" in parsed:
-                    target = parsed["handoff"]
-                    handoff_context = parsed.get("context", "")
-                    steps.append(
-                        AgentStep(
-                            thought=f"Agent '{current_agent}' hands off to '{target}'",
-                            result=handoff_context,
-                        )
-                    )
-                    # Invoke the target agent via tool_fn if it's a known agent
-                    if target in self._agents:
-                        await tool_fn(target, {"query": handoff_context})
-                    current_agent = target
-                    messages.append({"role": "assistant", "content": response.content})
-                    continue
-            except (json_mod.JSONDecodeError, KeyError):
-                pass
-
-            if response.tool_calls:
-                for tc in response.tool_calls:
-                    obs = await tool_fn(tc["name"], tc["arguments"])
-                    steps.append(
-                        AgentStep(
-                            thought=response.content,
-                            action=tc["name"],
-                            action_input=tc["arguments"],
-                            observation=str(obs),
-                        )
-                    )
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "content": str(obs),
-                            "tool_call_id": tc["id"],
-                        }
-                    )
-            else:
-                steps.append(AgentStep(result=response.content))
-                return {
-                    "answer": response.content,
-                    "steps": steps,
-                    "final_agent": current_agent,
-                }
-
-        return {"answer": "Max iterations reached", "steps": steps}
+        return await ciclo_de_tools(
+            mensajes_de_conversacion(query, context),
+            model_fn,
+            tool_con_handoff,
+            ofrecidas,
+            max_iterations,
+            role="reasoner",
+            presupuesto=presupuesto_de(context),
+            finales=activos,
+        )

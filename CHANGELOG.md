@@ -30,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   escritura semántica ya no depende de tener memoria conversacional. `sales-qualifier` deja de
   declarar `memory.semantic`.
 
+### Changed
+
+- **`pattern: swarm` hace handoff real.** Los agentes destino son las tools `type: agent` del
+  manifiesto (sin ninguna, `AgentConfigError`, como `supervisor`); pasar el control = llamar a
+  esa tool, y la respuesta del destino **es la respuesta final** (no vuelve al que delegó). El
+  destino recibe la historia de la conversación en su `query`. `orchestration.max_handoffs`
+  (entero >= 1, default 3) corta las cadenas: el contador viaja al agente hijo y, al llegar al
+  tope, ya no se ofrecen ni se ejecutan handoffs. Ahora además lee el historial, recibe
+  `prompts.context` como mensaje y respeta el tope de resultados de tools; ya no agrega un
+  system propio ni interpreta JSON `{"handoff": ...}`. `ciclo_de_tools` gana `finales`.
+  `SwarmPattern(workers, max_handoffs=3)` reemplaza a `SwarmPattern(agent_configs)`.
+
 ### Changed (Release coordination)
 
 - **astromesh-adk 0.5.0**: al día con core 0.70.0 — guardrails aplicados en corridas locales con

@@ -157,7 +157,7 @@ async def test_swarm_pattern():
 
     resp = make_response("The answer is 42")
     model_fn = AsyncMock(return_value=resp)
-    pattern = SwarmPattern()
+    pattern = SwarmPattern(workers=["consultar_x"])
     result = await pattern.execute("question", {}, model_fn, AsyncMock(), [])
     assert result["answer"] == "The answer is 42"
 

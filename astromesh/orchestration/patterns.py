@@ -3,6 +3,7 @@ import json as json_mod
 import os
 import sys
 from abc import ABC, abstractmethod
+from collections.abc import Collection
 from dataclasses import dataclass
 
 from astromesh.orchestration.observaciones import DEFAULT_MAX_TOOL_RESULT_TOKENS, presentar
@@ -65,13 +66,25 @@ def mensajes_de_conversacion(query, context):
 
 
 async def ciclo_de_tools(
-    messages, model_fn, tool_fn, tools, max_iterations, role, permitidas=None, presupuesto=None
+    messages,
+    model_fn,
+    tool_fn,
+    tools,
+    max_iterations,
+    role,
+    permitidas=None,
+    presupuesto=None,
+    finales: Collection[str] | None = None,
 ):
     """Modelo → tools → resultado de vuelta al modelo, hasta una respuesta sin tools.
 
     `permitidas` acota qué tools se ejecutan: una fuera del set no llega a
     `tool_fn` y el modelo recibe una observación que lo dice (el supervisor sólo
     delega en sus trabajadores).
+
+    `finales`: el resultado de una de esas tools ES la respuesta y no vuelve al
+    modelo (el handoff del swarm). Las demás tool_calls de esa respuesta no se
+    ejecutan.
     """
     messages = list(messages)
     steps: list[AgentStep] = []
@@ -128,6 +141,21 @@ async def ciclo_de_tools(
                 observation = f"La tool «{tc['name']}» no está disponible para este agente."
             else:
                 observation = await tool_fn(tc["name"], tc["arguments"])
+                if finales and tc["name"] in finales:
+                    steps.append(
+                        AgentStep(
+                            thought=response.content,
+                            action=tc["name"],
+                            action_input=tc["arguments"],
+                            result=str(observation),
+                        )
+                    )
+                    answer = (
+                        observation["answer"]
+                        if isinstance(observation, dict) and "answer" in observation
+                        else str(observation)
+                    )
+                    return {"answer": answer, "steps": steps, "final_agent": tc["name"]}
             tope = por_tool.get(tc["name"], default)
             if isinstance(observation, dict) and observation.get("error") == (
                 "confirmacion_requerida"

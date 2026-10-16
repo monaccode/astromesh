@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from astromesh_adk.result import RunResult
 from astromesh_adk.callbacks import Callbacks
+from astromesh_adk.result import RunResult
 
 if TYPE_CHECKING:
     from astromesh_adk.agent import AgentWrapper
@@ -58,17 +58,7 @@ class AgentTeam:
 
     def _build_workers_dict(self) -> dict:
         """Build workers config dict for SupervisorPattern."""
-        return {
-            w.name: {"description": w.description}
-            for w in self.workers
-        }
-
-    def _build_agent_configs(self) -> dict:
-        """Build agent_configs dict for SwarmPattern."""
-        return {
-            a.name: {"description": a.description}
-            for a in self.agents
-        }
+        return {w.name: {"description": w.description} for w in self.workers}
 
     def _build_stages(self) -> list[str]:
         """Build stages list for PipelinePattern."""

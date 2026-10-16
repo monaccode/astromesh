@@ -45,7 +45,7 @@ from astromesh.orchestration.patterns import (
     ReActPattern,
 )
 from astromesh.orchestration.supervisor import SupervisorPattern
-from astromesh.orchestration.swarm import SwarmPattern
+from astromesh.orchestration.swarm import CLAVE_HANDOFFS, SwarmPattern
 from astromesh.runtime.confirmacion import Pendientes, huella
 from astromesh.runtime.permisos import resolver_permisos
 from astromesh.runtime.prefetch import ejecutar_prefetch, validar_prefetch
@@ -1381,18 +1381,34 @@ class AgentRuntime:
                 + ", ".join(sorted([*pattern_map, "glyph"]))
             )
         orchestration = spec.get("orchestration", {}) or {}
+        trabajadores = [
+            t["name"]
+            for t in spec.get("tools", []) or []
+            if t.get("type") == "agent" and t.get("name")
+        ]
         if pattern_name == "supervisor":
-            trabajadores = [
-                t["name"]
-                for t in spec.get("tools", []) or []
-                if t.get("type") == "agent" and t.get("name")
-            ]
             if not trabajadores:
                 raise AgentConfigError(
                     "`pattern: supervisor` necesita al menos una tool `type: agent`: "
                     "son sus trabajadores"
                 )
             return SupervisorPattern(workers=trabajadores)
+        if pattern_name == "swarm":
+            if not trabajadores:
+                raise AgentConfigError(
+                    "`pattern: swarm` necesita al menos una tool `type: agent`: son los "
+                    "agentes a los que puede pasar el control"
+                )
+            max_handoffs = orchestration.get("max_handoffs", 3)
+            if (
+                not isinstance(max_handoffs, int)
+                or isinstance(max_handoffs, bool)
+                or max_handoffs < 1
+            ):
+                raise AgentConfigError(
+                    "`orchestration.max_handoffs` de swarm: un entero >= 1 (default 3)"
+                )
+            return SwarmPattern(workers=trabajadores, max_handoffs=max_handoffs)
         if pattern_name == "pipeline":
             stages = orchestration.get("stages")
             if stages is not None and not (
@@ -2183,7 +2199,13 @@ class Agent:
                     # Va filtrado: las claves `_` son del runtime, no del llamador, y
                     # `_provider_override` lleva una API key. Ver `_public_caller_context`.
                     context=(
-                        {**memory_context, "_caller_context": _public_caller_context(context)}
+                        {
+                            **memory_context,
+                            "_caller_context": _public_caller_context(context),
+                            # Handoffs encadenados del swarm (lo pone la rama AGENT
+                            # de `ToolRegistry.execute` en el context del hijo).
+                            CLAVE_HANDOFFS: int((context or {}).get(CLAVE_HANDOFFS, 0)),
+                        }
                         if isinstance(memory_context, dict)
                         else memory_context
                     ),

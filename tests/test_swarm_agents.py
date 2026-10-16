@@ -1,114 +1,117 @@
-import json
+"""Swarm: el handoff es una tool `type: agent` y la respuesta del destino es la final."""
+
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
 
-import pytest
-
-from astromesh.orchestration.swarm import SwarmPattern
+from astromesh.orchestration.swarm import CLAVE_HANDOFFS, SwarmPattern
 
 
 @dataclass
-class CompletionResponse:
+class Resp:
     content: str
     tool_calls: list | None = None
+    reasoning_content: str | None = None
 
 
-def make_response(content, tool_calls=None):
-    return CompletionResponse(content=content, tool_calls=tool_calls)
+def _schema(name):
+    return {"type": "function", "function": {"name": name, "parameters": {}}}
 
 
-class TestSwarmWithAgentTools:
-    @pytest.mark.asyncio
-    async def test_swarm_handoff_via_tool_fn(self):
-        """Swarm handoff should invoke the target agent via tool_fn."""
-        handoff_json = json.dumps({"handoff": "specialist", "context": "Need expert analysis"})
-        model_fn = AsyncMock(
-            side_effect=[
-                make_response(handoff_json),
-                make_response("Expert analysis complete."),
-            ]
+TOOLS = [_schema("especialista"), _schema("leer")]
+HANDOFF = {"id": "t1", "name": "especialista", "arguments": {"query": "revisá esto"}}
+
+
+def _fns(*respuestas, obs=None):
+    model_fn = AsyncMock(side_effect=list(respuestas))
+    tool_fn = AsyncMock(return_value=obs if obs is not None else {"answer": "listo"})
+    return model_fn, tool_fn
+
+
+async def test_handoff_devuelve_la_respuesta_del_destino_como_final():
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF]))
+    r = await SwarmPattern(workers=["especialista"]).execute("q", {}, model_fn, tool_fn, TOOLS)
+    assert r["answer"] == "listo"
+    assert r["final_agent"] == "especialista"
+    assert model_fn.await_count == 1
+
+
+async def test_el_destino_recibe_la_historia():
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF]))
+    ctx = {
+        "_history_messages": [
+            {"role": "user", "content": "hola"},
+            {"role": "assistant", "content": "¿qué necesitás?"},
+        ]
+    }
+    await SwarmPattern(workers=["especialista"]).execute("q", ctx, model_fn, tool_fn, TOOLS)
+    assert tool_fn.await_args.args[0] == "especialista"
+    args = tool_fn.await_args.args[1]
+    assert "hola" in args["query"]
+    assert "¿qué necesitás?" in args["query"]
+    assert "revisá esto" in args["query"]
+
+
+async def test_handoff_incrementa_el_contador():
+    for previo, esperado in ((None, 1), (2, 3)):
+        model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF]))
+        ctx = {} if previo is None else {CLAVE_HANDOFFS: previo}
+        await SwarmPattern(workers=["especialista"], max_handoffs=5).execute(
+            "q", ctx, model_fn, tool_fn, TOOLS
         )
-        tool_fn = AsyncMock(return_value={"answer": "Specialist context loaded", "steps": []})
+        assert tool_fn.await_args.args[1][CLAVE_HANDOFFS] == esperado
 
-        pattern = SwarmPattern(agent_configs={"specialist": "specialist-agent"})
-        result = await pattern.execute(
-            query="Analyze this data",
-            context={},
-            model_fn=model_fn,
-            tool_fn=tool_fn,
-            tools=[],
-        )
 
-        tool_fn.assert_called_once_with("specialist", {"query": "Need expert analysis"})
-        assert result["answer"] == "Expert analysis complete."
+async def test_tope_de_handoffs_no_ofrece_agentes_ni_los_ejecuta():
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF]), Resp("sin pasar"), obs="x")
+    r = await SwarmPattern(workers=["especialista"], max_handoffs=3).execute(
+        "q", {CLAVE_HANDOFFS: 3}, model_fn, tool_fn, TOOLS
+    )
+    ofrecidas = [t["function"]["name"] for t in model_fn.await_args_list[0].args[1]]
+    assert "especialista" not in ofrecidas
+    assert "leer" in ofrecidas
+    assert all(c.args[0] != "especialista" for c in tool_fn.await_args_list)
+    assert r["answer"] == "sin pasar"
 
-    @pytest.mark.asyncio
-    async def test_swarm_no_handoff_returns_directly(self):
-        """If no handoff, swarm returns the agent's direct answer."""
-        model_fn = AsyncMock(return_value=make_response("Direct answer."))
-        tool_fn = AsyncMock()
 
-        pattern = SwarmPattern()
-        result = await pattern.execute(
-            query="Simple question",
-            context={},
-            model_fn=model_fn,
-            tool_fn=tool_fn,
-            tools=[],
-        )
+async def test_tool_comun_es_observacion_no_final():
+    leer = {"id": "t1", "name": "leer", "arguments": {"p": 1}}
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[leer]), Resp("segunda"), obs="dato")
+    r = await SwarmPattern(workers=["especialista"]).execute("q", {}, model_fn, tool_fn, TOOLS)
+    tool_fn.assert_awaited_once_with("leer", {"p": 1})
+    assert model_fn.await_count == 2
+    assert r["answer"] == "segunda"
 
-        assert result["answer"] == "Direct answer."
-        tool_fn.assert_not_called()
 
-    @pytest.mark.asyncio
-    async def test_swarm_multiple_handoffs(self):
-        """Chain of handoffs: A -> B -> C -> final answer."""
-        model_fn = AsyncMock(
-            side_effect=[
-                make_response(json.dumps({"handoff": "agent-b", "context": "step 1"})),
-                make_response(json.dumps({"handoff": "agent-c", "context": "step 2"})),
-                make_response("Final from agent-c."),
-            ]
-        )
-        tool_fn = AsyncMock(
-            side_effect=[
-                {"answer": "B loaded", "steps": []},
-                {"answer": "C loaded", "steps": []},
-            ]
-        )
+async def test_sin_handoff_contesta_directo():
+    model_fn, tool_fn = _fns(Resp("directo"))
+    r = await SwarmPattern(workers=["especialista"]).execute("q", {}, model_fn, tool_fn, TOOLS)
+    assert r["answer"] == "directo"
+    tool_fn.assert_not_called()
 
-        pattern = SwarmPattern(agent_configs={"agent-b": "agent-b", "agent-c": "agent-c"})
-        result = await pattern.execute(
-            query="Multi-step task",
-            context={},
-            model_fn=model_fn,
-            tool_fn=tool_fn,
-            tools=[],
-        )
 
-        assert tool_fn.call_count == 2
-        assert result["answer"] == "Final from agent-c."
-        assert result["final_agent"] == "agent-c"
+async def test_no_agrega_un_system_propio():
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF]))
+    ctx = {"_history_messages": [{"role": "user", "content": "hola"}]}
+    await SwarmPattern(workers=["especialista"]).execute("q", ctx, model_fn, tool_fn, TOOLS)
+    mensajes = model_fn.await_args_list[0].args[0]
+    assert all(m["role"] != "system" for m in mensajes)
+    assert model_fn.await_args_list[0].kwargs["role"] == "reasoner"
 
-    @pytest.mark.asyncio
-    async def test_swarm_tool_calls_still_work(self):
-        """Regular tool calls (non-handoff) still work within swarm."""
-        tool_call = {"id": "tc_1", "name": "web_search", "arguments": {"q": "test"}}
-        model_fn = AsyncMock(
-            side_effect=[
-                make_response("Searching...", tool_calls=[tool_call]),
-                make_response("Found the answer."),
-            ]
-        )
-        tool_fn = AsyncMock(return_value={"results": ["result1"]})
 
-        pattern = SwarmPattern()
-        result = await pattern.execute(
-            query="Search for something",
-            context={},
-            model_fn=model_fn,
-            tool_fn=tool_fn,
-            tools=[],
-        )
+async def test_ciclo_de_tools_final_no_ejecuta_las_demas_tool_calls():
+    from astromesh.orchestration.patterns import ciclo_de_tools
 
-        assert result["answer"] == "Found the answer."
+    leer = {"id": "t2", "name": "leer", "arguments": {}}
+    model_fn, tool_fn = _fns(Resp("", tool_calls=[HANDOFF, leer]), obs="texto plano")
+    r = await ciclo_de_tools(
+        [{"role": "user", "content": "q"}],
+        model_fn,
+        tool_fn,
+        TOOLS,
+        5,
+        role="reasoner",
+        finales={"especialista"},
+    )
+    assert r["answer"] == "texto plano"
+    assert r["final_agent"] == "especialista"
+    assert tool_fn.await_count == 1

@@ -607,11 +607,13 @@ class ADKRuntime:
         agents = {a.name: a for a in team.agents}
 
         async def handoff_tool_fn(name: str, args: dict):
+            # core >=0.71: the handoff is a tool call and the member's answer is final;
+            # `args["query"]` already carries the conversation.
             if name in agents:
                 r = await self.run_agent(
                     agents[name], args.get("query", query), session_id, context
                 )
-                return r.answer
+                return {"answer": r.answer}
             raise KeyError(f"agent {name!r} not found")
 
         return await self._run_lead(
@@ -619,9 +621,9 @@ class ADKRuntime:
             query,
             session_id,
             context,
-            SwarmPattern(team._build_agent_configs()),
+            SwarmPattern(workers=list(agents)),
             handoff_tool_fn,
-            [],
+            self._adk_tools_to_specs([a.as_tool() for a in team.agents]),
         )
 
     async def stream_agent(
