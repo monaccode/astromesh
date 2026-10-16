@@ -50,10 +50,10 @@ If the daemon is already running, restart it to pick up the new agent:
 uv run astromeshd --config ./config --log-level debug
 ```
 
-You should see the new agent in the startup logs:
+Check that the agent was loaded:
 
-```
-INFO:     Loaded agent: hello-agent (react, ollama/llama3.1:8b)
+```bash
+curl http://localhost:8000/v1/agents
 ```
 
 ## Call the Agent
@@ -71,21 +71,15 @@ Expected response:
 
 ```json
 {
-  "agent": "hello-agent",
-  "session_id": "test-001",
-  "response": "Hey there! I'm Astro, your friendly assistant. I can answer questions, chat, and share fun space facts. Did you know that a day on Venus is longer than a year on Venus?",
-  "metadata": {
-    "provider": "ollama",
-    "model": "llama3.1:8b",
-    "pattern": "react",
-    "iterations": 1,
-    "tokens_used": 187,
-    "latency_ms": 1243
-  }
+  "answer": "Hey there! I'm Astro, your friendly assistant. I can answer questions, chat, and share fun space facts. Did you know that a day on Venus is longer than a year on Venus?",
+  "steps": [],
+  "usage": { "tokens_in": 142, "tokens_out": 45, "model": "llama3.1:8b", "by_model": [ ... ] },
+  "blocked": false,
+  "guardrail": null
 }
 ```
 
-Your agent is running. Now let's understand what each part of the YAML does and then build on it.
+`answer` is the reply, `steps` the orchestration steps (empty when the model answered without tools), and `usage` the tokens summed from the run's trace. The full response also carries `trace`, `data`, `chain` and `propuestas`; see [API Endpoints](/astromesh/reference/api-endpoints/). Your agent is running. Now let's understand what each part of the YAML does and then build on it.
 
 ## Understanding the YAML
 
@@ -151,7 +145,7 @@ spec:
       You are a friendly assistant named Astro. ...
 ```
 
-The system prompt defines the agent's personality and behavior. This is a Jinja2 template — you can use variables like `{{ conversation_history }}`, `{{ user_query }}`, and `{{ available_tools }}` that the Prompt Engine injects at runtime.
+The system prompt defines the agent's personality and behavior. This is a Jinja2 template — you can use variables like `{{ agent_name }}` and `{{ description }}` that the Prompt Engine injects at runtime. The user's query and the conversation history are sent as messages, not rendered into the prompt.
 
 ### `spec.orchestration`
 
@@ -230,10 +224,11 @@ curl -X POST http://localhost:8000/v1/agents/hello-agent/run \
 
 ```json
 {
-  "agent": "hello-agent",
-  "session_id": "mem-test",
-  "response": "Nice to meet you, Jordan! I'm Astro, happy to chat with you. Fun fact: the footprints on the Moon will last for millions of years since there's no wind to blow them away!",
-  "metadata": { "provider": "ollama", "model": "llama3.1:8b", "pattern": "react", "iterations": 1, "tokens_used": 156, "latency_ms": 1102 }
+  "answer": "Nice to meet you, Jordan! I'm Astro, happy to chat with you. Fun fact: the footprints on the Moon will last for millions of years since there's no wind to blow them away!",
+  "steps": [],
+  "usage": { ... },
+  "blocked": false,
+  "guardrail": null
 }
 ```
 
@@ -246,10 +241,11 @@ curl -X POST http://localhost:8000/v1/agents/hello-agent/run \
 
 ```json
 {
-  "agent": "hello-agent",
-  "session_id": "mem-test",
-  "response": "Your name is Jordan! Great to still be chatting with you. Here's a space fact: Saturn's density is so low it would float in water if you could find a bathtub big enough!",
-  "metadata": { "provider": "ollama", "model": "llama3.1:8b", "pattern": "react", "iterations": 1, "tokens_used": 198, "latency_ms": 1287 }
+  "answer": "Your name is Jordan! Great to still be chatting with you. Here's a space fact: Saturn's density is so low it would float in water if you could find a bathtub big enough!",
+  "steps": [],
+  "usage": { ... },
+  "blocked": false,
+  "guardrail": null
 }
 ```
 
@@ -274,18 +270,15 @@ spec:
 
 ## Add a Tool
 
-Tools let agents take actions beyond generating text. Let's add a simple built-in tool that gets the current time.
+Tools let agents take actions beyond generating text. Let's add the built-in `datetime_now` tool, which returns the current date and time in a given timezone.
 
 Add the `tools` section to `spec`:
 
 ```yaml
 spec:
   tools:
-    - name: get_current_time
+    - name: datetime_now
       type: builtin
-      description: "Returns the current date and time in ISO 8601 format"
-      permissions:
-        - read
 ```
 
 Update the system prompt to tell the agent about tool usage:
@@ -298,7 +291,7 @@ spec:
       answer questions concisely, and always sign off with a fun space fact.
 
       You have access to tools. When a user asks about the current time or date,
-      use the get_current_time tool to provide an accurate answer.
+      use the datetime_now tool to provide an accurate answer.
 
       Keep responses under 3 sentences unless the user asks for detail.
 ```
@@ -315,26 +308,19 @@ Expected response:
 
 ```json
 {
-  "agent": "hello-agent",
-  "session_id": "tool-test",
-  "response": "It's currently 2026-03-09T14:23:45Z. Fun fact: because of the speed of light, when you look at the Sun, you're actually seeing it as it was about 8 minutes ago!",
-  "metadata": {
-    "provider": "ollama",
-    "model": "llama3.1:8b",
-    "pattern": "react",
-    "iterations": 2,
-    "tokens_used": 274,
-    "latency_ms": 2156,
-    "tools_called": ["get_current_time"]
-  }
+  "answer": "It's currently 2026-03-09T14:23:45Z. Fun fact: because of the speed of light, when you look at the Sun, you're actually seeing it as it was about 8 minutes ago!",
+  "steps": [ ... ],
+  "usage": { ... },
+  "blocked": false,
+  "guardrail": null
 }
 ```
 
-Notice `iterations: 2` — the ReAct pattern used one iteration to decide to call the tool, and a second to formulate the response with the tool's output.
+`steps` now records the tool call: the ReAct pattern used one iteration to decide to call the tool, and a second to formulate the answer with the tool's output.
 
 ## Add Guardrails
 
-Guardrails protect both the user and the system. Let's add PII detection on input and content filtering on output.
+Guardrails protect both the user and the system. Let's redact PII in the user's message, filter some words from the answer, and cap the tokens a run can spend.
 
 Add the `guardrails` section to `spec`:
 
@@ -344,21 +330,16 @@ spec:
     input:
       - type: pii_detection
         action: redact
-        entities:
-          - email
-          - phone_number
-          - credit_card
     output:
       - type: content_filter
         action: block
-        categories:
-          - harmful
-          - inappropriate
+        forbidden_keywords: ["internal-only"]
+        message: "I can't share that."
       - type: cost_limit
-        max_tokens_per_turn: 500
+        max_tokens_per_turn: 4000
 ```
 
-Now if a user includes PII in their message, it gets redacted before reaching the LLM:
+Now if a user includes PII in their message, it is redacted before reaching the LLM (the email below becomes `[REDACTED_EMAIL]`):
 
 ```bash
 curl -X POST http://localhost:8000/v1/agents/hello-agent/run \
@@ -366,30 +347,18 @@ curl -X POST http://localhost:8000/v1/agents/hello-agent/run \
   -d '{"query": "My email is jordan@example.com, can you remember it?", "session_id": "guard-test"}'
 ```
 
-Expected response:
+The response has the usual shape. A redaction does not show up in it; the model just never sees the address. A rule that blocks (for example the `content_filter` above, or the `cost_limit` once the run has spent its budget) returns a normal `200` response with the rule's message and which rule fired:
 
 ```json
 {
-  "agent": "hello-agent",
-  "session_id": "guard-test",
-  "response": "I noticed you shared an email address, which was redacted for your privacy. I can help you with other things though! Fun fact: there are more stars in the universe than grains of sand on all of Earth's beaches.",
-  "metadata": {
-    "provider": "ollama",
-    "model": "llama3.1:8b",
-    "pattern": "react",
-    "iterations": 1,
-    "tokens_used": 165,
-    "latency_ms": 1089,
-    "guardrails": {
-      "input_pii_redacted": true,
-      "output_filtered": false,
-      "tokens_within_budget": true
-    }
-  }
+  "answer": "I can't share that.",
+  "steps": [],
+  "blocked": true,
+  "guardrail": { "direction": "output", "rule": "content_filter", "reason": "pattern matched" }
 }
 ```
 
-The email was redacted before the LLM ever saw it. The output guardrails confirmed the response was clean and within the 500-token budget.
+`cost_limit` is a budget of output tokens for the whole run, tool loops included, so keep it around 4000; values like 500 would cut runs that use tools. The full list of rules, actions and defaults is in the [Agent YAML Schema](/astromesh/configuration/agent-yaml/#specguardrails).
 
 ## The Complete Agent
 
@@ -431,7 +400,7 @@ spec:
       answer questions concisely, and always sign off with a fun space fact.
 
       You have access to tools. When a user asks about the current time or date,
-      use the get_current_time tool to provide an accurate answer.
+      use the datetime_now tool to provide an accurate answer.
 
       Keep responses under 3 sentences unless the user asks for detail.
 
@@ -441,11 +410,8 @@ spec:
     timeout_seconds: 30
 
   tools:
-    - name: get_current_time
+    - name: datetime_now
       type: builtin
-      description: "Returns the current date and time in ISO 8601 format"
-      permissions:
-        - read
 
   memory:
     conversational:
@@ -459,18 +425,13 @@ spec:
     input:
       - type: pii_detection
         action: redact
-        entities:
-          - email
-          - phone_number
-          - credit_card
     output:
       - type: content_filter
         action: block
-        categories:
-          - harmful
-          - inappropriate
+        forbidden_keywords: ["internal-only"]
+        message: "I can't share that."
       - type: cost_limit
-        max_tokens_per_turn: 500
+        max_tokens_per_turn: 4000
 ```
 
 You started with a 30-line minimal agent and built up to a production-ready definition with provider failover, session memory, tool usage, and safety guardrails — all in YAML, no application code.

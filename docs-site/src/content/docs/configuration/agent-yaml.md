@@ -177,21 +177,19 @@ spec:
 
   # --- Guardrails ---
   guardrails:
-    input:                          # Applied to user messages before the LLM call
+    input:                          # Applied to user messages before memory and the model
       - type: pii_detection
-        action: redact              # redact = mask PII, block = reject the message
+        action: redact              # redact (default) | block | warn
       - type: max_length
-        max_chars: 5000
+        max_chars: 5000             # truncates by default
 
-    output:                         # Applied to agent responses after the LLM call
-      - type: cost_limit
-        max_tokens_per_turn: 1000
+    output:                         # Applied to the final answer and to streamed tokens
       - type: pii_detection
         action: redact
       - type: content_filter
         forbidden_keywords: ["internal", "confidential"]
-      - type: topic_filter
-        forbidden_topics: ["politics", "religion"]
+      - type: cost_limit            # run-wide output-token budget
+        max_tokens_per_turn: 4000
 
   # --- Permissions ---
   permissions:
@@ -468,16 +466,26 @@ knowledge:
 
 ### `spec.guardrails`
 
-Each guardrail is an object in the `input` or `output` array:
+Each guardrail is an object in the `input` or `output` array. Rules run in declared order. A rule that blocks does not raise an error: the run returns normally with `blocked: true`, the rule's `message` as `answer`, and a `guardrail` object (see [API Endpoints](/astromesh/reference/api-endpoints/)). Rules the engine does not understand are discarded with a warning at load time; the agent still loads.
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `type` | Yes | Guardrail type. See the guardrail types table below. |
-| `action` | Depends | For `pii_detection`: `redact` (mask the PII) or `block` (reject the message). |
-| `max_chars` | Depends | For `max_length`: maximum character count. |
-| `max_tokens_per_turn` | Depends | For `cost_limit`: maximum tokens in a single response. |
-| `forbidden_keywords` | Depends | For `content_filter`: list of keywords that trigger blocking. |
-| `forbidden_topics` | Depends | For `topic_filter`: list of topics that trigger blocking. |
+| `action` | No | What to do on a match. Valid actions and the default (first) depend on the type; see the table below. |
+| `message` | No | Text returned as `answer` when the rule blocks. Default: `I can't help with that request.` |
+| `max_chars` | No | For `max_length`: maximum character count (default `10000`). Alias: `max_characters`. |
+| `max_tokens_per_turn` | Yes, for `cost_limit` | Output-token budget for the whole run. |
+| `count` | No | For `cost_limit`: `output` (default) or `total` (input + output tokens). |
+| `forbidden_keywords` | Depends | For `content_filter`: keywords matched case-insensitively. |
+| `blocked_patterns` | Depends | For `content_filter`: case-insensitive regular expressions. |
+| `blocked_topics` / `forbidden_topics` | Yes, for `topic_filter` | Topics matched case-insensitively as substrings. |
+
+`blocked_categories` and `allowed_topics` need a classifier that does not exist; they are ignored with a warning at load time.
+
+
+:::caution[Breaking since core 0.70.0]
+Before 0.70.0 `spec.guardrails` was not enforced. Manifests that already declare guardrails change behavior: input `pii_detection` now redacts by default (the phone pattern matches any 10-digit number, so order IDs and card numbers stop reaching tools; move redaction to the output if tools need them), `max_length` truncates at 10000 characters by default, and `cost_limit.max_tokens_per_turn` is a real run-wide budget, so old values of 500-1500 cut runs that use tools (around 4000 is recommended). A block returns `blocked: true` instead of an error.
+:::
 
 ### `spec.permissions`
 
@@ -522,13 +530,13 @@ Putting `memory.conversation` in `prompts.system` still works and keeps the old 
 
 ## Guardrail Types
 
-| Type | Direction | Description |
-|------|-----------|-------------|
-| `pii_detection` | input, output | Detects and redacts emails, phone numbers, SSNs, and credit card numbers. |
-| `max_length` | input | Rejects messages exceeding the configured `max_chars` limit. |
-| `cost_limit` | output | Truncates responses that exceed `max_tokens_per_turn`. |
-| `content_filter` | output | Blocks responses containing any of the `forbidden_keywords`. |
-| `topic_filter` | output | Blocks responses matching any of the `forbidden_topics`. |
+| Type | Direction | Actions (default first) | Description |
+|------|-----------|-------------------------|-------------|
+| `pii_detection` | input, output | `redact`, `block`, `warn` | Detects emails, US-format phone numbers, SSNs and credit card numbers. |
+| `topic_filter` | input | `warn`, `block` | Matches `blocked_topics` (alias `forbidden_topics`) in the message. |
+| `max_length` | input | `truncate`, `block` | Applies to messages longer than `max_chars` (alias `max_characters`, default 10000). |
+| `content_filter` | output | `redact`, `block` | Matches `forbidden_keywords` or `blocked_patterns`; `redact` replaces matches with `[FILTERED]`. |
+| `cost_limit` | run (accepted under `input` or `output`) | `block` | Output-token budget for the whole run (`count: total` includes input). Checked before each model call; once spent, the run ends with `guardrail.direction: run`. |
 
 ## Tips
 

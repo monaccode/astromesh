@@ -145,13 +145,15 @@ A run that uses integrations supplies their credentials here:
   "trace": { ... },
   "data": null,
   "chain": null,
-  "propuestas": []
+  "propuestas": [],
+  "blocked": false,
+  "guardrail": null
 }
 ```
 
 | Field | Description |
 |-------|-------------|
-| `answer` | The agent's final answer |
+| `answer` | The agent's final answer. When a guardrail blocks the run, the rule's rejection message |
 | `steps` | Orchestration steps (thought / action / observation) |
 | `usage` | Token usage summed from the run's trace. `null` when no provider reported tokens |
 | `usage.model` | First model seen, kept for compatibility. Use `by_model` on multi-model runs |
@@ -161,6 +163,20 @@ A run that uses integrations supplies their credentials here:
 | `data` | Validated structured output when the agent declares `output_schema` |
 | `chain` | Chain block when the agent declares `spec.chain` |
 | `propuestas` | Writes proposed by `mode: propose` tools, not executed (see [Tenant APIs and MCP](/astromesh/configuration/tenant-apis-and-mcp/)). Empty when there were none. Available since astromesh **v0.59.0** |
+| `blocked` | `true` when a [guardrail](/astromesh/configuration/agent-yaml/#specguardrails) stopped the run. Available since astromesh **v0.70.0** |
+| `guardrail` | `null`, or `{direction, rule, reason}` when `blocked`: `direction` is `input`, `output` or `run` (the `cost_limit` budget), `rule` the guardrail type that fired, `reason` a short cause that never repeats the blocked content |
+
+A block is a normal result, not an error: the response is `200` with `blocked: true`, `steps` empty and the rejection message in `answer`. Before v0.70.0 a topic block surfaced as `404`.
+
+```json
+{
+  "answer": "I can't help with that request.",
+  "steps": [],
+  "blocked": true,
+  "guardrail": { "direction": "input", "rule": "topic_filter", "reason": "blocked topic" },
+  "propuestas": []
+}
+```
 
 **Errors:**
 
@@ -823,9 +839,13 @@ Completion — `usage` has the same shape as in `POST /v1/agents/{name}/run`, in
   "answer": "Quantum computing uses...",
   "session_id": "sess_abc123",
   "usage": { "tokens_in": 800, "tokens_out": 350, "model": "gpt-4o", "by_model": [ ... ] },
-  "propuestas": []
+  "propuestas": [],
+  "blocked": false,
+  "guardrail": null
 }
 ```
+
+`blocked` and `guardrail` have the same meaning as in the run response (since astromesh **v0.70.0**). When the agent has output guardrails, `token` events are filtered as they stream, and a token event that a rule blocks is suppressed.
 
 Error:
 ```json
