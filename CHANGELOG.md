@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Astromesh Forge)
+
+- **La consola muestra lo que devuelve `/run` desde core 0.70.0:** un rechazo de guardrail
+  (`blocked` + regla, dirección y motivo) ya no parece una respuesta normal; las escrituras
+  propuestas (`propuestas`, sin ejecutar) se listan bajo la respuesta; los tokens cacheados
+  y el consumo por modelo/rol (`usage.by_model`) aparecen en la burbuja y en la barra de
+  resumen.
+
 ### Fixed (Astromesh Forge)
 
 - **Forge abre agentes con `model.default` + `model.roles`** (el shape de core 0.29+, Cortex y

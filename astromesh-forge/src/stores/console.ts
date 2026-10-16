@@ -117,6 +117,9 @@ export const useConsoleStore = create<ConsoleState>((set, get) => ({
         usage: response.usage,
         trace: response.trace,
         steps: response.steps,
+        blocked: response.blocked,
+        guardrail: response.guardrail,
+        propuestas: response.propuestas,
       };
 
       const assistantMsg: ChatMessage = {
