@@ -94,12 +94,33 @@ class MemoryManager:
         self._episodic = episodic
         self._embed = embedding_fn
         self._summarize = summarize_fn
+        # Backends con `initialize()` que todavía no lo corrieron con éxito.
+        self._sin_preparar = [b for b in (semantic, episodic) if hasattr(b, "initialize")]
+
+    async def _preparar(self):
+        """`initialize()` una vez en los backends que lo tienen (pools de Postgres).
+
+        Si falla se loguea y se reintenta en la próxima llamada: la corrida sigue
+        sin esa memoria, igual que con un `search`/`store` caído."""
+        for backend in list(self._sin_preparar):
+            try:
+                await backend.initialize()
+            except Exception:
+                logger.warning(
+                    "memory: initialize() de %s falló para agent=%s; se reintenta",
+                    type(backend).__name__,
+                    self.agent_id,
+                    exc_info=True,
+                )
+                continue
+            self._sin_preparar.remove(backend)
 
     async def build_context(self, session_id, current_query, max_tokens=None):
         """Historial + semántica + episódica. Recorta el historial sólo si se pasa
         `max_tokens`; el engine recorta después con `fit_history`, cuando ya midió
         el system prompt y las tools."""
         context = {"conversation": [], "semantic": [], "episodic": []}
+        await self._preparar()
 
         if self._conversation:
             conv = self.config.get("conversational", {})
@@ -121,15 +142,29 @@ class MemoryManager:
                 self.fit_history(context, max_tokens)
 
         if self._semantic and self._embed:
-            query_emb = await self._embed(current_query)
             threshold = self.config.get("semantic", {}).get("similarity_threshold", 0.75)
             max_results = self.config.get("semantic", {}).get("max_results", 10)
-            context["semantic"] = await self._semantic.search(
-                self.agent_id, query_emb, top_k=max_results, threshold=threshold
-            )
+            try:
+                query_emb = await self._embed(current_query)
+                context["semantic"] = await self._semantic.search(
+                    self.agent_id, query_emb, top_k=max_results, threshold=threshold
+                )
+            except Exception:
+                logger.warning(
+                    "memory.semantic: la búsqueda falló para agent=%s; sigue sin ella",
+                    self.agent_id,
+                    exc_info=True,
+                )
 
         if self._episodic:
-            context["episodic"] = await self._episodic.recall(self.agent_id, limit=5)
+            try:
+                context["episodic"] = await self._episodic.recall(self.agent_id, limit=5)
+            except Exception:
+                logger.warning(
+                    "memory.episodic: recall falló para agent=%s; sigue sin ella",
+                    self.agent_id,
+                    exc_info=True,
+                )
 
         return context
 
@@ -170,9 +205,11 @@ class MemoryManager:
             await self._conversation.clear(session_id)
 
     async def persist_turn(self, session_id, turn):
+        await self._preparar()
+        # Antes del `if`: la escritura semántica de abajo lo usa, haya o no conversacional.
+        if not turn.token_count:
+            turn.token_count = estimate_tokens(turn.content)
         if self._conversation:
-            if not turn.token_count:
-                turn.token_count = estimate_tokens(turn.content)
             await self._conversation.save_turn(session_id, turn)
             max_turns = self.config.get("conversational", {}).get("max_turns", 50)
             # Resumen incremental, una vez por intercambio (tras el assistant): se
@@ -195,13 +232,22 @@ class MemoryManager:
                         )
 
         if self._semantic and self._embed and turn.role == "assistant" and turn.token_count > 50:
-            emb = await self._embed(turn.content)
-            await self._semantic.store(
-                self.agent_id,
-                turn.content,
-                emb,
-                {
-                    "session_id": session_id,
-                    "timestamp": turn.timestamp.isoformat(),
-                },
-            )
+            try:
+                emb = await self._embed(turn.content)
+                await self._semantic.store(
+                    self.agent_id,
+                    turn.content,
+                    emb,
+                    {
+                        "session_id": session_id,
+                        "timestamp": turn.timestamp.isoformat(),
+                    },
+                )
+            except Exception:
+                logger.warning(
+                    "memory.semantic: store falló para agent=%s session=%s; el turno "
+                    "no queda en la memoria semántica",
+                    self.agent_id,
+                    session_id,
+                    exc_info=True,
+                )

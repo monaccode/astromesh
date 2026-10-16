@@ -38,7 +38,7 @@ def _build_chunker(cfg: dict):
     raise ValueError(f"Unknown chunking.strategy: {strategy}")
 
 
-def _build_embedder(cfg: dict):
+def build_embedder(cfg: dict):
     provider = cfg.get("provider", "ollama")
     if provider == "ollama":
         return OllamaEmbeddingProvider(
@@ -110,7 +110,7 @@ def build_pipeline(spec: RAGPipelineSpec) -> RAGPipeline:
     dimensions = spec.embeddings.get("dimension", 384)
     return RAGPipeline(
         chunker=_build_chunker(spec.chunking),
-        embedding_provider=_build_embedder(spec.embeddings),
+        embedding_provider=build_embedder(spec.embeddings),
         vector_store=_build_store(spec.vector_store, dimensions),
         reranker=_build_reranker(spec.reranking),
     )

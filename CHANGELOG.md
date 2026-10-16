@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Un patrón sin match o un resultado sin tools avisa en el log; un `prefetch` que nombra una tool
   no permitida es `AgentConfigError`. Se elimina `ToolDefinition.permissions`
   (`get_tool_schemas` ahora recibe `permitidas`).
+- `memory.semantic` (`chromadb` | `faiss` | `pgvector` | `qdrant`) y `memory.episodic`
+  (`postgres`) se construyen desde el manifiesto (`build_semantic_memory`,
+  `build_episodic_backend`); antes se declaraban y no hacían nada. `memory.semantic.embeddings`
+  es obligatorio (mismo shape que el embedder de RAG, `rag.factory.build_embedder`); sin él, o
+  sin el extra del backend (`astromesh[chromadb|faiss|qdrant|postgres|embeddings]`), el agente
+  queda en `draft` con `AgentConfigError`. `dimension` obligatorio en `faiss`/`pgvector`/
+  `qdrant`, `connection.url` en `pgvector` y `postgres`. Un backend que falla en runtime
+  (`initialize`, búsqueda, `recall`, `store`) se loguea y la corrida sigue sin esa memoria; la
+  escritura semántica ya no depende de tener memoria conversacional. `sales-qualifier` deja de
+  declarar `memory.semantic`.
 
 ### Changed (Release coordination)
 

@@ -81,10 +81,6 @@ spec:
       strategy: sliding_window
       max_turns: 20
       ttl: 3600
-    semantic:
-      backend: chromadb
-      similarity_threshold: 0.75
-      max_results: 5
 
   guardrails:
     input:

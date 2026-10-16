@@ -32,7 +32,11 @@ from astromesh.integrations.propuestas import (
     SOLO_PRINCIPAL,
     handler_de_propuesta,
 )
-from astromesh.memory.factory import build_conversation_backend
+from astromesh.memory.factory import (
+    build_conversation_backend,
+    build_episodic_backend,
+    build_semantic_memory,
+)
 from astromesh.orchestration.observaciones import DEFAULT_MAX_TOOL_RESULT_TOKENS
 from astromesh.orchestration.patterns import (
     ParallelFanOutPattern,
@@ -905,10 +909,17 @@ class AgentRuntime:
         # arriba y alcanzable. La memoria conversacional era código muerto:
         # `build_conversation_backend` no lo llamaba NADIE.
         conv_spec = memory_spec.get("conversational") or {}
+        # A diferencia de la conversacional, un manifiesto semántico/episódico
+        # inválido (o sin su extra) sube como AgentConfigError: el agente queda
+        # en `draft` con el mensaje que dice qué cambiar.
+        sem = build_semantic_memory(memory_spec.get("semantic"))
         memory = MemoryManager(
             agent_id=metadata["name"],
             config=memory_spec,
             conversation=self._conversation_backend(metadata["name"], memory_spec),
+            semantic=sem[0] if sem else None,
+            embedding_fn=sem[1] if sem else None,
+            episodic=build_episodic_backend(memory_spec.get("episodic")),
             # Sólo con `strategy: summary`: resumir es una llamada al modelo por
             # turno, y un agente que no la pidió no la paga.
             summarize_fn=_summarizer(routers) if conv_spec.get("strategy") == "summary" else None,
