@@ -63,6 +63,11 @@ async def crear(nombre: str) -> str: ...
   atiende a la persona, nunca la del miembro o sub-agente (su query la escribió un modelo).
   Éste corre en la misma sesión, su aviso sale en la respuesta de la corrida de arriba, y no
   puede proponer: se le contesta al modelo que no se registró nada.
+- **Límite: sub-agentes remotos.** Un agente con `bind()`/`connect()`/`remote()` usado como
+  tool corre en el nodo remoto como un turno de persona en la sesión `"default"`: el modelo
+  padre puede pasarle `"si"` y satisfacer él solo la compuerta del nodo remoto. La compuerta
+  local no protege a los hijos remotos. Las tools de escritura que necesitan aprobación humana
+  van en el agente que habla con la persona, o se llama al agente remoto directamente.
 
 ## CLI
 

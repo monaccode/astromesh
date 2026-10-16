@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `RunResult.propuestas` con `tipo: "adk"`. Los miembros de un equipo y los agentes usados como
   tool (`as_tool()`) corren como sub-corridas de la misma sesión: no confirman ni proponen, y
   su aviso sale en la respuesta que lee la persona. `mode` inválido es `ValueError`.
+  Límite: un agente remoto (`bind()`/`connect()`/`remote()`) usado como tool corre en su nodo
+  como turno de persona en la sesión `"default"`, así que el modelo padre puede confirmarle
+  con "si"; las tools que necesitan aprobación van en el agente que habla con la persona.
 
 ### Changed
 - **Equipos `swarm` con handoff por tool call.** El agente de entrada recibe a los miembros
