@@ -22,6 +22,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `permissions.filesystem/network/execution` y otras claves se ignoran con warning.
 - `register_internal(...)` y `register_agent_tool(...)` con `permissions=` ahora levantan
   `TypeError` (se elimino `ToolDefinition.permissions`).
+- Ahora tambien son `AgentConfigError` (antes cargaban sin efecto): `memory.semantic.backend`
+  desconocido (incluido `in_memory`, que el schema del editor anunciaba); `memory.episodic.backend`
+  distinto de `postgres` (por ejemplo `sqlite`, que producia Forge); falta `dimension`
+  (`faiss`/`pgvector`/`qdrant`) o `connection.url` (`pgvector`/`postgres`); `timeout_seconds`
+  string, `0`, negativo o bool; `permissions` que no es un dict o `allowed_actions`/
+  `denied_actions` que no son una lista; un `prefetch` que nombra una tool que `permissions`
+  deja afuera.
+- `orchestration.timeout` (alias deprecado) tambien corta la corrida.
+- API de Python: `SwarmPattern(agent_configs)` pasa a `SwarmPattern(workers, max_handoffs=3)`;
+  `Agent(..., permissions=)` pasa a `permitidas=`; `get_tool_schemas(agent_permissions)` pasa a
+  `get_tool_schemas(permitidas)` y **filtra por nombre de tool** (pasarle la lista de verbos
+  vieja deja afuera todo lo que no matchee); `SemanticBackend.search` y
+  `EpisodicBackend.recall` reciben `session_id=` (un backend propio tiene que aceptarlo).
+- `memory.semantic` y `memory.episodic` son **por sesion**: la busqueda semantica y el recall
+  de episodios filtran por `session_id` en la consulta del backend.
+- Un sub-agente (tool `type: agent`, destino de swarm) guarda su memoria en la sesion
+  `<session_id>::<agente>`, no en la de la persona.
 
 ### Added (Backend)
 
@@ -29,7 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ok|blocked|error|timeout`, tools llamadas, tokens y regla de guardrail; si se bloqueó la
   entrada se graba sin la query. Al prompt, `memory.semantic` llega como
   `{content, similarity, source}` (sin el vector) y `memory.episodic` sólo con episodios de la
-  misma sesión (los 5 más recientes).
+  misma sesión (los 5 más recientes, filtrados en la consulta). La búsqueda semántica también
+  es de la sesión.
 - `permissions.allowed_actions`/`denied_actions` restringen de verdad: whitelist de nombres
   **registrados** con comodines `fnmatch`, `denied` gana, se aplica al ofrecer y al ejecutar.
   Un patrón sin match o un resultado sin tools avisa en el log; un `prefetch` que nombra una tool
@@ -60,8 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manifiesto (sin ninguna, `AgentConfigError`, como `supervisor`); pasar el control = llamar a
   esa tool, y si el destino contesta, su respuesta **es la respuesta final** (no vuelve al que
   delegó); un error del destino (rate limit, permiso, `confirmacion_requerida`...) vuelve al
-  modelo como cualquier resultado de tool. El destino recibe la historia de la conversación en
-  su `query`. `orchestration.max_handoffs` (entero >= 1, default 3) corta las cadenas: el
+  modelo como cualquier resultado de tool. El destino recibe la historia de la conversación
+  (acotada) en su `query` y guarda en su memoria sólo el pedido. `orchestration.max_handoffs` (entero >= 1, default 3) corta las cadenas: el
   contador lo lleva el runtime al agente hijo (todo sub-agente lo hereda; un `_handoffs` escrito
   por el modelo o un valor inválido en el context de la corrida no lo bajan) y, al llegar al
   tope, ya no se ofrecen ni se ejecutan handoffs. Ahora además lee el historial, recibe
@@ -69,12 +87,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   system propio ni interpreta JSON `{"handoff": ...}`. `ciclo_de_tools` gana `finales`.
   `SwarmPattern(workers, max_handoffs=3)` reemplaza a `SwarmPattern(agent_configs)`.
 
+### Fixed
+
+- Un handoff de swarm con memoria conversacional compartida duplicaba la historia en cada
+  turno (el destino guardaba la transcripcion entera como turno del usuario en la sesion de la
+  persona). Ahora los sub-agentes guardan en `<session_id>::<agente>` y sólo el pedido; la
+  transcripcion que recibe el destino omite contenidos vacios, suma el mensaje actual y se
+  acota (`TRANSCRIPCION_MAX_TURNOS=20`, `TRANSCRIPCION_MAX_CHARS=8000`).
+- `memory.semantic` traia respuestas de otras sesiones del mismo agente al prompt; ahora
+  `search` filtra por `session_id` en cada backend (`pgvector`, `chromadb`, `qdrant`, `faiss`).
+- `memory.episodic` leia los 50 episodios mas nuevos del agente y despues filtraba por sesion:
+  con trafico, la sesion quedaba vacia. `PGEpisodicBackend.recall` filtra por
+  `context->>'session_id'` en SQL y trae los 5 mas nuevos de la sesion.
+- Un error antes de los guardrails de entrada grababa la query sin filtrar en el episodio;
+  ahora se graba sin query, como un bloqueo de entrada.
+- `QdrantSemanticBackend.search` usa `query_points` (qdrant-client 1.13+ quito `search`).
+
 ### Changed (Docs)
 
 - docs-site documenta lo que core 0.71 aplica: `permissions`, memoria semantica/episodica,
   `swarm` con `max_handoffs`, `timeout_seconds` (504), el bloque "Breaking since core 0.71.0",
   la confirmacion/`mode="propose"` en local del ADK (con el limite de sub-agentes remotos) y la
   persistencia de `blocked`/`guardrail` y el estado `timeout` en Nexus 0.26.13.
+- El tutorial first-agent, docker-single, `CONFIGURATION_GUIDE` y `WHATSAPP_INTEGRATION` usan
+  `timeout_seconds: 120`; la memoria semantica/episodica figura como de la sesion, la memoria
+  de un sub-agente en `<session_id>::<agente>`, y el bloque "Breaking since core 0.71.0" lista
+  todas las nuevas fallas de carga y los cambios de API de Python.
 
 ### Changed (Config)
 

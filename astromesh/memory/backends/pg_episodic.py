@@ -42,7 +42,7 @@ class PGEpisodicBackend(EpisodicBackend):
                 episode.timestamp,
             )
 
-    async def recall(self, agent_id, event_type=None, since=None, limit=20):
+    async def recall(self, agent_id, event_type=None, since=None, limit=20, session_id=None):
         query = "SELECT event_type, summary, context, outcome, importance_score, timestamp FROM episodic_memories WHERE agent_id = $1"
         params: list = [agent_id]
         idx = 2
@@ -55,6 +55,11 @@ class PGEpisodicBackend(EpisodicBackend):
         if since is not None:
             query += f" AND timestamp >= ${idx}"
             params.append(since)
+            idx += 1
+
+        if session_id is not None:
+            query += f" AND context->>'session_id' = ${idx}"
+            params.append(session_id)
             idx += 1
 
         query += f" ORDER BY timestamp DESC LIMIT ${idx}"

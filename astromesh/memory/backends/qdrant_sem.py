@@ -1,7 +1,14 @@
 import uuid
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
 from astromesh.core.memory import SemanticBackend, SemanticMemory
 
@@ -52,14 +59,21 @@ class QdrantSemanticBackend(SemanticBackend):
         )
         return memory_id
 
-    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7):
+    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7, session_id=None):
         self._ensure_collection(agent_id)
-        results = self._client.search(
+        filtro = None
+        if session_id is not None:
+            filtro = Filter(
+                must=[FieldCondition(key="metadata.session_id", match=MatchValue(value=session_id))]
+            )
+        # `query_points`, no `search`: qdrant-client 1.13+ quitó `search` (el extra pide >=1.11).
+        results = self._client.query_points(
             collection_name=self._collection_name(agent_id),
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=top_k,
             score_threshold=threshold,
-        )
+            query_filter=filtro,
+        ).points
         return [
             SemanticMemory(
                 content=hit.payload.get("content", ""),

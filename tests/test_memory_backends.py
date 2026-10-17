@@ -265,3 +265,92 @@ def test_token_budget_empty():
     strategy = TokenBudgetStrategy()
     result = strategy.apply([], budget=1000)
     assert len(result) == 0
+
+
+# ===================== Filtro por sesión (semántica y episódica) =====================
+
+
+@pytest.mark.asyncio
+async def test_pg_episodic_recall_filtra_por_sesion_en_sql():
+    mock_conn = AsyncMock()
+    mock_conn.fetch.return_value = []
+    sys.modules.pop("astromesh.memory.backends.pg_episodic", None)
+    from astromesh.memory.backends.pg_episodic import PGEpisodicBackend
+
+    await PGEpisodicBackend(pool=_make_pg_mock_pool(mock_conn)).recall(
+        "a", limit=5, session_id="s1"
+    )
+    sql, *params = mock_conn.fetch.call_args.args
+    assert "context->>'session_id' = $2" in sql
+    assert sql.index("session_id") < sql.index("ORDER BY")
+    assert params == ["a", "s1", 5]
+
+
+@pytest.mark.asyncio
+async def test_pgvector_search_filtra_por_sesion_en_sql():
+    mock_conn = AsyncMock()
+    mock_conn.fetch.return_value = []
+    sys.modules.pop("astromesh.memory.backends.pgvector_sem", None)
+    from astromesh.memory.backends.pgvector_sem import PGVectorSemanticBackend
+
+    backend = PGVectorSemanticBackend(pool=_make_pg_mock_pool(mock_conn))
+    await backend.search("a", [0.1], top_k=3, threshold=0.5, session_id="s1")
+    sql, *params = mock_conn.fetch.call_args.args
+    assert "metadata->>'session_id' = $5" in sql
+    assert params[1:] == ["a", 0.5, 3, "s1"]
+    await backend.search("a", [0.1])
+    assert "session_id" not in mock_conn.fetch.call_args.args[0]
+
+
+@pytest.mark.usefixtures("_inject_faiss")
+def test_faiss_search_filtra_por_sesion():
+    sys.modules.pop("astromesh.memory.backends.faiss_sem", None)
+    from astromesh.memory.backends.faiss_sem import FAISSSemanticBackend
+
+    backend = FAISSSemanticBackend(dimension=4)
+    import asyncio
+
+    async def run():
+        for i in range(5):
+            await backend.store("a", f"de s2 {i}", [0.1, 0.2, 0.3, 0.4], {"session_id": "s2"})
+        await backend.store("a", "de s1", [0.1, 0.2, 0.3, 0.41], {"session_id": "s1"})
+        got = await backend.search("a", [0.1, 0.2, 0.3, 0.4], top_k=2, session_id="s1")
+        assert [m.content for m in got] == ["de s1"]
+
+    asyncio.run(run())
+
+
+def test_chroma_search_filtra_por_sesion():
+    pytest.importorskip("chromadb")
+    import asyncio
+
+    import chromadb
+
+    from astromesh.memory.backends.chroma_sem import ChromaSemanticBackend
+
+    backend = ChromaSemanticBackend(client=chromadb.EphemeralClient())
+
+    async def run():
+        await backend.store("filtro", "de s2", [0.1, 0.2, 0.3], {"session_id": "s2"})
+        await backend.store("filtro", "de s1", [0.1, 0.2, 0.31], {"session_id": "s1"})
+        got = await backend.search("filtro", [0.1, 0.2, 0.3], threshold=0.0, session_id="s1")
+        assert [m.content for m in got] == ["de s1"]
+
+    asyncio.run(run())
+
+
+def test_qdrant_search_filtra_por_sesion():
+    pytest.importorskip("qdrant_client")
+    import asyncio
+
+    from astromesh.memory.backends.qdrant_sem import QdrantSemanticBackend
+
+    backend = QdrantSemanticBackend(dimension=3)
+
+    async def run():
+        await backend.store("a", "de s2", [0.1, 0.2, 0.3], {"session_id": "s2"})
+        await backend.store("a", "de s1", [0.1, 0.2, 0.31], {"session_id": "s1"})
+        got = await backend.search("a", [0.1, 0.2, 0.3], threshold=0.0, session_id="s1")
+        assert [m.content for m in got] == ["de s1"]
+
+    asyncio.run(run())

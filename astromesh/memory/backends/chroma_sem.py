@@ -31,11 +31,12 @@ class ChromaSemanticBackend(SemanticBackend):
         )
         return memory_id
 
-    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7):
+    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7, session_id=None):
         collection = self._get_collection(agent_id)
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
+            where={"session_id": session_id} if session_id is not None else None,
             include=["documents", "metadatas", "distances"],
         )
         memories = []

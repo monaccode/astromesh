@@ -126,6 +126,8 @@ class TestExecuteAgentTool:
             "sales-qualifier",
             "Is Acme Corp a good lead?",
             session_id="sess-1",
+            memoria_session="sess-1::sales-qualifier",
+            query_memoria=None,
             context=None,
             parent_trace_id=None,
             # El bundle de credenciales baja al sub-agente: sin esto, una
@@ -183,6 +185,8 @@ class TestExecuteAgentTool:
             "sales-qualifier",
             "test",
             session_id="sess-42",
+            memoria_session="sess-42::sales-qualifier",
+            query_memoria=None,
             context=None,
             parent_trace_id=None,
             connections={},

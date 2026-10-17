@@ -60,8 +60,9 @@ class SemanticBackend(ABC):
 
     @abstractmethod
     async def search(
-        self, agent_id, query_embedding, top_k=10, threshold=0.7
-    ) -> list[SemanticMemory]: ...
+        self, agent_id, query_embedding, top_k=10, threshold=0.7, session_id=None
+    ) -> list[SemanticMemory]:
+        """Con `session_id`, sólo los recuerdos guardados con ese `metadata.session_id`."""
 
     @abstractmethod
     async def delete(self, agent_id, memory_id): ...
@@ -73,8 +74,9 @@ class EpisodicBackend(ABC):
 
     @abstractmethod
     async def recall(
-        self, agent_id, event_type=None, since=None, limit=20
-    ) -> list[EpisodicMemory]: ...
+        self, agent_id, event_type=None, since=None, limit=20, session_id=None
+    ) -> list[EpisodicMemory]:
+        """Los `limit` más nuevos; con `session_id`, sólo los de `context.session_id`."""
 
 
 class MemoryManager:
@@ -153,8 +155,14 @@ class MemoryManager:
             max_results = self.config.get("semantic", {}).get("max_results", 10)
             try:
                 query_emb = await self._embed(current_query)
+                # Por sesión, como los episodios: un recuerdo de otra sesión es la
+                # respuesta que recibió otra persona.
                 encontrados = await self._semantic.search(
-                    self.agent_id, query_emb, top_k=max_results, threshold=threshold
+                    self.agent_id,
+                    query_emb,
+                    top_k=max_results,
+                    threshold=threshold,
+                    session_id=session_id,
                 )
                 # Sin el vector: al prompt van el texto y de dónde viene.
                 context["semantic"] = [
@@ -170,11 +178,10 @@ class MemoryManager:
 
         if self._episodic:
             try:
-                recientes = await self._episodic.recall(self.agent_id, limit=50)
-                # Un episodio de otra sesión puede traer la query de otra persona.
-                propios = [
-                    e for e in recientes if (e.context or {}).get("session_id") == session_id
-                ]
+                # Filtrado en la consulta, no después: un episodio de otra sesión puede
+                # traer la query de otra persona, y filtrar los 50 más nuevos del
+                # agente dejaba vacía la sesión de un agente con tráfico.
+                propios = await self._episodic.recall(self.agent_id, limit=5, session_id=session_id)
                 context["episodic"] = [
                     {
                         "event_type": e.event_type,
@@ -183,7 +190,7 @@ class MemoryManager:
                         "outcome": e.outcome,
                         "timestamp": e.timestamp.isoformat(),
                     }
-                    for e in propios[:5]
+                    for e in propios
                 ]
             except Exception:
                 logger.warning(

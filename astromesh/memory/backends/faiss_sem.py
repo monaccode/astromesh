@@ -34,14 +34,17 @@ class FAISSSemanticBackend(SemanticBackend):
         )
         return memory_id
 
-    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7):
+    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7, session_id=None):
         self._ensure_index(agent_id)
         if self._indices[agent_id].ntotal == 0:
             return []
 
         query_vec = np.array([query_embedding], dtype=np.float32)
         faiss.normalize_L2(query_vec)
-        k = min(top_k, self._indices[agent_id].ntotal)
+        # ponytail: con sesión se recorre el índice entero (IndexFlat, en proceso) y se
+        # filtra; un IDSelector por sesión si un índice crece lo bastante para notarlo.
+        total = self._indices[agent_id].ntotal
+        k = total if session_id is not None else min(top_k, total)
         scores, indices = self._indices[agent_id].search(query_vec, k)
 
         results = []
@@ -49,6 +52,10 @@ class FAISSSemanticBackend(SemanticBackend):
             if idx < 0 or float(score) < threshold:
                 continue
             entry = self._data[agent_id][idx]
+            if session_id is not None and (entry["metadata"] or {}).get("session_id") != session_id:
+                continue
+            if len(results) >= top_k:
+                break
             results.append(
                 SemanticMemory(
                     content=entry["content"],

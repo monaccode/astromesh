@@ -1401,6 +1401,8 @@ class AgentRuntime:
         desde_humano: bool = True,
         admite_propuestas: bool = True,
         propuestas_padre: list[dict] | None = None,
+        memoria_session: str | None = None,
+        query_memoria: str | None = None,
     ):
         agent = self._agents.get(agent_name)
         if not agent:
@@ -1415,6 +1417,8 @@ class AgentRuntime:
             desde_humano=desde_humano,
             admite_propuestas=admite_propuestas,
             propuestas_padre=propuestas_padre,
+            memoria_session=memoria_session,
+            query_memoria=query_memoria,
         )
 
     def agent_error(self, name: str) -> str | None:
@@ -1735,8 +1739,16 @@ class Agent:
         desde_humano: bool = True,
         admite_propuestas: bool = True,
         propuestas_padre: list[dict] | None = None,
+        memoria_session: str | None = None,
+        query_memoria: str | None = None,
     ):
+        """`memoria_session`: dónde guarda y lee memoria la corrida (por defecto
+        `session_id`; un sub-agente usa una propia, ver `ToolRegistry.execute`).
+        `query_memoria`: lo que se guarda como turno del usuario en vez de `query`
+        (el pedido de un handoff, sin la transcripción que viaja en `query`)."""
         from astromesh.observability.tracing import SpanStatus, TracingContext
+
+        mem_session = session_id if memoria_session is None else memoria_session
 
         tracing = TracingContext(agent_name=self.name, session_id=session_id)
         if parent_trace_id:
@@ -1749,6 +1761,10 @@ class Agent:
             contados = 0  # tokens contados para `cost_limit` (Task 3)
             corte: GuardrailBlocked | None = None  # el corte de `cost_limit`
             query_text = _texto_de(query)
+            # Lo que va a memoria (turno y episodio). Sin guardrails de entrada no
+            # hay nada que filtrar; con ellos, hasta filtrar no se guarda la query.
+            entrada_filtrada = not self._guardrails.has_input
+            query_persistir = query if query_memoria is None else query_memoria
             tools_llamadas: list[str] = []
             uso = {"input": 0, "output": 0}
 
@@ -1759,8 +1775,8 @@ class Agent:
                 # rompe la corrida (ni con una memoria sin `record_run`).
                 with contextlib.suppress(Exception):
                     await self._memory.record_run(
-                        session_id,
-                        query=query_text if con_query else None,
+                        mem_session,
+                        query=_texto_de(query_persistir) if con_query else None,
                         resultado=resultado,
                         tools=list(tools_llamadas),
                         tokens=dict(uso),
@@ -1795,13 +1811,19 @@ class Agent:
             if self._guardrails.has_input:
                 query = self._guardar_query(query, tracing, root_span)
                 query_text = _texto_de(query)
+                query_persistir = (
+                    query
+                    if query_memoria is None
+                    else self._guardar_query(query_memoria, tracing, root_span)
+                )
+                entrada_filtrada = True
 
             root_span.set_attribute("query", query_text[:5000])
 
             mem_span = tracing.start_span("memory_build")
             # Sin presupuesto acá: se recorta más abajo, cuando ya están medidos
             # el system prompt y las tools (`context_fit`).
-            memory_context = await self._memory.build_context(session_id, query_text)
+            memory_context = await self._memory.build_context(mem_session, query_text)
             tracing.finish_span(mem_span)
 
             rag_span = tracing.start_span("rag_build")
@@ -2285,7 +2307,7 @@ class Agent:
                     result["answer"] = con
 
             await self._persistir_turno(
-                session_id, query, result.get("answer", ""), tracing, root_span
+                mem_session, query_persistir, result.get("answer", ""), tracing, root_span
             )
             await _episodio("ok")
 
@@ -2328,7 +2350,9 @@ class Agent:
             if bloqueo.direction != "input":
                 # El texto bloqueado de entrada no entra al historial; el resto
                 # guarda la pregunta (ya filtrada) y el rechazo.
-                await self._persistir_turno(session_id, query, bloqueo.message, tracing, root_span)
+                await self._persistir_turno(
+                    mem_session, query_persistir, bloqueo.message, tracing, root_span
+                )
             await _episodio("blocked", regla=bloqueo.rule, con_query=bloqueo.direction != "input")
             root_span.set_attribute("guardrail.blocked", True)
             root_span.set_attribute("guardrail.rule", bloqueo.rule)
@@ -2369,7 +2393,9 @@ class Agent:
             logger.exception("agent.run failed agent=%s session=%s", self.name, session_id)
             root_span.set_attribute("error_message", str(e))
             tracing.finish_span(root_span, status=SpanStatus.ERROR)
-            await _episodio("error")
+            # Un error antes de los guardrails de entrada: la query sin filtrar
+            # (puede ser PII) no va al episodio, igual que en un bloqueo de entrada.
+            await _episodio("error", con_query=entrada_filtrada)
             raise
         finally:
             # Barre lo que `habilitar` dejó confirmado y sin usar (la persona

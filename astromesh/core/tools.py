@@ -248,7 +248,7 @@ class ToolRegistry:
                     transform_ctx = json_mod.loads(rendered)
                 except Exception as exc:  # noqa: BLE001  (una tool que revienta degrada su llamada, nunca la corrida)
                     return {"error": f"Context transform failed: {exc}"}
-            from astromesh.orchestration.swarm import CLAVE_HANDOFFS, handoffs_de
+            from astromesh.orchestration.swarm import CLAVE_HANDOFFS, CLAVE_PEDIDO, handoffs_de
 
             # El hijo hereda el contador que puso el runtime (context de la tool,
             # `Agent.run`), +1 si es un handoff del swarm. El VALOR del argumento
@@ -266,6 +266,16 @@ class ToolRegistry:
                 agent_name,
                 query,
                 session_id=session_id,
+                # La memoria del hijo va en una sesión propia: en la de la persona
+                # duplicaba cada turno (el hijo guardaba el suyo y el padre el mismo).
+                # Pendientes y traza siguen en `session_id`: son de la persona.
+                memoria_session=f"{session_id}::{agent_name}",
+                # Del swarm: lo que el destino guarda es el pedido, no la transcripción.
+                query_memoria=(
+                    arguments[CLAVE_PEDIDO]
+                    if isinstance(arguments.get(CLAVE_PEDIDO), str)
+                    else None
+                ),
                 context=transform_ctx,
                 parent_trace_id=parent_trace_id,
                 connections=(context or {}).get("connections") or {},

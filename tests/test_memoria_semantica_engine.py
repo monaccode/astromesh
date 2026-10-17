@@ -34,7 +34,7 @@ class FakeSemantic(SemanticBackend):
             raise RuntimeError("store caído")
         self.stored.append(content)
 
-    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7):
+    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7, session_id=None):
         if self._falla_en == "search":
             raise RuntimeError("search caído")
         return []

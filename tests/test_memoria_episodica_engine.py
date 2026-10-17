@@ -12,6 +12,7 @@ from tests.test_guardrails_run import _agente, _manifest, _resp, sin_litellm  # 
 class FakeEpisodic(EpisodicBackend):
     def __init__(self, falla=False):
         self.grabados = []
+        self.pedidos = []
         self.falla = falla
 
     async def record(self, agent_id, episode):
@@ -19,15 +20,20 @@ class FakeEpisodic(EpisodicBackend):
             raise RuntimeError("db caída")
         self.grabados.append(episode)
 
-    async def recall(self, agent_id, event_type=None, since=None, limit=20):
-        return list(reversed(self.grabados))[:limit]
+    async def recall(self, agent_id, event_type=None, since=None, limit=20, session_id=None):
+        self.pedidos.append(session_id)
+        return [
+            e
+            for e in reversed(self.grabados)
+            if session_id is None or e.context.get("session_id") == session_id
+        ][:limit]
 
 
 class FakeSemantic(SemanticBackend):
     async def store(self, agent_id, memory):
         pass
 
-    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7):
+    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7, session_id=None):
         return [
             SemanticMemory(
                 content="dato", embedding=[0.1] * 3, metadata={}, similarity=0.9, source="doc"
@@ -150,3 +156,47 @@ async def test_episodios_de_otra_sesion_no_llegan_al_prompt(tmp_path):
     llamadas.clear()
     await agente.run("otra cosa", "s2")
     assert "dato-de-s1" not in json.dumps(llamadas)
+
+
+async def test_recall_y_search_se_piden_por_sesion():
+    """El filtro va a la consulta del backend: los N más nuevos DE LA SESIÓN, no del agente."""
+    from astromesh.core.memory import MemoryManager
+
+    vistos = []
+
+    class Sem(FakeSemantic):
+        async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7, session_id=None):
+            vistos.append(session_id)
+            return []
+
+    epi = FakeEpisodic()
+    memoria = MemoryManager("a", {}, semantic=Sem(), episodic=epi, embedding_fn=lambda t: _vec())
+    for i in range(60):
+        await memoria.record_run("otra", query=f"q{i}", resultado="ok", tools=[], tokens={})
+    await memoria.record_run("s1", query="mia", resultado="ok", tools=[], tokens={})
+    for i in range(60):
+        await memoria.record_run("otra", query=f"r{i}", resultado="ok", tools=[], tokens={})
+    ctx = await memoria.build_context("s1", "hola")
+    assert (vistos, epi.pedidos) == (["s1"], ["s1"])
+    assert [e["summary"] for e in ctx["episodic"]] == ["mia"]
+
+
+async def test_error_antes_de_los_guardrails_de_entrada_no_guarda_la_query(tmp_path):
+    reglas = {"input": [{"type": "pii_detection", "action": "redact"}]}
+    agente, _, fake = await _con_episodios(tmp_path, _manifest(reglas))
+
+    def revienta(*a, **k):
+        raise RuntimeError("guardrail caído")
+
+    agente._guardar_query = revienta
+    with pytest.raises(RuntimeError):
+        await agente.run("mi mail es ana@example.com", "s1")
+    ep = fake.grabados[0]
+    assert (ep.outcome["result"], ep.summary) == ("error", "")
+
+
+async def test_el_episodio_guarda_la_query_redactada(tmp_path):
+    reglas = {"input": [{"type": "pii_detection", "action": "redact"}]}
+    agente, _, fake = await _con_episodios(tmp_path, _manifest(reglas))
+    await agente.run("mi mail es ana@example.com", "s1")
+    assert "ana@example.com" not in fake.grabados[0].summary

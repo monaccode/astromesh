@@ -43,19 +43,19 @@ class PGVectorSemanticBackend(SemanticBackend):
             )
         return memory_id
 
-    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7):
+    async def search(self, agent_id, query_embedding, top_k=10, threshold=0.7, session_id=None):
+        sql = (
+            "SELECT id, content, metadata, "
+            "1 - (embedding <=> $1::vector) AS similarity "
+            "FROM semantic_memories "
+            "WHERE agent_id = $2 AND 1 - (embedding <=> $1::vector) >= $3 "
+        )
+        params = [str(query_embedding), agent_id, threshold, top_k]
+        if session_id is not None:
+            sql += "AND metadata->>'session_id' = $5 "
+            params.append(session_id)
         async with self._pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT id, content, metadata, "
-                "1 - (embedding <=> $1::vector) AS similarity "
-                "FROM semantic_memories "
-                "WHERE agent_id = $2 AND 1 - (embedding <=> $1::vector) >= $3 "
-                "ORDER BY similarity DESC LIMIT $4",
-                str(query_embedding),
-                agent_id,
-                threshold,
-                top_k,
-            )
+            rows = await conn.fetch(sql + "ORDER BY similarity DESC LIMIT $4", *params)
         return [
             SemanticMemory(
                 content=row["content"],
