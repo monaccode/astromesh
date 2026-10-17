@@ -13,22 +13,22 @@ Nothing here ships on the same clock. Each package carries its own version and i
 
 | Component | What it does | Package / Repo | Version |
 |-----------|-------------|----------------|---------|
-| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 18 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.70.0 |
+| **Core Runtime** | Multi-model agent engine with 7 orchestration patterns, per-role model routing, declarative agent chaining, a catalog of 18 declarative integrations, memory, tools, guardrails, and a per-model price table behind cost tracking | `astromesh` | v0.71.0 |
 | **Glyph** | Action language — an agent's plan as a program the runtime executes, instead of a tool-calling loop | `astromesh-glyph` | v0.1.3 |
 | **OKF** | Open-source library: agents in LangChain, CrewAI, ADK and six more frameworks (or any MCP client) navigate an Open Knowledge Format bundle with trust and freshness signals | [`astromesh-okf`](https://github.com/monaccode/astromesh-okf) | v0.1.0 |
 | **RAG** | Open-source library: retrieval-augmented generation from swappable parts — `naive`, `hybrid`, `multi_query` and `hyde` patterns, optional reranking, five vector stores, a trace per query, in Python or `kind: RAGPipeline` YAML | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | v0.1.0 *(TestPyPI; PyPI pending)* |
 | **Context** | Open-source library: decides what goes into the model's window — knowledge, memory, history — within one token budget, with a trace per item and an eval that measures the choice | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | *(in design)* |
-| **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.5.0 |
-| **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.4.0 |
+| **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.6.0 |
+| **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.4.1 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.10 |
-| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.13.7 |
-| **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.27.0 |
-| **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.26.0 |
+| **OS** | Minimal, immutable, API-only Linux *appliance* that runs agents | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | v0.13.8 |
+| **Forge** | Visual agent builder — a web SPA embedded in a node at `/forge` | `astromesh-forge` | v0.28.0 |
+| **Cortex** | Desktop IDE & multi-runtime control plane (Electron) | `astromesh-cortex` | v0.27.0 |
 | **Orbit** | Cloud-native IaC deployment — generates Terraform for GCP (AWS/Azure planned) | `astromesh-orbit` | v0.4.4 |
 | **Prisma** | Turns your agent into a cloud's own native agent, running on that cloud's base resources (GCP: ADK on Agent Engine) | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | v0.2.1 *(in development)* |
-| **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.26.12 |
+| **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.26.13 |
 | **Herald** | Communications gateway — WhatsApp, Telegram, Instagram and web chat messages reach agents, and agents reach people back through one outbox | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.11.0 |
-| **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.8.0 |
+| **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.9.0 |
 | **SDD** | Spec-Driven Development skills for any coding agent — spec, plan, tasks, implementation and verification as files next to your code; a Claude Code plugin and open Agent Skills | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | v0.1.0 |
 | **Nebula** | Open-model foundry — trains, gates, and publishes the ecosystem's own models | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | v0.1.0 (preview) |
 

@@ -35,7 +35,7 @@ wheels = [
 
 [[package]]
 name = "astromesh"
-version = "0.70.0"
+version = "0.71.0"
 source = { editable = "../" }
 dependencies = [
     { name = "astromesh-okf" },
@@ -97,7 +97,7 @@ dev = [
 
 [[package]]
 name = "astromesh-adk"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "astromesh" },

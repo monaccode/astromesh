@@ -39,4 +39,4 @@ def test_version():
     import astromesh_adk
 
     assert hasattr(astromesh_adk, "__version__")
-    assert astromesh_adk.__version__ == "0.5.0"
+    assert astromesh_adk.__version__ == "0.6.0"

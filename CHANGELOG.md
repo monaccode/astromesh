@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.0] - 2026-10-17
+
 **Breaking for existing manifests.** Secciones que se aceptaban sin efecto ahora hacen algo:
 
 - `orchestration.timeout_seconds` corta la corrida (HTTP 504 en REST y en

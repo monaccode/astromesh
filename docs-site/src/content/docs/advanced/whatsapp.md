@@ -135,7 +135,7 @@ spec:
 Key considerations for WhatsApp agents:
 
 - Keep responses concise (WhatsApp UX favors short messages)
-- Set a timeout under 25 seconds to stay within Meta's expectations
+- The adapter acknowledges Meta within 5 seconds and runs the agent in a background task, so `timeout_seconds` only bounds how long the person waits for the reply
 - Use `session_id=phone_number` — the adapter sets this automatically, giving each phone number its own conversation history
 - Apply PII guardrails to protect user data in both directions
 

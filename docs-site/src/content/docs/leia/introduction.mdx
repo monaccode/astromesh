@@ -91,6 +91,7 @@ version.
 
 | Version | Synced to | Added |
 |---|---|---|
+| **0.9.0** | Nexus 0.26.13, core 0.71.0 | Schemas and the architect at core 0.71: `permissions` (fnmatch over registered tool names, denied wins), semantic/episodic memory scoped to the session, real `swarm` handoff with `max_handoffs`, enforced `timeout_seconds` (120 s recommended); `/leia logs` marks invocations blocked by a guardrail. |
 | **0.8.0** | Nexus 0.26.11, core 0.70.0 | Operations use `X-API-Key` (Bearer gave `401`); `nexus-api.md` rewritten for 0.26.11; the tester understands `blocked`/`guardrail`, `propuestas` and `by_model`; `kind: Eval`, OKF bundle and `RAGPipeline` schemas; `/leia deploy --node` for standalone nodes. |
 | 0.7.0 | core 0.70.0 | Guardrails are enforced in core 0.70, so the architect emits them again: the real rule types per side, `message`, and the cautions (no input PII redaction when tools need IDs or phones, `cost_limit` ≈ 4000 for the whole run, US-format PII patterns). Templates carry input `max_length` and `cost_limit`, and output PII redaction where it fits. |
 | 0.6.0 | core 0.68.0 | The whole manifest again: `integration`, `api` and `mcp` tools with `confirm`/`mode`, `prefetch`, `prompts.context` and `context_window`, `max_result_tokens`, pipeline `stages`, Glyph, and `spec.knowledge` with OKF bundles. It also says what 0.68 accepts but never applies: `spec.guardrails`, `permissions.allowed_actions`, semantic and episodic memory, a swarm handoff, `orchestration.timeout_seconds` |

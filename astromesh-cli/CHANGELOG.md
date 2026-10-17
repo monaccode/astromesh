@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-17
+
 ### Fixed
 - La plantilla de `new agent` usaba `orchestration.timeout: 30`; con core 0.71 eso corta la corrida a los 30 s. Ahora emite `timeout_seconds: 120`.
 
