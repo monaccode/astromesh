@@ -41,7 +41,7 @@ spec:
   orchestration:
     pattern: react
     max_iterations: 5
-    timeout_seconds: 30
+    timeout_seconds: 120
 ```
 
 If the daemon is already running, restart it to pick up the new agent:
@@ -154,12 +154,12 @@ spec:
   orchestration:
     pattern: react
     max_iterations: 5
-    timeout_seconds: 30
+    timeout_seconds: 120
 ```
 
 - **`pattern`** — the reasoning strategy. `react` (Reason-Act loop) is the most common. Other options: `plan_and_execute`, `parallel_fan_out`, `pipeline`, `supervisor`, `swarm`.
 - **`max_iterations`** — safety cap on reasoning loops. The agent will stop after this many iterations even if it hasn't reached a final answer.
-- **`timeout_seconds`** — hard timeout for the entire orchestration run.
+- **`timeout_seconds`** — cuts the run with HTTP 504 when it takes longer. A cold local model plus one tool round can pass 30 s, so use 120 or more, or drop the key.
 
 ## Add a Fallback Model
 
@@ -407,7 +407,7 @@ spec:
   orchestration:
     pattern: react
     max_iterations: 5
-    timeout_seconds: 30
+    timeout_seconds: 120
 
   tools:
     - name: datetime_now

@@ -115,7 +115,7 @@ spec:
   orchestration:
     pattern: react              # react | plan_and_execute | parallel_fan_out | pipeline | supervisor | swarm
     max_iterations: 5           # Max reasoning iterations before stopping
-    timeout_seconds: 60         # Optional timeout
+    timeout_seconds: 120        # Optional; cuts the run (HTTP 504). Use >= 120 or omit
 
   # --- Tools ---
   tools:

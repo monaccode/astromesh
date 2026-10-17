@@ -25,7 +25,7 @@ flowchart TB
 | Memory Type | What It Stores | Access Pattern | Purpose |
 |-------------|---------------|----------------|---------|
 | **Conversational** | User and assistant message turns for the current session | Sequential (recent history) | Maintain conversation continuity within a session |
-| **Semantic** | Vector embeddings of past interactions and documents | Similarity search (nearest neighbor) | Recall relevant past information across sessions |
+| **Semantic** | Vector embeddings of past interactions and documents | Similarity search (nearest neighbor) | Recall relevant past information from the same session (filtered by `session_id` since core 0.71.0) |
 | **Episodic** | Structured event logs (tool calls, decisions, outcomes) | Filtered query (by type, time, agent) | Track what the agent did and why, audit trail |
 
 ## Backend Options
@@ -110,7 +110,7 @@ spec:
 ```
 
 :::note[Semantic and episodic memory are built from a manifest]
-Since core 0.71.0 the runtime builds both (`build_semantic_memory`, `build_episodic_backend` in `astromesh/memory/factory.py`). Semantic: `chromadb`, `faiss`, `pgvector` or `qdrant`; `embeddings` is required (`ollama`, `hf` or `sentence_transformer`), `dimension` for `faiss`/`pgvector`/`qdrant`, `connection.url` for `pgvector`. Episodic: `postgres` with `connection.url`. A bad declaration or a missing extra leaves the agent in `draft` with an `AgentConfigError`; a backend that fails at run time is logged and the run goes on without it. Episodic memory records **one `run` episode per run** through `record_run` (result `ok`, `blocked`, `error` or `timeout`, tools, tokens, guardrail rule; a blocked input is stored without the query). The prompt gets `memory.semantic` as `{content, similarity, source}` and `memory.episodic` with the 5 most recent episodes of the same session. See [agent YAML](/astromesh/configuration/agent-yaml/#specmemory).
+Since core 0.71.0 the runtime builds both (`build_semantic_memory`, `build_episodic_backend` in `astromesh/memory/factory.py`). Semantic: `chromadb`, `faiss`, `pgvector` or `qdrant`; `embeddings` is required (`ollama`, `hf` or `sentence_transformer`), `dimension` for `faiss`/`pgvector`/`qdrant`, `connection.url` for `pgvector`. Episodic: `postgres` with `connection.url`. A bad declaration or a missing extra leaves the agent in `draft` with an `AgentConfigError`; a backend that fails at run time is logged and the run goes on without it. Episodic memory records **one `run` episode per run** through `record_run` (result `ok`, `blocked`, `error` or `timeout`, tools, tokens, guardrail rule; a blocked input is stored without the query). The prompt gets `memory.semantic` as `{content, similarity, source}` and `memory.episodic` with the 5 most recent episodes of the same session. Both are scoped to the session: `SemanticBackend.search` and `EpisodicBackend.recall` receive `session_id=` and filter in the backend query. A sub-agent's memory lives in `<session_id>::<agent name>`. See [agent YAML](/astromesh/configuration/agent-yaml/#specmemory).
 :::
 
 ## Core Methods

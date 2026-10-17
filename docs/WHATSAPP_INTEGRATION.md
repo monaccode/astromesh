@@ -141,7 +141,7 @@ spec:
   orchestration:
     pattern: react
     max_iterations: 5
-    timeout_seconds: 30
+    timeout_seconds: 120
 
   memory:
     conversational:

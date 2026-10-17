@@ -399,7 +399,7 @@ spec:
 ### How It Runs
 
 1. The agent receives the query with the conversation history and `prompts.context` (as a message) and sees its `type: agent` tools; tool results are capped by `max_tool_result_tokens`.
-2. If the model calls a `type: agent` tool, the target agent runs with the conversation history in its `query`. When it answers, that answer ends the run.
+2. If the model calls a `type: agent` tool, the target agent runs with the conversation history (the newest 20 turns, at most 8000 characters) in its `query`. When it answers, that answer ends the run. The target stores only the request in its memory, under its own session `<session_id>::<target>`, so the person's history is not duplicated.
 3. If the model calls any other tool, the tool runs and its result goes back to the model.
 4. A plain text response ends the run.
 

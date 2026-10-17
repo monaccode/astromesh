@@ -453,7 +453,9 @@ Both are built from the manifest (since core 0.71.0).
 - `memory.semantic.backend`: `chromadb`, `faiss`, `pgvector` or `qdrant`. `embeddings` is **required** (`provider`: `ollama`, `hf` or `sentence_transformer`, plus `model`; same shape as a RAG pipeline's embedder), with no implicit default. `dimension` is required for `faiss`, `pgvector` and `qdrant`; `connection.url` for `pgvector` (optional for `qdrant`). Each backend needs its extra (`astromesh[chromadb]`, `[faiss]`, `[qdrant]`, `[postgres]`; `[embeddings]` for `sentence_transformer`).
 - `memory.episodic.backend`: `postgres` only, with `connection.url` (extra `astromesh[postgres]`).
 - A manifest that gets any of this wrong, or lacks the extra, stays in `draft` with an `AgentConfigError`. A backend that fails at run time is logged and the run continues without that memory.
-- Semantic memory reaches the prompt as `memory.semantic` (`{content, similarity, source}`, no vector). Episodic memory writes **one episode per run** (result `ok`, `blocked`, `error` or `timeout`, tools called, tokens and the guardrail rule; when the input was blocked the query is not stored) and `memory.episodic` carries only the 5 most recent episodes of the same session.
+- Semantic memory reaches the prompt as `memory.semantic` (`{content, similarity, source}`, no vector). Episodic memory writes **one episode per run** (result `ok`, `blocked`, `error` or `timeout`, tools called, tokens and the guardrail rule; when the input was blocked, or the run failed before the input guardrails ran, the query is not stored) and `memory.episodic` carries the 5 most recent episodes of the same session.
+- Both are **scoped to the session**: semantic search and episodic recall filter by `session_id` in the backend query, so one person's answers never reach another person's prompt.
+- A sub-agent (a `type: agent` tool or a swarm target) keeps its memory in its own session, `<session_id>::<agent name>`, and stores only the request it received, not the conversation transcript.
 :::
 
 :::caution[The schema announces more backends than the factory builds]
@@ -518,6 +520,10 @@ Sections that used to load with no effect now do something, so existing manifest
 - `pattern: swarm` without a `type: agent` tool does not load.
 - `permissions.filesystem`, `network` and `execution`, and other keys, are ignored with a warning.
 - `register_internal(...)` and `register_agent_tool(...)` with `permissions=` now raise `TypeError` (`ToolDefinition.permissions` was removed).
+- These now fail to load with `AgentConfigError` (before, they loaded with no effect): an unknown `memory.semantic.backend` (including `in_memory`); a `memory.episodic.backend` other than `postgres` (for example `sqlite`); a missing `dimension` (`faiss`, `pgvector`, `qdrant`) or `connection.url` (`pgvector`, `postgres`); a `timeout_seconds` that is a string, `0`, negative or a bool; `permissions` that is not a mapping, or `allowed_actions` / `denied_actions` that are not lists; a `prefetch` naming a tool that `permissions` leaves out.
+- `orchestration.timeout` (the deprecated alias) also cuts the run.
+- Semantic and episodic memory are per session; a sub-agent's memory lives in `<session_id>::<agent name>`.
+- Python API: `SwarmPattern(agent_configs)` becomes `SwarmPattern(workers, max_handoffs=3)`; `Agent(..., permissions=)` becomes `permitidas=`; `get_tool_schemas(agent_permissions)` becomes `get_tool_schemas(permitidas)` and filters by tool name; `SemanticBackend.search` and `EpisodicBackend.recall` take `session_id=`.
 :::
 
 ### `spec.permissions`
