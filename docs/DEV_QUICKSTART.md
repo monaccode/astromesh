@@ -96,7 +96,7 @@ spec:
   orchestration:
     pattern: react
     max_iterations: 3
-    timeout: 30
+    timeout_seconds: 120
 ```
 
 Call it:

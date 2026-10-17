@@ -119,7 +119,7 @@ spec:
   orchestration:
     pattern: react
     max_iterations: 5
-    timeout: 25
+    timeout_seconds: 120
   memory:
     conversational:
       backend: redis
