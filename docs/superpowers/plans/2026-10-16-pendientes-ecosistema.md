@@ -6,34 +6,29 @@
 > dice dónde está, qué hay que hacer y cómo se verifica. Los marcados **(feature)** van por
 > el pipeline completo (brainstorm → spec → plan → SDD); el resto son arreglos acotados.
 
-## P1 — Comportamiento que hoy engaña al usuario
+## P1 — HECHO (2026-10-17/18)
 
-### 1. Secciones del manifiesto que el core acepta pero no aplica **(feature, una por sección)**
-- `permissions.allowed_actions` / `denied_actions`: no-op en el engine.
-- `memory.semantic` / `memory.episodic`: documentadas, nunca se construyen desde el manifiesto.
-- `swarm`: el engine arma `SwarmPattern` sin agentes, el handoff no funciona.
-- `orchestration.timeout_seconds`: no se lee.
-- Hoy docs-site, Cortex y Forge las marcan como inertes. Decidir por cada una: implementarla
-  o rechazarla al cargar (`AgentConfigError` / warning), en vez de aceptarla en silencio.
-- Verificación: test en `tests/` que cargue un manifiesto con la sección y compruebe que se
-  aplica (o que se rechaza); después, quitar las advertencias de docs-site, Cortex y Forge.
+Resuelto con el spec/plan `2026-10-16-p1-secciones-inertes*` y publicado: core 0.71.0
+(permissions, memoria semántica/episódica por sesión, swarm con handoff real,
+`timeout_seconds` → 504), ADK 0.6.0 (confirmación local y `mode="propose"`), CLI 0.4.1,
+Forge 0.28.0, Cortex 0.27.0, Leia 0.9.0, Nexus 0.26.13 (`blocked`/`guardrail` persistidos,
+timeout de core como `timeout`; dev y mvp), OS 0.13.8, docs-site.
 
-### 2. ADK: compuerta de confirmación y `mode: propose` en corridas locales **(feature)**
-- Hoy solo existen en corridas remotas. En local una tool de escritura corre sin confirmar.
-- Requiere que `ADKRuntime` use el `ToolRegistry` del core (o un adaptador) en lugar de su
-  propio `tool_fn`: es rediseño del runner (`astromesh-adk/astromesh_adk/runner.py`).
-- De paso: streaming local más allá del evento `done`, y un adaptador para correr evals
-  (`kind: Eval`) contra agentes del ADK.
-- Verificación: tests en `astromesh-adk/tests/` con una tool `confirm: true` y un agente en
-  `mode: propose`; `RunResult.propuestas` poblado en local.
-
-### 3. Nexus: persistir `blocked` en la invocación
-- 0.26.12 reenvía `blocked`/`guardrail` en `/run` y `/run/stream`, pero no lo guarda:
-  `GET …/invocations/:id`, `/logs` y las métricas no distinguen un rechazo.
-- Migración de esquema (columna `blocked bool` + `guardrail jsonb` o dentro de metadata),
-  handler que la escriba y lectura en invocations/logs.
-- Verificación: `go test ./...` con una invocación bloqueada que se lee después; Leia
-  `/leia logs` puede mostrar el rechazo.
+Quedó diferido de esa ronda (menores, sin bloquear):
+- ADK: un sub-agente **remoto** usado como tool puede ser confirmado por el modelo padre
+  (documentado en el README); `ctx.call_tool` desde código del handler saltea compuerta y
+  propose; los equipos devuelven `propuestas` vacío; sin timeout de corrida en local.
+- Core: la memoria y el RAG quedan fuera del plazo de `timeout_seconds`; las ramas paralelas
+  hermanas no se cancelan cuando una vence; un timeout de un sub-agente se reporta como del
+  padre; el uso del agente destino del swarm no suma al del padre; los guardrails de entrada
+  del destino del swarm corren dos veces (span extra); `_episodio` silencia errores de
+  programación (debería loguear); `record_run` tipa el resultado como `str`.
+- Nexus: un run cortado por timeout factura 0 tokens.
+- Cortex: el schema no marca como requeridos `embeddings`/`dimension`/`connection.url`
+  (el core sí los exige); sin aviso rojo por `dimension` faltante; `timeout_seconds`
+  tipado entero (el core acepta número > 0); el total de tests de vitest varía entre
+  corridas bajo carga (383/420/431, siempre verde).
+- Schema del editor (vscode): mismas laxitudes que Cortex.
 
 ## P2 — Huecos acotados
 
