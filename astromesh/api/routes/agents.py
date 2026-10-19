@@ -1,6 +1,7 @@
 import copy
 import logging
 from dataclasses import asdict, is_dataclass
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -50,6 +51,8 @@ class AgentRunRequest(BaseModel):
 
     No se persisten: no entran a la traza, ni a la memoria, ni a la respuesta.
     """
+    origen: Literal["humano", "agente"] = "humano"
+    """Quién habla en este turno. Sólo un turno `humano` puede confirmar una acción gateada."""
 
 
 class ModelUsage(BaseModel):
@@ -310,6 +313,7 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
                 request.session_id,
                 context,
                 connections=request.connections,
+                desde_humano=(request.origen == "humano"),
             )
             chain_block = None
 

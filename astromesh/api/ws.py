@@ -18,6 +18,9 @@ _EVENT_QUEUE_MAX = 1000
 # Same shape as ASTROMESH_SSE_POLL_INTERVAL in api/routes/agent_channels.py.
 _POLL_INTERVAL = 0.05
 
+# Dominio de `origen` (igual que `AgentRunRequest.origen` en api/routes/agents.py).
+_ORIGENES = frozenset({"humano", "agente"})
+
 _runtime = None
 
 
@@ -49,7 +52,13 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-async def _run_and_stream(websocket: WebSocket, agent_name: str, session_id: str, query: str):
+async def _run_and_stream(
+    websocket: WebSocket,
+    agent_name: str,
+    session_id: str,
+    query: str,
+    desde_humano: bool = True,
+):
     """Run the agent, streaming its events to the socket as they happen.
 
     The callback only enqueues, so a slow socket can never stall the agent. The
@@ -75,7 +84,9 @@ async def _run_and_stream(websocket: WebSocket, agent_name: str, session_id: str
         {"type": "status", "status": "processing", "agent": agent_name}, websocket
     )
 
-    run_task = asyncio.create_task(_runtime.run(agent_name, query, session_id, on_event=on_event))
+    run_task = asyncio.create_task(
+        _runtime.run(agent_name, query, session_id, on_event=on_event, desde_humano=desde_humano)
+    )
 
     try:
         # The exit condition is the whole trick: the run must be finished AND the
@@ -160,13 +171,28 @@ async def agent_websocket(websocket: WebSocket, agent_name: str):
                 )
                 continue
 
+            origen = message.get("origen", "humano")
+            if origen not in _ORIGENES:
+                # Un valor desconocido NO cae en humano: eso le regalaría a un
+                # agente remoto el poder de confirmar. Error y no corre.
+                await manager.send_message(
+                    {
+                        "type": "error",
+                        "message": f"invalid origen {origen!r}: expected 'humano' or 'agente'",
+                    },
+                    websocket,
+                )
+                continue
+
             if not _runtime:
                 await manager.send_message(
                     {"type": "error", "message": "Runtime not initialized"}, websocket
                 )
                 continue
 
-            await _run_and_stream(websocket, agent_name, session_id, query)
+            await _run_and_stream(
+                websocket, agent_name, session_id, query, desde_humano=(origen == "humano")
+            )
     except WebSocketDisconnect:
         pass
     finally:

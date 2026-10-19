@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added (Backend)
+
+- Campo `origen` (`"humano"` | `"agente"`, default `"humano"`) en `POST /v1/agents/{name}/run` y en
+  los mensajes del WebSocket `/v1/ws/agent/{name}`. Pasa `desde_humano=(origen == "humano")` al
+  runtime: un turno `agente` nunca confirma una acción gateada por `confirm`. Un valor inválido
+  da 422 en REST y un evento `error` en WS (no cae en humano).
+
 ## [0.72.0] - 2026-10-19
 
 ### Added (Backend)
