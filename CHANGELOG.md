@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- `OpenAICompatProvider`: precio (`1.25 / 4.25` USD por 1M in/out, cache `0.15`) y etiqueta
+  `meta` para Muse Spark Open (`meta/muse-spark-open`) vía OpenRouter, fuente
+  openrouter.ai leída 2026-10-19. Sin la fila el costo era 0.0. Declarar con proveedor
+  explícito `openai_compat` (el id lleva `/`).
+
 ## [0.71.0] - 2026-10-17
 
 **Breaking for existing manifests.** Secciones que se aceptaban sin efecto ahora hacen algo:

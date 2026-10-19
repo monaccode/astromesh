@@ -519,6 +519,84 @@ async def test_openai_compat_kimi_reports_kimi_provider_and_cost():
     assert result.cost > 0
 
 
+@respx.mock
+async def test_openai_compat_muse_reports_meta_provider_and_cost():
+    respx.post("https://openrouter.ai/api/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"role": "assistant", "content": "hola"}}],
+                "usage": {"prompt_tokens": 1000, "completion_tokens": 1000},
+            },
+        )
+    )
+    provider = OpenAICompatProvider(
+        {
+            "base_url": "https://openrouter.ai/api/v1",
+            "model": "meta/muse-spark-open",
+            "api_key": "sk-test",
+        }
+    )
+    result = await provider.complete(MESSAGES)
+    assert result.provider == "meta"
+    assert provider.estimated_cost("meta/muse-spark-open", 1000, 1000) == pytest.approx(0.0055)
+    assert result.cost == pytest.approx(0.0055)
+
+
+@respx.mock
+async def test_openai_compat_muse_tool_call_con_argumentos_invalidos_conserva_raw():
+    respx.post("https://openrouter.ai/api/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "call_1",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "buscar_producto",
+                                        "arguments": "{no json",
+                                    },
+                                }
+                            ],
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            },
+        )
+    )
+    provider = OpenAICompatProvider(
+        {
+            "base_url": "https://openrouter.ai/api/v1",
+            "model": "meta/muse-spark-open",
+            "api_key": "sk-test",
+        }
+    )
+    result = await provider.complete(MESSAGES)
+    assert len(result.tool_calls) == 1
+    assert result.tool_calls[0]["name"] == "buscar_producto"
+    assert result.tool_calls[0]["arguments"] == {"_raw": "{no json"}
+
+
+def test_provider_label_muse():
+    assert _provider_label("meta/muse-spark-open") == "meta"
+    assert _provider_label("muse-spark") == "meta"
+    # negativo: otro modelo con prefijo "meta-" no es Muse
+    assert _provider_label("meta-llama/Llama-3.1-8B") == "openai_compat"
+
+
+def test_estimated_cost_muse_cached_input_rate():
+    provider = OpenAICompatProvider({"model": "meta/muse-spark-open", "api_key": "sk-test"})
+    # 1000 de entrada, todos cacheados, 0 salida: 1000 * 0.00015/1000
+    assert provider.estimated_cost("meta/muse-spark-open", 1000, 0, 1000) == pytest.approx(0.00015)
+
+
 # ===================================================================
 # Cache pricing + cache_read_input_tokens (Task 1)
 # ===================================================================

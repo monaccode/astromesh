@@ -64,9 +64,14 @@ PRICING: dict[str, tuple[float, float]] = {
     "gemini-2.5-pro": (0.00125, 0.0100),
     "gemini-2.5-flash": (0.00030, 0.0025),
     "gemini-2.5-flash-lite": (0.00010, 0.00040),
+    # Meta / Muse Spark Open, served via OpenRouter, read 2026-10-19:
+    # openrouter.ai/api/v1/models/meta/muse-spark-open/endpoints. USD 1.25 / 4.25
+    # per 1M input/output; divide by 1000. The id contains "/", so declare the
+    # provider explicitly (openai_compat) or the engine routes it to litellm.
+    "meta/muse-spark-open": (0.00125, 0.00425),
 }
 
-# Cached-input rates (Moonshot/Kimi context cache), same source and same date.
+# Per-model cached-input rates (each row cites its own source and date).
 # A model absent here is charged the cache-MISS rate on its cached tokens, which
 # overstates the cost rather than understating it — see estimated_cost().
 CACHE_INPUT_PRICING: dict[str, float] = {
@@ -75,6 +80,8 @@ CACHE_INPUT_PRICING: dict[str, float] = {
     "kimi-k2.7-code": 0.00019,
     "kimi-k2.7-code-highspeed": 0.00038,
     "kimi-k3": 0.00030,
+    # Muse Spark Open cached-input read, OpenRouter endpoints page, read 2026-10-19.
+    "meta/muse-spark-open": 0.00015,
 }
 
 
@@ -85,6 +92,8 @@ def _provider_label(model: str) -> str:
     m = (model or "").lower()
     if m.startswith(("kimi", "moonshot")):
         return "kimi"
+    if m.startswith(("meta/", "muse")):
+        return "meta"
     if m.startswith("claude"):
         return "anthropic"
     if m.startswith(("gpt", "o1", "o3", "o4", "chatgpt")):
