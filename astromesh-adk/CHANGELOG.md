@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Las llamadas remotas declaran `origen: "agente"`.** `run_remote` y `stream_remote`
   (`bind()`/`connect()`/`remote()`, incluido un agente remoto usado como tool) mandan
   `origen: "agente"` al nodo, que ya no toma el "si" del modelo padre como confirmación humana de
-  una tool con `requires_approval`. Cierra el límite documentado en 0.6.0.
+  una tool con `requires_approval`. Cierra el límite documentado en 0.6.0. La protección requiere
+  un nodo >= 0.73; un nodo anterior ignora el campo.
 
 ## [0.6.0] - 2026-10-17
 
