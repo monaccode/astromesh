@@ -71,6 +71,10 @@ class TracingContext:
         self.spans: list[Span] = []
         self.is_sampled = random.random() < sample_rate
         self._span_stack: list[Span] = []
+        # Los traces de los sub-agentes (tools `type: agent`) del run raíz, que
+        # comparten este `trace_id`. Lo asigna `Agent.run`; ver
+        # `astromesh/runtime/uso_subagentes.py`.
+        self.subagentes: list[dict] | None = None
 
     def start_span(
         self, name: str, attributes: dict | None = None, parent_span_id: str | None = None
@@ -92,13 +96,16 @@ class TracingContext:
         _current_span.set(parent)
 
     def to_dict(self) -> dict:
-        return {
+        data = {
             "trace_id": self.trace_id,
             "agent": self.agent_name,
             "session_id": self.session_id,
             "is_sampled": self.is_sampled,
             "spans": [s.to_dict() for s in self.spans],
         }
+        if self.subagentes:
+            data["subagentes"] = list(self.subagentes)
+        return data
 
 
 def get_current_span() -> Span | None:

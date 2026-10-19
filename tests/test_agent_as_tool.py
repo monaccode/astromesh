@@ -135,6 +135,8 @@ class TestExecuteAgentTool:
             connections={},
             desde_humano=False,
             propuestas_padre=None,
+            # Sin acumulador en el context (llamada directa al registry).
+            uso_subagentes=None,
         )
         assert result["answer"] == "Lead is qualified"
 
@@ -192,6 +194,8 @@ class TestExecuteAgentTool:
             connections={},
             desde_humano=False,
             propuestas_padre=None,
+            # Sin acumulador en el context (llamada directa al registry).
+            uso_subagentes=None,
         )
 
 

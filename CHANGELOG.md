@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ADK: las llamadas remotas (`bind()`/`connect()`/`remote()`) declaran `origen: "agente"`, así que un
   nodo remoto ya no toma el "si" del modelo padre como confirmación humana (ver
   `astromesh-adk/CHANGELOG.md`).
+- Sub-agentes (tools `type: agent`): corren en el trace del padre (el `context` de la tool ahora
+  lleva `trace_id`) y su uso —todos los modelos, tokens y costo, a cualquier profundidad— se suma al
+  run raíz: `usage` / `usage.by_model` de REST y del `done` del WS lo incluyen, y el trace raíz trae
+  los de los hijos en `subagentes`. **Nexus pasa a facturarlo: los montos de runs con sub-agentes
+  suben.** El `cost_limit` del padre cuenta lo que gastaron sus sub-agentes. Si el run raíz falla
+  (no hay `usage` en la respuesta), el uso del hijo queda en el trace raíz que recibe el collector.
 
 ## [0.72.0] - 2026-10-19
 

@@ -43,6 +43,16 @@ def usage_from_trace(trace: dict | None) -> dict | None:
     spans = trace.get("spans", []) if isinstance(trace, dict) else []
     if not isinstance(spans, list):
         return None
+    # Los sub-agentes (tools `type: agent`) del run: el raíz trae sus traces en
+    # `subagentes`, planos (cada uno con sus propios spans, ninguno anidado), y
+    # su uso es parte del de este run. Ver astromesh/runtime/uso_subagentes.py.
+    subagentes = trace.get("subagentes") if isinstance(trace, dict) else None
+    if isinstance(subagentes, list):
+        spans = list(spans)
+        for sub in subagentes:
+            sub_spans = sub.get("spans") if isinstance(sub, dict) else None
+            if isinstance(sub_spans, list):
+                spans.extend(sub_spans)
 
     total_in = 0
     total_out = 0
