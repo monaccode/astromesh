@@ -172,7 +172,7 @@ async def agent_websocket(websocket: WebSocket, agent_name: str):
                 continue
 
             origen = message.get("origen", "humano")
-            if origen not in _ORIGENES:
+            if not isinstance(origen, str) or origen not in _ORIGENES:
                 # Un valor desconocido NO cae en humano: eso le regalaría a un
                 # agente remoto el poder de confirmar. Error y no corre.
                 await manager.send_message(

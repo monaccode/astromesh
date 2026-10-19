@@ -73,11 +73,13 @@ def test_run_origen_invalido_422(espia, valor):
     assert espia.llamadas == []
 
 
+@pytest.mark.parametrize(
+    ("origen", "debe_ejecutar"), [("agente", False), ("humano", True)], ids=["agente", "humano"]
+)
 @respx.mock
-async def test_agente_no_puede_autoconfirmar(tmp_path, monkeypatch):
-    import httpx as _h
-
-    ruta = respx.post("https://api.demo.test/thing").mock(return_value=_h.Response(200, json={}))
+async def test_agente_no_puede_autoconfirmar(tmp_path, monkeypatch, origen, debe_ejecutar):
+    """Con control positivo: el mismo flujo con `humano` SÍ ejecuta la tool."""
+    ruta = respx.post("https://api.demo.test/thing").mock(return_value=httpx.Response(200, json={}))
     runtime = await _runtime(tmp_path, monkeypatch)
     runtime._agents["demo-agent"]._pattern = _PideLaTool([("demo_write_thing", {"x": 1})])
     agents_routes.set_runtime(_ConCredenciales(runtime))
@@ -86,15 +88,19 @@ async def test_agente_no_puede_autoconfirmar(tmp_path, monkeypatch):
             transport=httpx.ASGITransport(app=_app()), base_url="http://t"
         ) as c:
             await c.post("/v1/agents/demo-agent/run", json={"query": "cargá esto"})
-            r = await c.post("/v1/agents/demo-agent/run", json={"query": "si", "origen": "agente"})
+            assert ruta.called is False  # turno 1: propuesta, queda pendiente
+            r = await c.post("/v1/agents/demo-agent/run", json={"query": "si", "origen": origen})
         assert r.status_code == 200
-        assert ruta.called is False
+        assert ruta.called is debe_ejecutar
     finally:
         agents_routes.set_runtime(None)
 
 
+@pytest.mark.parametrize(
+    ("origen", "debe_ejecutar"), [("agente", False), ("humano", True)], ids=["agente", "humano"]
+)
 @respx.mock
-def test_ws_origen_agente_no_confirma(tmp_path, monkeypatch):
+def test_ws_origen_agente_no_confirma(tmp_path, monkeypatch, origen, debe_ejecutar):
     import asyncio
 
     ruta = respx.post("https://api.demo.test/thing").mock(return_value=httpx.Response(200, json={}))
@@ -109,9 +115,10 @@ def test_ws_origen_agente_no_confirma(tmp_path, monkeypatch):
         with TestClient(_app()).websocket_connect("/v1/ws/agent/demo-agent?session_id=s1") as ws:
             ws.send_json({"query": "cargá esto"})
             _drain(ws)
-            ws.send_json({"query": "si", "origen": "agente"})
+            assert ruta.called is False  # turno 1: propuesta, queda pendiente
+            ws.send_json({"query": "si", "origen": origen})
             _drain(ws)
-        assert ruta.called is False
+        assert ruta.called is debe_ejecutar
     finally:
         ws_module.set_runtime(None)
 
@@ -129,11 +136,12 @@ def test_ws_origen_pasa_desde_humano(espia):
     assert [c["desde_humano"] for c in espia.llamadas] == [False, True]
 
 
-def test_ws_origen_invalido_es_error_y_no_corre(espia):
+@pytest.mark.parametrize("valor", ["bot", ["x"], {"a": 1}, 5, None])
+def test_ws_origen_invalido_es_error_y_no_corre(espia, valor):
     ws_module.set_runtime(espia)
     try:
         with TestClient(_app()).websocket_connect("/v1/ws/agent/x") as ws:
-            ws.send_json({"query": "a", "origen": "bot"})
+            ws.send_json({"query": "a", "origen": valor})
             ev = ws.receive_json()
     finally:
         ws_module.set_runtime(None)
