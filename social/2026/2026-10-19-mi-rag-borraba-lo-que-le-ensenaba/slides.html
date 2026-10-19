@@ -1,0 +1,104 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--a:#fbbf24;--ad:#d97706;--cy:#fde68a;--sky:#00d4ff;--bg:#060d15;--bd:rgba(255,255,255,.08);--sf:rgba(255,255,255,.03);--g2:#cbd5e1;--g3:#94a3b8;--red:#f87171;--ok:#34d399}
+*{box-sizing:border-box;margin:0}
+body{background:#000;font-family:'DM Sans',sans-serif;color:#e2e8f0}
+.s{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--bg);padding:90px 84px;display:flex;flex-direction:column;margin-bottom:20px}
+.s::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(251,191,36,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(251,191,36,.05) 1px,transparent 1px);background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 35%,#000 30%,transparent 100%)}
+.s::after{content:"";position:absolute;width:900px;height:900px;right:-300px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(245,158,11,.14),transparent 70%)}
+.s>*{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top img{height:170px;margin:-40px 0 -40px -50px;filter:drop-shadow(0 0 14px rgba(0,212,255,.3))}
+.badge{font:700 20px 'JetBrains Mono';letter-spacing:.12em;color:#451a03;background:linear-gradient(135deg,var(--cy),var(--a));padding:8px 16px;border-radius:6px;box-shadow:0 0 24px rgba(251,191,36,.35)}
+.kick{font:500 24px 'JetBrains Mono';letter-spacing:.06em;color:var(--a)}
+h1{font-size:104px;line-height:1.03;font-weight:300;color:var(--g2);letter-spacing:-.02em}
+h1 b,h2 b{font-weight:800;background:linear-gradient(135deg,var(--cy),var(--a) 45%,var(--ad));-webkit-background-clip:text;color:transparent}
+h2{font-size:70px;line-height:1.08;font-weight:300;color:var(--g2);letter-spacing:-.01em}
+p.lead{font-size:34px;line-height:1.5;color:var(--g3);font-weight:300}
+p.lead b{color:#f1f5f9;font-weight:700}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font:500 22px 'JetBrains Mono';color:var(--g3);opacity:.8}
+.chips{display:flex;gap:12px;flex-wrap:wrap}
+.chip{font:500 24px 'JetBrains Mono';padding:10px 16px;border-radius:8px;border:1px solid rgba(251,191,36,.4);color:#fef3c7;background:rgba(251,191,36,.08)}
+/* terminal */
+.term{border:1px solid var(--bd);background:#0a1420;border-radius:14px;padding:24px 30px;font:500 27px/1.6 'JetBrains Mono';color:var(--g2)}
+.term .h{font:700 20px 'JetBrains Mono';letter-spacing:.1em;margin-bottom:8px}
+.term .c{color:var(--a);font-weight:700}.term .m{color:var(--g3)}.term .x{color:var(--red)}.term .ok{color:var(--ok)}
+.term div{white-space:pre}
+.term.bad{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.04)}
+.term.good{border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.04)}
+/* tarjetas */
+.lec{margin-top:40px;display:flex;flex-direction:column;gap:16px}
+.l{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:22px 30px}
+.l .t{font-size:34px;font-weight:800;color:#f1f5f9;line-height:1.2}
+.l .d{font-size:26px;font-weight:300;color:var(--g3);line-height:1.45;margin-top:10px}
+.l code,.lead code{font:500 24px 'JetBrains Mono';color:#fef3c7}
+/* trace */
+.traza{margin-top:40px;border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.traza .r{display:grid;grid-template-columns:1fr 150px 150px;gap:16px;align-items:center;padding:18px 26px;border-top:1px solid rgba(255,255,255,.06);font:500 27px 'JetBrains Mono';color:var(--g2)}
+.traza .r:first-child{border-top:0;background:rgba(251,191,36,.08);font:700 20px 'JetBrains Mono';letter-spacing:.08em;color:var(--a)}
+.traza .r span:not(:first-child){text-align:right}
+.cta{margin-top:36px;display:flex;justify-content:space-between;align-items:center;border-radius:14px;padding:26px 30px;background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(245,158,11,.05));border:2px solid var(--a)}
+.cta span{font-size:30px;color:var(--g2)}
+.cta b{font:700 26px 'JetBrains Mono';color:var(--cy)}
+</style></head><body>
+
+<!-- 1 portada -->
+<section class="s" id="s1">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">ASTROMESH-RAG · v0.1.0</span></div>
+  <div style="margin-top:170px"><div class="kick">Confesión técnica</div></div>
+  <h1 style="margin-top:28px">Mi RAG borraba<br>lo que <b>le<br>enseñaba.</b></h1>
+  <p class="lead" style="margin-top:44px;max-width:880px">Lo descubrí al sacarlo de mi propio runtime para liberarlo como librería. <b>Sin error. Sin aviso.</b> Y seguía respondiendo.</p>
+  <div class="chips" style="margin-top:42px"><span class="chip">open source</span><span class="chip">Apache-2.0</span><span class="chip">4 patrones</span><span class="chip">trace por etapa</span></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>desliza →</span></div>
+</section>
+
+<!-- 2 el bug -->
+<section class="s" id="s2">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">El bug</span></div>
+  <h2 style="margin-top:46px">Ingerías B.<br><b>A desaparecía.</b></h2>
+  <p class="lead" style="margin-top:28px;font-size:31px">Todos los documentos numeraban sus fragmentos igual. El segundo pisaba al primero en el índice.</p>
+  <div class="term bad" style="margin-top:34px">
+<div class="h" style="color:var(--red)">ANTES · core de Astromesh</div>
+<div><span class="c">ingest(A)</span><span class="m">  → doc_0, doc_1</span></div>
+<div><span class="c">ingest(B)</span><span class="m">  → doc_0, doc_1</span>  <span class="x">← pisa a A</span></div>
+  </div>
+  <div class="term good" style="margin-top:20px">
+<div class="h" style="color:var(--ok)">AHORA · astromesh-rag</div>
+<div><span class="c">ingest(A)</span><span class="m">  → err-4012#0, err-4012#1</span></div>
+<div><span class="c">ingest(B)</span><span class="m">  → err-4013#0</span>  <span class="ok">✓ conviven</span></div>
+<div><span class="c">ingest(A)</span><span class="m">  → reemplaza sus fragmentos</span></div>
+  </div>
+  <div class="foot"><span>ids de fragmento: &lt;doc_id&gt;#&lt;n&gt;</span><span>2/4</span></div>
+</section>
+
+<!-- 3 lo que fallaba en silencio -->
+<section class="s" id="s3">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">No era el único</span></div>
+  <h2 style="margin-top:46px">Lo que fallaba<br><b>en silencio.</b></h2>
+  <div class="lec">
+    <div class="l"><div class="t">El YAML aceptaba claves y las ignoraba.</div><div class="d"><code>similarity_threshold</code> y <code>reranking.top_k</code> no hacían nada. Ahora filtran y recortan.</div></div>
+    <div class="l"><div class="t">Cada base vectorial fallaba distinto.</div><div class="d">Qdrant rechazaba los ids, pgvector interpolaba los filtros en el SQL y Chroma medía L2 en vez de coseno.</div></div>
+    <div class="l"><div class="t">El chunking semantic no era semantic.</div><div class="d">Desde YAML no le llegaba ningún embedder y caía, callado, a partir por oraciones.</div></div>
+    <div class="l"><div class="t">Un overlap ≥ chunk colgaba el splitter.</div><div class="d">Ahora es un <code>SpecError</code> al construir el pipeline, no un proceso trabado.</div></div>
+  </div>
+  <div class="foot"><span>todo listado en el CHANGELOG</span><span>3/4</span></div>
+</section>
+
+<!-- 4 cierre -->
+<section class="s" id="s4">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">APACHE-2.0</span></div>
+  <h2 style="margin-top:46px">Un RAG no falla con un error.<br><b>Falla con una respuesta plausible.</b></h2>
+  <p class="lead" style="margin-top:26px;font-size:30px">Por eso cada consulta devuelve un <b>trace</b>: una entrada por etapa, con lo que entró y lo que salió.</p>
+  <div class="traza" style="margin-top:30px">
+    <div class="r"><span>ETAPA · hybrid</span><span>ENTRAN</span><span>SALEN</span></div>
+    <div class="r"><span>retrieve vector</span><span>1</span><span>≤ 10</span></div>
+    <div class="r"><span>retrieve bm25</span><span>1</span><span>≤ 10</span></div>
+    <div class="r"><span>fuse rrf</span><span>20</span><span>10</span></div>
+    <div class="r"><span>rerank</span><span>10</span><span>5</span></div>
+  </div>
+  <p class="lead" style="margin-top:26px;font-size:28px">naive · hybrid · multi_query · hyde, con las mismas piezas. Y un corpus con trampas etiquetadas para <b>medir en vez de adivinar.</b></p>
+  <div class="cta" style="margin-top:28px;margin-bottom:30px"><span>Repo</span><b>github.com/monaccode/astromesh-rag</b></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>4/4</span></div>
+</section>
+</body></html>
