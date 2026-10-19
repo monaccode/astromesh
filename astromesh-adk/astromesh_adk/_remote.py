@@ -23,6 +23,10 @@ from astromesh_adk.result import RunResult, StreamEvent
 
 TIMEOUT_SECONDS = 300.0
 
+# A remote call is always an agent talking to another agent, never the person: the node must not
+# take the caller's "si" as human confirmation of an approval-gated tool.
+ORIGEN = "agente"
+
 
 def _headers(conn: RemoteConnection) -> dict[str, str]:
     # The node itself doesn't authenticate; the hub (Nexus) or a gateway in front does, with
@@ -70,7 +74,7 @@ async def run_remote(
     conn: RemoteConnection, agent_name: str, query: str, session_id: str, context: dict | None
 ) -> RunResult:
     url = f"{conn.url.rstrip('/')}/v1/agents/{agent_name}/run"
-    payload = {"query": query, "session_id": session_id, "context": context}
+    payload = {"query": query, "session_id": session_id, "context": context, "origen": ORIGEN}
     started = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
@@ -89,14 +93,14 @@ async def stream_remote(
 ) -> AsyncIterator[StreamEvent]:
     """Map the node's WS events: token → token, tool_call → step, done → done (with result).
 
-    The WS protocol takes only the query — per-run `context` is not carried over it.
+    The WS protocol takes the query and `origen` — per-run `context` is not carried over it.
     """
     base = conn.url.rstrip("/").replace("https://", "wss://", 1).replace("http://", "ws://", 1)
     url = f"{base}/v1/ws/agent/{agent_name}?{urlencode({'session_id': session_id})}"
     started = time.monotonic()
     try:
         async with ws_connect(url, additional_headers=_headers(conn)) as ws:
-            await ws.send(json.dumps({"query": query}))
+            await ws.send(json.dumps({"query": query, "origen": ORIGEN}))
             async for raw in ws:
                 event = json.loads(raw)
                 kind = event.get("type")

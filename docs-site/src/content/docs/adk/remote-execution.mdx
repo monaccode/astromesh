@@ -53,6 +53,8 @@ Passing `runtime=` to `run()`/`stream()` always runs locally on that runtime.
 
 The API key goes as both `Authorization: Bearer <key>` and `X-API-Key: <key>`, and neither is sent when the key is empty. A bare node doesn't authenticate; the key is for the hub (Nexus) or a gateway in front of it.
 
+Every remote call declares `origen: "agente"` (in the POST body and in the WS message): it is an agent talking to another agent, never the person. The node therefore never takes the calling model's `"si"` as human confirmation of a `requires_approval` tool, so a remote agent used as a tool (`as_tool()`) cannot be confirmed by its parent. The person confirms by talking to the remote agent directly (the node's default `origen` is `"humano"`).
+
 The `RunResult` from a remote run fills `answer`, `steps`, `trace`, `tokens` and `model` from the node's `usage`, adds up `cost` across `usage.by_model`, and measures `latency_ms` on the client. `metadata` carries `remote` (the node URL), `propuestas` (writes a `mode: propose` tool left for approval), `data` and `chain`.
 
 ## Errors

@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runtime: un turno `agente` nunca confirma una acción gateada por `confirm`. Un valor inválido
   da 422 en REST y un evento `error` en WS (no cae en humano).
 
+### Fixed
+
+- ADK: las llamadas remotas (`bind()`/`connect()`/`remote()`) declaran `origen: "agente"`, así que un
+  nodo remoto ya no toma el "si" del modelo padre como confirmación humana (ver
+  `astromesh-adk/CHANGELOG.md`).
+
 ## [0.72.0] - 2026-10-19
 
 ### Added (Backend)

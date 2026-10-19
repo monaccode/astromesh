@@ -125,7 +125,7 @@ async def create(name: str) -> str: ...
 - `mode="propose"`: the tool never runs; the call comes out in `result.propuestas` (`tool`, `tipo: "adk"`, `destino` = agent name, `operacion`, `argumentos`) for the caller to approve and execute.
 - This covers calls the model makes. A tool called from handler code (`ctx.call_tool`) runs as is.
 - In a team or with an agent as a tool (`other.as_tool()`), the "si" is read by the run that talks to the person, never by the member or sub-agent. The child runs in the same session, its prompt appears in the parent's answer, and it cannot propose: the model is told nothing was recorded.
-- **Limit: remote sub-agents.** An agent with `bind()`/`connect()`/`remote()` used as a tool runs on the remote node as a person's turn in the `"default"` session, so the parent model can pass it `"si"` and satisfy the remote gate by itself. The local gate does not protect remote children. Keep write tools that need human approval on the agent that talks to the person, or call the remote agent directly.
+- **Remote sub-agents.** An agent with `bind()`/`connect()`/`remote()` used as a tool calls the node declaring `origen: "agente"`, so the remote node never accepts the parent model's `"si"` as human confirmation: its approval-gated tools stay pending. The person confirms by talking to that agent directly.
 
 ## Result size and knowledge bundles
 

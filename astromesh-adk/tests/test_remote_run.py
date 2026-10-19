@@ -74,7 +74,12 @@ async def test_bound_agent_runs_on_the_node():
     finally:
         support.bind(None, None)
     sent = json.loads(route.calls[0].request.content)
-    assert sent == {"query": "hi", "session_id": "s1", "context": {"sender_phone": "1"}}
+    assert sent == {
+        "query": "hi",
+        "session_id": "s1",
+        "context": {"sender_phone": "1"},
+        "origen": "agente",
+    }
     headers = route.calls[0].request.headers
     assert headers["authorization"] == "Bearer k1" and headers["x-api-key"] == "k1"
     assert result.answer == "hola"
@@ -176,7 +181,7 @@ async def test_stream_maps_ws_events(monkeypatch):
     connect(NODE, api_key="k")
     events = [e async for e in support.stream("hi", session_id="s 1")]
     assert sent["url"] == "ws://node.test:8000/v1/ws/agent/support?session_id=s+1"
-    assert sent["msg"] == {"query": "hi"}
+    assert sent["msg"] == {"query": "hi", "origen": "agente"}
     assert [e.type for e in events] == ["token", "step", "done"]
     assert events[1].step["name"] == "search"
     assert events[-1].result.answer == "hola"
@@ -232,3 +237,40 @@ async def test_unblocked_remote_run_defaults():
     connect(NODE, api_key="")
     result = await support.run("hi")
     assert (result.blocked, result.guardrail, result.propuestas) == (False, None, [])
+
+
+@respx.mock
+async def test_run_remote_envia_origen_agente():
+    route = respx.post(f"{NODE}/v1/agents/support/run").mock(
+        return_value=httpx.Response(200, json=RESPONSE)
+    )
+    connect(NODE, api_key="")
+    await support.run("si", session_id="s1")
+    assert json.loads(route.calls[0].request.content)["origen"] == "agente"
+
+
+async def test_stream_remote_envia_origen_agente(monkeypatch):
+    import astromesh_adk._remote as remote_mod
+
+    sent = {}
+
+    class FakeWS:
+        async def send(self, data):
+            sent["msg"] = json.loads(data)
+
+        def __aiter__(self):
+            return self._gen()
+
+        async def _gen(self):
+            yield json.dumps({"type": "done", "answer": "ok", "usage": {}})
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+    monkeypatch.setattr(remote_mod, "ws_connect", lambda url, **kw: FakeWS())
+    connect(NODE, api_key="")
+    [e async for e in support.stream("si", session_id="s1")]
+    assert sent["msg"]["origen"] == "agente"

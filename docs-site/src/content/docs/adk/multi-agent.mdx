@@ -74,4 +74,4 @@ The guardrails of the supervisor (or entry) agent apply to the team run; a block
 
 ## Confirmation in teams
 
-`requires_approval` and `mode="propose"` tools work in local runs (see [Creating Tools](/astromesh/adk/creating-tools/#confirmation-and-proposals-in-local-runs)). In a team, or with `other.as_tool()`, the confirming "si" is read by the run that talks to the person, never by a member or sub-agent, and a member cannot propose. The gate does not protect remote children (`bind()`/`connect()`/`remote()`): keep approval-gated write tools on the agent that talks to the person.
+`requires_approval` and `mode="propose"` tools work in local runs (see [Creating Tools](/astromesh/adk/creating-tools/#confirmation-and-proposals-in-local-runs)). In a team, or with `other.as_tool()`, the confirming "si" is read by the run that talks to the person, never by a member or sub-agent, and a member cannot propose. Remote children (`bind()`/`connect()`/`remote()`) declare `origen: "agente"` on every call, so the remote node never accepts the parent model's "si" as human confirmation; the person confirms by talking to the remote agent directly.
