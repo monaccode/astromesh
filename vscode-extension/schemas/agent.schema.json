@@ -64,6 +64,10 @@
           "description": "Human-facing identity information.",
           "additionalProperties": false,
           "properties": {
+            "name": {
+              "type": "string",
+              "description": "Identity name (the runtime reads metadata.name; accepted here for manifests that repeat it)."
+            },
             "display_name": {
               "type": "string",
               "description": "Human-readable name displayed in UIs."
@@ -214,6 +218,24 @@
             }
           }
         },
+        "skills": {
+          "type": "array",
+          "description": "What the agent can do. Published as skills in the A2A Agent Card. An invalid entry is skipped with a warning at load time.",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "description"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {"type": "string", "minLength": 1, "description": "Stable skill identifier."},
+              "name": {"type": "string", "minLength": 1, "description": "Human-readable skill name."},
+              "description": {"type": "string", "minLength": 1, "description": "What the skill does."},
+              "tags": {"type": "array", "items": {"type": "string"}, "description": "Keywords for discovery."},
+              "examples": {"type": "array", "items": {"type": "string"}, "description": "Example prompts."},
+              "inputModes": {"type": "array", "items": {"type": "string"}, "description": "Accepted MIME types."},
+              "outputModes": {"type": "array", "items": {"type": "string"}, "description": "Produced MIME types."}
+            }
+          }
+        },
         "tools": {
           "type": "array",
           "description": "Tools available to the agent.",
@@ -232,11 +254,14 @@
               },
               "type": {
                 "type": "string",
-                "description": "Tool integration type. Only these three load from an agent YAML file.",
+                "description": "Tool integration type. Types that load from an agent YAML file.",
                 "enum": [
                   "builtin",
                   "agent",
-                  "client"
+                  "client",
+                  "integration",
+                  "api",
+                  "mcp"
                 ]
               },
               "max_result_tokens": {

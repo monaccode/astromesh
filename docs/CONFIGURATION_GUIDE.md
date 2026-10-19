@@ -74,6 +74,17 @@ spec:
     description: "Qualifies incoming sales leads using BANT methodology"
     avatar: "sales-bot"         # Optional avatar identifier
 
+  # --- Skills (optional) ---
+  # What the agent can do. Published as skills in its A2A Agent Card.
+  skills:
+    - id: qualify-lead
+      name: "Qualify lead"
+      description: "Scores a lead with BANT and recommends a next step"
+      tags: [sales, bant]
+      examples: ["Qualify this lead: ACME, 200 seats, budget approved"]
+      inputModes: [text/plain]
+      outputModes: [application/json]
+
   # --- Model Selection ---
   model:
     primary:

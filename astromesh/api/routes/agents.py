@@ -113,9 +113,13 @@ async def get_agent(agent_name: str):
     if not _runtime:
         raise HTTPException(status_code=404, detail="Runtime not initialized")
     config = _runtime._agent_configs.get(agent_name)
-    if config is not None:
-        return copy.deepcopy(config)
     agent = _runtime._agents.get(agent_name)
+    if config is not None:
+        body = copy.deepcopy(config)
+        if agent is not None and isinstance(body.get("spec"), dict):
+            # Las que el runtime validó, no las crudas del YAML.
+            body["spec"]["skills"] = copy.deepcopy(getattr(agent, "skills", []))
+        return body
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
     return {
@@ -141,6 +145,7 @@ async def get_agent(agent_name: str):
             },
             "prompts": {"system": ""},
             "orchestration": {"pattern": "react", "max_iterations": 10},
+            "skills": copy.deepcopy(getattr(agent, "skills", [])),
         },
     }
 

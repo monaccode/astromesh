@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Backend)
 
+- `spec.skills` en el manifiesto del agente (`id`, `name`, `description` requeridos; `tags`,
+  `examples`, `inputModes`, `outputModes` opcionales): el runtime las valida (una skill inválida se
+  omite con warning y el agente carga igual) y `GET /v1/agents/{name}` las devuelve, para que Nexus
+  y `astromesh-a2a` armen las Agent Cards A2A. El JSON schema de VS Code las declara, acepta
+  `identity.name` y completa el enum de `type` de tool (`integration`, `api`, `mcp`).
+
+### Added (Astromesh Forge)
+
+- Tipo `Skill` y `spec.skills` en `AgentConfig`.
+
 - Campo `origen` (`"humano"` | `"agente"`, default `"humano"`) en `POST /v1/agents/{name}/run` y en
   los mensajes del WebSocket `/v1/ws/agent/{name}`. Pasa `desde_humano=(origen == "humano")` al
   runtime: un turno `agente` nunca confirma una acción gateada por `confirm`. Un valor inválido

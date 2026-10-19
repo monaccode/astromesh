@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import copy
 import json
 import logging
 import math
@@ -230,6 +231,51 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
     "mcp": frozenset({"connection", "path", "auth", "tools", "rate_limit"}),
 }
+
+
+_SKILL_REQUERIDOS = ("id", "name", "description")
+_SKILL_LISTAS = ("tags", "examples", "inputModes", "outputModes")
+
+
+def validar_skills(agent_name: str, crudas) -> list[dict]:
+    """`spec.skills` del manifiesto -> las skills válidas, para las Agent Cards A2A.
+
+    Una skill mal formada se omite con warning: el agente carga igual, porque un
+    error de catálogo no debe tumbar el runtime.
+    """
+    if crudas is None:
+        return []
+    if not isinstance(crudas, list):
+        logger.warning(
+            "agent %r: spec.skills debe ser una lista, se ignora (%s)",
+            agent_name,
+            type(crudas).__name__,
+        )
+        return []
+    validas: list[dict] = []
+    for i, skill in enumerate(crudas):
+        if not isinstance(skill, dict):
+            logger.warning("agent %r: skill #%d no es un objeto, se omite", agent_name, i)
+            continue
+        malos = [
+            k for k in _SKILL_REQUERIDOS if not isinstance(skill.get(k), str) or not skill[k]
+        ] + [
+            k
+            for k in _SKILL_LISTAS
+            if k in skill
+            and not (isinstance(skill[k], list) and all(isinstance(x, str) for x in skill[k]))
+        ]
+        if malos:
+            logger.warning(
+                "agent %r: skill #%d (%r) inválida en %s, se omite",
+                agent_name,
+                i,
+                skill.get("id"),
+                ", ".join(malos),
+            )
+            continue
+        validas.append(copy.deepcopy(skill))
+    return validas
 
 
 def _tokens_validos(valor) -> int | None:
@@ -1263,6 +1309,7 @@ class AgentRuntime:
             rag=rag,
             bundle=bundle,
             timeout_seconds=timeout_seconds,
+            skills=validar_skills(metadata["name"], spec.get("skills")),
             output_schema=normalize_output_schema(spec.get("output_schema")),
             prefetch=prefetch,
             context_window=context_window,
@@ -1602,8 +1649,10 @@ class Agent:
         presupuesto_tools=None,
         bundle=None,
         timeout_seconds: float | None = None,
+        skills: list[dict] | None = None,
     ):
         self._timeout_seconds = timeout_seconds
+        self.skills = skills or []
         self._presupuesto_tools = presupuesto_tools or {
             "default": DEFAULT_MAX_TOOL_RESULT_TOKENS,
             "por_tool": {},

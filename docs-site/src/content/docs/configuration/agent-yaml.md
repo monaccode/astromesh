@@ -74,6 +74,17 @@ spec:
     description: "Qualifies incoming sales leads using BANT methodology"
     avatar: "sales-bot"                     # Optional avatar identifier
 
+  # --- Skills (optional) ---
+  # What the agent can do. Published as skills in its A2A Agent Card.
+  skills:
+    - id: qualify-lead
+      name: "Qualify lead"
+      description: "Scores a lead with BANT and recommends a next step"
+      tags: [sales, bant]
+      examples: ["Qualify this lead: ACME, 200 seats, budget approved"]
+      inputModes: [text/plain]
+      outputModes: [application/json]
+
   # --- Model Selection ---
   model:
     primary:
@@ -295,6 +306,22 @@ The legacy `primary` / `fallback` / `extra` / `routing.strategy` shape shown in 
 | `display_name` | Yes | Human-readable name shown in logs, UIs, and API responses. |
 | `description` | Yes | Short description of what the agent does. |
 | `avatar` | No | Avatar identifier for UI integrations. |
+
+### `spec.skills`
+
+Optional list of what the agent can do. Astromesh publishes it as the `skills` of the agent's A2A Agent Card, and `GET /v1/agents/{name}` returns it.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Stable skill identifier. |
+| `name` | Yes | Human-readable name. |
+| `description` | Yes | What the skill does. |
+| `tags` | No | List of keywords for discovery. |
+| `examples` | No | List of example prompts. |
+| `inputModes` | No | Accepted MIME types (camelCase, as in A2A). |
+| `outputModes` | No | Produced MIME types. |
+
+An invalid skill (missing `id`, `name` or `description`, or wrong types) is skipped with a warning; the agent still loads.
 
 ### `spec.model`
 
