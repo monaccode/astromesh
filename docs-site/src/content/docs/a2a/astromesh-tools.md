@@ -100,6 +100,15 @@ tool's trace span as `a2a.usage_remoto` (up to 20 short keys with scalar values;
 are dropped). It is **not** added to `usage.by_model` or the run's totals, because it is not one of
 your models.
 
+**Nexus sends it.** Since Nexus 0.28.2, a `COMPLETED` A2A task carries `{"usage": {...}}` as the last
+part of its answer artifact, so a `type: a2a` tool pointed at a Nexus-published agent records it with
+no setup. The fields are scalars: `input_tokens`, `output_tokens`, `cached_tokens` (only if above 0),
+`credits` and `credits_micros` (what the run was charged), `pricing_status` (`priced` or `unpriced`),
+`model` (the one with most tokens) and `models` (how many, only if more than one). It is only on runs
+that closed ok: `failed`, `canceled` and `rejected` tasks charge nothing and have no usage part.
+`credits` are Nexus credits, not money, so the ADK's `RunResult.cost` stays `0` for a Nexus remote
+and the whole part lands in the core tool's trace span as `a2a.usage_remoto`.
+
 ### Trace span
 
 The tool's span carries `a2a.card_url`, `a2a.status`, `a2a.task_id`, `a2a.reply_to` (when the call
@@ -117,8 +126,8 @@ library's redacted per-stage trace, first 50 entries).
 - **Closing.** `AgentRuntime.aclose()` closes the clients when the API shuts down. A `reload` or
   `deploy` that replaces the agent, or pausing or removing it, closes the old agent's clients after
   a grace period equal to its longest `policy.timeout`, so a call in flight can finish.
-- **Nexus.** Nexus' runtime pool runs core 0.74.0 and its image ships the `a2a` extra (Nexus
-  0.28.1), so a published agent can declare `type: a2a` tools.
+- **Nexus.** Nexus' runtime pool runs core 0.74.1 and its image ships the `a2a` extra (Nexus
+  0.28.2), so a published agent can declare `type: a2a` tools.
 
 ## ADK: `remote_a2a()`
 

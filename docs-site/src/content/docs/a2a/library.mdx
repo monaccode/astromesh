@@ -121,6 +121,9 @@ if result.status == "input_required":
 
 The remote's question is remote text: show it, do not obey it.
 
+Pass the task's context explicitly with `reply(task_id, text, *, context_id=None)` when the task came
+from elsewhere (another `RemoteAgent`, a restart, a stored id); without it the remembered one is used.
+
 ### `stream()` and `EventStream`
 
 ```python
@@ -144,6 +147,44 @@ The stream ends after the first final status (`completed`, `failed`, `canceled`,
 `policy.timeout` (whole stream) or `policy.max_events` it raises `A2ATimeout` and closes the remote
 stream. Leaving the `async with` (or `aclose()`) closes it too; a bare `async for` + `break` leaves
 that to the garbage collector.
+
+### Tasks: `submit()`, `get_task()`, `subscribe()`, `list_tasks()`
+
+`send()` waits for the task. For long ones, start it and come back (A2A `returnImmediately`,
+`GetTask`, `SubscribeToTask`, `ListTasks`):
+
+```python
+task = await agent.submit("Compile the quarterly report")  # returns at once
+result = await agent.get_task(task.task_id)                # poll it...
+
+async with agent.subscribe(task.task_id) as events:        # ...or follow its events
+    async for event in events:
+        print(event.kind, event.payload.get("state"))
+
+page = await agent.list_tasks(status="working", page_size=20)
+if page.next_page_token:
+    page = await agent.list_tasks(status="working", page_size=20, page_token=page.next_page_token)
+```
+
+| Method | Returns |
+|---|---|
+| `submit(text, *, context_id=None, data=None)` | `Result`, usually `submitted` or `working` |
+| `get_task(task_id)` | `Result`, the task as it is now |
+| `subscribe(task_id)` | `EventStream`: the task so far, then its events until a final status |
+| `list_tasks(*, context_id=None, status=None, page_size=None, page_token=None)` | `TaskPage` |
+
+`TaskPage` has `tasks` (a list of `Result`, each with an empty `trace`), `next_page_token` (`None` on
+the last page), `total_size` and `trace`. `page_size` is 1-100.
+
+These report a task as it is, so `Result.status` can also be `submitted`, `working`, `failed`,
+`canceled` or `rejected`, values only the task API returns: `send()` and `reply()` keep returning
+`completed`, `input_required` or `auth_required` and raising `TaskFailed` as before. A task that ended
+badly is a status here, not an exception; an unknown task, or one owned by another caller, raises
+`TaskFailed(remote=True)`. `subscribe()` needs a remote whose card declares streaming.
+
+Every call goes through the same budget, timeout, part policy and trace redaction. A page is one
+response body capped by `max_bytes`, so keep pages small. Ids (`task_id`, `context_id`, `page_token`)
+must be a str of at most 256 characters without control characters, else `ValueError` before any request.
 
 ### `cancel()` and `card()`
 
@@ -424,7 +465,9 @@ async with RemoteAgent("https://trips.example.com", policy=policy) as trips:
   untrusted under the library's own framing.
 
 The wrapper is public as `astromesh_a2a.adapters.wrap_untrusted(result, *, agent="remote")`, if you
-build your own tool.
+build your own tool. Since 0.1.1 so are `tool_description(card_name, card_description)`, the default tool
+description (it also tells the model never to answer a confirmation on the user's behalf), and
+`PENDING_NOTE`, the note appended after a pending task's output.
 
 ### LangChain / LangGraph
 

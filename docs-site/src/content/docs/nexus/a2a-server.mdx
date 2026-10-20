@@ -150,6 +150,40 @@ returns the existing task; while the first one is still in progress without a ta
 A task has exactly **one** final state: a run that keeps going after the sweep's or the drain's
 `FAILED` cannot change it, and it is not charged.
 
+### Run usage
+
+A `COMPLETED` task reports what its run consumed and was charged (Nexus 0.28.2): the **last part of
+the answer artifact** is a `data` part whose only key is `usage`, the convention the Astromesh core and
+ADK read (see [Remote usage](/astromesh/a2a/astromesh-tools/#remote-usage)).
+
+```json
+{"usage": {"input_tokens": 1500, "output_tokens": 500, "cached_tokens": 100,
+           "credits": 0.0025, "credits_micros": 2500, "pricing_status": "priced",
+           "model": "gpt-4o"}}
+```
+
+| Key | Value |
+|---|---|
+| `input_tokens`, `output_tokens` | The invocation's token totals |
+| `cached_tokens` | Cached input tokens; absent when 0 |
+| `credits_micros`, `credits` | What the run was charged, in micro-credits and in credits. Nexus credits, not money |
+| `pricing_status` | `priced`, or `unpriced` when a model had no tariff |
+| `model`, `models` | The model with most tokens; `models` (count) only if there was more than one |
+
+It is what the REST invocation already shows the same caller: no provider, infrastructure or node
+cost. `failed`, `canceled` and `rejected` tasks have no usage part. It is in `SendMessage`, `GetTask`,
+the last `artifactUpdate` of a stream (before the final status), the `SubscribeToTask` replay and the
+final push notification. The ADK's `RunResult.cost` stays `0` for a Nexus remote, and the core's
+`type: a2a` tool records the part as `a2a.usage_remoto`.
+
+### `GetTask` right after a run
+
+The replica that runs a task writes its final artifact right after the invocation closes ok. For
+**30 s** after an ok close, a task whose stored state is not terminal yet reports `WORKING` in
+`GetTask`, in the `ListTasks` `status` filter and in the push, instead of a `COMPLETED` with no answer
+when another replica asks: poll again. Past 30 s the owner is taken for dead and the invocation's state
+rules. Other closes (`interrupted`, `error`, `cancelled`) apply at once.
+
 ## Billing and limits
 
 An A2A run is one more invocation, with `adapter = "a2a"` (visible in the invocation detail, usage
