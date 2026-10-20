@@ -28,7 +28,9 @@ What it guarantees (the same rules as core's ``type: a2a`` tools):
 - **Pending tasks per session.** A remote that answers ``input_required`` leaves its
   ``task_id`` pending for that session (the runnable's ``session_id``; the parent run's
   session when used as a tool); the next call in that session ``reply()``-es the same task.
-  Without a session (``ctx.call_tool`` from handler code) nothing is kept.
+  Without a session (``ctx.call_tool`` from handler code) nothing is kept. Concurrent
+  calls in the same session: the first one takes (and resumes) the pending task, the
+  others start new tasks.
 - **Untrusted output as a tool.** The model sees ``{answer, status, task_id?, pending?}``
   with everything the remote wrote inside ``wrap_untrusted``'s block (its ``data`` parts as
   ``[data]`` lines); a remote failure is an ``{error, status: "failed"}`` observation and
@@ -192,6 +194,22 @@ def _name_from_host(host: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]", "_", host)[:64] or "remote_a2a"
 
 
+async def _close_on_loop(remote, loop: asyncio.AbstractEventLoop | None) -> None:
+    """Close ``remote`` on the loop that owns its clients.
+
+    The current loop (or a dead one, where closing only drops references) closes it here;
+    a different loop that is still running gets the close scheduled on it. A loop that is
+    open but stopped cannot run it: its clients are left to the garbage collector.
+    """
+    current = asyncio.get_running_loop()
+    if loop is None or loop is current or loop.is_closed():
+        with contextlib.suppress(Exception):
+            await remote.aclose()
+    elif loop.is_running():
+        with contextlib.suppress(RuntimeError):
+            asyncio.run_coroutine_threadsafe(remote.aclose(), loop)
+
+
 class RemoteA2AAgent:
     """A remote A2A agent with the ADK agent shape: ``run()``, ``stream()``, ``as_tool()``."""
 
@@ -217,9 +235,7 @@ class RemoteA2AAgent:
         if self._remote is not None and self._loop is not loop:
             old, old_loop = self._remote, self._loop
             self._remote = None
-            if old_loop is None or old_loop.is_closed():
-                with contextlib.suppress(Exception):
-                    await old.aclose()  # its loop died: this only drops references
+            await _close_on_loop(old, old_loop)
         if self._remote is None:
             self._remote = a2a.RemoteAgent(
                 self.card_url, policy=self._policy, auth=self._auth, origin=a2a.Origin.AGENT
@@ -231,11 +247,8 @@ class RemoteA2AAgent:
         """Close the HTTP clients of the underlying ``RemoteAgent``. Idempotent."""
         remote, loop = self._remote, self._loop
         self._remote = self._loop = None
-        if remote is None:
-            return
-        if loop is None or loop is asyncio.get_running_loop() or loop.is_closed():
-            with contextlib.suppress(Exception):
-                await remote.aclose()
+        if remote is not None:
+            await _close_on_loop(remote, loop)
 
     async def __aenter__(self) -> Self:
         return self
@@ -268,6 +281,12 @@ class RemoteA2AAgent:
         remote = await self._agent()
         try:
             if task_id:
+                # A RemoteAgent recreated on another loop lost its task -> context map, and
+                # `reply()` (0.1.0) has no context_id argument: seed it so the reply stays in
+                # the session's conversation. Degrades to a context-less reply if it changes.
+                contexts = getattr(remote, "_contexts", None)
+                if state.get("context_id") and hasattr(contexts, "setdefault"):
+                    contexts.setdefault(task_id, state["context_id"])
                 result = await remote.reply(task_id, query)
             else:
                 result = await remote.send(query, context_id=state.get("context_id"))

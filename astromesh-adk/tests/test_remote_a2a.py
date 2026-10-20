@@ -31,10 +31,12 @@ from .test_runner_core070 import Provider
 CLAVE_ENV = "ADK_TEST_A2A_KEY"
 SECRETO = "sk-adk-a2a-que-no-debe-aparecer-71c2"
 ORIGENES: list[str | None] = []
+CONTEXTOS: list[tuple[str, str, bool]] = []
 
 
 async def _remoto(msg: Incoming) -> Outgoing:
     ORIGENES.append(msg.claimed_origin)
+    CONTEXTOS.append((msg.text, msg.context_id, msg.is_reply))
     if msg.is_reply:
         return Outgoing(answer=f"confirmado con '{msg.text}'", data=[{"turno": "MAR-10"}])
     if msg.text.startswith("reservar"):
@@ -87,6 +89,7 @@ def loopback(monkeypatch):
     monkeypatch.setattr(RemoteAgent, "__init__", init)
     monkeypatch.setenv(CLAVE_ENV, SECRETO)
     ORIGENES.clear()
+    CONTEXTOS.clear()
 
 
 def _agenda(base: str, **kwargs):
@@ -168,6 +171,49 @@ async def test_remote_a2a_input_required(servidor):
         assert events[-1].result.answer == "confirmado con 'dale'"
     finally:
         await agenda.aclose()
+
+
+async def test_remote_a2a_reply_after_loop_change_keeps_context(servidor):
+    """The pending task was opened on another event loop (a new RemoteAgent is built here):
+    the reply still travels in the session's conversation (same context_id)."""
+    agenda = _agenda(servidor)
+    hecho: dict = {}
+
+    def en_otro_loop():
+        hecho["first"] = asyncio.run(agenda.run("reservar el martes", session_id="s1"))
+
+    hilo = threading.Thread(target=en_otro_loop)
+    hilo.start()
+    hilo.join(timeout=15)
+    first = hecho["first"]
+    assert first.metadata["status"] == "input_required"
+    try:
+        second = await agenda.run("si", session_id="s1")
+    finally:
+        await agenda.aclose()
+    assert second.answer == "confirmado con 'si'"
+    assert CONTEXTOS[-1] == ("si", first.metadata["context_id"], True)
+
+
+async def test_remote_a2a_closes_old_agent_on_its_running_loop(servidor):
+    agenda = _agenda(servidor)
+    otro = asyncio.new_event_loop()
+    hilo = threading.Thread(target=otro.run_forever, daemon=True)
+    hilo.start()
+    try:
+        asyncio.run_coroutine_threadsafe(agenda.run("hola"), otro).result(timeout=15)
+        viejo = agenda._remote
+        assert (await agenda.run("hola")).answer == "eco:hola"  # this loop: a new RemoteAgent
+        assert agenda._remote is not viejo
+        limite = time.monotonic() + 5
+        while not viejo._closed:
+            assert time.monotonic() < limite, "the old RemoteAgent was not closed on its loop"
+            await asyncio.sleep(0.02)
+    finally:
+        await agenda.aclose()
+        otro.call_soon_threadsafe(otro.stop)
+        hilo.join(timeout=5)
+        otro.close()
 
 
 # ---- como tool --------------------------------------------------------------------
