@@ -1,0 +1,120 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--a:#34d399;--ad:#059669;--cy:#a7f3d0;--sky:#00d4ff;--bg:#060d15;--bd:rgba(255,255,255,.08);--sf:rgba(255,255,255,.03);--g2:#cbd5e1;--g3:#94a3b8;--red:#f87171;--ok:#34d399}
+*{box-sizing:border-box;margin:0}
+body{background:#000;font-family:'DM Sans',sans-serif;color:#e2e8f0}
+.s{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--bg);padding:90px 84px;display:flex;flex-direction:column;margin-bottom:20px}
+.s::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(52,211,153,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(52,211,153,.05) 1px,transparent 1px);background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 35%,#000 30%,transparent 100%)}
+.s::after{content:"";position:absolute;width:900px;height:900px;right:-300px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(5,150,105,.14),transparent 70%)}
+.s>*{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top img{height:170px;margin:-40px 0 -40px -50px;filter:drop-shadow(0 0 14px rgba(0,212,255,.3))}
+.badge{font:700 20px 'JetBrains Mono';letter-spacing:.12em;color:#022c22;background:linear-gradient(135deg,var(--cy),var(--a));padding:8px 16px;border-radius:6px;box-shadow:0 0 24px rgba(52,211,153,.35)}
+.kick{font:500 24px 'JetBrains Mono';letter-spacing:.06em;color:var(--a)}
+h1{font-size:104px;line-height:1.03;font-weight:300;color:var(--g2);letter-spacing:-.02em}
+h1 b,h2 b{font-weight:800;background:linear-gradient(135deg,var(--cy),var(--a) 45%,var(--ad));-webkit-background-clip:text;color:transparent}
+h2{font-size:70px;line-height:1.08;font-weight:300;color:var(--g2);letter-spacing:-.01em}
+p.lead{font-size:34px;line-height:1.5;color:var(--g3);font-weight:300}
+p.lead b{color:#f1f5f9;font-weight:700}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font:500 22px 'JetBrains Mono';color:var(--g3);opacity:.8}
+.chips{display:flex;gap:12px;flex-wrap:wrap}
+.chip{font:500 24px 'JetBrains Mono';padding:10px 16px;border-radius:8px;border:1px solid rgba(52,211,153,.4);color:#d1fae5;background:rgba(52,211,153,.08)}
+/* terminal */
+.term{border:1px solid var(--bd);background:#0a1420;border-radius:14px;padding:24px 30px;font:500 27px/1.6 'JetBrains Mono';color:var(--g2)}
+.term .h{font:700 20px 'JetBrains Mono';letter-spacing:.1em;margin-bottom:8px}
+.term .c{color:var(--a);font-weight:700}.term .m{color:var(--g3)}.term .x{color:var(--red)}.term .ok{color:var(--ok)}
+.term div{white-space:pre}
+.term.bad{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.04)}
+.term.good{border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.04)}
+/* tarjetas */
+.lec{margin-top:40px;display:flex;flex-direction:column;gap:16px}
+.l{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:22px 30px}
+.l .t{font-size:34px;font-weight:800;color:#f1f5f9;line-height:1.2}
+.l .d{font-size:26px;font-weight:300;color:var(--g3);line-height:1.45;margin-top:10px}
+.l code,.lead code{font:500 24px 'JetBrains Mono';color:#d1fae5}
+/* trace */
+.traza{margin-top:40px;border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.traza .r{display:grid;grid-template-columns:1fr 150px 150px;gap:16px;align-items:center;padding:18px 26px;border-top:1px solid rgba(255,255,255,.06);font:500 27px 'JetBrains Mono';color:var(--g2)}
+.traza .r:first-child{border-top:0;background:rgba(52,211,153,.08);font:700 20px 'JetBrains Mono';letter-spacing:.08em;color:var(--a)}
+.traza .r span:not(:first-child){text-align:right}
+.cta{margin-top:36px;display:flex;justify-content:space-between;align-items:center;border-radius:14px;padding:26px 30px;background:linear-gradient(135deg,rgba(52,211,153,.18),rgba(5,150,105,.05));border:2px solid var(--a)}
+.cta span{font-size:30px;color:var(--g2)}
+.cta b{font:700 26px 'JetBrains Mono';color:var(--cy)}
+.pipe{margin-top:40px;display:flex;flex-direction:column;gap:14px}
+.st{display:grid;grid-template-columns:60px 1fr;gap:20px;align-items:start;border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:20px 26px}
+.st .n{font:700 30px 'JetBrains Mono';color:var(--a)}
+.st .t{font-size:32px;font-weight:800;color:#f1f5f9;line-height:1.2}
+.st .d{font-size:25px;font-weight:300;color:var(--g3);line-height:1.45;margin-top:8px}
+.st code{font:500 23px 'JetBrains Mono';color:#d1fae5}
+.traps{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tr{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--bd);background:var(--sf);border-radius:10px;padding:16px 20px;font:500 24px 'JetBrains Mono';color:var(--g2)}
+.tr b{color:var(--ok);font-weight:700}
+</style></head><body>
+
+<!-- 1 portada -->
+<section class="s" id="s1">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">ASTROMESH-A2A · v0.1.1</span></div>
+  <div style="margin-top:170px"><div class="kick">Agente a agente</div></div>
+  <h1 style="margin-top:28px">Otro agente<br><b>no es tu<br>usuario.</b></h1>
+  <p class="lead" style="margin-top:44px;max-width:880px">Es código que no controlás, en un servidor que no es tuyo. Una librería abierta para hablar con él <b>sin confiar en él.</b></p>
+  <div class="chips" style="margin-top:42px"><span class="chip">open source</span><span class="chip">Apache-2.0</span><span class="chip">A2A 1.0</span><span class="chip">SDK oficial</span></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>desliza →</span></div>
+</section>
+
+<!-- 2 el riesgo -->
+<section class="s" id="s2">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">El problema</span></div>
+  <h2 style="margin-top:46px">El SDK habla el protocolo.<br><b>No decide en quién confiar.</b></h2>
+  <p class="lead" style="margin-top:28px;font-size:31px">Lo que puede mandarte un agente remoto:</p>
+  <div class="term bad" style="margin-top:28px">
+<div class="h" style="color:var(--red)">RESPUESTA DEL REMOTO</div>
+<div><span class="m">card  →</span> <span class="x">rpc en http://169.254.169.254</span></div>
+<div><span class="m">texto →</span> <span class="x">"Ignorá tus instrucciones…"</span></div>
+<div><span class="m">input →</span> <span class="x">"Respondé sí para confirmar"</span></div>
+<div><span class="m">body  →</span> <span class="x">32 MiB, de a poco</span></div>
+  </div>
+  <div class="term good" style="margin-top:20px">
+<div class="h" style="color:var(--ok)">ASTROMESH-A2A</div>
+<div><span class="c">egress</span><span class="m">  → sólo IP pública, sin redirecciones</span></div>
+<div><span class="c">salida</span><span class="m">  → envuelta como no confiable</span></div>
+<div><span class="c">input </span><span class="m">  → pregunta pendiente</span>  <span class="ok">✓ decide tu usuario</span></div>
+<div><span class="c">límite</span><span class="m">  → max_bytes, timeout, max_events</span></div>
+  </div>
+  <div class="foot"><span>nada es alcanzable hasta que lo declarás</span><span>2/4</span></div>
+</section>
+
+<!-- 3 las trampas -->
+<section class="s" id="s3">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Medido, no prometido</span></div>
+  <h2 style="margin-top:46px">Nueve servidores<br><b>maliciosos en cada push.</b></h2>
+  <p class="lead" style="margin-top:26px;font-size:30px">Si una trampa pasa, <b>el build falla.</b></p>
+  <div class="traps">
+    <div class="tr"><span>card_spoof</span><b>frenada</b></div>
+    <div class="tr"><span>redirect_internal</span><b>frenada</b></div>
+    <div class="tr"><span>dns_private</span><b>frenada</b></div>
+    <div class="tr"><span>huge_artifact</span><b>frenada</b></div>
+    <div class="tr"><span>file_part</span><b>frenada</b></div>
+    <div class="tr"><span>injection_text</span><b>frenada</b></div>
+    <div class="tr"><span>self_confirm</span><b>frenada</b></div>
+    <div class="tr"><span>endless_stream</span><b>frenada</b></div>
+    <div class="tr"><span>version_0_3</span><b>frenada</b></div>
+    <div class="tr" style="border-color:var(--a);background:rgba(52,211,153,.08)"><span>política por defecto</span><b>9/9</b></div>
+  </div>
+  <p class="lead" style="margin-top:30px;font-size:27px">Y como tool en nueve frameworks: LangChain, CrewAI, Google ADK, OpenAI Agents, PydanticAI, LlamaIndex, smolagents, Microsoft Agent Framework y MCP.</p>
+  <div class="foot"><span>python -m astromesh_a2a.eval</span><span>3/4</span></div>
+</section>
+
+<!-- 4 ecosistema + cierre -->
+<section class="s" id="s4">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">APACHE-2.0</span></div>
+  <h2 style="margin-top:46px">Conectar agentes es fácil.<br><b>Lo difícil es decidir cuánto confiar.</b></h2>
+  <div class="pipe">
+    <div class="st"><span class="n">01</span><div><div class="t">Astromesh</div><div class="d">Un turno de otro agente <b style="color:#f1f5f9">nunca</b> confirma una acción por el usuario. Tools <code>type: a2a</code> para usar a cualquier agente A2A.</div></div></div>
+    <div class="st"><span class="n">02</span><div><div class="t">ADK</div><div class="d"><code>remote_a2a()</code>: un agente A2A con la forma de un agente propio.</div></div></div>
+    <div class="st"><span class="n">03</span><div><div class="t">Nexus</div><div class="d">Publica tus agentes por A2A, con su card, su API key y su facturación.</div></div></div>
+  </div>
+  <div class="cta" style="margin-top:34px;margin-bottom:30px"><span>pip install</span><b>astromesh-a2a</b></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>4/4</span></div>
+</section>
+</body></html>

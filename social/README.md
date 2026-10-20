@@ -36,3 +36,5 @@ social/
 | 2026-10-02 | [Un deck no contesta un WhatsApp](2026/2026-10-02-un-deck-no-contesta-whatsapp/post.md) | LinkedIn | Herald + Nexus | draft |
 | 2026-10-14 | [El vibe coding no escala. La spec sí.](2026/2026-10-14-el-vibe-coding-no-escala/post.md) | LinkedIn | astromesh-sdd | draft |
 | 2026-10-14 | [Dejá de picar tu conocimiento en pedacitos](2026/2026-10-14-deja-de-picar-tu-conocimiento/post.md) | LinkedIn | astromesh-okf | draft |
+| 2026-10-19 | [Mi RAG borraba lo que le enseñaba](2026/2026-10-19-mi-rag-borraba-lo-que-le-ensenaba/post.md) | LinkedIn | astromesh-rag | draft |
+| 2026-10-20 | [Otro agente no es tu usuario](2026/2026-10-20-otro-agente-no-es-tu-usuario/post.md) | LinkedIn | astromesh-a2a | draft |
