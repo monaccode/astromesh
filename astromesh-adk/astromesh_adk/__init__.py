@@ -1,6 +1,6 @@
 """Astromesh Agent Development Kit."""
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 
 from astromesh_adk._a2a import remote_a2a
 from astromesh_adk.agent import Agent, AgentWrapper, agent
