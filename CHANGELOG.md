@@ -15,14 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   y `astromesh-a2a` armen las Agent Cards A2A. El JSON schema de VS Code las declara, acepta
   `identity.name` y completa el enum de `type` de tool (`integration`, `api`, `mcp`).
 
-### Added (Astromesh Forge)
-
-- Tipo `Skill` y `spec.skills` en `AgentConfig`.
-
 - Campo `origen` (`"humano"` | `"agente"`, default `"humano"`) en `POST /v1/agents/{name}/run` y en
   los mensajes del WebSocket `/v1/ws/agent/{name}`. Pasa `desde_humano=(origen == "humano")` al
   runtime: un turno `agente` nunca confirma una acción gateada por `confirm`. Un valor inválido
   da 422 en REST y un evento `error` en WS (no cae en humano).
+
+### Added (Astromesh Forge)
+
+- Tipo `Skill` y `spec.skills` en `AgentConfig`.
 
 ### Fixed
 

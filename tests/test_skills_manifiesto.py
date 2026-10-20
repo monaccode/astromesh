@@ -78,3 +78,19 @@ def test_schema_acepta_skills():
     assert not list(validator.iter_errors(cfg))
     cfg["spec"]["skills"] = [{"id": "a", "name": "A"}]
     assert list(validator.iter_errors(cfg))
+
+
+def test_skill_con_campos_en_blanco_se_omite():
+    en_blanco = {"id": "  ", "name": "A", "description": "d"}
+    assert _build([en_blanco, SKILL]).skills == [SKILL]
+
+
+def test_schema_acepta_a2a_de_nexus():
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = json.loads(Path("vscode-extension/schemas/agent.schema.json").read_text())
+    validator = jsonschema.Draft202012Validator(schema)
+    cfg = copy.deepcopy(BASE)
+    cfg["spec"]["a2a"] = {"publicar": True}
+    assert not list(validator.iter_errors(cfg))
+    cfg["spec"]["a2a"] = {"publicar": "si"}
+    assert list(validator.iter_errors(cfg))

@@ -218,6 +218,17 @@
             }
           }
         },
+        "a2a": {
+          "type": "object",
+          "description": "A2A exposure, read by Astromesh Nexus (the core runtime ignores it).",
+          "additionalProperties": true,
+          "properties": {
+            "publicar": {
+              "type": "boolean",
+              "description": "Publish this agent as an A2A 1.0 agent (Agent Card + JSON-RPC) in Nexus."
+            }
+          }
+        },
         "skills": {
           "type": "array",
           "description": "What the agent can do. Published as skills in the A2A Agent Card. An invalid entry is skipped with a warning at load time.",

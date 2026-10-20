@@ -258,7 +258,9 @@ def validar_skills(agent_name: str, crudas) -> list[dict]:
             logger.warning("agent %r: skill #%d no es un objeto, se omite", agent_name, i)
             continue
         malos = [
-            k for k in _SKILL_REQUERIDOS if not isinstance(skill.get(k), str) or not skill[k]
+            k
+            for k in _SKILL_REQUERIDOS
+            if not isinstance(skill.get(k), str) or not skill[k].strip()
         ] + [
             k
             for k in _SKILL_LISTAS
