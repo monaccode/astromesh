@@ -1,7 +1,7 @@
 import type { ToolConfig } from "../types/agent";
 
 /** Types whose wiring reads `description` (`_CLAVES_POR_TIPO`, runtime/engine.py). */
-const READS_DESCRIPTION = new Set<string>(["agent", "client", "api"]);
+const READS_DESCRIPTION = new Set<string>(["agent", "client", "api", "a2a"]);
 
 export function readsDescription(type: string): boolean {
   return READS_DESCRIPTION.has(type);
@@ -14,14 +14,16 @@ const TYPES: { value: ToolConfig["type"]; label: string }[] = [
   { value: "integration", label: "Integration" },
   { value: "api", label: "API (manifest kept as-is)" },
   { value: "mcp", label: "MCP (manifest kept as-is)" },
+  { value: "a2a", label: "A2A (remote agent, card_url kept as-is)" },
 ];
 
 /**
- * `api` and `mcp` need a manifest Forge cannot author; core raises on one without it and the
- * whole agent fails to bootstrap. Offer them only to a tool that already is that type.
+ * `api`, `mcp` and `a2a` need keys Forge cannot author (manifest / `card_url`); core raises on
+ * one without them and the whole agent fails to bootstrap. Offer them only to a tool that
+ * already is that type. For `a2a` the description is optional: without it core uses the card's.
  */
 export function toolTypeOptions(current: string) {
-  return TYPES.filter((t) => (t.value !== "api" && t.value !== "mcp") || t.value === current);
+  return TYPES.filter((t) => (t.value !== "api" && t.value !== "mcp" && t.value !== "a2a") || t.value === current);
 }
 
 /** Apply panel edits over the original block; never emits keys core ignores for the type. */

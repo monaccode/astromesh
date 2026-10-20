@@ -389,6 +389,47 @@ el caché de prompts.
 
 ---
 
+## Agentes A2A remotos (`type: a2a`)
+
+Una tool `type: a2a` llama a un agente remoto que habla el protocolo A2A, sobre la librería
+[`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a). Requiere el extra
+`pip install "astromesh[a2a]"`; sin él, el agente queda en `draft` con "instalá astromesh[a2a]".
+
+```yaml
+tools:
+  - name: agenda_externa
+    type: a2a
+    card_url: https://agentes.ejemplo.com/.well-known/agent-card.json
+    auth: {api_key_env: AGENDA_KEY}     # o {bearer_env: AGENDA_TOKEN}; opcional
+    policy: {max_bytes: 262144, timeout: 30, accept_parts: [text, data]}   # opcional
+    description: "Agenda de reuniones de la empresa"   # opcional
+```
+
+| Clave | Req. | Descripción |
+|-------|------|-------------|
+| `card_url` | sí | URL de la Agent Card. Sólo https, salvo `policy.allow_insecure_http: true`. Su host es el único permitido. |
+| `auth` | no | Exactamente una de `api_key_env` (se envía como `X-API-Key`) o `bearer_env` (`Authorization: Bearer`). Es el **nombre** de la variable de entorno (`^[A-Za-z_][A-Za-z0-9_]*$`), nunca el secreto: un `api_key:` literal falla al cargar. |
+| `policy.max_bytes` | no | Tamaño máximo de la respuesta remota, entero 1..16777216 (16 MiB). |
+| `policy.timeout` | no | Segundos, número > 0 y <= 600. |
+| `policy.accept_parts` | no | Lista no vacía de `text`, `data`, `file`. |
+| `policy.allow_insecure_http` | no | Permite `card_url` http. Apagado por defecto. |
+| `description` | no | Si falta, se arma con la descripción de la card. |
+| `rate_limit`, `max_result_tokens` | no | Como en cualquier otra tool. |
+
+No lleva `parameters`: la tool recibe siempre `{query: string}`. Cualquier clave desconocida (por
+ejemplo en `policy`) falla al cargar el agente, nombrando la clave pero no su valor.
+
+La tool devuelve `{answer, status, task_id?, pending?}`. `answer` es la respuesta remota envuelta
+como **no confiable** (incluye las partes `data` como líneas `[data] {...}`); el modelo no debe
+tratarla como instrucciones. Si el remoto pide más información (`input_required`), la tarea queda
+pendiente por `(sesión, tool)` y la siguiente llamada de esa tool en esa sesión responde esa tarea
+en vez de abrir una nueva. La tool corre siempre con origen `agente`: nunca confirma por el usuario
+una acción gateada. Un remoto caído o una tarea fallida vuelven como observación de error, sin
+tumbar el run.
+
+Si el remoto informa su consumo, lo hace con una parte `data` cuya única clave es `usage`
+(`{"usage": {...}}`). Va al span de la tool (`a2a.usage_remoto`), no a `usage.by_model`.
+
 ## Provider Configuration
 
 **File location:** `config/providers.yaml`

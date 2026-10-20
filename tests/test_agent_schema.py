@@ -89,3 +89,54 @@ def test_pipeline_stages_validan_como_las_acepta_el_engine(schema):
     assert not list(validator.iter_errors(_pipeline(["leer", "resumir"])))
     assert list(validator.iter_errors(_pipeline(["solo"])))
     assert list(validator.iter_errors(_pipeline(["x" * 41, "y"])))
+
+
+def _agente_con_tool(tool: dict) -> dict:
+    return {
+        "apiVersion": "astromesh/v1",
+        "kind": "Agent",
+        "metadata": {"name": "a2a-demo"},
+        "spec": {
+            "identity": {"display_name": "A2A demo"},
+            "model": {"primary": {"provider": "ollama", "model": "llama3"}},
+            "prompts": {"system": "hola"},
+            "tools": [tool],
+        },
+    }
+
+
+def test_schema_acepta_tool_a2a(schema):
+    validator = jsonschema.Draft202012Validator(schema)
+
+    def errores(tool):
+        return list(validator.iter_errors(_agente_con_tool(tool)))
+
+    base = {"name": "agenda", "type": "a2a", "card_url": "https://x.example/card.json"}
+    completa = {
+        **base,
+        "auth": {"bearer_env": "AGENDA_TOKEN"},
+        "policy": {
+            "max_bytes": 262144,
+            "timeout": 30,
+            "accept_parts": ["text", "data"],
+            "allow_insecure_http": False,
+        },
+        "description": "Agenda externa",
+        "max_result_tokens": 500,
+    }
+    assert not errores(base)
+    assert not errores(completa)
+
+    sin_card = {k: v for k, v in base.items() if k != "card_url"}
+    assert errores(sin_card)
+    assert errores({**base, "auth": {"api_key_env": "A", "bearer_env": "B"}})
+    assert errores({**base, "auth": {}})
+    assert errores({**base, "auth": {"api_key_env": "no-valido!"}})
+    assert errores({**base, "auth": {"api_key": "sk-literal"}})
+    assert errores({**base, "policy": {"allowed": ["x"]}})
+    assert errores({**base, "policy": {"max_bytes": 16 * 1024 * 1024 + 1}})
+    assert errores({**base, "policy": {"timeout": 0}})
+    assert errores({**base, "policy": {"timeout": 601}})
+    assert errores({**base, "policy": {"accept_parts": []}})
+    assert errores({**base, "policy": {"accept_parts": ["video"]}})
+    assert errores({**base, "parameters": {"q": {"type": "string"}}})

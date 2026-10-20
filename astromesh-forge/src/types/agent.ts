@@ -45,7 +45,7 @@ export interface Skill {
 export interface ToolConfig {
   name: string;
   /** Types core wires in runtime/engine.py; api/mcp/integration carry their own manifest keys. */
-  type: "builtin" | "agent" | "client" | "integration" | "api" | "mcp";
+  type: "builtin" | "agent" | "client" | "integration" | "api" | "mcp" | "a2a";
   /** Target agent name; required by the runtime when `type` is "agent". */
   agent?: string;
   description?: string;
@@ -55,6 +55,17 @@ export interface ToolConfig {
   /** integration: connection name and the actions to expose. */
   connection?: unknown;
   actions?: string[];
+  /** a2a: remote agent card (https unless policy.allow_insecure_http). Required by core. */
+  card_url?: string;
+  /** a2a: env var NAMES, exactly one of api_key_env / bearer_env. Never the secret. */
+  auth?: { api_key_env?: string; bearer_env?: string };
+  /** a2a: limits for calls to the remote agent. */
+  policy?: {
+    max_bytes?: number;
+    timeout?: number;
+    accept_parts?: ("text" | "data" | "file")[];
+    allow_insecure_http?: boolean;
+  };
   [key: string]: unknown;
 }
 

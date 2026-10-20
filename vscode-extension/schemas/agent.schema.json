@@ -272,7 +272,8 @@
                   "client",
                   "integration",
                   "api",
-                  "mcp"
+                  "mcp",
+                  "a2a"
                 ]
               },
               "max_result_tokens": {
@@ -301,8 +302,53 @@
                 "type": "object",
                 "description": "Parameter definitions for this tool.",
                 "additionalProperties": true
+              },
+              "card_url": {
+                "type": "string",
+                "description": "type a2a: URL of the remote agent card. https only unless policy.allow_insecure_http is true; its host is the only host allowed."
+              },
+              "auth": {
+                "type": "object",
+                "description": "type a2a: credentials by env var NAME (never the secret). Exactly one of api_key_env (sent as X-API-Key) or bearer_env (Authorization: Bearer).",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "maxProperties": 1,
+                "properties": {
+                  "api_key_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+                  "bearer_env": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}
+                }
+              },
+              "policy": {
+                "type": "object",
+                "description": "type a2a: limits for calls to the remote agent.",
+                "additionalProperties": false,
+                "properties": {
+                  "max_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216, "description": "Max size of the remote response, in bytes."},
+                  "timeout": {"type": "number", "exclusiveMinimum": 0, "maximum": 600, "description": "Seconds."},
+                  "accept_parts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {"enum": ["text", "data", "file"]},
+                    "description": "Kinds of remote parts the tool accepts."
+                  },
+                  "allow_insecure_http": {"type": "boolean", "description": "Allow an http:// card_url (off by default)."}
+                }
+              },
+              "rate_limit": {
+                "description": "Rate limit for this tool (same shape as other tool types).",
+                "type": ["object", "integer", "number", "string"]
               }
-            }
+            },
+            "allOf": [
+              {
+                "if": {"properties": {"type": {"const": "a2a"}}, "required": ["type"]},
+                "then": {
+                  "required": ["card_url"],
+                  "not": {"required": ["parameters"]}
+                }
+              }
+            ]
           }
         },
         "memory": {

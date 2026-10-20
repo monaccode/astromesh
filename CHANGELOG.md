@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   la API, y un `reload`/`deploy` cierra los del agente reemplazado tras una gracia (su `timeout`
   más largo).
 
+### Added (Astromesh Forge)
+
+- Tool `type: a2a` en el schema JSON de VS Code (`card_url` requerido; `auth` con exactamente una de
+  `api_key_env`/`bearer_env`; `policy` con `max_bytes` 1..16 MiB, `timeout` (0, 600],
+  `accept_parts`, `allow_insecure_http`; sin `parameters`) y en Forge: el tipo existe en
+  `ToolConfig`, se conserva al editar (`card_url`, `auth` y `policy` sobreviven) y su `description`
+  es opcional porque sale de la card. Como `api` y `mcp`, Forge no lo ofrece para una tool nueva.
+  Docs: sección A2A en la guía de configuración y en Multi-agent Composition.
+
 ## [0.73.0] - 2026-10-19
 
 ### Added (Backend)
