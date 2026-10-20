@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.74.0] - 2026-10-20
+
 ### Added (Backend)
 
 - Tools `type: a2a`: un agente A2A remoto como herramienta, sobre `astromesh-a2a` (extra nuevo
