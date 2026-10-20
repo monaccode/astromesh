@@ -95,7 +95,7 @@ dependencies = [
 requires-dist = [
     { name = "aiosqlite", marker = "extra == 'sqlite'", specifier = ">=0.20.0" },
     { name = "astromesh", extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss", "embeddings", "onnx", "observability", "mcp", "mesh", "litellm", "centinela", "glyph", "a2a"], marker = "extra == 'all'" },
-    { name = "astromesh-a2a", marker = "extra == 'a2a'", specifier = ">=0.1,<0.2" },
+    { name = "astromesh-a2a", marker = "extra == 'a2a'", specifier = ">=0.1.1,<0.2" },
     { name = "astromesh-glyph", marker = "extra == 'glyph'", editable = "../astromesh-glyph" },
     { name = "astromesh-okf", specifier = ">=0.1,<0.2" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.30.0" },
@@ -127,7 +127,7 @@ provides-extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss",
 [package.metadata.requires-dev]
 dev = [
     { name = "asgi-lifespan", specifier = ">=2.1.0" },
-    { name = "astromesh-a2a", extras = ["server"], specifier = ">=0.1,<0.2" },
+    { name = "astromesh-a2a", extras = ["server"], specifier = ">=0.1.1,<0.2" },
     { name = "astromesh-adk", editable = "." },
     { name = "jsonschema", specifier = ">=4.20" },
     { name = "pre-commit", specifier = ">=3.5.0" },
@@ -142,15 +142,15 @@ dev = [
 
 [[package]]
 name = "astromesh-a2a"
-version = "0.1.0"
+version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2a-sdk" },
     { name = "httpx" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0f/ac/be8f8d243b2376ef6b1fe94c76fa7e0b0066a0270c29a2ad18f7d7ebec42/astromesh_a2a-0.1.0.tar.gz", hash = "sha256:38ff1013a876463010dd921b45740326e6f9803a4917df01ca0f524301b8ce20", size = 120754, upload-time = "2026-10-20T10:12:29.957Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/99/4b/322d93e6da6fc7bc5ded7dc58ebf476e0f20527baff8cb1a5bb4ce988caa/astromesh_a2a-0.1.1.tar.gz", hash = "sha256:f8eb1bd907d25292bab24b13e258a9bae402be7f239b88ca5b8a16dc4cebef2e", size = 130516, upload-time = "2026-10-20T13:38:01.058Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/7c/f0f7f1f196764af6513849e19831481bc5b72d19dd9d723942d37e021a96/astromesh_a2a-0.1.0-py3-none-any.whl", hash = "sha256:ffdee16af73bda824362baa4d8dfceb9c1493a765ad6a44352860a22425f74a9", size = 70279, upload-time = "2026-10-20T10:12:28.559Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/8f/ccc36e9d546ac9d7c76c0fd31512c7c29111b2d3fd5a9445cd8ef9678ddb/astromesh_a2a-0.1.1-py3-none-any.whl", hash = "sha256:37f0ca1e2661e6379047aad67ff4b7896b227ec18b0716a99c5ea40a06475f66", size = 73615, upload-time = "2026-10-20T13:37:59.264Z" },
 ]
 
 [package.optional-dependencies]
@@ -198,8 +198,8 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "astromesh", editable = "../" },
-    { name = "astromesh-a2a", marker = "extra == 'a2a'", specifier = ">=0.1,<0.2" },
-    { name = "astromesh-a2a", extras = ["server"], marker = "extra == 'test'", specifier = ">=0.1,<0.2" },
+    { name = "astromesh-a2a", marker = "extra == 'a2a'", specifier = ">=0.1.1,<0.2" },
+    { name = "astromesh-a2a", extras = ["server"], marker = "extra == 'test'", specifier = ">=0.1.1,<0.2" },
     { name = "astromesh-adk", extras = ["dev", "test", "a2a"], marker = "extra == 'all'" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0.0" },
