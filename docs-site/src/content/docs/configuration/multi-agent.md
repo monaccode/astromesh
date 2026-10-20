@@ -341,7 +341,7 @@ The tool returns `{answer, status, task_id?, pending?}`:
 
 If the remote reports its own consumption, it does so with a `data` part whose only key is `usage` (`{"usage": {...}}`). Astromesh keeps a sanitized copy in the tool's trace span (`a2a.usage_remoto`), hides it from the model, and never adds it to `usage.by_model` or the run totals: it is not one of your models.
 
-The client side is the [`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a) library ([PyPI](https://pypi.org/project/astromesh-a2a/)).
+The client side is the [`astromesh-a2a`](/astromesh/a2a/library/) library ([PyPI](https://pypi.org/project/astromesh-a2a/)). Lifecycle, trace span attributes and the ADK equivalent: [A2A in Astromesh](/astromesh/a2a/astromesh-tools/). To publish your own agents over A2A, see [Nexus as an A2A server](/astromesh/nexus/a2a-server/).
 
 ---
 

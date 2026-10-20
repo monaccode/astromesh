@@ -1,0 +1,254 @@
+---
+title: A2A Server
+description: Nexus serves published agents over A2A 1.0 — opt-in per agent, behind the tenant's API key or JWT, with blocking, streaming and background tasks, subscriptions, task listing and signed push notifications, billed like any run.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note" title="Versions">
+Card, `SendMessage`, `SendStreamingMessage`, `GetTask` and `CancelTask` since **Nexus 0.27**.
+Background runs (`returnImmediately`), `CancelTask` across replicas, `SubscribeToTask`, `ListTasks`
+and push notifications since **Nexus 0.28**. Pre-1.0: shapes can change between minor releases.
+</Aside>
+
+A published Nexus agent can be called by any other agent over [A2A 1.0](https://a2a-protocol.org)
+(JSON-RPC binding, SSE for streaming) — an Astromesh agent with a
+[`type: a2a` tool](/astromesh/a2a/astromesh-tools/), the
+[`astromesh-a2a`](/astromesh/a2a/library/) client from any framework, or another vendor's A2A
+client. The task the client sees is backed by an ordinary Nexus **invocation**: same admission, plan
+limits, credits and billing as `POST /api/v1/agents/:name/run`. Interop with `astromesh-a2a`'s
+`RemoteAgent` (card, blocking and streaming send, cancel) and raw JSON-RPC (background runs,
+polling, `SubscribeToTask`, `ListTasks`) is part of Nexus' test suite.
+
+## Enabling it
+
+Two switches, both required.
+
+**1. The deployment** sets `NEXUS_PUBLIC_URL` (`--public-url`) to Nexus' public base URL (`http` or
+`https`, host only, no path, query or fragment). The card announces its interface URL from it,
+never from the request's `Host`. Empty leaves the whole `/a2a/v1` group unregistered (every path
+answers `404 {"error":"not found"}`, with a warning at boot); an invalid value stops the process at
+boot.
+
+**2. The agent opts in.** Its live version's spec declares:
+
+```yaml
+spec:
+  a2a:
+    publicar: true
+  identity:
+    description: "What this agent does"   # becomes the card's description
+  skills:                                  # optional; become the card's skills
+    - id: cotizar
+      name: Cotizar
+      description: Arma una cotización.
+      tags: [ventas]
+```
+
+Without `publicar: true` every A2A route of that agent answers the same
+`404 {"error":"agent not found"}` as an agent that does not exist, belongs to another tenant or has
+no live version — and the runtime is never touched. The flag is read from the **live version**, so
+publishing a new version without it unpublishes the agent. `spec.a2a` is read by Nexus only; the
+core runtime ignores it. [`spec.skills`](/astromesh/configuration/agent-yaml/#specskills) is a core
+manifest section (core 0.73.0+).
+
+<Aside type="caution" title="confirm-gated tools">
+Every A2A run reaches the node with `origen: "agente"`, and on core ≥ 0.73.0 such a turn can
+**never** confirm an action gated by `tools[].confirm`: the person confirms by talking to the agent
+directly. The pool runs core 0.73.0 or later since Nexus 0.27.1. If a deployment pins an older pool
+image, do not publish an agent with `confirm`-gated tools over A2A: an older node ignores the field,
+and a remote agent's "yes" would confirm the action as if the person had said it. See
+[Origin](/astromesh/a2a/introduction/#origin-a-remote-can-never-confirm-for-a-person).
+</Aside>
+
+## Routes
+
+| Method | Path | What |
+|---|---|---|
+| `GET` | `/a2a/v1/agents/:name/.well-known/agent-card.json` | Agent Card |
+| `POST` | `/a2a/v1/agents/:name` | JSON-RPC: `SendMessage`, `SendStreamingMessage` (SSE), `GetTask`, `CancelTask`, `SubscribeToTask` (SSE), `ListTasks`; with push enabled, also the `*TaskPushNotificationConfig` methods |
+
+The card's `supportedInterfaces[0].url` is `${NEXUS_PUBLIC_URL}/a2a/v1/agents/:name`
+(`protocolBinding: "JSONRPC"`, `protocolVersion: "1.0"`). Other fields: `name`, `description`
+(`spec.identity.description`), `version` (the Nexus number of the live version), `skills`
+(`spec.skills`; entries missing `id`, `name` or `description` are dropped),
+`capabilities {streaming: true, pushNotifications: false}` (`true` when push is enabled),
+`defaultInputModes`/`defaultOutputModes` `["text/plain","application/json"]` and `securitySchemes`
+for the two credentials below. Every `/a2a/v1` response (card, RPC, `401`, `404`) carries
+`Cache-Control: private, no-store` and `Vary: Authorization, X-API-Key, X-Tenant-ID`.
+
+## Authentication
+
+There are **no unauthenticated A2A routes**, the card included. The same credentials as `/api/v1`:
+
+- `X-API-Key: nxk_...` — the tenant is the key's tenant; or
+- `Authorization: Bearer <JWT>` **plus** `X-Tenant-ID: <tenant>` (a member of that tenant, or an
+  operator). A JWT without `X-Tenant-ID` gets `401 {"error":"no tenant in context"}`.
+
+The tenant always comes from the credential, never from the A2A request's `tenant` field. A
+credential for tenant B asking for tenant A's agent gets the plain `404` (not `403`), and
+`GetTask`/`CancelTask` on another tenant's (or another agent's) task are `TaskNotFoundError`.
+
+Clients must send the credential when fetching the **card** too, not only on the JSON-RPC calls: an
+anonymous card fetch gets the `401`. `astromesh-a2a` (and so `type: a2a` tools and `remote_a2a()`)
+already does.
+
+```yaml
+# An Astromesh agent calling a Nexus-published agent
+tools:
+  - name: quotes
+    type: a2a
+    card_url: https://nexus.example.com/a2a/v1/agents/quotes/.well-known/agent-card.json
+    auth: {api_key_env: NEXUS_API_KEY}   # sent as X-API-Key, card fetch included
+```
+
+## Methods
+
+Every call must carry the header `A2A-Version: 1.0`; any other value, or none, is
+`VersionNotSupportedError` (`-32009`).
+
+| Method | Behaviour |
+|---|---|
+| `SendMessage` | **Blocking** by default: runs the agent and returns the final Task — `COMPLETED` with one text artifact (plus a data part if the run returned `data`), `FAILED` with a public message (details stay in the log and the invocation), or `REJECTED` when admission refuses (credits, rate, concurrency). With `configuration.returnImmediately: true` it answers with the Task in `TASK_STATE_SUBMITTED` once the invocation is **admitted** (admission, including a cold load of the agent, still runs before that reply; a refused admission still answers `REJECTED`), and the run continues **in the background**, detached from the request, with the same admission, `--run-timeout`, pricing and close as a blocking run. Poll it with `GetTask`. |
+| `SendStreamingMessage` | The same run over SSE: the Task (`SUBMITTED`), `statusUpdate WORKING`, `artifactUpdate`s for the runtime's tokens on a single artifact (`append: true`), and the final `statusUpdate`. If the final answer differs from the concatenated tokens (an output guardrail, whitespace), the last chunk replaces the artifact (`append: false, lastChunk: true`). `tool_call` frames are not forwarded. |
+| `GetTask` | The task with the invocation's current state, its artifacts and stored history (the message that created it; `historyLength` trims it). |
+| `SubscribeToTask` | SSE stream of a task's events from **any replica**: the history from the start (the Task as created, then `statusUpdate`s and `artifactUpdate`s in order), then live until a terminal state, where it closes. A finished task returns its whole history and closes at once. Live events arrive within 0.5–2 s; streamed tokens are stored merged (at most every 250 ms), so a subscriber sees larger chunks than `SendStreamingMessage`. At most `--a2a-max-subscriptions` (20) open per tenant on each replica (one more → `InvalidRequestError`, `-32600`); a subscription lives at most `--run-timeout` + 2 s, then closes with `-32000` (subscribe again or poll). |
+| `ListTasks` | The tasks of the agent in the path, for the caller's tenant only, newest first. `pageSize` 1–100 (default 50; outside → `InvalidParamsError`), opaque `pageToken`/`nextPageToken` (empty on the last page), `totalSize`. Filters: `contextId`, `status` (the reported state), `statusTimestampAfter`. Artifacts only with `includeArtifacts: true`; `historyLength` trims the history (default 100). |
+| `CancelTask` | Cuts a run in flight (blocking, streaming or background) on **any replica**: invocation `cancelled`, **not charged**, task `CANCELED` with whatever the runtime had produced; subscribers receive the final `CANCELED`. On the replica that runs it the cut is immediate; from another one the request marks the invocation and the running replica checks the mark every second. A finished task, a run that already closed `ok`, or one that does not stop within 10 s → `TaskNotCancelableError` (`-32002`). |
+
+**Not supported** (`UnsupportedOperationError`, `-32004`): continuing an existing task (a message
+with `taskId`) — Nexus never emits `INPUT_REQUIRED`, so there is nothing to continue — and, unless
+the deployment enables them, push notifications.
+
+**Conversation.** `contextId` ↔ the invocation's `session_id` (without Nexus' tenant/agent namespace
+prefix on the way out): send the `contextId` of a previous task to continue the same conversation,
+with the same memory, in a new task. `taskId` is the `invocation_id`.
+
+**Idempotency.** The same `messageId` never starts two invocations. Repeated after it finished, it
+returns the existing task; while the first one is still in progress without a task yet,
+`InvalidRequestError`.
+
+**Request limits**, checked before admission (nothing runs or is charged):
+
+- The JSON-RPC body is capped at **1 MiB**; a larger one gets `413` with `InvalidRequestError`
+  (`-32600`, `id: null`).
+- A message needs at least one non-empty text or data part; a file-only or empty message is
+  `InvalidParamsError` (`-32602`) — Nexus does not read files.
+- `contextId` is at most **256 bytes**; longer is `InvalidParamsError`.
+
+## States
+
+| Invocation status | A2A task state |
+|---|---|
+| `in_progress` | `TASK_STATE_WORKING` (a task just created answers `TASK_STATE_SUBMITTED` in the `SendMessage` reply and as the first event of a stream) |
+| `ok` | `TASK_STATE_COMPLETED` |
+| `error`, `timeout` | `TASK_STATE_FAILED` |
+| `cancelled` | `TASK_STATE_CANCELED` |
+| `rejected` | `TASK_STATE_REJECTED` |
+| `interrupted` (its pod died mid-run), or any other closed status | `TASK_STATE_FAILED` |
+
+A task has exactly **one** final state: a run that keeps going after the sweep's or the drain's
+`FAILED` cannot change it, and it is not charged.
+
+## Billing and limits
+
+An A2A run is one more invocation, with `adapter = "a2a"` (visible in the invocation detail, usage
+and statements): the same plan caps (active agents, rate, concurrency, credits), the same
+[pricing](/astromesh/nexus/billing/) and the same close as REST. A client that disconnects mid-run
+(blocking or SSE) cancels it: `cancelled`, not charged — like the WebSocket. The run deadline is
+`--run-timeout`; each SSE write has a 10 s deadline (a client that stops reading is cut and the run
+cancelled) and the stream sends a keep-alive every 15 s.
+
+Task history and artifacts are stored in `a2a_tasks`; the state is always read from `invocations`.
+Every task's events are stored in `a2a_task_events` for `SubscribeToTask` (streamed tokens merged,
+never one row per token) and kept **24 hours**; the task itself stays, so `GetTask` and `ListTasks`
+keep working, and subscribing to a task whose events are gone sends the stored Task and closes.
+
+**Shutdown and dead pods.** On a graceful shutdown a replica waits up to `--a2a-drain-timeout`
+(20 s) for its runs in flight, background ones included, then closes those still going as
+`interrupted` (`FAILED` from any replica). A pod that dies without a graceful shutdown leaves them to
+the stale sweep, which also writes the final event subscribers and push receivers need, and
+reconciles any task whose invocation closed more than 30 s ago without one.
+
+## Push notifications
+
+Off by default. A deployment enables them with `NEXUS_A2A_PUSH=true` (`--a2a-push`) **and** a master
+signing secret, `NEXUS_A2A_PUSH_SECRET` (`--a2a-push-secret`, at least 32 bytes; enabled without it,
+or a value that is not a boolean, stops the process at boot). The card then says
+`"pushNotifications": true`, and these methods work, scoped like every other one to the caller's
+tenant and the agent in the path:
+
+| Method | Behaviour |
+|---|---|
+| `CreateTaskPushNotificationConfig` | `{taskId, id?, url, token?, authentication?}`. Saves (or replaces, same `id` — which also re-enables a disabled config) where to notify; no `id` → one is generated. **The response carries the config's signing key** in `authentication.credentials` (`scheme: "Bearer"`); no other response does. Only what happens **after** this call is notified. At most 10 configs per task. |
+| `GetTaskPushNotificationConfig` / `ListTaskPushNotificationConfigs` | The config(s), `token` included, **never the key**, plus a Nexus extension per config: `deliveryStatus: {failures, disabled, disabledAt?, lastError?}` (`lastError` is the reason only, never the URL). |
+| `DeleteTaskPushNotificationConfig` | Deletes it; unknown `id` → `InvalidParamsError`. |
+| `SendMessage` / `SendStreamingMessage` with `configuration.taskPushNotificationConfig` | The same config, saved before the run starts, so it is notified from creation (`SUBMITTED`). The key is not in that response: get it with `CreateTaskPushNotificationConfig` with the same `id` and `url` — a config's key is always the same. |
+
+**Accepted configs** (otherwise `InvalidParamsError`): `url` is `https` on port 443 (or a port in
+`--a2a-push-ports`), at most 2048 bytes, without credentials or fragment, and not an IP literal
+outside the public internet; `token` ≤ 512 bytes; `authentication` only `{"scheme": "Bearer"}`,
+without credentials of your own — `Authorization` always carries Nexus' JWT.
+
+**Keys.** Each config has its own HS256 key, derived on the server (HMAC-SHA256) from the master
+secret, the tenant, the agent, the task and the config id. The master secret never leaves Nexus, so
+a receiver can only verify — or forge — notifications of its own configs. The key is the base64url
+(no padding) of 32 bytes: decode it and use the raw bytes as the HMAC key. To rotate, create a
+config with a new `id` and delete the old one; rotating the master secret changes every key.
+
+**What is sent.** One `POST` per event: the creation (the Task, `SUBMITTED`) and every status change
+(`statusUpdate`); for the final state, the Task **without its history** (id, contextId, final status
+and artifacts). A body is at most 64 KiB; a final Task that does not fit goes without artifacts and
+with `metadata: {"nexus.artifactsOmitted": true}` — read it with `GetTask`. Artifact chunks are not
+sent. The body is an A2A `StreamResponse` (`{"task": …}` or `{"statusUpdate": …}`), with:
+
+- `Authorization: Bearer <JWT>` — HS256 with the config's key. Claims: `iss` (the Nexus public
+  URL), `aud` (the config's `url`, exactly), `iat`, `exp` (`iat` + 5 min), `jti`
+  (`<taskId>/<configId>/<seq>`, the same on every retry of one event), `taskId`, `configId`,
+  `bodySha256` (lowercase hex SHA-256 of the raw body) and, if the config has a token,
+  `tokenSha256`.
+- `A2A-Notification-Token: <token>` — the config's `token`, if it has one.
+
+**Verifying a notification (receiver).** Keep the key Create returned. For every request: verify the
+JWT with HS256 and that key (reject any other `alg`); check `aud` is the URL you registered, `iss`
+the Nexus you expect, and `exp`; hash the raw body and compare it to `bodySha256`; if you set a
+token, hash `A2A-Notification-Token` and compare it to `tokenSha256`. Delivery is
+**at-least-once**: deduplicate by `jti`. Answer `2xx` quickly; the state is always available with
+`GetTask`.
+
+```python
+import base64, hashlib, jwt  # PyJWT
+
+key = base64.urlsafe_b64decode(key_from_create + "=" * (-len(key_from_create) % 4))
+claims = jwt.decode(bearer_token, key, algorithms=["HS256"],
+                    audience="https://hooks.example.com/a2a", issuer="https://nexus.example.com")
+assert claims["bodySha256"] == hashlib.sha256(raw_body).hexdigest()
+```
+
+**Delivery.** Every replica runs a dispatcher that reads `a2a_task_events`, so a final state is
+notified even when the task's pod died. A config is delivered by one replica at a time (a lease, 1
+min), in event order. A tenant has at most 2 configs being delivered at a time across replicas.
+Each attempt has **5 s**; network errors, `408`, `425`, `429` and `5xx` are retried 3 times (after
+1 s, 2 s, 4 s); any other answer, a redirect included, is final. An event that still fails is
+dropped (logged with the host only) and counts a failure; **5 failed events in a row disable the
+config** (`deliveryStatus.disabled: true`). Creating it again with the same `id` re-enables it.
+
+**Egress.** The webhook host is resolved once per connection and Nexus connects to the address it
+checked (no DNS rebinding), never through a proxy, never following redirects and only to the
+allowed ports. If **any** address of the host is outside the public internet — private ranges,
+loopback, link-local (cloud metadata `169.254.169.254` included), CGNAT, documentation, multicast
+and reserved ranges, IPv4-mapped, NAT64, Teredo, 6to4, ULA and the like — nothing is dialed.
+
+## Configuration
+
+| Flag | Env | Default | |
+|---|---|---|---|
+| `--public-url` | `NEXUS_PUBLIC_URL` | — | Public base URL the card announces. **Empty leaves `/a2a/v1` unregistered**; invalid is fatal at boot. |
+| `--a2a-drain-timeout` | `NEXUS_A2A_DRAIN_TIMEOUT` | `20s` | How long shutdown waits (after closing HTTP, 5 s) for A2A runs in flight. The pod's `terminationGracePeriodSeconds` must be ≥ 5 s + this + a margin (30 s fits the default); raise both together. |
+| `--a2a-max-subscriptions` | `NEXUS_A2A_MAX_SUBSCRIPTIONS` | `20` | `SubscribeToTask` streams one tenant may keep open on each replica. |
+| `--a2a-push` | `NEXUS_A2A_PUSH` | off | Enables push notifications. Requires `--a2a-push-secret` and `--public-url`. The dev and mvp overlays leave it off. |
+| `--a2a-push-secret` | `NEXUS_A2A_PUSH_SECRET` | — | Master secret (≥ 32 bytes) the per-config keys derive from. From a Kubernetes Secret, never a literal. Rotating it changes every key. |
+| `--a2a-push-ports` | `NEXUS_A2A_PUSH_PORTS` | `443` | Comma-separated ports a webhook URL may use. |
+| `--sweep-max-age` | `NEXUS_SWEEP_MAX_AGE` | larger of `300s` and `--run-timeout` + `60s` | Never below `--run-timeout` + 60 s (a background run lives until the run timeout); a lower value is raised with a warning at boot. |
+
+The full flag table is in [Operations](/astromesh/nexus/operations/#configuration).

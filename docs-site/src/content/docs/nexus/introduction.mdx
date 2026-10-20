@@ -24,6 +24,7 @@ A client calls the Nexus REST API. Nexus resolves the tenant, admits the run aga
 | **Metering and pricing** | Per-model token usage (including the provider's prompt cache), priced against effective-dated tariffs into credits. |
 | **Subscriptions and billing** | Plans sold per vertical (*argo*), business-unit usage events, and a monthly period close that writes charges and a statement. |
 | **Connections** | Per-tenant credentials (an ERP key, an API, an MCP server), sealed with AES-256-GCM and forwarded to each run. |
+| **A2A** | Published agents that opt in are served over [A2A 1.0](/astromesh/nexus/a2a-server/): an Agent Card and JSON-RPC behind the tenant's credentials, blocking, streaming and background tasks, subscriptions and signed push notifications, billed like any run. Since 0.27. |
 | **Messaging** | Proactive sends through [Herald](/astromesh/herald/introduction/), including from an agent mid-run with a per-run token. |
 | **Observability** | Per-agent status, logs and metrics, invocation detail, tenant usage, and cross-tenant reads for operators. |
 | **Operator console** | A web console embedded in the binary: platform, customers, agent health, invocations, plans and tariffs, billing. |

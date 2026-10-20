@@ -152,6 +152,15 @@ export default defineConfig({
           ],
         },
         {
+          label: 'A2A',
+          items: [
+            { label: 'Introduction', slug: 'a2a/introduction' },
+            { label: 'The astromesh-a2a library', slug: 'a2a/library' },
+            { label: 'In Astromesh: tools and ADK', slug: 'a2a/astromesh-tools' },
+            { label: 'Nexus as an A2A server', slug: 'nexus/a2a-server' },
+          ],
+        },
+        {
           label: 'SDD Skills',
           items: [
             { label: 'Introduction', slug: 'sdd/introduction' },
@@ -245,6 +254,7 @@ export default defineConfig({
             { label: 'Architecture', slug: 'nexus/architecture' },
             { label: 'Quick Start', slug: 'nexus/quickstart' },
             { label: 'API Reference', slug: 'nexus/api-reference' },
+            { label: 'A2A Server', slug: 'nexus/a2a-server' },
             { label: 'Plans & Billing', slug: 'nexus/billing' },
             { label: 'Operations', slug: 'nexus/operations' },
           ],

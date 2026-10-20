@@ -192,6 +192,13 @@ Everything under `/api/v1/admin` requires the operator role or `X-Operator-Token
 
 All paths in this table are under `/api/v1`.
 
+## A2A
+
+Published agents that opt in with `spec.a2a.publicar: true` are also served over A2A 1.0, under
+`/a2a/v1/agents/:name` (Agent Card at `/.well-known/agent-card.json`, JSON-RPC at the path itself),
+with the same credentials as `/api/v1`. Methods, states, limits and push notifications:
+[A2A Server](/astromesh/nexus/a2a-server/).
+
 ## Health
 
 | Path | |

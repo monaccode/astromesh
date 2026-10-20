@@ -323,6 +323,16 @@ Optional list of what the agent can do. Astromesh publishes it as the `skills` o
 
 An invalid skill (missing `id`, `name` or `description`, or wrong types) is skipped with a warning; the agent still loads.
 
+### `spec.a2a`
+
+Read by [Astromesh Nexus](/astromesh/nexus/a2a-server/) only; the core runtime ignores it.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `publicar` | No | `true` publishes the agent over A2A 1.0 in Nexus: an Agent Card (with `spec.identity.description` and `spec.skills`) and a JSON-RPC endpoint behind the tenant's credentials. Off by default. Read from the live version, so a new version without it unpublishes the agent. |
+
+See [A2A](/astromesh/a2a/introduction/) for the whole picture.
+
 ### `spec.model`
 
 | Field | Required | Description |
@@ -399,7 +409,7 @@ Each tool is an object in the `tools` array:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | Yes | Tool name. Must be unique within the agent. |
-| `type` | Yes | Tool type loadable from YAML: `builtin` (a tool shipped with the runtime), `agent` (another agent, callable as a tool), `client` (announced to the model, executed by whoever is listening), `integration` (catalog actions), `api` or `mcp` (a tenant's API or MCP server, declared inline). `mcp_stdio`/`mcp_sse`/`mcp_http`, `webhook` and `rag` exist in the runtime's `ToolType` but are not declarable from an agent YAML file. |
+| `type` | Yes | Tool type loadable from YAML: `builtin` (a tool shipped with the runtime), `agent` (another agent, callable as a tool), `client` (announced to the model, executed by whoever is listening), `integration` (catalog actions), `api` or `mcp` (a tenant's API or MCP server, declared inline), `a2a` (a remote A2A agent, core 0.74.0+ with the `astromesh[a2a]` extra; see [A2A tools](/astromesh/a2a/astromesh-tools/)). `mcp_stdio`/`mcp_sse`/`mcp_http`, `webhook` and `rag` exist in the runtime's `ToolType` but are not declarable from an agent YAML file. |
 | `description` | Yes | Description of what the tool does. Sent to the LLM for function calling. |
 | `parameters` | No | JSON Schema-like parameter definitions. Each parameter has a `type` and `description`. |
 | `max_result_tokens` | No | Cap, in tokens, for this tool's result when it enters the conversation. For `integration`, `api` and `mcp` it applies to every tool that definition registers. Falls back to `orchestration.max_tool_result_tokens`, then to `8000`. |
