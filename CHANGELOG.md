@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.73.0] - 2026-10-19
+
 ### Added (Backend)
 
 - `spec.skills` en el manifiesto del agente (`id`, `name`, `description` requeridos; `tags`,
