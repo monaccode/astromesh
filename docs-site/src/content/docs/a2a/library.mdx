@@ -1,0 +1,609 @@
+---
+title: The astromesh-a2a library
+description: A2A 1.0 client and server for any agent framework, on the official SDK — RemoteAgent under a Policy, serve/create_app behind mandatory auth, tools for nine frameworks, untrusted-output wrapping, redacted traces and an attack eval.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+**astromesh-a2a** is a client and a server for A2A 1.x, built on the
+[official A2A SDK](https://github.com/a2aproject/a2a-python) (`a2a-sdk`). It puts a remote agent
+inside your framework as an ordinary tool, serves your own agent as an A2A agent, and treats
+everything that crosses the wire as what it is: code you do not control. It has no dependency on
+the Astromesh core; the core and the ADK use it underneath (see
+[In Astromesh](/astromesh/a2a/astromesh-tools/)).
+
+<Aside type="note" title="Status">
+Version 0.1.0 is on [PyPI](https://pypi.org/project/astromesh-a2a/) (Apache-2.0, Python 3.10–3.13).
+The source of truth for this page is the
+[repository](https://github.com/monaccode/astromesh-a2a): its `docs/` folder has the same guides in
+more detail.
+</Aside>
+
+## Why the SDK alone is not enough
+
+The SDK speaks the protocol. It does not decide which remotes you may reach, how much of their
+output you accept, or what your model does with it.
+
+| Risk | What `astromesh-a2a` does |
+|---|---|
+| A card or a redirect sends your client to `10.0.0.7`, `169.254.169.254` or `localhost` (SSRF) | **Pinned egress.** http(s) only, public addresses only, each host resolved once and the connection pinned to the checked IP (no DNS-rebinding window), redirects never followed. |
+| Any URL is reachable; a card names its RPC endpoint on another host | **Remote-agent policy.** `Policy.allowed` lists hosts or card URLs; nothing is allowed until you declare it. The library fetches and vets the card before the SDK sees it. Optional **signed cards**. |
+| The remote's text tells your model "ignore previous instructions" | **Untrusted output wrapping.** Framework tools return the remote's words inside `<remote-agent-output untrusted="true" ...>`, escaped so the block cannot be closed or forged. |
+| The remote asks "reply yes to confirm the transfer" | **Never auto-confirm.** An `input_required` task comes back as a pending question; only an explicit `reply()` continues it. The server marks every incoming message `Origin.AGENT` and untrusted. |
+| A 2 GB artifact, a stream that never ends, a remote that eats your budget | **Budgets, timeouts and size caps** per body, part, stream, call and remote. File parts are dropped unless you accept them. |
+| You cannot see what happened, or your logs leak the API key | **Per-stage trace with redaction** and a W3C `traceparent`. Credentials come only from env vars or callables. |
+
+## Install
+
+```bash
+pip install astromesh-a2a                # client
+pip install 'astromesh-a2a[server]'      # + serve your own agent (Starlette, uvicorn)
+pip install 'astromesh-a2a[langchain]'   # + a remote agent as a LangChain tool
+```
+
+| Extra | Adds |
+|---|---|
+| `server` | `a2a-sdk[http-server]`, Starlette and uvicorn, for `serve`/`create_app` and the eval |
+| `signing` | PyJWT, for signed Agent Cards |
+| `langchain`, `crewai`, `adk`, `openai-agents`, `pydantic-ai`, `llamaindex`, `smolagents`, `agent-framework`, `mcp` | One framework each (see [Framework tools](#framework-tools)) |
+| `all` | Everything above |
+
+The base install depends only on `a2a-sdk` (1.2 to < 2) and `httpx`.
+
+## Call a remote agent
+
+```python
+from astromesh_a2a import Auth, Policy, RemoteAgent
+
+policy, auth = Policy(allowed=("trips.example.com",)), Auth.bearer("TRIPS_TOKEN")
+async with RemoteAgent("https://trips.example.com", policy=policy, auth=auth) as trips:
+    result = await trips.send("Find a flight to Lima on Friday")
+print(result.status, result.answer, result.trace)
+```
+
+`RemoteAgent(card_url, *, policy, auth=None, origin=Origin.AGENT)`:
+
+- **URL.** A base URL (empty or `/` path) gets `/.well-known/agent-card.json` appended; anything
+  else is used as the card URL. The constructor checks it against the policy, so an unlisted host
+  never sees a request.
+- **Lifetime.** Use `async with RemoteAgent(...) as agent:` or call `await agent.aclose()`. A
+  closed agent refuses new calls (`AgentClosedError`).
+- **Event loop.** The agent is bound to the loop of its first I/O; another loop gets
+  `LoopBindingError`. One `RemoteAgent` per loop (see [Sync code](#sync-code-and-event-loops)).
+
+### How a call runs
+
+1. The **library** (never the SDK) fetches the card through the egress guard and vets it: the
+   signature if `require_signature`, an A2A **1.x JSON-RPC** interface (a 0.3-only remote raises
+   `UnsupportedVersion`), and an interface URL on the card's own host or on an allowed one
+   (`PolicyRejected("interface:host_not_allowed")` otherwise).
+2. The SDK client is built over the library's pinned HTTP client, from a copy of the card that keeps
+   only the vetted interface.
+3. The budget admits the call before anything leaves. The whole call runs under `policy.timeout`
+   (or what is left of a seconds budget, if less).
+4. Parts the policy does not accept are dropped and traced; the rest becomes a `Result`.
+
+The vetted card is cached for `policy.card_ttl` seconds, then fetched and vetted again.
+
+### `send()` and `Result`
+
+```python
+result = await agent.send("Find a flight to Lima on Friday")
+result = await agent.send("And a hotel", context_id=result.context_id)  # same conversation
+result = await agent.send("Book it", data={"passengers": 2})            # plus a JSON data part
+```
+
+`send()` waits until the task finishes or asks for something, and returns a `Result`:
+
+| Field | |
+|---|---|
+| `status` | `"completed"`, `"input_required"` or `"auth_required"` |
+| `answer` | The accepted text parts, joined |
+| `data` | The accepted data parts (JSON objects; numbers come back as floats, like any protobuf `Struct`) |
+| `task_id`, `context_id` | The remote's ids |
+| `pending` | When the remote asks for something, its question (never answered for you) |
+| `trace` | The redacted per-stage trace of this call |
+
+A task that ends `failed`, `rejected` or `canceled` raises `TaskFailed(remote=True)`.
+
+### Confirmations: `reply()`
+
+A remote that asks for input, even "reply 'yes' to confirm", gets no answer from the library.
+`send()` returns `input_required`, and only an explicit `reply(task_id, text)` continues the task.
+Decide who answers: the user, through your agent.
+
+```python
+result = await agent.send("Transfer 500 USD to Ana")
+if result.status == "input_required":
+    answer = input(f"The remote asks: {result.pending}\n> ")  # a human decides
+    result = await agent.reply(result.task_id, answer)
+```
+
+The remote's question is remote text: show it, do not obey it.
+
+### `stream()` and `EventStream`
+
+```python
+async with agent.stream("Plan a 3-day trip to Cusco") as events:
+    async for event in events:
+        if event.kind == "artifact":
+            print(event.payload["text"], end="")
+        elif event.kind == "status":
+            print(f"\n[{event.payload['state']}]")
+    print(events.trace)
+```
+
+`stream(text, *, context_id=None)` is a plain method (no `await`) that returns an `EventStream`;
+nothing is sent until the first event is read. Each `Event` has `kind` (`"status"`, `"artifact"`,
+`"message"`) and a `payload` dict with `task_id`, `context_id`, `text`, `data` and
+`untrusted=True`; status payloads add `state` and `final`, artifact payloads add `artifact_id`,
+`name`, `append` and `last_chunk`.
+
+The stream ends after the first final status (`completed`, `failed`, `canceled`, `rejected`,
+`input_required`, `auth_required`) or a message. A failed task is an event, not an exception. Past
+`policy.timeout` (whole stream) or `policy.max_events` it raises `A2ATimeout` and closes the remote
+stream. Leaving the `async with` (or `aclose()`) closes it too; a bare `async for` + `break` leaves
+that to the garbage collector.
+
+### `cancel()` and `card()`
+
+```python
+await agent.cancel(result.task_id)  # TaskFailed if the task already ended otherwise
+
+card = await agent.card()
+print(card.name, card.version, card.interface_url, [s.name for s in card.skills])
+```
+
+`cancel()` returns once the remote accepts the request: the task comes back `canceled`, or still
+`working` when the remote cancels asynchronously. `card()` returns a frozen `RemoteCard`: `name`,
+`description`, `version`, `interface_url`, `protocol_version`, `streaming`, `has_signatures`,
+`signature_verified`, `skills` and `raw` (a copy of the vetted SDK card). Every text field was
+written by the remote. `has_signatures` only says the card carries signatures; trust
+`signature_verified`, which is `True` only when the policy required a signature and it verified.
+
+### Errors
+
+All inherit from `A2AError`. Confirmations are not errors: they come back as `input_required`.
+
+| Error | Raised when |
+|---|---|
+| `PolicyRejected(reason)` | The policy refused: `host_not_allowed`, `scheme`, `interface:...`, `card_invalid`, `card_fetch`, `part_kind:<kind>` (nothing acceptable came back), `part_size`, `budget`, `auth`, `signature`, `url`, `content_type` |
+| `BlockedDestination(reason)` | The egress guard refused: private address, redirect, body over the cap |
+| `TaskFailed` | The remote task failed, was rejected or canceled (`remote=True`), or the call failed in a way that cannot be classified (`remote=False`, generic message; the task may be alive) |
+| `A2ATimeout` | A call or stream exceeded `timeout` or `max_events` |
+| `UnsupportedVersion` | The remote does not speak A2A 1.x over JSON-RPC |
+
+Two local errors are `RuntimeError`s, not `A2AError`s, and are never translated:
+`LoopBindingError` (used from another event loop) and `AgentClosedError` (used after `aclose()`).
+
+## Policy
+
+`Policy` is the client's rulebook: which remotes you may reach, what you accept from them, how
+much they may cost. It is a frozen dataclass; one policy can be shared by many `RemoteAgent`s, and
+each agent keeps its own budget meter. The default, `Policy()`, allows nothing, and every default
+fails closed.
+
+```python
+from astromesh_a2a import Budget, Policy
+
+policy = Policy(
+    allowed=("trips.example.com", "https://hotels.example.org/.well-known/agent-card.json"),
+    accept_parts=frozenset({"text", "data"}),
+    timeout=30.0,
+    budget=Budget(max_calls=20, max_seconds=120),
+)
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `allowed` | `()` | Bare hosts or full card URLs. A host matches the URL's hostname exactly, case-insensitively (no subdomains, port ignored, `a.com.` is a different host); a URL entry must match the whole URL. A URL with user info (`user:pw@host`) is refused (`PolicyRejected("url")`): credentials go in `Auth`. |
+| `require_signature` | `False` | Refuse cards without a valid JWS signature from a key in `signing_keys` (`PolicyRejected("signature")`). |
+| `signing_keys` | `{}` | Map `kid -> key` (PEM or secret `str`/`bytes`, or a `jwt.PyJWK`). Needs the `signing` extra. A `jku` URL in the card header is never fetched: the card cannot choose its own key. |
+| `signing_algorithms` | `("ES256", "ES384", "RS256", "PS256", "EdDSA")` | Algorithms accepted for card signatures. Asymmetric only, never `none`. |
+| `accept_parts` | `{"text", "data"}` | Part kinds kept from answers. Others are dropped and traced as `rejection`; if nothing acceptable is left, `PolicyRejected("part_kind:<kind>")`. Opt into files with `{"text", "data", "file"}`. |
+| `max_bytes` | `1_048_576` (1 MiB) | Cap on every response body and every part (`BlockedDestination` / `PolicyRejected("part_size")`). Bodies are cut while reading, not after. |
+| `max_stream_bytes` | `8_388_608` (8 MiB) | Cap on a whole SSE stream; each event is also capped at `max_bytes`. |
+| `timeout` | `60.0` s | Wall-clock cap on each call (`send`, `reply`, `cancel`, card fetch) and on a whole stream, on top of HTTP timeouts (`A2ATimeout`). |
+| `max_events` | `1000` | Cap on events per stream (`A2ATimeout`). |
+| `budget` | `None` | `Budget(max_calls=None, max_seconds=None)` per `RemoteAgent`. Each call is admitted before anything is sent; exhausted → `PolicyRejected("budget")`. A seconds budget also shortens each call's deadline to what is left. |
+| `card_ttl` | `300.0` s | How long the vetted card is cached before it is fetched and vetted again. A refresh that fails the checks leaves no stale card behind. |
+| `allow_insecure_http` | `False` | Accept `http://` card and interface URLs. Credentials and answers travel in clear: local development only. |
+
+**Budgets.** `max_calls` is exact. Seconds are wall-clock per call; for a stream, from start to end,
+including your own time between events. Concurrent calls on the same agent each see the same
+remaining seconds, so under concurrency the seconds cap is soft.
+
+**What the policy does not control.** These hold whatever the policy says: the **egress guard**
+(private, loopback, link-local and other non-public addresses refused; one resolution per host,
+pinned; no redirects; `Policy` has no flag to reach private addresses), **card vetting** (only an
+A2A 1.x JSON-RPC interface, on the card's host or an allowed one), the **untrusted wrapper** in
+framework tools and **no auto-confirm**.
+
+### Signed cards
+
+```python
+from pathlib import Path
+
+from astromesh_a2a import Policy
+
+policy = Policy(
+    allowed=("trips.example.com",),
+    require_signature=True,
+    signing_keys={"trips-2026": Path("trips-public.pem").read_text()},
+    signing_algorithms=("ES256",),
+)
+```
+
+Install `astromesh-a2a[signing]`. Get the remote's public key and `kid` out of band, never from the
+card.
+
+### Credentials: `Auth`
+
+```python
+from astromesh_a2a import Auth
+
+Auth.bearer("TRIPS_TOKEN")                         # Authorization: Bearer $TRIPS_TOKEN
+Auth.api_key("TRIPS_KEY", header="X-API-Key")      # X-API-Key: $TRIPS_KEY
+Auth.from_callable(lambda: "Bearer " + refresh())  # called per request
+```
+
+The secret is read at call time from the environment variable or the callable. It is never stored
+on the object and never appears in a trace, a `repr` or an error. A missing secret raises
+`PolicyRejected("auth")` before anything is sent, **card fetch included**.
+
+Credentials go **only to allowed hosts**: to the card fetch (the card URL passed the policy; some
+servers, such as [Nexus](/astromesh/nexus/a2a-server/), authenticate the card too) and to the RPC
+interface the card names. A card whose interface is on a host the policy does not allow is refused
+before any RPC, so the credentials never leave for it. One exception to know: an interface on the
+card's own hostname is accepted even when only a URL entry allows the card, and hosts match
+without the port, so an interface on **another port** of the card's host receives your
+credentials. If another service shares the hostname, give the agent its own hostname.
+
+## Serve your agent
+
+Needs the `server` extra. Your agent is one async function, `Incoming -> Outgoing`:
+
+```python
+from astromesh_a2a import CardSpec, Incoming, Outgoing, Skill, api_key_auth, serve
+
+
+async def handle(msg: Incoming) -> Outgoing:  # msg.text came from another program: untrusted
+    if msg.is_reply:  # an answer to a question this task asked
+        return Outgoing(answer=f"Noted: {msg.text}")
+    if "transfer" in msg.text:
+        return Outgoing(needs_confirmation="Transfer 500 USD to Ana? Reply yes or no.")
+    return Outgoing(answer="Done.", data=[{"booking": "LIM-0042"}])
+
+
+skill = Skill(id="book", name="Book trips", description="Flights and hotels.", tags=("travel",))
+card = CardSpec("trips", "Books trips.", "1.0.0", "https://trips.example.com", [skill])
+serve(handle, card, host="0.0.0.0", port=8000, auth=api_key_auth("TRIPS_API_KEY"))
+```
+
+**`Incoming`**
+
+| Field | |
+|---|---|
+| `text`, `data` | The message's text (joined) and data parts; file parts are dropped |
+| `origin` | Always `Origin.AGENT`, whatever the sender claims |
+| `untrusted` | Always `True`: another program wrote this |
+| `claimed_origin` | What the sender wrote as its origin (e.g. `"human"`), for logs only |
+| `caller` | The identity your `auth` returned |
+| `context_id` | Chosen by the caller, not scoped |
+| `session_key` | `"<caller>:<context_id>"`: key memory by this |
+| `task_id` | Always set (the SDK creates one for a new task) |
+| `is_reply`, `pending` | `True` and the question it waited on, when the message continues a task |
+
+**`Outgoing`**: `answer` (text) and `data` (JSON objects) complete the task. With
+`needs_confirmation` the task goes to `input_required` with that text instead. The remote's next
+message on that task reaches your handler as an untrusted `Incoming` with `is_reply=True`: a
+remote "yes" is not a human confirmation, and the library never marks anything as confirmed.
+
+A handler that raises, or runs past `handler_timeout`, fails the task with a generic message ("The
+agent could not process this request."); the details go only to the local log.
+
+### The card: `CardSpec` and `Skill`
+
+```python
+card = CardSpec(
+    name="trips",
+    description="Books flights and hotels.",
+    version="1.0.0",
+    url="https://trips.example.com",  # the PUBLIC base URL the app is reachable at
+    skills=[
+        Skill(
+            id="book",
+            name="Book trips",
+            description="Flights and hotels in South America.",
+            tags=("travel", "booking"),
+            examples=("A flight to Lima on Friday",),
+        )
+    ],
+)
+```
+
+The card is published at `/.well-known/agent-card.json` and announces one JSON-RPC 1.0 interface at
+`<url>/a2a`. `Skill` also takes `input_modes` and `output_modes` (default `("text/plain",)`). Give
+every skill at least one tag: the A2A spec requires it. `CardSpec(streaming=False)` turns off SSE in
+the card.
+
+### Auth is mandatory
+
+```python
+from astromesh_a2a import api_key_auth, create_app
+
+app = create_app(handle, card, auth=api_key_auth("TRIPS_API_KEY", header="X-API-Key"))
+```
+
+`api_key_auth(env, header="X-API-Key")` compares the header with the env var in constant time,
+reads the variable on every request (rotation works) and refuses everything when it is unset. Any
+`async (Request) -> bool | str` works too: return a string to name the caller (tasks and
+`session_key` are scoped per caller), `True` for one shared identity, a falsy value or an exception
+to refuse with `401`. The card is public; everything else goes through `auth` before the SDK sees
+it. Without `auth`, `create_app` and `serve` raise `ValueError` unless you pass `insecure=True`
+(local experiments only: every caller then shares one identity and can read or cancel anyone's
+task).
+
+### Running it, and options
+
+`serve(...)` runs uvicorn and blocks (`host` defaults to `127.0.0.1`, `port` to `8000`).
+`create_app(...)` returns the Starlette app, to run under your own server or mount in an existing
+one; mounted under a sub-path, `card.url` must include that path.
+
+```python
+from fastapi import FastAPI
+
+api = FastAPI()
+# CardSpec(..., url="https://api.example.com/agents/trips")
+api.mount("/agents/trips", create_app(handle, card, auth=api_key_auth("TRIPS_API_KEY")))
+```
+
+| Option | Default | |
+|---|---|---|
+| `auth` | required | See above |
+| `insecure` | `False` | Serve without auth (local only) |
+| `max_body_bytes` | 1 MiB | A larger request body answers `413`; a malformed `Content-Length` answers `400` |
+| `handler_timeout` | 300 s | `None` for no limit; past it the task fails |
+| `task_store` | SDK `InMemoryTaskStore` | Lost on restart and unbounded: pass a persistent or bounded `TaskStore` in production. It **must scope tasks by owner** |
+
+Only `A2A-Version: 1.x` is served; a request without the header means 0.3 and is refused with
+JSON-RPC `-32009`. A mounted sub-app's lifespan does not run under Starlette, so a host app that
+needs the SDK handler closed on shutdown has to do it itself. The SDK logs request bodies at
+`DEBUG`: keep the `a2a` logger at `INFO` or above in production.
+
+### Sessions and task scoping
+
+Tasks are scoped by owner, the identity your `auth` returned: one caller cannot get, cancel or reply
+to another caller's task, even knowing its id. That scoping lives in the task store, so a custom
+`task_store` must keep it: resolve the owner from the `ServerCallContext` the SDK passes to every
+`save`/`get`/`list`/`delete` and filter by it, as the SDK's stores do (`owner_resolver`, default
+`resolve_user_scope`).
+
+`context_id` is chosen by the caller and is **not** scoped: two callers can send the same one. Key
+memory and session state by `msg.session_key`, never by `context_id` alone. On the client side,
+pass `context_id=` to `send()` to keep several messages in one remote conversation.
+
+## Framework tools
+
+`agent.as_tool(framework, *, name=None, description=None)` turns a `RemoteAgent` into a native tool.
+Each adapter imports its framework on first use; a missing one raises `MissingExtraError` (an
+`ImportError`) naming the extra.
+
+```python
+async with RemoteAgent("https://trips.example.com", policy=policy) as trips:
+    await trips.card()                 # the tool's name and description come from the card
+    tool = trips.as_tool("langchain")  # give it to your agent: tools=[tool]
+    print(await tool.ainvoke({"query": "Find a flight to Lima on Friday"}))
+```
+
+| Framework | `as_tool(...)` | Extra | Returns | Tool errors |
+|---|---|---|---|---|
+| LangChain / LangGraph | `"langchain"` | `langchain` | `StructuredTool` (sync + async) | `ToolException` (handled: the model sees it) |
+| CrewAI | `"crewai"` | `crewai` | `BaseTool` (`run` + `arun`) | exception |
+| Google ADK | `"adk"` | `adk` | `FunctionTool` (async) | `{"error": ...}` |
+| OpenAI Agents SDK | `"openai-agents"` | `openai-agents` | `FunctionTool` (async) | `failure_error_function` |
+| PydanticAI | `"pydantic-ai"` | `pydantic-ai` | `Tool` (async, Python 3.11+) | `ModelRetry` only on `A2ATimeout` |
+| LlamaIndex | `"llamaindex"` | `llamaindex` | `FunctionTool` (sync + async) | exception |
+| smolagents | `"smolagents"` | `smolagents` | `Tool` (sync) | exception |
+| Microsoft Agent Framework | `"agent-framework"` | `agent-framework` | `FunctionTool` (async) | exception |
+| MCP | `"mcp"` | `mcp` | FastMCP `Tool` (async) | `ToolError` (`isError` result) |
+
+**The tool contract, every framework:**
+
+- **One input, `query: str`.** The first call sends it. When the previous call on the **same tool
+  object** came back waiting for input, the next call replies to that task. A tool object holds one
+  conversation: build one per conversation or user, never share one across users.
+- **The output** is the remote's words inside
+  `<remote-agent-output untrusted="true" agent="..." status="...">`, with `<`, `>`, `&` and quotes
+  escaped. A pending task adds its `task_id` and a note **outside** the block telling the model that
+  only the user can answer the remote's question.
+- **Errors** follow each framework's convention with a short, safe message (no stack, no
+  credentials). `RemoteTool.last_result` keeps the last `Result`.
+- **Name and description** default to the card. The name is sanitized for every framework
+  (`[a-z0-9_]`, a Python identifier, at most 64 characters); the remote's description is quoted as
+  untrusted under the library's own framing.
+
+The wrapper is public as `astromesh_a2a.adapters.wrap_untrusted(result, *, agent="remote")`, if you
+build your own tool.
+
+### LangChain / LangGraph
+
+```python
+from langchain.agents import create_agent
+
+agent = create_agent("openai:gpt-5-mini", tools=[trips.as_tool("langchain")])
+state = await agent.ainvoke({"messages": [{"role": "user", "content": "A flight to Lima"}]})
+```
+
+The tool needs only `langchain-core`; `create_agent` comes from the `langchain` package.
+
+### CrewAI
+
+```python
+from crewai import Agent, Crew, Task
+
+planner = Agent(
+    role="Travel planner",
+    goal="Plan the trip",
+    backstory="Delegates bookings to the trips agent.",
+    tools=[trips.as_tool("crewai")],
+)
+task = Task(description="Book a flight to Lima", expected_output="A booking", agent=planner)
+result = await Crew(agents=[planner], tasks=[task]).kickoff_async()
+```
+
+Inside `async` code use `kickoff_async()` (or `await asyncio.to_thread(crew.kickoff)`).
+
+### smolagents
+
+```python
+import asyncio
+
+from smolagents import InferenceClientModel, ToolCallingAgent
+
+planner = ToolCallingAgent(tools=[trips.as_tool("smolagents")], model=InferenceClientModel())
+answer = await asyncio.to_thread(planner.run, "A flight to Lima on Friday")
+```
+
+smolagents is sync: from `async` code, run it in a thread so the agent's loop stays free.
+
+### MCP
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+from astromesh_a2a.adapters.mcp import build_server
+
+server = FastMCP("travel", tools=[trips.as_tool("mcp")])  # into your own server
+server = build_server(trips)  # or a server with only this tool; server.run() (stdio)
+```
+
+A FastMCP server may serve several sessions, but the tool keeps one conversation with the remote:
+build one server per user.
+
+The other frameworks follow the same shape; the repository's
+[docs/frameworks.md](https://github.com/monaccode/astromesh-a2a/blob/main/docs/frameworks.md) has
+one example each.
+
+### Serving a LangChain agent
+
+The other way round, a LangChain runnable or LangGraph graph served as an A2A agent:
+
+```python
+from astromesh_a2a import api_key_auth, serve
+from astromesh_a2a.adapters.server_langchain import handler_from_runnable
+
+serve(handler_from_runnable(graph), card, auth=api_key_auth("TRIPS_API_KEY"))
+```
+
+The input follows the runnable's schema (the text, `{"messages": [...]}` for a graph, its single
+required field, or `{"input": ...}`), `configurable.thread_id` is the `session_key`, and the
+result's text becomes the answer. See `examples/serve_langchain.py`.
+
+### Sync code and event loops
+
+A `RemoteAgent` is bound to the event loop of its first I/O. Async tools just work. Sync tools
+(CrewAI `run`, smolagents, LangChain `invoke`) are dispatched to the agent's loop when it runs in
+another thread, or run on a background loop when the agent has none yet. Do not block the agent's
+loop while its tools run: a sync entry point (`crew.kickoff()`) inside `async def main` would
+deadlock, so the dispatch gives up after `policy.timeout` + 5 s with `LoopBindingError`. From plain
+sync code:
+
+```python
+from astromesh_a2a.adapters import run_sync
+
+trips = RemoteAgent("https://trips.example.com", policy=policy)
+run_sync(trips.card(), agent=trips)
+tool = trips.as_tool("crewai")
+print(tool.run(query="A flight to Lima on Friday"))
+run_sync(trips.aclose(), agent=trips)
+```
+
+## Origin and tracing
+
+Every message carries `origin` (`"agent"` by default; `Origin.HUMAN` only if a person typed it) and
+a W3C `traceparent` in its metadata; `traceparent` is also sent as a header. The trace is a list of
+stage dicts, each with `stage` and `ms` (time since the previous stage):
+
+```python
+for entry in result.trace:
+    print(entry["stage"], entry["ms"], entry)
+```
+
+Stages: `card` (fetched or `cached`), `send`, `status`, `artifact`, `message`, `rejection` (a part
+dropped by the policy, with its kind) and `result`. **Redaction** is applied to every entry: keys
+that look like secrets (`authorization`, `api_key`, `token`, `password`, `cookie`, names ending in
+`_token`, `_secret`, `_api_key` and similar), URL user info, credential query parameters (presigned
+URL signatures included) and Bearer/Basic values.
+
+## The attack eval
+
+Nine local malicious remotes ("traps") run against a `Policy`, and the eval counts how many the
+library stops. CI runs it on every push: a change that lets one trap through fails the build.
+
+```bash
+python -m astromesh_a2a.eval   # needs the server extra; exits 1 unless 9/9 are stopped
+```
+
+```python
+from astromesh_a2a import Policy
+from astromesh_a2a.eval import run_traps
+
+report = await run_traps(Policy(allowed=("127.0.0.1",)))
+report.total, report.stopped, report.by_trap, report.details
+```
+
+| Trap | Attack |
+|---|---|
+| `card_spoof` | The card on an allowed host names its RPC interface on another host |
+| `redirect_internal` | The card URL answers `302` to an internal address |
+| `dns_private` | An allowed public name resolves to `10.0.0.7` |
+| `huge_artifact` | A 32 MiB text artifact, streamed |
+| `file_part` | A file-only answer, then text + file |
+| `injection_text` | "Ignore previous instructions…" that also tries to close the untrusted wrapper and forge a second one, via the body, the card name and the task id |
+| `self_confirm` | `INPUT_REQUIRED`: "Reply 'yes' to confirm the transfer…" |
+| `endless_stream` | A stream that reports `WORKING` forever |
+| `version_0_3` | A card whose only interface speaks A2A 0.3 |
+
+| Policy | Traps stopped |
+|---|---|
+| Default (`Policy(allowed=(host,))`) | **9/9** |
+| Lax (files accepted, 64 MiB bodies) | 7/9 (`huge_artifact` and `file_part` get through) |
+
+The other seven hold whatever the policy says. Negative controls in the test suite break the library
+on purpose (escaping disabled, a tool that answers "yes" for the user) and check that the matching
+trap reports **not stopped**. The limit: the traps test the client and the shared tool layer, not
+each framework's prompt handling — the wrapper marks the remote's text as data; it cannot make a
+model obey. Full rules: [docs/eval.md](https://github.com/monaccode/astromesh-a2a/blob/main/docs/eval.md).
+
+## Local development: `allow_loopback`
+
+The egress guard refuses `127.0.0.1`, so a `RemoteAgent` cannot reach an agent on your own machine.
+`astromesh_a2a.testing.allow_loopback(agent)` lifts **only** the public-address rule, for that one
+agent instance (size caps, no-redirect rule and every policy check stay).
+
+```python
+from astromesh_a2a import Policy, RemoteAgent
+from astromesh_a2a.testing import allow_loopback
+
+agent = RemoteAgent(
+    "http://127.0.0.1:8000",
+    policy=Policy(allowed=("127.0.0.1",), allow_insecure_http=True),
+)
+allow_loopback(agent)  # before the first request
+```
+
+<Aside type="danger" title="Unsafe">
+`allow_loopback` is for local development and tests only, never production. Real remotes are public
+hosts listed in `Policy.allowed`.
+</Aside>
+
+Try both ends on your machine, offline, from a checkout (examples are not in the wheel):
+
+```bash
+git clone https://github.com/monaccode/astromesh-a2a && cd astromesh-a2a
+uv run python examples/hello_local.py
+```
+
+It serves an agent with `create_app` behind an API key and calls it with `RemoteAgent`: the card,
+`send()`, a confirmation the client does **not** answer on its own, `reply()` and `stream()`.

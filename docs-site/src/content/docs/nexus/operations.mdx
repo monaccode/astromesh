@@ -21,8 +21,13 @@ Every flag of `nexus` has an environment-variable default.
 | `--connections-key` | `NEXUS_CONNECTIONS_KEY` | — | 32 bytes hex. Without it connections answer `503`; an invalid value is fatal. **Rotating it invalidates every stored connection.** |
 | `--herald-url`, `--herald-sender-key` | `HERALD_URL`, `HERALD_SENDER_KEY` | — | Both or neither. They enable proactive sends and per-run tokens. |
 | `--sweep-interval` | `NEXUS_SWEEP_INTERVAL` | `60s` | How often the stale-invocation sweep runs. |
-| `--sweep-max-age` | `NEXUS_SWEEP_MAX_AGE` | `300s` | An `in_progress` invocation older than this is closed `interrupted`. |
+| `--sweep-max-age` | `NEXUS_SWEEP_MAX_AGE` | larger of `300s` and `--run-timeout` + `60s` | An `in_progress` invocation older than this is closed `interrupted`. Never below `--run-timeout` + 60 s (since 0.28 a background A2A run lives until the run timeout); a lower value is raised with a warning at boot. |
 | `--minute-counter-max-age` | `NEXUS_MINUTE_COUNTER_MAX_AGE` | `24h` | Retention of the per-minute rate counters. |
+| `--public-url` | `NEXUS_PUBLIC_URL` | — | Public base URL the [A2A](/astromesh/nexus/a2a-server/) Agent Card announces. Empty leaves `/a2a/v1` unregistered (warning at boot); invalid is fatal. |
+| `--a2a-drain-timeout` | `NEXUS_A2A_DRAIN_TIMEOUT` | `20s` | How long shutdown waits for A2A runs in flight before closing them `interrupted`. Keep `terminationGracePeriodSeconds` ≥ 5 s + this + a margin. |
+| `--a2a-max-subscriptions` | `NEXUS_A2A_MAX_SUBSCRIPTIONS` | `20` | Open `SubscribeToTask` streams per tenant on each replica. |
+| `--a2a-push`, `--a2a-push-secret` | `NEXUS_A2A_PUSH`, `NEXUS_A2A_PUSH_SECRET` | off, — | A2A push notifications. The secret (≥ 32 bytes, from a Secret) is required when push is on; without it the process does not start. |
+| `--a2a-push-ports` | `NEXUS_A2A_PUSH_PORTS` | `443` | Ports a push webhook URL may use. |
 
 `nexus` also needs a Kubernetes client at boot (in-cluster or a kubeconfig): tenant creation uses it.
 
