@@ -19,8 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   esa sesión lo contesta con `reply`. Corre siempre con origen agente. Un remoto caído o una tarea
   fallida vuelven como observación de error sin tumbar el run. El uso que informa el remoto (parte
   `data` `{"usage": {...}}`) va al span de la tool (`a2a.usage_remoto`), no a `usage.by_model`.
-  Sin el extra, el agente queda en `draft` con "instalá astromesh[a2a]". `AgentRuntime.aclose()`
-  cierra los clientes al apagar la API.
+  Sin el extra, el agente queda en `draft` con "instalá astromesh[a2a]". Topes de política:
+  `max_bytes` <= 16 MiB, `timeout` <= 600 s. `AgentRuntime.aclose()` cierra los clientes al apagar
+  la API, y un `reload`/`deploy` cierra los del agente reemplazado tras una gracia (su `timeout`
+  más largo).
 
 ## [0.73.0] - 2026-10-19
 

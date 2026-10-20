@@ -388,12 +388,25 @@ class ToolRegistry:
             for t in self._tools.values()
         )
 
-    async def preparar(self) -> None:
+    async def preparar(self, permitidas: Collection[str] | None = None) -> None:
         """Antes de leer los schemas de una corrida: las tools a2a sin `description`
-        en el YAML la toman de la card del remoto (una vez; no levanta)."""
-        for tool in list(self._tools.values()):
+        en el YAML la toman de la card del remoto (una vez; no levanta). Una tool
+        fuera de `permitidas` no llega al modelo: no se le pide la card."""
+        for name, tool in list(self._tools.items()):
+            if permitidas is not None and name not in permitidas:
+                continue
             if tool.tool_type == ToolType.A2A and getattr(tool.handler, "describir", False):
                 await tool.handler.describir_desde_card(tool)
+
+    def plazo_a2a(self) -> float | None:
+        """El `policy.timeout` más largo de las tools a2a (lo que puede durar una
+        llamada en vuelo), o None si no hay ninguna."""
+        plazos = [
+            float(t.handler.policy.timeout)
+            for t in self._tools.values()
+            if t.tool_type == ToolType.A2A and t.handler is not None
+        ]
+        return max(plazos) if plazos else None
 
     async def aclose(self) -> None:
         """Cierra los clientes de las tools a2a (sus conexiones HTTP). Idempotente."""

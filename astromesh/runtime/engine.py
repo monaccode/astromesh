@@ -220,6 +220,11 @@ def _truncate(text: str | None, limit: int) -> str:
 # puesto ya tiene su propio warning más abajo, que además explica por qué no
 # gatea. Reportarlo dos veces taparía el bueno.
 # `max_result_tokens` también: vale para todos los tipos (orchestration/observaciones.py).
+# Cuánto se espera, como mucho, antes de cerrar los clientes a2a de un agente
+# reemplazado (reload/deploy): el `policy.timeout` más largo, con este tope.
+_PLAZO_CIERRE_MAX = 600.0
+_MARGEN_CIERRE = 1.0
+
 _CLAVES_COMUNES = frozenset({"type", "name", "confirm", "max_result_tokens"})
 _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "builtin": frozenset({"config", "rate_limit"}),
@@ -527,6 +532,9 @@ class AgentRuntime:
         self.service_manager = service_manager
         self.peer_client = peer_client
         self._observability = observability or {}
+        # Cierres diferidos de los clientes a2a de agentes reemplazados (reload /
+        # deploy): tarea -> registry. Ver `_cerrar_reemplazados`.
+        self._cierres: dict[asyncio.Task, ToolRegistry] = {}
 
     async def bootstrap(self):
         # Wire OTLP export FIRST: the early returns below must not leave a deployment untraced.
@@ -573,10 +581,50 @@ class AgentRuntime:
 
     async def aclose(self) -> None:
         """Cierra lo que los agentes tienen abierto hacia afuera (hoy: los clientes
-        de las tools a2a). Para el apagado; no levanta. Idempotente."""
-        for agent in list(self._agents.values()):
+        de las tools a2a). Para el apagado; no levanta. Idempotente.
+
+        Los cierres diferidos de agentes reemplazados se adelantan: al apagar no
+        queda corrida que esperar."""
+        cierres = getattr(self, "_cierres", {})
+        pendientes = list(cierres.items())
+        cierres.clear()
+        for tarea, _ in pendientes:
+            tarea.cancel()
+        registries = [r for _, r in pendientes]
+        registries += [a._tools for a in list(self._agents.values())]
+        for registry in registries:
             with contextlib.suppress(Exception):
-                await agent._tools.aclose()
+                await registry.aclose()
+
+    def _cerrar_reemplazados(self, viejos: list) -> None:
+        """Programa el cierre de los clientes a2a de agentes que ya no están.
+
+        No se cierran en el acto: una corrida que empezó con el agente viejo
+        puede tener una llamada remota en vuelo. Se espera lo que esa llamada
+        puede durar (el `policy.timeout` más largo, con tope) y recién ahí.
+        """
+        cierres = getattr(self, "_cierres", None)
+        if cierres is None:
+            cierres = self._cierres = {}
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        for agent in viejos:
+            registry = getattr(agent, "_tools", None)
+            plazo = registry.plazo_a2a() if isinstance(registry, ToolRegistry) else None
+            if plazo is None:
+                continue
+            espera = min(plazo, _PLAZO_CIERRE_MAX) + _MARGEN_CIERRE
+
+            async def _cerrar(r=registry, e=espera):
+                await asyncio.sleep(e)
+                with contextlib.suppress(Exception):
+                    await r.aclose()
+
+            tarea = loop.create_task(_cerrar())
+            cierres[tarea] = registry
+            tarea.add_done_callback(lambda t: cierres.pop(t, None))
 
     async def reload(self) -> dict:
         """Relee `rag/` y `agents/` del disco y reemplaza el estado de una sola vez.
@@ -645,7 +693,9 @@ class AgentRuntime:
             "removed": sorted(set(old) - set(configs)),
             "failed": failed,
         }
+        viejos = [a for n, a in self._agents.items() if agents.get(n) is not a]
         self._agents = agents
+        self._cerrar_reemplazados(viejos)
         self._agent_configs = configs
         self._agent_status = status
         self._agent_errors = errors
@@ -1575,7 +1625,10 @@ class AgentRuntime:
             raise ValueError(f"Agent '{name}' not found")
         config = self._agent_configs[name]
         agent = self._build_agent(config)
+        viejo = self._agents.get(agent.name)
         self._agents[agent.name] = agent
+        if viejo is not None and viejo is not agent:
+            self._cerrar_reemplazados([viejo])
         self._agent_status[name] = "deployed"
         self._agent_errors.pop(name, None)
         self._persist_agent_yaml(name, config)
@@ -1988,7 +2041,7 @@ class Agent:
             # True` y no truthiness: sólo un ToolRegistry real dice True (un doble de
             # test con MagicMock no tiene nada que preparar).
             if getattr(self._tools, "necesita_preparar", False) is True:
-                await self._tools.preparar()
+                await self._tools.preparar(self._permitidas)
             tool_schemas = self._tools.get_tool_schemas(self._permitidas)
 
             prompt_span = tracing.start_span("prompt_render")
