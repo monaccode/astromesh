@@ -282,12 +282,7 @@ class RemoteA2AAgent:
         try:
             if task_id:
                 # A RemoteAgent recreated on another loop lost its task -> context map, and
-                # `reply()` (0.1.0) has no context_id argument: seed it so the reply stays in
-                # the session's conversation. Degrades to a context-less reply if it changes.
-                contexts = getattr(remote, "_contexts", None)
-                if state.get("context_id") and hasattr(contexts, "setdefault"):
-                    contexts.setdefault(task_id, state["context_id"])
-                result = await remote.reply(task_id, query)
+                result = await remote.reply(task_id, query, context_id=state.get("context_id"))
             else:
                 result = await remote.send(query, context_id=state.get("context_id"))
         except a2a.TaskFailed:

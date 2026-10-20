@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `remote_a2a` pasa el `context_id` de la sesión a `reply()` (`astromesh-a2a>=0.1.1`) en lugar de
+  sembrar el mapa privado `_contexts`.
+
 ## [0.7.0] - 2026-10-20
 
 ### Added

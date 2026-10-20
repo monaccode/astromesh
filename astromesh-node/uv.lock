@@ -52,7 +52,7 @@ dependencies = [
 requires-dist = [
     { name = "aiosqlite", marker = "extra == 'sqlite'", specifier = ">=0.20.0" },
     { name = "astromesh", extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss", "embeddings", "onnx", "observability", "mcp", "mesh", "litellm", "centinela", "glyph", "a2a"], marker = "extra == 'all'" },
-    { name = "astromesh-a2a", marker = "extra == 'a2a'", specifier = ">=0.1,<0.2" },
+    { name = "astromesh-a2a", marker = "extra == 'a2a'", specifier = ">=0.1.1,<0.2" },
     { name = "astromesh-glyph", marker = "extra == 'glyph'", editable = "../astromesh-glyph" },
     { name = "astromesh-okf", specifier = ">=0.1,<0.2" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.30.0" },
@@ -84,7 +84,7 @@ provides-extras = ["redis", "postgres", "sqlite", "chromadb", "qdrant", "faiss",
 [package.metadata.requires-dev]
 dev = [
     { name = "asgi-lifespan", specifier = ">=2.1.0" },
-    { name = "astromesh-a2a", extras = ["server"], specifier = ">=0.1,<0.2" },
+    { name = "astromesh-a2a", extras = ["server"], specifier = ">=0.1.1,<0.2" },
     { name = "astromesh-adk", editable = "../astromesh-adk" },
     { name = "jsonschema", specifier = ">=4.20" },
     { name = "pre-commit", specifier = ">=3.5.0" },

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- El core usa `astromesh-a2a` 0.1.1 (extra `a2a>=0.1.1`): la descripción de la tool `type: a2a`
+  sale del helper público `tool_description` en lugar de una copia local; el texto no cambia
+  (remoto no confiable, nunca contestar una confirmación por el usuario).
+
 ## [0.74.0] - 2026-10-20
 
 ### Added (Backend)
