@@ -20,7 +20,7 @@ from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
 from astromesh.core.schema import InvalidToolParameters, normalize_tool_parameters
 from astromesh.core.tokens import DEFAULT_CONTEXT_WINDOW, estimate_tokens, resolve_context_window
-from astromesh.core.tools import ToolRegistry
+from astromesh.core.tools import CLAVE_META_TOOL, ToolRegistry
 from astromesh.errors import AgentConfigError, AgentRunTimeout
 from astromesh.integrations import default_catalog
 from astromesh.integrations.api import manifiesto_de_api
@@ -230,6 +230,9 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "integration": frozenset({"connection", "actions", "rate_limit"}),
     "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
     "mcp": frozenset({"connection", "path", "auth", "tools", "rate_limit"}),
+    # Espejo de `astromesh/integrations/a2a.py:CLAVES_A2A` (no se importa: ese
+    # módulo es del extra a2a y este dict se lee sin él).
+    "a2a": frozenset({"card_url", "auth", "policy", "description", "rate_limit"}),
 }
 
 
@@ -567,6 +570,13 @@ class AgentRuntime:
             self._agent_errors.pop(name, None)
 
         self._compile_chains()
+
+    async def aclose(self) -> None:
+        """Cierra lo que los agentes tienen abierto hacia afuera (hoy: los clientes
+        de las tools a2a). Para el apagado; no levanta. Idempotente."""
+        for agent in list(self._agents.values()):
+            with contextlib.suppress(Exception):
+                await agent._tools.aclose()
 
     async def reload(self) -> dict:
         """Relee `rag/` y `agents/` del disco y reemplaza el estado de una sola vez.
@@ -1227,6 +1237,20 @@ class AgentRuntime:
                         f"tool mcp {servidor.name!r}: '{t.name}'",
                         tools._tools[nombre],
                     )
+            elif tool_type == "a2a":
+                # Agente A2A remoto (extra `a2a`). Levanta como `api`/`mcp`: sin el
+                # extra, con http sin opt-in o con una clave de policy/auth que no
+                # existe, el agente queda en draft con el motivo — un remoto que el
+                # admin cree conectado y no lo está es el mismo silencio de siempre.
+                from astromesh.integrations.a2a import build_a2a_tool
+
+                definicion = build_a2a_tool(tool_def)
+                if definicion.name in tools._tools:
+                    raise ValueError(
+                        f"tool a2a {definicion.name!r}: el agente ya tiene una tool con ese nombre"
+                    )
+                tools.register(definicion)
+                vigiladas[definicion.name] = (f"tool a2a {definicion.name!r}", definicion)
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
                 # was never registered, never reached the model, and nothing said so —
@@ -1236,7 +1260,7 @@ class AgentRuntime:
                 # existing YAML that declares one. The error comes in 1.0.
                 logger.warning(
                     "agent %r declares tool %r with unsupported type %r — ignoring it. "
-                    "YAML supports: builtin, agent, client, integration, api, mcp.",
+                    "YAML supports: builtin, agent, client, integration, api, mcp, a2a.",
                     metadata["name"],
                     tool_def.get("name"),
                     tool_type,
@@ -1960,6 +1984,11 @@ class Agent:
                 parent_span_id=root_span.span_id,
             )
 
+            # Las tools a2a sin `description` la toman de la card del remoto. `is
+            # True` y no truthiness: sólo un ToolRegistry real dice True (un doble de
+            # test con MagicMock no tiene nada que preparar).
+            if getattr(self._tools, "necesita_preparar", False) is True:
+                await self._tools.preparar()
             tool_schemas = self._tools.get_tool_schemas(self._permitidas)
 
             prompt_span = tracing.start_span("prompt_render")
@@ -2191,6 +2220,9 @@ class Agent:
                 tool_span = tracing.start_span(
                     "tool.call", {"tool": name}, parent_span_id=root_span.span_id
                 )
+                # Atributos que la tool quiere en SU span (hoy: las a2a, con el uso
+                # que informó el remoto). Por llamada; va al span, no al `usage`.
+                meta_tool: dict = {}
                 try:
                     tools_llamadas.append(name)
                     observation = await self._tools.execute(
@@ -2217,8 +2249,11 @@ class Agent:
                             # run raíz (misma rama AGENT).
                             "trace_id": tracing.trace_id,
                             **uso_hijos,
+                            CLAVE_META_TOOL: meta_tool,
                         },
                     )
+                    for clave_meta, valor_meta in meta_tool.items():
+                        tool_span.set_attribute(clave_meta, valor_meta)
                     with contextlib.suppress(Exception):  # la métrica no rompe la corrida
                         tool_span.set_attribute(
                             "tool.result_tokens",

@@ -42,8 +42,11 @@ centinela = ["huggingface_hub>=0.24"]
 # `astromesh/api/main.py` tiene que seguir importando sin extras o la imagen de
 # astromesh-os no bootea. El import vive dentro de `_build_pattern`.
 glyph = ["astromesh-glyph>=0.1.1"]
+# A2A — agentes remotos como herramienta (`type: a2a`). Opcional: sin el extra,
+# un agente que declara una tool a2a queda en draft con "instalá astromesh[a2a]".
+a2a = ["astromesh-a2a>=0.1,<0.2"]
 all = [
-    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh,litellm,centinela,glyph]",
+    "astromesh[redis,postgres,sqlite,chromadb,qdrant,faiss,embeddings,onnx,observability,mcp,mesh,litellm,centinela,glyph,a2a]",
 ]
 
 [project.scripts]
@@ -65,6 +68,8 @@ dev = [
     "pre-commit>=3.5.0",
     "jsonschema>=4.20",
     "astromesh-adk",
+    # Servidor A2A local para tests/test_tool_a2a.py (create_app + uvicorn).
+    "astromesh-a2a[server]>=0.1,<0.2",
 ]
 
 [tool.uv.sources]

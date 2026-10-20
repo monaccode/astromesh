@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Backend)
+
+- Tools `type: a2a`: un agente A2A remoto como herramienta, sobre `astromesh-a2a` (extra nuevo
+  `astromesh[a2a]`, incluido en `all`). Claves: `card_url`, `auth` (`api_key_env` o `bearer_env`:
+  el nombre de la variable, nunca el secreto), `policy` (`max_bytes`, `timeout`, `accept_parts`,
+  `allow_insecure_http`), `description` (si falta, se arma con la card) y `rate_limit`. Sólo el host
+  de `card_url` queda permitido; http se rechaza salvo `policy.allow_insecure_http: true`. La tool
+  toma `{query}` y devuelve `{answer, status, task_id?, pending?}` con la salida remota envuelta como
+  no confiable; un `input_required` queda pendiente por `(sesión, tool)` y la siguiente llamada de
+  esa sesión lo contesta con `reply`. Corre siempre con origen agente. Un remoto caído o una tarea
+  fallida vuelven como observación de error sin tumbar el run. El uso que informa el remoto (parte
+  `data` `{"usage": {...}}`) va al span de la tool (`a2a.usage_remoto`), no a `usage.by_model`.
+  Sin el extra, el agente queda en `draft` con "instalá astromesh[a2a]". `AgentRuntime.aclose()`
+  cierra los clientes al apagar la API.
+
 ## [0.73.0] - 2026-10-19
 
 ### Added (Backend)
