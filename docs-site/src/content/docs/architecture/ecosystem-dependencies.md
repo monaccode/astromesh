@@ -23,7 +23,7 @@ These directories ship from this repository on their own tags and versions.
 | **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.4.1` | `astromesh_cli/__init__.py` | Python 3.12 |
 | **Node** | `astromesh-node` | `astromesh-node/` | `0.1.10` | `src/astromesh_node/__init__.py` | Python 3.12 |
 | **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.4` | `astromesh_orbit/__init__.py` | Python 3.12 |
-| **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.28.0` | `package.json` | Node 22.12 |
+| **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.29.0` | `package.json` | Node 22.12 |
 | **Docs site** | `docs-site` | `docs-site/` | `0.1.0` | `package.json` | Node (site build) |
 | **VS Code extension** | `vscode-extension` | `vscode-extension/` | `0.1.0` | `package.json` | Node (build) |
 | **Native extension** | `astromesh-native` | `native/` | `0.1.0` | `Cargo.toml` | Rust |
