@@ -18,6 +18,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **OKF** | Open-source library: agents in LangChain, CrewAI, ADK and six more frameworks (or any MCP client) navigate an Open Knowledge Format bundle with trust and freshness signals | [`astromesh-okf`](https://github.com/monaccode/astromesh-okf) | v0.1.0 |
 | **RAG** | Open-source library: retrieval-augmented generation from swappable parts — `naive`, `hybrid`, `multi_query` and `hyde` patterns, optional reranking, five vector stores, a trace per query, in Python or `kind: RAGPipeline` YAML | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | v0.1.0 *(TestPyPI; PyPI pending)* |
 | **Context** | Open-source library: decides what goes into the model's window — knowledge, memory, history — within one token budget, with a trace per item and an eval that measures the choice | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | *(in design)* |
+| **A2A** | Open-source library: A2A 1.0 client and server for any agent framework — policy-first (allowlist, size and time caps, untrusted-output wrapping), with adapters for LangChain/LangGraph, CrewAI, smolagents and MCP; Nexus serves A2A since 0.27 | [`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a) · [PyPI](https://pypi.org/project/astromesh-a2a/) | v0.1.0 |
 | **ADK** | Python-first agent SDK with decorators and a CLI | `astromesh-adk` | v0.6.0 |
 | **CLI** | Standalone CLI for managing nodes and clusters | `astromesh-cli` | v0.4.1 |
 | **Node** | Cross-platform system installer and daemon (Linux, macOS, Windows) | `astromesh-node` | v0.1.10 |
@@ -76,6 +77,7 @@ flowchart LR
 - **Core Runtime** is the engine that executes agents.
 - **[RAG](/astromesh/rag/introduction/)** is a standalone library for giving a model the right documents: ingest, retrieve with one of four patterns, rerank, and build the context, with a trace of every stage. It came out of the core's RAG module and fixes the bugs found while porting it; like **[OKF](/astromesh/okf/introduction/)**, it works in any Python project.
 - **[Context](/astromesh/context/introduction/)** decides which of everything RAG, OKF, memory and the conversation propose actually goes into the model's window, under one token budget and in an order the prompt cache can reuse. It is in design: the repository is public, there is no code yet. [The map of context patterns](/astromesh/context/patterns/) explains where it sits next to RAG and OKF.
+- **[A2A](https://github.com/monaccode/astromesh-a2a)** lets an agent talk to other agents without trusting them: a client and a server for the A2A protocol, built on the official A2A SDK. Every remote is checked against a policy (allowlist, size and time caps) and its output reaches the model wrapped as untrusted. It plugs into LangChain/LangGraph, CrewAI, smolagents and MCP, and the core calls remote A2A agents with `type: a2a` (extra `astromesh[a2a]`, see [Multi-agent Composition](/astromesh/configuration/multi-agent/#calling-remote-a2a-agents)). Nexus serves published agents over A2A since 0.27. [PyPI](https://pypi.org/project/astromesh-a2a/).
 - **Node** installs the runtime as a native system service (`astromeshd`); **OS** ships it as a sealed appliance image; **Docker/Helm** package it for containers.
 - **CLI** is the `astromeshctl` management interface.
 - **Orbit** provisions cloud infrastructure with Terraform; **Nexus** is the multi-tenant managed control plane — it keeps agent specs in PostgreSQL with versioning and dispatches runs to a shared runtime pool, metering and billing what each one consumes.
@@ -116,6 +118,7 @@ In short: reach for **Forge** when you want an instant, in-node visual builder; 
 | Put an agent on WhatsApp, and let it message people back | [**Astromesh Herald**](/astromesh/herald/introduction/) |
 | Give a model the right documents, with a pattern you can switch and a trace you can read | [**Astromesh RAG**](/astromesh/rag/introduction/) |
 | Decide what the model reads under one token budget, and measure the choice | [**Astromesh Context**](/astromesh/context/introduction/) *(in design)* |
+| Call or serve agents over A2A without trusting the remote | [**Astromesh A2A**](https://github.com/monaccode/astromesh-a2a) |
 | Replace a long tool-calling loop with one reviewed program | [**Glyph**](/astromesh/glyph/introduction/) |
 | Manage nodes and clusters from the command line | [**Astromesh CLI**](/astromesh/reference/cli-commands/) |
 | Hand the workload to a cloud's own managed AI service | [**Astromesh Prisma**](/astromesh/prisma/introduction/) *(in development)* |
@@ -174,4 +177,5 @@ flowchart TB
 | OKF | [OKF Introduction](/astromesh/okf/introduction/) — navigating knowledge bundles from any framework |
 | RAG | [RAG Introduction](/astromesh/rag/introduction/) — retrieval patterns from swappable parts, and how to choose one |
 | Context | [The map of context patterns](/astromesh/context/patterns/) — six questions about context and knowledge, and which pattern answers each |
+| A2A | [Multi-agent Composition](/astromesh/configuration/multi-agent/#calling-remote-a2a-agents) — calling remote A2A agents with `type: a2a` |
 | Nebula | [Nebula Introduction](/astromesh/nebula/introduction/) — the open-model foundry where our models are born |

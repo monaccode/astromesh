@@ -122,3 +122,9 @@ Conviene revisar los locks cada tanto, o poner un bot que abra el PR.
 **No afecta a `astromesh-os`:** su `build-deb.sh` instala con pip, que ignora
 `uv.lock` por completo. Las dos restricciones de esa integración siguen igual
 (ver la nota de `runtime.pin`).
+
+## Forge: crear herramientas a2a desde el selector
+
+Forge no ofrece `a2a` para una herramienta nueva (sólo conserva las existentes), igual que `api` y
+`mcp`: no hay editores por tipo y duplicar la validación del core no vale la pena todavía.
+Pendiente: crear herramientas a2a desde el selector necesita editor de `card_url`/`auth`/`policy`.

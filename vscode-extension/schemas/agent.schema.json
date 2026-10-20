@@ -305,6 +305,7 @@
               },
               "card_url": {
                 "type": "string",
+                "minLength": 1,
                 "description": "type a2a: URL of the remote agent card. https only unless policy.allow_insecure_http is true; its host is the only host allowed."
               },
               "auth": {
@@ -336,7 +337,7 @@
                 }
               },
               "rate_limit": {
-                "description": "Rate limit for this tool (same shape as other tool types).",
+                "description": "Rate limit for this tool. Shared key: the engine accepts it for builtin, client, integration, api, mcp and a2a alike, so it is not scoped to a2a.",
                 "type": ["object", "integer", "number", "string"]
               }
             },
