@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-20
+
 ### Added
 - **`remote_a2a(card_url, *, api_key_env=None, policy=None, name=None, description=None)`**: un agente A2A remoto (cualquier
   framework) sobre `astromesh-a2a`, con la forma de un agente ADK: `run()`, `stream()` y
