@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.74.1] - 2026-10-20
+
 ### Changed
 
 - El core usa `astromesh-a2a` 0.1.1 (extra `a2a>=0.1.1`): la descripción de la tool `type: a2a`
