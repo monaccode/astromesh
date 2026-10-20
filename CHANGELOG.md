@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.73.0] - 2026-10-19
+
+### Added (Backend)
+
+- `spec.skills` en el manifiesto del agente (`id`, `name`, `description` requeridos; `tags`,
+  `examples`, `inputModes`, `outputModes` opcionales): el runtime las valida (una skill inválida se
+  omite con warning y el agente carga igual) y `GET /v1/agents/{name}` las devuelve, para que Nexus
+  y `astromesh-a2a` armen las Agent Cards A2A. El JSON schema de VS Code las declara, acepta
+  `identity.name` y completa el enum de `type` de tool (`integration`, `api`, `mcp`).
+
+- Campo `origen` (`"humano"` | `"agente"`, default `"humano"`) en `POST /v1/agents/{name}/run` y en
+  los mensajes del WebSocket `/v1/ws/agent/{name}`. Pasa `desde_humano=(origen == "humano")` al
+  runtime: un turno `agente` nunca confirma una acción gateada por `confirm`. Un valor inválido
+  da 422 en REST y un evento `error` en WS (no cae en humano).
+
+### Added (Astromesh Forge)
+
+- Tipo `Skill` y `spec.skills` en `AgentConfig`.
+
+### Fixed
+
+- ADK: las llamadas remotas (`bind()`/`connect()`/`remote()`) declaran `origen: "agente"`, así que un
+  nodo remoto ya no toma el "si" del modelo padre como confirmación humana (ver
+  `astromesh-adk/CHANGELOG.md`).
+- Sub-agentes (tools `type: agent`): corren en el trace del padre (el `context` de la tool ahora
+  lleva `trace_id`) y su uso —todos los modelos, tokens y costo, a cualquier profundidad— se suma al
+  run raíz: `usage` / `usage.by_model` de REST y del `done` del WS lo incluyen, y el trace raíz trae
+  los de los hijos en `subagentes`. **Nexus pasa a facturarlo: los montos de runs con sub-agentes
+  suben.** El `cost_limit` del padre cuenta lo que gastaron sus sub-agentes. Si el run raíz falla
+  (no hay `usage` en la respuesta), el uso del hijo queda en el trace raíz que recibe el collector.
+
 ## [0.72.0] - 2026-10-19
 
 ### Added (Backend)

@@ -260,6 +260,7 @@ class ToolRegistry:
                 transform_ctx = {**(transform_ctx or {}), CLAVE_HANDOFFS: handoffs}
             parent_trace_id = (context or {}).get("trace_id")
             from astromesh.integrations.propuestas import CLAVE_PROPUESTAS
+            from astromesh.runtime.uso_subagentes import CLAVE_USO_SUBAGENTES
 
             lista = (context or {}).get(CLAVE_PROPUESTAS)
             resultado = await self._runtime.run(
@@ -290,6 +291,9 @@ class ToolRegistry:
                 # (`Agent.run`). Un motivo (str) —el padre no podía proponer—
                 # no se hereda: el hijo recibe el suyo, como antes de 0.61.0.
                 propuestas_padre=lista if isinstance(lista, list) else None,
+                # El acumulador de uso del run raíz (lo pone `tool_fn` en
+                # runtime/engine.py): el costo del hijo se factura en el raíz.
+                uso_subagentes=(context or {}).get(CLAVE_USO_SUBAGENTES),
             )
             # La observación vuelve al modelo que llamó esta tool y se `str()`-ifica
             # ENTERA dentro de su historia (`ReActPattern`, orchestration/patterns.py).

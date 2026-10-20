@@ -326,7 +326,7 @@ def test_vscode_schema_tool_type_enum_matches_what_the_loader_supports():
     tool_type_enum = schema["properties"]["spec"]["properties"]["tools"]["items"]["properties"][
         "type"
     ]["enum"]
-    assert set(tool_type_enum) == {"builtin", "agent", "client"}
+    assert set(tool_type_enum) == {"builtin", "agent", "client", "integration", "api", "mcp"}
 
 
 def _tool_schema(agent, tool_name: str) -> dict:

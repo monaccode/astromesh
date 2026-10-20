@@ -108,6 +108,7 @@ Execute an agent with a user query.
 | `query` | `string` | Yes | User input text |
 | `session_id` | `string` | No | Session ID for memory continuity. Auto-generated if omitted |
 | `connections` | `object` | No | Per-run credential bundle for [integration tools](/astromesh/configuration/integrations/). Takes priority over `config/connections.yaml`; the runtime never stores it |
+| `origen` | `"humano"` \| `"agente"` | No | Who speaks this turn. Default `"humano"`. With `"agente"` (another agent calling this one) the turn can never confirm a gated action (`tools[].confirm`), so a remote agent cannot self-confirm. Any other value returns `422` |
 
 A run that uses integrations supplies their credentials here:
 
@@ -804,6 +805,8 @@ Stream agent responses in real-time over WebSocket.
   "query": "Explain quantum computing"
 }
 ```
+
+Optional `"origen"` (`"humano"` default, or `"agente"`) has the same meaning as in `POST /v1/agents/{name}/run`; an unknown value gets an `error` message and the run does not start.
 
 **Server sends (multiple messages):**
 

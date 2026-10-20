@@ -1,6 +1,7 @@
 import copy
 import logging
 from dataclasses import asdict, is_dataclass
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -50,6 +51,8 @@ class AgentRunRequest(BaseModel):
 
     No se persisten: no entran a la traza, ni a la memoria, ni a la respuesta.
     """
+    origen: Literal["humano", "agente"] = "humano"
+    """Quién habla en este turno. Sólo un turno `humano` puede confirmar una acción gateada."""
 
 
 class ModelUsage(BaseModel):
@@ -110,9 +113,13 @@ async def get_agent(agent_name: str):
     if not _runtime:
         raise HTTPException(status_code=404, detail="Runtime not initialized")
     config = _runtime._agent_configs.get(agent_name)
-    if config is not None:
-        return copy.deepcopy(config)
     agent = _runtime._agents.get(agent_name)
+    if config is not None:
+        body = copy.deepcopy(config)
+        if agent is not None and isinstance(body.get("spec"), dict):
+            # Las que el runtime validó, no las crudas del YAML.
+            body["spec"]["skills"] = copy.deepcopy(getattr(agent, "skills", []))
+        return body
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
     return {
@@ -138,6 +145,7 @@ async def get_agent(agent_name: str):
             },
             "prompts": {"system": ""},
             "orchestration": {"pattern": "react", "max_iterations": 10},
+            "skills": copy.deepcopy(getattr(agent, "skills", [])),
         },
     }
 
@@ -310,6 +318,7 @@ async def run_agent(agent_name: str, request: AgentRunRequest, http_request: Req
                 request.session_id,
                 context,
                 connections=request.connections,
+                desde_humano=(request.origen == "humano"),
             )
             chain_block = None
 

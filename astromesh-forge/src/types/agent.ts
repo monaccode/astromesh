@@ -31,6 +31,17 @@ export interface ModelRole {
   [key: string]: unknown;
 }
 
+/** A2A Agent Card skill declared in `spec.skills` (core 0.73+). */
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  tags?: string[];
+  examples?: string[];
+  inputModes?: string[];
+  outputModes?: string[];
+}
+
 export interface ToolConfig {
   name: string;
   /** Types core wires in runtime/engine.py; api/mcp/integration carry their own manifest keys. */
@@ -119,6 +130,7 @@ export interface AgentConfig {
       [key: string]: unknown;
     };
     tools?: ToolConfig[];
+    skills?: Skill[];
     knowledge?: { pipeline?: string; top_k?: number; bundle?: string };
     memory?: {
       conversational?: MemoryConfig;

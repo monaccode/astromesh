@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import copy
 import json
 import logging
 import math
@@ -55,6 +56,7 @@ from astromesh.runtime.confirmacion import (
 from astromesh.runtime.permisos import resolver_permisos
 from astromesh.runtime.prefetch import ejecutar_prefetch, validar_prefetch
 from astromesh.runtime.provider_registry import load_provider_registry, resolve_block
+from astromesh.runtime.uso_subagentes import CLAVE_USO_SUBAGENTES, UsoSubagentes
 
 logger = logging.getLogger(__name__)
 
@@ -229,6 +231,53 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
     "mcp": frozenset({"connection", "path", "auth", "tools", "rate_limit"}),
 }
+
+
+_SKILL_REQUERIDOS = ("id", "name", "description")
+_SKILL_LISTAS = ("tags", "examples", "inputModes", "outputModes")
+
+
+def validar_skills(agent_name: str, crudas) -> list[dict]:
+    """`spec.skills` del manifiesto -> las skills válidas, para las Agent Cards A2A.
+
+    Una skill mal formada se omite con warning: el agente carga igual, porque un
+    error de catálogo no debe tumbar el runtime.
+    """
+    if crudas is None:
+        return []
+    if not isinstance(crudas, list):
+        logger.warning(
+            "agent %r: spec.skills debe ser una lista, se ignora (%s)",
+            agent_name,
+            type(crudas).__name__,
+        )
+        return []
+    validas: list[dict] = []
+    for i, skill in enumerate(crudas):
+        if not isinstance(skill, dict):
+            logger.warning("agent %r: skill #%d no es un objeto, se omite", agent_name, i)
+            continue
+        malos = [
+            k
+            for k in _SKILL_REQUERIDOS
+            if not isinstance(skill.get(k), str) or not skill[k].strip()
+        ] + [
+            k
+            for k in _SKILL_LISTAS
+            if k in skill
+            and not (isinstance(skill[k], list) and all(isinstance(x, str) for x in skill[k]))
+        ]
+        if malos:
+            logger.warning(
+                "agent %r: skill #%d (%r) inválida en %s, se omite",
+                agent_name,
+                i,
+                skill.get("id"),
+                ", ".join(malos),
+            )
+            continue
+        validas.append(copy.deepcopy(skill))
+    return validas
 
 
 def _tokens_validos(valor) -> int | None:
@@ -1262,6 +1311,7 @@ class AgentRuntime:
             rag=rag,
             bundle=bundle,
             timeout_seconds=timeout_seconds,
+            skills=validar_skills(metadata["name"], spec.get("skills")),
             output_schema=normalize_output_schema(spec.get("output_schema")),
             prefetch=prefetch,
             context_window=context_window,
@@ -1403,6 +1453,7 @@ class AgentRuntime:
         propuestas_padre: list[dict] | None = None,
         memoria_session: str | None = None,
         query_memoria: str | None = None,
+        uso_subagentes=None,
     ):
         agent = self._agents.get(agent_name)
         if not agent:
@@ -1419,6 +1470,7 @@ class AgentRuntime:
             propuestas_padre=propuestas_padre,
             memoria_session=memoria_session,
             query_memoria=query_memoria,
+            uso_subagentes=uso_subagentes,
         )
 
     def agent_error(self, name: str) -> str | None:
@@ -1599,8 +1651,10 @@ class Agent:
         presupuesto_tools=None,
         bundle=None,
         timeout_seconds: float | None = None,
+        skills: list[dict] | None = None,
     ):
         self._timeout_seconds = timeout_seconds
+        self.skills = skills or []
         self._presupuesto_tools = presupuesto_tools or {
             "default": DEFAULT_MAX_TOOL_RESULT_TOKENS,
             "por_tool": {},
@@ -1741,11 +1795,15 @@ class Agent:
         propuestas_padre: list[dict] | None = None,
         memoria_session: str | None = None,
         query_memoria: str | None = None,
+        uso_subagentes: tuple[UsoSubagentes, tuple[str, ...]] | None = None,
     ):
         """`memoria_session`: dónde guarda y lee memoria la corrida (por defecto
         `session_id`; un sub-agente usa una propia, ver `ToolRegistry.execute`).
         `query_memoria`: lo que se guarda como turno del usuario en vez de `query`
-        (el pedido de un handoff, sin la transcripción que viaja en `query`)."""
+        (el pedido de un handoff, sin la transcripción que viaja en `query`).
+        `uso_subagentes`: (acumulador del run raíz, linaje) cuando esta corrida es
+        un sub-agente (`ToolRegistry.execute`, rama AGENT); None en el raíz, que
+        crea el suyo. Ver `astromesh/runtime/uso_subagentes.py`."""
         from astromesh.observability.tracing import SpanStatus, TracingContext
 
         mem_session = session_id if memoria_session is None else memoria_session
@@ -1754,6 +1812,22 @@ class Agent:
         if parent_trace_id:
             tracing.trace_id = parent_trace_id  # share trace tree
         root_span = tracing.start_span("agent.run", {"agent": self.name, "session": session_id})
+        # Un acumulador por run raíz (no global: runs concurrentes no se mezclan).
+        # El raíz lo crea y lo expone en su trace; un hijo registra el suyo en el
+        # `finally`, así el uso de un hijo que falla tampoco se pierde.
+        es_subagente = uso_subagentes is not None
+        if es_subagente:
+            acumulador, linaje = uso_subagentes
+        else:
+            acumulador, linaje = UsoSubagentes(), ()
+            tracing.subagentes = acumulador.trazas
+        run_id = root_span.span_id
+        uso_hijos = {CLAVE_USO_SUBAGENTES: (acumulador, (*linaje, run_id))}
+
+        def _tokens_hijos() -> int:
+            if self._guardrails.cost_limit is None:
+                return 0
+            return acumulador.tokens_bajo(run_id, self._guardrails.tokens_of)
 
         try:
             # Estado que el `except GuardrailBlocked` de abajo necesita.
@@ -1991,7 +2065,8 @@ class Agent:
                 # el límite se completa. Una vez cortado, toda llamada siguiente
                 # vuelve a levantar aunque el patrón se haya tragado la primera.
                 try:
-                    self._guardrails.check_budget(contados)
+                    # Lo que gastaron los sub-agentes de esta corrida cuenta igual.
+                    self._guardrails.check_budget(contados + _tokens_hijos())
                 except GuardrailBlocked as bloqueo:
                     corte = corte or bloqueo
                     raise corte from None
@@ -2138,6 +2213,10 @@ class Agent:
                             CLAVE_VIA: via,
                             # Lo hereda un sub-agente (`ToolRegistry.execute`, rama AGENT).
                             CLAVE_HANDOFFS: handoffs,
+                            # Un sub-agente cuelga de este trace y suma su uso al
+                            # run raíz (misma rama AGENT).
+                            "trace_id": tracing.trace_id,
+                            **uso_hijos,
                         },
                     )
                     with contextlib.suppress(Exception):  # la métrica no rompe la corrida
@@ -2312,7 +2391,7 @@ class Agent:
             await _episodio("ok")
 
             if self._guardrails.cost_limit is not None:
-                root_span.set_attribute("guardrail.tokens_counted", contados)
+                root_span.set_attribute("guardrail.tokens_counted", contados + _tokens_hijos())
             tracing.finish_span(root_span)
             if self._output_schema:
                 data, data_error = build_data(respuesta_sin_aviso, self._output_schema)
@@ -2357,7 +2436,7 @@ class Agent:
             root_span.set_attribute("guardrail.blocked", True)
             root_span.set_attribute("guardrail.rule", bloqueo.rule)
             if self._guardrails.cost_limit is not None:
-                root_span.set_attribute("guardrail.tokens_counted", contados)
+                root_span.set_attribute("guardrail.tokens_counted", contados + _tokens_hijos())
             tracing.finish_span(root_span)
             rechazo = {
                 "answer": bloqueo.message,
@@ -2409,6 +2488,9 @@ class Agent:
             # persona, y no le toca decidir que ese turno terminó.
             if desde_humano:
                 _PENDIENTES.cerrar_si_confirmado(session_id)
+            if es_subagente:
+                with contextlib.suppress(Exception):  # nunca rompe la corrida
+                    acumulador.registrar(linaje, tracing.to_dict())
             # Fase 4.3: emit the completed trace to the active collector (InternalCollector for
             # /v1/traces, or OTLPCollector when OTLP export is enabled). In `finally` so a failed run
             # (e.g. no provider) still exports the pre-LLM spans. Best-effort; never breaks the run.

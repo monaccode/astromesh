@@ -44,6 +44,7 @@ class TestContextTransform:
             connections={},
             desde_humano=False,
             propuestas_padre=None,
+            uso_subagentes=None,
         )
 
     @pytest.mark.asyncio
@@ -128,6 +129,7 @@ class TestContextTransform:
             connections={},
             desde_humano=False,
             propuestas_padre=None,
+            uso_subagentes=None,
         )
 
 
