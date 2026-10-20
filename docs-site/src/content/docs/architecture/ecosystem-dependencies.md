@@ -44,7 +44,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped (GitHub tag and TestPyPI; PyPI pending) |
 | **Context** | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | `0.0.0` | Execute | In design |
 | **A2A** | [`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a) | `0.1.0` | Reach | Shipped ([PyPI](https://pypi.org/project/astromesh-a2a/)) |
-| **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.11.0` | Reach | Shipped |
+| **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.12.0` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.13.8` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.2.1` | Ship | In development |
 | **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.28.1` | Operate | Shipped |

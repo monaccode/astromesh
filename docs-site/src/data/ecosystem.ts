@@ -249,12 +249,12 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Herald',
     short: 'Herald',
     group: 'reach',
-    version: '0.11.0',
-    released: '2026-09-20',
+    version: '0.12.0',
+    released: '2026-10-19',
     tagline:
-      'Communications gateway. WhatsApp, Telegram, Instagram and web chat messages reach an agent behind Nexus; agents reach people back through one outbox.',
+      'Communications gateway. WhatsApp, Telegram, Instagram, Messenger and web chat messages reach an agent behind Nexus; agents reach people back through one outbox.',
     latest:
-      'A failed run now always sends the binding\'s fallback instead of silence, and a photo, audio or shared contact with no text reaches the agent as a short description.',
+      'Messenger is the fourth Meta channel: Facebook Page DMs both ways, button postbacks reach the agent as text, and echoes of the Page’s own messages are ignored. Instagram now shows up in the admin console.',
     install: 'docker compose -f deploy/docker-compose.yaml up',
     href: '/astromesh/herald/introduction/',
     repo: 'https://github.com/monaccode/astromesh-herald',
