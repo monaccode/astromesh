@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   la API, y un `reload`/`deploy` cierra los del agente reemplazado tras una gracia (su `timeout`
   más largo).
 
+### Added (Astromesh ADK)
+
+- `remote_a2a()`: un agente A2A remoto como runnable y como tool del ADK, extra
+  `astromesh-adk[a2a]` (ver `astromesh-adk/CHANGELOG.md`).
+
 ### Added (Astromesh Forge)
 
 - Tool `type: a2a` en el schema JSON de VS Code (`card_url` requerido; `auth` con exactamente una de

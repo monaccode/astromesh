@@ -20,6 +20,7 @@ astromesh = { path = "..", editable = true }
 
 [project.optional-dependencies]
 dev = ["watchfiles>=0.21.0"]
+a2a = ["astromesh-a2a>=0.1,<0.2"]
 test = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0", "pytest-cov>=5.0.0", "respx>=0.21.0"]
 all = ["astromesh-adk[dev,test]"]
 
