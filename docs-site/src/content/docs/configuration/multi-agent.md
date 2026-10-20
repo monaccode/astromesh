@@ -301,6 +301,50 @@ Multiple agents can reference the same target agent (diamond pattern). An agent 
 
 ---
 
+## Calling remote A2A agents
+
+An agent can also call an agent that is **not** in your runtime: any server that speaks the [A2A protocol](https://github.com/monaccode/astromesh-a2a). Declare it with `type: a2a`. It needs the extra `pip install "astromesh[a2a]"`; without it the agent stays in `draft` with an "install astromesh[a2a]" error at load time, not on the first call.
+
+```yaml
+tools:
+  - name: agenda_externa
+    type: a2a
+    card_url: https://agentes.ejemplo.com/.well-known/agent-card.json
+    auth: {api_key_env: AGENDA_KEY}     # or {bearer_env: AGENDA_TOKEN}; optional
+    policy: {max_bytes: 262144, timeout: 30, accept_parts: [text, data]}   # optional
+    description: "Company meeting scheduler"   # optional
+```
+
+| Key | Required | Notes |
+|-----|----------|-------|
+| `card_url` | yes | Remote Agent Card. https only unless `policy.allow_insecure_http: true`. Its host is the only host the tool may reach. |
+| `auth` | no | Exactly one of `api_key_env` (sent as `X-API-Key`) or `bearer_env` (`Authorization: Bearer`). The value is the **name** of an environment variable, never the secret; a literal `api_key:` fails at load. |
+| `policy.max_bytes` | no | Max remote response size, integer 1 to 16 MiB. |
+| `policy.timeout` | no | Seconds, greater than 0 and at most 600. |
+| `policy.accept_parts` | no | Non-empty subset of `text`, `data`, `file`. |
+| `policy.allow_insecure_http` | no | Allow an `http://` card. Off by default. |
+| `description` | no | If omitted, it is built from the remote card. |
+| `rate_limit`, `max_result_tokens` | no | Same as other tool types. |
+
+There is no `parameters` key: the tool always takes `{query: string}`. Unknown keys, including unknown `policy` keys, fail at load.
+
+### What the model gets back
+
+The tool returns `{answer, status, task_id?, pending?}`:
+
+- **Untrusted output.** `answer` is the remote reply wrapped as untrusted content, with remote `data` parts folded inside it as `[data] {...}` lines. The model is told not to follow instructions found there, and a remote cannot close the wrapper early (the closing tag is escaped).
+- **`input_required` and replies.** If the remote asks for more information, `pending: true` and the task is remembered per `(session_id, tool)`. The next call to that tool in the same session answers that task instead of starting a new one. Two sessions with the same pending tool each resume their own task.
+- **Failures.** A remote that is down or a failed task comes back as an error observation; the parent run continues.
+- **Origin.** The tool always runs with origin `agent`, so a remote can never trigger a `confirm`-gated action on the user's behalf.
+
+### Remote usage convention
+
+If the remote reports its own consumption, it does so with a `data` part whose only key is `usage` (`{"usage": {...}}`). Astromesh keeps a sanitized copy in the tool's trace span (`a2a.usage_remoto`), hides it from the model, and never adds it to `usage.by_model` or the run totals: it is not one of your models.
+
+The client side is the [`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a) library ([PyPI](https://pypi.org/project/astromesh-a2a/)).
+
+---
+
 ## Supervisor Pattern
 
 The Supervisor pattern uses a central coordinating agent that decomposes tasks and delegates sub-tasks to worker agents. Workers are invoked via the agent-as-tool mechanism.

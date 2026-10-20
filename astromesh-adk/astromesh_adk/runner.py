@@ -252,6 +252,14 @@ class ADKRuntime:
                     query = (args or {}).get("query", (args or {}).get("task", ""))
                     sub = await self._run_sub_agent(t.agent, query, session_id)
                     result = sub.answer
+                elif getattr(t, "a2a_tool", False):
+                    # A remote A2A agent (`remote_a2a().as_tool()`): its pending task is kept
+                    # per session, and what it reports (status, remote usage) goes on the span.
+                    meta: dict = {}
+                    result = await t.call(args or {}, session_id=session_id, meta=meta)
+                    if span is not None:
+                        for key, value in meta.items():
+                            span.set_attribute(key, value)
                 elif hasattr(t, "execute"):
                     result = await t.execute(args)
                 else:

@@ -64,3 +64,37 @@ The `RunResult` from a remote run fills `answer`, `steps`, `trace`, `tokens` and
 | The node has no agent with that name (HTTP 404) | `AgentNotFoundError` |
 | The node answers an error (4xx/5xx), or the stream sends an `error` event | `RemoteError`, with the node's `detail` |
 | The node can't be reached | `RemoteUnavailableError` |
+
+## Remote A2A Agents
+
+`remote_a2a()` reaches an agent that speaks [A2A](https://a2a-protocol.org) (any framework, not only Astromesh) through `astromesh-a2a`. It has the same shape as an ADK agent: `run()`, `stream()` and `as_tool()`.
+
+```bash
+pip install 'astromesh-adk[a2a]'
+```
+
+```python
+from astromesh_adk import agent, remote_a2a
+
+agenda = remote_a2a(
+    "https://agents.example.com/.well-known/agent-card.json",
+    api_key_env="AGENDA_KEY",          # optional: the variable's NAME, sent as X-API-Key
+    policy={"timeout": 30},            # optional: max_bytes, timeout, accept_parts, allow_insecure_http
+)
+
+result = await agenda.run("Book me on Tuesday", session_id="s1")
+print(result.answer, result.metadata["status"])
+
+@agent(name="assistant", model="openai/gpt-4o", tools=[agenda.as_tool()])
+async def assistant(ctx):
+    """Help the user; use the agenda for appointments."""
+
+await agenda.aclose()  # or: async with remote_a2a(...) as agenda:
+```
+
+- **Construction checks, no network.** Without the extra, `remote_a2a()` raises `MissingA2AExtraError` (an `ImportError`: "pip install 'astromesh-adk[a2a]'"). Only the `card_url` host is allowed. An `http://` card URL is rejected unless `policy={"allow_insecure_http": True}` (local development only). `name=` sets the tool name (default: the host); `description=` overrides the generic one.
+- **Origin.** Every call goes as `Origin.AGENT`, including direct `run()`/`stream()`: the ADK cannot tell whether a person typed the query, so a remote never takes it as human confirmation. This matches `remote()`/`bind()`, which send `origen: "agente"`.
+- **Confirmations (`input_required`).** When the remote asks for something, `run()` returns `metadata["status"] == "input_required"` and `answer` holds its question. The next call in the **same `session_id`** answers that task (`reply()`), and other sessions start their own. Used as a tool, the pending task is kept per parent session, and the model is told to ask the user rather than answer for them. With concurrent calls in the same session, the first one takes the pending task and resumes it, and the others start new tasks.
+- **Output.** As a runnable, `RunResult.answer` is the remote's text and `metadata` has `status`, `task_id`, `context_id`, `pending`, `data`, `usage_remoto` and `a2a_trace`. As a tool, the model sees `{answer, status, task_id?, pending?}`, with everything the remote wrote (its `data` included, as `[data]` lines) inside an escaped `<remote-agent-output untrusted="true">` block. A remote failure is an `{error, status: "failed"}` observation and does not break the parent run. A direct `run()` raises `RemoteError` (`RemoteUnavailableError` when the egress guard blocks the destination).
+- **Cost.** `cost` is `0` unless the remote reports usage as a data part `{"usage": {"cost": …, "input_tokens": …, "output_tokens": …}}`, which is metadata, not answer. Used as a tool, it is recorded on the tool span as `a2a.usage_remoto` and is **not** added to the parent's cost or `by_model`, because it is not one of your models.
+- **Streaming** yields `token` events with the remote's text and a final `done`. A session with a pending task is answered with `reply()` (A2A streams only start new messages), as one `token` plus `done`.

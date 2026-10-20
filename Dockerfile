@@ -19,7 +19,7 @@ RUN mkdir -p astromesh-cli/astromesh_cli && touch astromesh-cli/astromesh_cli/__
 # Install third-party dependencies in a cache-friendly layer.
 # config/ must exist at this point because pyproject.toml force-includes it
 # into the wheel under astromesh/_bundled/config; without it, hatchling aborts.
-ARG ASTROMESH_EXTRAS="redis,postgres,sqlite,qdrant,observability,mcp,mesh"
+ARG ASTROMESH_EXTRAS="redis,postgres,sqlite,qdrant,observability,mcp,mesh,a2a"
 COPY config/ config/
 RUN uv pip install --system ".[${ASTROMESH_EXTRAS}]"
 RUN uv pip install --system ./astromesh-node ./astromesh-cli || true

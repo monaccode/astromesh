@@ -20,7 +20,7 @@ from astromesh.core.model_router import ModelRouter
 from astromesh.core.prompt_engine import PromptEngine
 from astromesh.core.schema import InvalidToolParameters, normalize_tool_parameters
 from astromesh.core.tokens import DEFAULT_CONTEXT_WINDOW, estimate_tokens, resolve_context_window
-from astromesh.core.tools import ToolRegistry
+from astromesh.core.tools import CLAVE_META_TOOL, ToolRegistry
 from astromesh.errors import AgentConfigError, AgentRunTimeout
 from astromesh.integrations import default_catalog
 from astromesh.integrations.api import manifiesto_de_api
@@ -220,6 +220,11 @@ def _truncate(text: str | None, limit: int) -> str:
 # puesto ya tiene su propio warning más abajo, que además explica por qué no
 # gatea. Reportarlo dos veces taparía el bueno.
 # `max_result_tokens` también: vale para todos los tipos (orchestration/observaciones.py).
+# Cuánto se espera, como mucho, antes de cerrar los clientes a2a de un agente
+# reemplazado (reload/deploy): el `policy.timeout` más largo, con este tope.
+_PLAZO_CIERRE_MAX = 600.0
+_MARGEN_CIERRE = 1.0
+
 _CLAVES_COMUNES = frozenset({"type", "name", "confirm", "max_result_tokens"})
 _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "builtin": frozenset({"config", "rate_limit"}),
@@ -230,6 +235,9 @@ _CLAVES_POR_TIPO: dict[str, frozenset[str]] = {
     "integration": frozenset({"connection", "actions", "rate_limit"}),
     "api": frozenset({"connection", "description", "auth", "operations", "rate_limit"}),
     "mcp": frozenset({"connection", "path", "auth", "tools", "rate_limit"}),
+    # Espejo de `astromesh/integrations/a2a.py:CLAVES_A2A` (no se importa: ese
+    # módulo es del extra a2a y este dict se lee sin él).
+    "a2a": frozenset({"card_url", "auth", "policy", "description", "rate_limit"}),
 }
 
 
@@ -524,6 +532,9 @@ class AgentRuntime:
         self.service_manager = service_manager
         self.peer_client = peer_client
         self._observability = observability or {}
+        # Cierres diferidos de los clientes a2a de agentes reemplazados (reload /
+        # deploy): tarea -> registry. Ver `_cerrar_reemplazados`.
+        self._cierres: dict[asyncio.Task, ToolRegistry] = {}
 
     async def bootstrap(self):
         # Wire OTLP export FIRST: the early returns below must not leave a deployment untraced.
@@ -567,6 +578,53 @@ class AgentRuntime:
             self._agent_errors.pop(name, None)
 
         self._compile_chains()
+
+    async def aclose(self) -> None:
+        """Cierra lo que los agentes tienen abierto hacia afuera (hoy: los clientes
+        de las tools a2a). Para el apagado; no levanta. Idempotente.
+
+        Los cierres diferidos de agentes reemplazados se adelantan: al apagar no
+        queda corrida que esperar."""
+        cierres = getattr(self, "_cierres", {})
+        pendientes = list(cierres.items())
+        cierres.clear()
+        for tarea, _ in pendientes:
+            tarea.cancel()
+        registries = [r for _, r in pendientes]
+        registries += [a._tools for a in list(self._agents.values())]
+        for registry in registries:
+            with contextlib.suppress(Exception):
+                await registry.aclose()
+
+    def _cerrar_reemplazados(self, viejos: list) -> None:
+        """Programa el cierre de los clientes a2a de agentes que ya no están.
+
+        No se cierran en el acto: una corrida que empezó con el agente viejo
+        puede tener una llamada remota en vuelo. Se espera lo que esa llamada
+        puede durar (el `policy.timeout` más largo, con tope) y recién ahí.
+        """
+        cierres = getattr(self, "_cierres", None)
+        if cierres is None:
+            cierres = self._cierres = {}
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        for agent in viejos:
+            registry = getattr(agent, "_tools", None)
+            plazo = registry.plazo_a2a() if isinstance(registry, ToolRegistry) else None
+            if plazo is None:
+                continue
+            espera = min(plazo, _PLAZO_CIERRE_MAX) + _MARGEN_CIERRE
+
+            async def _cerrar(r=registry, e=espera):
+                await asyncio.sleep(e)
+                with contextlib.suppress(Exception):
+                    await r.aclose()
+
+            tarea = loop.create_task(_cerrar())
+            cierres[tarea] = registry
+            tarea.add_done_callback(lambda t: cierres.pop(t, None))
 
     async def reload(self) -> dict:
         """Relee `rag/` y `agents/` del disco y reemplaza el estado de una sola vez.
@@ -635,7 +693,9 @@ class AgentRuntime:
             "removed": sorted(set(old) - set(configs)),
             "failed": failed,
         }
+        viejos = [a for n, a in self._agents.items() if agents.get(n) is not a]
         self._agents = agents
+        self._cerrar_reemplazados(viejos)
         self._agent_configs = configs
         self._agent_status = status
         self._agent_errors = errors
@@ -1227,6 +1287,20 @@ class AgentRuntime:
                         f"tool mcp {servidor.name!r}: '{t.name}'",
                         tools._tools[nombre],
                     )
+            elif tool_type == "a2a":
+                # Agente A2A remoto (extra `a2a`). Levanta como `api`/`mcp`: sin el
+                # extra, con http sin opt-in o con una clave de policy/auth que no
+                # existe, el agente queda en draft con el motivo — un remoto que el
+                # admin cree conectado y no lo está es el mismo silencio de siempre.
+                from astromesh.integrations.a2a import build_a2a_tool
+
+                definicion = build_a2a_tool(tool_def)
+                if definicion.name in tools._tools:
+                    raise ValueError(
+                        f"tool a2a {definicion.name!r}: el agente ya tiene una tool con ese nombre"
+                    )
+                tools.register(definicion)
+                vigiladas[definicion.name] = (f"tool a2a {definicion.name!r}", definicion)
             else:
                 # Until 0.35.0 this fell off the end of the chain in silence: the tool
                 # was never registered, never reached the model, and nothing said so —
@@ -1236,7 +1310,7 @@ class AgentRuntime:
                 # existing YAML that declares one. The error comes in 1.0.
                 logger.warning(
                     "agent %r declares tool %r with unsupported type %r — ignoring it. "
-                    "YAML supports: builtin, agent, client, integration, api, mcp.",
+                    "YAML supports: builtin, agent, client, integration, api, mcp, a2a.",
                     metadata["name"],
                     tool_def.get("name"),
                     tool_type,
@@ -1551,7 +1625,10 @@ class AgentRuntime:
             raise ValueError(f"Agent '{name}' not found")
         config = self._agent_configs[name]
         agent = self._build_agent(config)
+        viejo = self._agents.get(agent.name)
         self._agents[agent.name] = agent
+        if viejo is not None and viejo is not agent:
+            self._cerrar_reemplazados([viejo])
         self._agent_status[name] = "deployed"
         self._agent_errors.pop(name, None)
         self._persist_agent_yaml(name, config)
@@ -1562,8 +1639,9 @@ class AgentRuntime:
         """Pause a deployed agent, removing it from active execution."""
         if self._agent_status.get(name) != "deployed":
             raise ValueError(f"Agent '{name}' is not deployed")
-        if name in self._agents:
-            del self._agents[name]
+        viejo = self._agents.pop(name, None)
+        if viejo is not None:
+            self._cerrar_reemplazados([viejo])
         self._agent_status[name] = "paused"
 
     async def update_agent(self, name: str, config: dict) -> None:
@@ -1580,7 +1658,9 @@ class AgentRuntime:
         """Remove a dynamically registered agent."""
         if name not in self._agents and name not in self._agent_configs:
             raise ValueError(f"Agent '{name}' not found")
-        self._agents.pop(name, None)
+        viejo = self._agents.pop(name, None)
+        if viejo is not None:
+            self._cerrar_reemplazados([viejo])
         self._agent_configs.pop(name, None)
         self._agent_status.pop(name, None)
         self._agent_errors.pop(name, None)
@@ -1960,6 +2040,11 @@ class Agent:
                 parent_span_id=root_span.span_id,
             )
 
+            # Las tools a2a sin `description` la toman de la card del remoto. `is
+            # True` y no truthiness: sólo un ToolRegistry real dice True (un doble de
+            # test con MagicMock no tiene nada que preparar).
+            if getattr(self._tools, "necesita_preparar", False) is True:
+                await self._tools.preparar(self._permitidas)
             tool_schemas = self._tools.get_tool_schemas(self._permitidas)
 
             prompt_span = tracing.start_span("prompt_render")
@@ -2191,6 +2276,9 @@ class Agent:
                 tool_span = tracing.start_span(
                     "tool.call", {"tool": name}, parent_span_id=root_span.span_id
                 )
+                # Atributos que la tool quiere en SU span (hoy: las a2a, con el uso
+                # que informó el remoto). Por llamada; va al span, no al `usage`.
+                meta_tool: dict = {}
                 try:
                     tools_llamadas.append(name)
                     observation = await self._tools.execute(
@@ -2217,8 +2305,11 @@ class Agent:
                             # run raíz (misma rama AGENT).
                             "trace_id": tracing.trace_id,
                             **uso_hijos,
+                            CLAVE_META_TOOL: meta_tool,
                         },
                     )
+                    for clave_meta, valor_meta in meta_tool.items():
+                        tool_span.set_attribute(clave_meta, valor_meta)
                     with contextlib.suppress(Exception):  # la métrica no rompe la corrida
                         tool_span.set_attribute(
                             "tool.result_tokens",

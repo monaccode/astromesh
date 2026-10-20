@@ -154,6 +154,8 @@ async def lifespan(app: FastAPI):
         ws.set_runtime(None)
         workflows.set_workflow_engine(None)
         app.state.workflow_engine = None
+        # Los clientes HTTP de las tools a2a (RemoteAgent) se cierran en su loop.
+        await runtime.aclose()
 
 
 app = FastAPI(

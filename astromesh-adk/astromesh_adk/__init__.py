@@ -1,7 +1,8 @@
 """Astromesh Agent Development Kit."""
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
+from astromesh_adk._a2a import remote_a2a
 from astromesh_adk.agent import Agent, AgentWrapper, agent
 from astromesh_adk.callbacks import Callbacks
 from astromesh_adk.connection import connect, disconnect, remote
@@ -29,5 +30,6 @@ __all__ = [
     "kb_tools",
     "mcp_tools",
     "remote",
+    "remote_a2a",
     "tool",
 ]

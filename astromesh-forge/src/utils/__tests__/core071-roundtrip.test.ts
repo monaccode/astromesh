@@ -160,4 +160,21 @@ describe("applyToolEdit", () => {
     expect(applyToolEdit({ name: "t", type: "client", description: "old" }, { ...edit, type: "client" })).toEqual({ name: "t", type: "client", description: "" });
     expect(applyToolEdit({ name: "t", type: "client" }, { ...edit, type: "client", description: "d" })).toEqual({ name: "t", type: "client", description: "d" });
   });
+
+  it("a2a: offered only to an existing a2a tool; keeps card_url/auth/policy; description optional", async () => {
+    const { applyToolEdit, toolTypeOptions, readsDescription } = await import("../tools");
+    expect(toolTypeOptions("builtin").some((t) => t.value === "a2a")).toBe(false);
+    expect(toolTypeOptions("a2a").some((t) => t.value === "a2a")).toBe(true);
+    expect(readsDescription("a2a")).toBe(true);
+    const orig = {
+      name: "ag",
+      type: "a2a" as const,
+      card_url: "https://x.example/card.json",
+      auth: { bearer_env: "TOK" },
+      policy: { timeout: 30 },
+    };
+    const edit = { name: "ag", type: "a2a" as const, agent: "", description: "", max_result_tokens: undefined };
+    expect(applyToolEdit(orig, edit)).toEqual(orig);
+    expect(applyToolEdit(orig, { ...edit, description: "d" })).toEqual({ ...orig, description: "d" });
+  });
 });

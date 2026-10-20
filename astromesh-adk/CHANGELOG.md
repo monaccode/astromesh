@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-20
+
+### Added
+- **`remote_a2a(card_url, *, api_key_env=None, policy=None, name=None, description=None)`**: un agente A2A remoto (cualquier
+  framework) sobre `astromesh-a2a`, con la forma de un agente ADK: `run()`, `stream()` y
+  `as_tool()`. Extra nuevo `astromesh-adk[a2a]` (`astromesh-a2a>=0.1,<0.2`); sin él,
+  `remote_a2a()` levanta `MissingA2AExtraError` (un `ImportError`) al construir. Sólo el host de
+  `card_url` queda permitido; http se rechaza salvo `policy={"allow_insecure_http": True}`;
+  `policy` admite `max_bytes`, `timeout`, `accept_parts`, `allow_insecure_http`. Siempre
+  `Origin.AGENT`, también como runnable directo. Un `input_required` queda pendiente por sesión y
+  la siguiente llamada de esa sesión lo contesta con `reply()` (con llamadas concurrentes en la
+  misma sesión, la primera retoma la tarea y las demás abren tareas nuevas). `name` es el nombre
+  de la tool (por defecto, el host) y `description` reemplaza la genérica. Como tool devuelve
+  `{answer, status, task_id?, pending?}` con lo remoto envuelto como no confiable (sus `data`
+  adentro del bloque) y un remoto caído es una observación de error; como runnable, `RunResult`
+  con `metadata` (`status`, `task_id`, `data`, `usage_remoto`…) y errores como `RemoteError`.
+  `cost` es 0 salvo que el remoto informe una parte `{"usage": {...}}`; como tool ese uso va al
+  span (`a2a.usage_remoto`), no al costo del padre.
+
 ### Fixed
 - **Las llamadas remotas declaran `origen: "agente"`.** `run_remote` y `stream_remote`
   (`bind()`/`connect()`/`remote()`, incluido un agente remoto usado como tool) mandan

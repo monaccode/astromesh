@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "astromesh-adk"
-version = "0.6.0"
+version = "0.7.0"
 description = "Agent Development Kit for the Astromesh runtime"
 requires-python = ">=3.12"
 dependencies = [
@@ -20,8 +20,16 @@ astromesh = { path = "..", editable = true }
 
 [project.optional-dependencies]
 dev = ["watchfiles>=0.21.0"]
-test = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0", "pytest-cov>=5.0.0", "respx>=0.21.0"]
-all = ["astromesh-adk[dev,test]"]
+a2a = ["astromesh-a2a>=0.1,<0.2"]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "respx>=0.21.0",
+    # test_remote_a2a.py serves a real A2A agent (create_app under uvicorn)
+    "astromesh-a2a[server]>=0.1,<0.2",
+]
+all = ["astromesh-adk[dev,test,a2a]"]
 
 [project.scripts]
 astromesh-adk = "astromesh_adk.cli.main:app"

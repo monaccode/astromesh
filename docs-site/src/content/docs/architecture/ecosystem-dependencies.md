@@ -43,6 +43,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
 | **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped (GitHub tag and TestPyPI; PyPI pending) |
 | **Context** | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | `0.0.0` | Execute | In design |
+| **A2A** | [`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a) | `0.1.0` | Reach | Shipped ([PyPI](https://pypi.org/project/astromesh-a2a/)) |
 | **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.11.0` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.13.8` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.2.1` | Ship | In development |
@@ -125,6 +126,7 @@ All authoring tools produce the same agent spec that the core runtime understand
 - **OKF** (own repo, `astromesh-okf`) — The Open Knowledge Format reader behind `spec.knowledge.bundle`, as a standalone library for other frameworks. Depends only on PyYAML. Since core 0.69.0 the core depends on it (`astromesh-okf>=0.1,<0.2`) instead of carrying its own reader.
 - **RAG** (own repo, `astromesh-rag`) — Retrieval-augmented generation library: splitters, embedders, vector indexes, BM25, fusion, rerankers and four retrieval patterns, loadable from `kind: RAGPipeline` YAML. Extracted from the core's RAG module; depends only on PyYAML, every model and database is an optional extra. The core does not depend on it today.
 - **Context** (own repo, `astromesh-context`, in design) — Context-window assembly: one token budget across sources, calibrated selection, cache-stable ordering, a compactor and a tool-result offloader, and an eval. Planned to depend only on PyYAML, with RAG and OKF as optional extras. No code yet; the core does not depend on it.
+- **A2A** (own repo, `astromesh-a2a`) — A2A 1.0 client and server, policy-first: host allowlist, size and time caps, untrusted-output wrapping, with adapters for LangChain/LangGraph, CrewAI, smolagents and MCP. It depends on the official `a2a-sdk` and has no dependency on the core. The core depends on it only through the optional extra `astromesh[a2a]` (`type: a2a` tools); Nexus serves published agents over A2A since 0.27.
 - **SDD** (own repo, `astromesh-sdd`) — Spec-Driven Development skills and Claude Code plugin for coding agents. No code dependency on the core or any other component: it is Markdown skills, two installers and a validator.
 
 ### 3.3 Reach layer
