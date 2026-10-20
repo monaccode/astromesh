@@ -8,6 +8,16 @@ import { Select } from "../../ui/Select";
 import { GuardrailRuleFields } from "../../guardrails/GuardrailRuleFields";
 import { memoryBackendOptions, withConnectionUrl } from "../../../data/pipeline-presets";
 import { applyToolEdit, readsDescription, toolTypeOptions } from "../../../utils/tools";
+import {
+  A2A_MAX_BYTES,
+  A2A_MAX_TIMEOUT,
+  A2A_PARTS,
+  a2aFormFrom,
+  applyA2AForm,
+  validateA2A,
+  type A2AErrors,
+  type A2AForm,
+} from "../../../utils/a2a";
 import { modelNodeLabel, candidateSource, providerOptions, withSource } from "../../../utils/model";
 
 interface PipelinePropertiesPanelProps {
@@ -225,6 +235,8 @@ function ToolFields({
     description: c.description ?? "",
     max_result_tokens: c.max_result_tokens,
   });
+  const [a2a, setA2a] = useState<A2AForm>(() => a2aFormFrom(c));
+  const [errors, setErrors] = useState<A2AErrors>({});
 
   useEffect(() => {
     const nc = d.config as unknown as ToolConfig;
@@ -239,11 +251,20 @@ function ToolFields({
       description: nc.description ?? "",
       max_result_tokens: nc.max_result_tokens,
     });
+    setA2a(a2aFormFrom(nc));
+    setErrors({});
   }, [nodeId, d.config]);
 
   function push() {
     // Spread the original: connection, actions, rate_limit, api/mcp manifests… must survive.
-    const next = applyToolEdit(c, local);
+    let next = applyToolEdit(c, local);
+    if (local.type === "a2a") {
+      // Same checks core runs at bootstrap: an invalid a2a tool never reaches the YAML.
+      const errs = validateA2A(local.name, a2a);
+      setErrors(errs);
+      if (Object.keys(errs).length) return;
+      next = applyA2AForm(next, a2a);
+    }
     onApply(nodeId, {
       ...d,
       label: next.name,
@@ -259,6 +280,7 @@ function ToolFields({
         value={local.name}
         onChange={(e) => setLocal((s) => ({ ...s, name: e.target.value }))}
       />
+      {local.type === "a2a" && <FieldError msg={errors.name} />}
       <Select
         label="Type"
         id="t-type"
@@ -277,6 +299,7 @@ function ToolFields({
           onChange={(e) => setLocal((s) => ({ ...s, agent: e.target.value }))}
         />
       )}
+      {local.type === "a2a" && <A2AFields form={a2a} errors={errors} onChange={setA2a} />}
       <Input
         label="Max result tokens (optional)"
         id="t-mrt"
@@ -292,9 +315,15 @@ function ToolFields({
       />
       {readsDescription(local.type) && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">Description</label>
+          <label htmlFor="t-desc" className="text-xs text-gray-500">
+            Description{local.type === "a2a" ? " (optional)" : ""}
+          </label>
           <textarea
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 min-h-[80px]"
+            id="t-desc"
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 min-h-[80px]"
+            placeholder={
+              local.type === "a2a" ? "Taken from the remote agent's card if empty" : undefined
+            }
             value={local.description}
             onChange={(e) => setLocal((s) => ({ ...s, description: e.target.value }))}
           />
@@ -303,6 +332,123 @@ function ToolFields({
       <Button variant="primary" className="w-full text-sm" onClick={push}>
         Apply
       </Button>
+    </div>
+  );
+}
+
+function FieldError({ msg }: { msg?: string }) {
+  return msg ? <p className="text-xs text-red-400 -mt-2">{msg}</p> : null;
+}
+
+const AUTH_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "api_key_env", label: "API key (environment variable)" },
+  { value: "bearer_env", label: "Bearer token (environment variable)" },
+];
+
+/** `type: a2a` keys: card_url, auth (env var NAME, never the secret) and optional policy. */
+function A2AFields({
+  form,
+  errors,
+  onChange,
+}: {
+  form: A2AForm;
+  errors: A2AErrors;
+  onChange: (f: A2AForm) => void;
+}) {
+  const set = (patch: Partial<A2AForm>) => onChange({ ...form, ...patch });
+  return (
+    <div className="space-y-3">
+      <Input
+        label="Agent card URL"
+        id="t-a2a-card"
+        value={form.card_url}
+        placeholder="https://agents.example.com/.well-known/agent-card.json"
+        onChange={(e) => set({ card_url: e.target.value })}
+      />
+      <FieldError msg={errors.card_url} />
+      <Select
+        label="Auth"
+        id="t-a2a-auth"
+        options={AUTH_OPTIONS}
+        value={form.authKind}
+        onChange={(e) => set({ authKind: e.target.value as A2AForm["authKind"] })}
+      />
+      {form.authKind !== "none" && (
+        <>
+          <Input
+            label={
+              form.authKind === "api_key_env"
+                ? "API key environment variable name"
+                : "Bearer token environment variable name"
+            }
+            id="t-a2a-env"
+            value={form.authEnv}
+            placeholder="REMOTE_AGENT_TOKEN"
+            onChange={(e) => set({ authEnv: e.target.value })}
+          />
+          <p className="text-xs text-gray-500 -mt-2">
+            The name of the variable only; the secret stays in the runtime&apos;s environment.
+          </p>
+          <FieldError msg={errors.authEnv} />
+        </>
+      )}
+      <p className="text-xs text-gray-500 uppercase tracking-wider pt-1">Policy (optional)</p>
+      <Input
+        label="Max response bytes"
+        id="t-a2a-maxb"
+        type="number"
+        min={1}
+        max={A2A_MAX_BYTES}
+        step={1}
+        value={form.max_bytes}
+        placeholder="1048576"
+        onChange={(e) => set({ max_bytes: e.target.value })}
+      />
+      <FieldError msg={errors.max_bytes} />
+      <Input
+        label="Timeout (seconds)"
+        id="t-a2a-timeout"
+        type="number"
+        min={0}
+        max={A2A_MAX_TIMEOUT}
+        value={form.timeout}
+        placeholder="60"
+        onChange={(e) => set({ timeout: e.target.value })}
+      />
+      <FieldError msg={errors.timeout} />
+      <div className="flex flex-col gap-1">
+        <span className="text-sm text-gray-400">Accepted parts</span>
+        <div className="flex gap-4">
+          {A2A_PARTS.map((part) => (
+            <label key={part} className="flex items-center gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                className="accent-cyan-500"
+                checked={form.accept_parts.includes(part)}
+                onChange={(e) =>
+                  set({
+                    accept_parts: A2A_PARTS.filter((x) =>
+                      x === part ? e.target.checked : form.accept_parts.includes(x),
+                    ),
+                  })
+                }
+              />
+              {part}
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500">None checked: runtime default (text, data).</p>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-gray-300">
+        <input
+          type="checkbox"
+          className="accent-cyan-500"
+          checked={form.allow_insecure_http}
+          onChange={(e) => set({ allow_insecure_http: e.target.checked })}
+        />
+        Allow insecure http (local development)
+      </label>
     </div>
   );
 }

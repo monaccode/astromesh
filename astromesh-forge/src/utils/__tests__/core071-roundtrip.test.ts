@@ -161,9 +161,9 @@ describe("applyToolEdit", () => {
     expect(applyToolEdit({ name: "t", type: "client" }, { ...edit, type: "client", description: "d" })).toEqual({ name: "t", type: "client", description: "d" });
   });
 
-  it("a2a: offered only to an existing a2a tool; keeps card_url/auth/policy; description optional", async () => {
+  it("a2a: offered to any tool; keeps card_url/auth/policy; description optional", async () => {
     const { applyToolEdit, toolTypeOptions, readsDescription } = await import("../tools");
-    expect(toolTypeOptions("builtin").some((t) => t.value === "a2a")).toBe(false);
+    expect(toolTypeOptions("builtin").some((t) => t.value === "a2a")).toBe(true);
     expect(toolTypeOptions("a2a").some((t) => t.value === "a2a")).toBe(true);
     expect(readsDescription("a2a")).toBe(true);
     const orig = {
@@ -176,5 +176,7 @@ describe("applyToolEdit", () => {
     const edit = { name: "ag", type: "a2a" as const, agent: "", description: "", max_result_tokens: undefined };
     expect(applyToolEdit(orig, edit)).toEqual(orig);
     expect(applyToolEdit(orig, { ...edit, description: "d" })).toEqual({ ...orig, description: "d" });
+    // Leaving a2a drops the keys only a2a reads.
+    expect(applyToolEdit(orig, { ...edit, type: "builtin" })).toEqual({ name: "ag", type: "builtin" });
   });
 });

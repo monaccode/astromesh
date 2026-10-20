@@ -55,7 +55,9 @@ spec:
 There is no `parameters` key: the tool always takes `{"query": string}` — "the message for the
 remote agent: a request, or the user's own answer when the remote is waiting for input". The
 [VS Code schema](/astromesh/reference/os/vscode-extension/) (`agent.schema.json`) enforces the same
-rules, and Forge keeps a `type: a2a` tool intact when you edit an agent that has one.
+rules. In Forge, pick **A2A (remote agent)** as a tool's type to create or edit one: the form takes
+the card URL, the auth environment variable *name* (never the secret), the optional policy and an
+optional description, applies the same checks as the runtime, and does not save an invalid tool.
 
 **Validation is at load time and without network.** An unknown key (including inside `policy` or
 `auth`), an `http` card without `allow_insecure_http`, a secret written in the YAML, or a limit out
