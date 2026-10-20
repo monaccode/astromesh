@@ -143,3 +143,24 @@ spec:
     expect(again).toEqual(saved);
   });
 });
+
+describe("validateA2A edge cases the runtime rejects", () => {
+  const err = (card_url: string) => validateA2A("r", { ...OK, card_url }).card_url;
+  it("unbalanced IPv6 brackets", () => {
+    expect(err("https://[::1/card")).toBeDefined();
+    expect(err("https://host]/card")).toBeDefined();
+    expect(err("https://[2001:db8::1]/card")).toBeUndefined();
+  });
+  it("NEL (U+0085) counts as whitespace", () => {
+    expect(err("https://x.example/c\u0085d")).toBeDefined();
+  });
+});
+
+describe("a2aFormFrom tolerates malformed YAML", () => {
+  it("auth/policy that are not objects, accept_parts that is not a list", () => {
+    const bad = { name: "x", type: "a2a", card_url: "https://x.example/c", auth: "KEY", policy: { accept_parts: "text" } } as unknown as ToolConfig;
+    const f = a2aFormFrom(bad);
+    expect(f.authKind).toBe("none");
+    expect(f.accept_parts).toEqual([]);
+  });
+});

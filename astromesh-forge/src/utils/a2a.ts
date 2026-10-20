@@ -28,17 +28,19 @@ export interface A2AForm {
 export type A2AErrors = Partial<Record<"name" | "card_url" | "authEnv" | "max_bytes" | "timeout", string>>;
 
 export function a2aFormFrom(c: ToolConfig): A2AForm {
-  const auth = c.auth ?? {};
+  const isObj = (v: unknown): v is Record<string, unknown> =>
+    typeof v === "object" && v !== null && !Array.isArray(v);
+  const auth = isObj(c.auth) ? c.auth : {};
   const authKind: A2AAuthKind =
     "api_key_env" in auth ? "api_key_env" : "bearer_env" in auth ? "bearer_env" : "none";
-  const p = c.policy ?? {};
+  const p = isObj(c.policy) ? c.policy : {};
   return {
     card_url: typeof c.card_url === "string" ? c.card_url : "",
     authKind,
     authEnv: authKind === "none" ? "" : String(auth[authKind] ?? ""),
     max_bytes: p.max_bytes !== undefined ? String(p.max_bytes) : "",
     timeout: p.timeout !== undefined ? String(p.timeout) : "",
-    accept_parts: A2A_PARTS.filter((x) => p.accept_parts?.includes(x)),
+    accept_parts: A2A_PARTS.filter((x) => Array.isArray(p.accept_parts) && p.accept_parts.includes(x)),
     allow_insecure_http: p.allow_insecure_http === true,
   };
 }
@@ -54,6 +56,8 @@ function splitUrl(url: string): { scheme: string; netloc: string } {
 
 function hostOf(netloc: string): string {
   const hostport = netloc.slice(netloc.lastIndexOf("@") + 1);
+  // Python's urlsplit raises on an unbalanced bracket; the runtime then sees no host.
+  if (hostport.includes("[") !== hostport.includes("]")) return "";
   if (hostport.startsWith("[")) return hostport.slice(1).split("]", 1)[0];
   return hostport.split(":", 1)[0];
 }
@@ -65,7 +69,7 @@ export function validateA2A(name: string, f: A2AForm): A2AErrors {
   const url = f.card_url;
   if (!url) {
     e.card_url = "Required.";
-  } else if ([...url].some((ch) => /\s/.test(ch) || ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127)) {
+  } else if ([...url].some((ch) => /\s/.test(ch) || ch === "\u0085" || ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127)) {
     e.card_url = "Must not contain spaces or control characters.";
   } else {
     const { scheme, netloc } = splitUrl(url);
