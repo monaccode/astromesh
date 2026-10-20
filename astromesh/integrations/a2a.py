@@ -228,6 +228,8 @@ def _uso_limpio(crudo: Any) -> dict | None:
             continue
         if isinstance(v, bool):
             continue
+        if isinstance(v, float) and not math.isfinite(v):
+            continue
         if isinstance(v, int | float) or (isinstance(v, str) and len(v) <= 64):
             limpio[k] = v
     return limpio or None

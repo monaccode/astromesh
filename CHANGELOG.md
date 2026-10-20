@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   la API, y un `reload`/`deploy` cierra los del agente reemplazado tras una gracia (su `timeout`
   más largo).
 
+- La imagen Docker (`fulfarodev/astromesh`) instala el extra `a2a`, así que un agente con tools
+  `type: a2a` corre en el runtime pool de Nexus. Pausar o quitar un agente cierra sus clientes A2A
+  (como `reload`), y el `usage` remoto descarta valores no finitos.
+
 ### Added (Astromesh ADK)
 
 - `remote_a2a()`: un agente A2A remoto como runnable y como tool del ADK, extra

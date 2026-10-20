@@ -1639,8 +1639,9 @@ class AgentRuntime:
         """Pause a deployed agent, removing it from active execution."""
         if self._agent_status.get(name) != "deployed":
             raise ValueError(f"Agent '{name}' is not deployed")
-        if name in self._agents:
-            del self._agents[name]
+        viejo = self._agents.pop(name, None)
+        if viejo is not None:
+            self._cerrar_reemplazados([viejo])
         self._agent_status[name] = "paused"
 
     async def update_agent(self, name: str, config: dict) -> None:
@@ -1657,7 +1658,9 @@ class AgentRuntime:
         """Remove a dynamically registered agent."""
         if name not in self._agents and name not in self._agent_configs:
             raise ValueError(f"Agent '{name}' not found")
-        self._agents.pop(name, None)
+        viejo = self._agents.pop(name, None)
+        if viejo is not None:
+            self._cerrar_reemplazados([viejo])
         self._agent_configs.pop(name, None)
         self._agent_status.pop(name, None)
         self._agent_errors.pop(name, None)

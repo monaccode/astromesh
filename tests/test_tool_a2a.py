@@ -485,3 +485,33 @@ async def test_reload_cierra_el_cliente_viejo(tmp_path, servidor, monkeypatch):
             await asyncio.sleep(0.05)
     finally:
         await runtime.aclose()
+
+
+@pytest.mark.parametrize("accion", ["pause", "unregister"])
+async def test_pausar_o_quitar_cierra_el_cliente(tmp_path, servidor, monkeypatch, accion):
+    from astromesh.runtime import engine
+
+    monkeypatch.setattr(engine, "_MARGEN_CIERRE", 0.0)
+    runtime, agente = await _agente(
+        tmp_path, servidor, policy={"allow_insecure_http": True, "timeout": 0.3}
+    )
+    try:
+        assert "eco:hola" in (await _llamar(agente, "hola"))["answer"]
+        remoto = agente._tools.get("agenda").handler._remoto
+        runtime._agent_status["padre"] = "deployed"
+        if accion == "pause":
+            runtime.pause_agent("padre")
+        else:
+            runtime.unregister_agent("padre")
+        limite = time.monotonic() + 5
+        while not remoto._closed:
+            assert time.monotonic() < limite, f"{accion} no cerró el cliente"
+            await asyncio.sleep(0.05)
+    finally:
+        await runtime.aclose()
+
+
+def test_uso_remoto_descarta_no_finitos():
+    from astromesh.integrations.a2a import _uso_limpio
+
+    assert _uso_limpio({"cost": float("nan"), "tokens": float("inf"), "in": 3}) == {"in": 3}

@@ -411,7 +411,9 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "astromesh", editable = "." },
-    { name = "astromesh-adk", extras = ["dev", "test"], marker = "extra == 'all'" },
+    { name = "astromesh-a2a", marker = "extra == 'a2a'", specifier = ">=0.1,<0.2" },
+    { name = "astromesh-a2a", extras = ["server"], marker = "extra == 'test'", specifier = ">=0.1,<0.2" },
+    { name = "astromesh-adk", extras = ["dev", "test", "a2a"], marker = "extra == 'all'" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.23.0" },
@@ -422,7 +424,7 @@ requires-dist = [
     { name = "watchfiles", marker = "extra == 'dev'", specifier = ">=0.21.0" },
     { name = "websockets", specifier = ">=13.0" },
 ]
-provides-extras = ["dev", "test", "all"]
+provides-extras = ["dev", "a2a", "test", "all"]
 
 [[package]]
 name = "astromesh-glyph"
