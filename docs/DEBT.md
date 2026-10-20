@@ -123,8 +123,14 @@ Conviene revisar los locks cada tanto, o poner un bot que abra el PR.
 `uv.lock` por completo. Las dos restricciones de esa integración siguen igual
 (ver la nota de `runtime.pin`).
 
-## Forge: crear herramientas a2a desde el selector
+## ~~Forge: crear herramientas a2a desde el selector~~ — CERRADA el 2026-10-20
 
-Forge no ofrece `a2a` para una herramienta nueva (sólo conserva las existentes), igual que `api` y
-`mcp`: no hay editores por tipo y duplicar la validación del core no vale la pena todavía.
-Pendiente: crear herramientas a2a desde el selector necesita editor de `card_url`/`auth`/`policy`.
+Forge no ofrecía `a2a` para una herramienta nueva (sólo conservaba las existentes), igual que `api`
+y `mcp`, porque no había editor de `card_url`/`auth`/`policy`.
+
+**Cómo quedó:** el selector de tipo ofrece `a2a` a cualquier tool y el panel muestra un formulario
+propio (`astromesh-forge/src/utils/a2a.ts`). La validación es un espejo de
+`astromesh/integrations/a2a.py` — mismos topes (`max_bytes` 1..16 MiB, `timeout` (0, 600], nombre
+de variable `^[A-Za-z_][A-Za-z0-9_]*$`, https salvo `allow_insecure_http`, sin credenciales en la
+URL) — y un formulario inválido no se aplica. Si el core cambia esos límites, hay que tocar los dos
+lados. `api` y `mcp` siguen sin ofrecerse para una tool nueva.

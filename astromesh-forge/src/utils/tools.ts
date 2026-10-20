@@ -14,17 +14,20 @@ const TYPES: { value: ToolConfig["type"]; label: string }[] = [
   { value: "integration", label: "Integration" },
   { value: "api", label: "API (manifest kept as-is)" },
   { value: "mcp", label: "MCP (manifest kept as-is)" },
-  { value: "a2a", label: "A2A (remote agent, card_url kept as-is)" },
+  { value: "a2a", label: "A2A (remote agent)" },
 ];
 
 /**
- * `api`, `mcp` and `a2a` need keys Forge cannot author (manifest / `card_url`); core raises on
- * one without them and the whole agent fails to bootstrap. Offer them only to a tool that
- * already is that type. For `a2a` the description is optional: without it core uses the card's.
+ * `api` and `mcp` need a manifest Forge cannot author; core raises on one without it and the
+ * whole agent fails to bootstrap. Offer them only to a tool that already is that type. `a2a`
+ * has its own form (`utils/a2a.ts`), so it is offered to any tool.
  */
 export function toolTypeOptions(current: string) {
-  return TYPES.filter((t) => (t.value !== "api" && t.value !== "mcp" && t.value !== "a2a") || t.value === current);
+  return TYPES.filter((t) => (t.value !== "api" && t.value !== "mcp") || t.value === current);
 }
+
+/** Keys the a2a form writes; dropped when a tool stops being a2a (api/mcp are not offered then). */
+const A2A_KEYS = ["card_url", "auth", "policy"] as const;
 
 /** Apply panel edits over the original block; never emits keys core ignores for the type. */
 export function applyToolEdit(
@@ -39,6 +42,7 @@ export function applyToolEdit(
   } else {
     delete next.description;
   }
+  if (edit.type !== "a2a" && orig.type === "a2a") for (const k of A2A_KEYS) delete next[k];
   if (edit.max_result_tokens !== undefined) next.max_result_tokens = edit.max_result_tokens;
   else delete next.max_result_tokens;
   return next;

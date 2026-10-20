@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Astromesh Forge)
+
+- Forge crea y edita tools `type: a2a`: el selector de tipo ofrece `a2a` a cualquier tool y el
+  panel muestra un formulario con `card_url` (requerido), `auth` (ninguna, o el NOMBRE de la
+  variable de entorno de la API key o del bearer, nunca el secreto), `policy` opcional
+  (`max_bytes`, `timeout`, `accept_parts`, `allow_insecure_http`) y `description` opcional (si
+  queda vacía, sale de la card del agente remoto). La validación replica la del core (https salvo
+  `allow_insecure_http`, sin credenciales en la URL, `max_bytes` 1..16 MiB, `timeout` (0, 600],
+  nombre de variable válido) y muestra los errores en el campo; un formulario inválido no se
+  aplica. Un campo vacío no escribe su clave, y una tool a2a existente pasa por el formulario sin
+  cambios. Cierra la deuda «Forge: crear herramientas a2a desde el selector».
+
 ## [0.74.1] - 2026-10-20
 
 ### Changed
