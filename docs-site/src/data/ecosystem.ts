@@ -223,8 +223,8 @@ export const COMPONENTS: Component[] = [
     tagline:
       'Retrieval-augmented generation from small, swappable parts: ingest, retrieve, rank and build the context, with naive, hybrid, multi_query or hyde, in Python or YAML.',
     latest:
-      'First release: four retrieval patterns with optional reranking, memory, FAISS, Chroma, Qdrant and pgvector indexes, `kind: RAGPipeline` YAML, a trace per query, retrieval metrics and a labeled benchmark corpus. Tagged on GitHub and on TestPyPI; PyPI pending.',
-    install: 'pip install "git+https://github.com/monaccode/astromesh-rag@v0.1.0"',
+      'First release: four retrieval patterns with optional reranking, memory, FAISS, Chroma, Qdrant and pgvector indexes, `kind: RAGPipeline` YAML, a trace per query, retrieval metrics and a labeled benchmark corpus. Tagged on GitHub and on PyPI.',
+    install: 'pip install astromesh-rag',
     href: '/astromesh/rag/introduction/',
     repo: 'https://github.com/monaccode/astromesh-rag',
   },
