@@ -234,7 +234,7 @@ export const COMPONENTS: Component[] = [
     short: 'Context',
     group: 'runtime',
     version: '0.1.0',
-    released: '2026-10-15',
+    released: '2026-10-20',
     tagline:
       'Decides what goes into the model’s window — knowledge, memory, history — within one token budget, with a trace per item and an eval that measures the choice.',
     latest:
