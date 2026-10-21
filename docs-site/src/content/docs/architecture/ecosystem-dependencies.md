@@ -41,7 +41,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.27.0` | Author | Shipped |
 | **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.9.0` | Author | Shipped |
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
-| **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped (GitHub tag and TestPyPI; PyPI pending) |
+| **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped ([PyPI](https://pypi.org/project/astromesh-rag/)) |
 | **Context** | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | `0.0.0` | Execute | In design |
 | **A2A** | [`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a) | `0.1.1` | Reach | Shipped ([PyPI](https://pypi.org/project/astromesh-a2a/)) |
 | **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.12.0` | Reach | Shipped |

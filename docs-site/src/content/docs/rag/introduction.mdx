@@ -13,15 +13,14 @@ in the `trace` exactly what each stage did. The library itself depends only on P
 model and database is an optional extra.
 
 ```bash
-pip install "git+https://github.com/monaccode/astromesh-rag@v0.1.0"
+pip install astromesh-rag
 ```
 
-Add the extra you need after the URL, for example
-`"astromesh-rag[sentence-transformers] @ git+https://github.com/monaccode/astromesh-rag@v0.1.0"`.
+Add the extra you need, for example `pip install "astromesh-rag[sentence-transformers]"`.
 
 <Aside type="note" title="Status">
 Version 0.1.0 is tagged on [GitHub](https://github.com/monaccode/astromesh-rag/releases/tag/v0.1.0)
-and published on TestPyPI; publication on PyPI is pending. CI is green on Python 3.10–3.13,
+and published on [PyPI](https://pypi.org/project/astromesh-rag/). CI is green on Python 3.10–3.13,
 including integration jobs against a real Qdrant and a real Postgres with pgvector.
 </Aside>
 
@@ -181,7 +180,7 @@ surfaced bugs in the core's implementation; they are fixed here and listed in th
 
 ## Status and license
 
-Version 0.1.0: tagged on GitHub and published on TestPyPI, with PyPI publication pending; CI
+Version 0.1.0: tagged on GitHub and published on [PyPI](https://pypi.org/project/astromesh-rag/); CI
 green, including real Qdrant and real Postgres with pgvector. The benchmark is in the repo and
 reproducible; its results will be published after the first recorded run. Licensed under
 Apache-2.0. Source: [github.com/monaccode/astromesh-rag](https://github.com/monaccode/astromesh-rag).

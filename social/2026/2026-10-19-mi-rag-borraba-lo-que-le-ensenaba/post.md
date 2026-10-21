@@ -9,7 +9,7 @@ url:                 # link al post al publicarlo
 images: [01, 02, 03, 04]
 relacionado: 2026/2026-10-14-deja-de-picar-tu-conocimiento (astromesh-okf, mismo movimiento de extraer del core)
 fuentes: astromesh-rag 0.1.0 (CHANGELOG «Fixed», README «Cómo lo usa Astromesh», «Una consulta hybrid, etapa por etapa», «Benchmark»)
-aviso: astromesh-rag NO está en PyPI todavía (el job de PyPI falló por trusted publisher; sólo TestPyPI). No decir «pip install» hasta que esté publicado.
+aviso: astromesh-rag 0.1.0 publicado en PyPI el 2026-10-20 (pip install astromesh-rag).
 primer_comentario: "Repo, CHANGELOG con cada bug y el benchmark: https://github.com/monaccode/astromesh-rag · Docs: https://monaccode.github.io/astromesh/rag/introduction/"
 ---
 
