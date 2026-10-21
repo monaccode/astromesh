@@ -1,0 +1,113 @@
+---
+title: Context quickstart
+description: Install astromesh-context, build a window from several sources under one budget, load the same engine from YAML, and read the trace.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Install
+
+```bash
+pip install "astromesh-context[rag,okf]"
+```
+
+The core depends only on PyYAML. Add the extras you use: `rag` and `okf` for the sources,
+`tiktoken` for exact token counts, `llm` for `LLMScorer` over HTTP, `langchain`, `pydantic-ai`
+and `mcp` for the [integrations](/astromesh/context/integrations/), and `eval` for `ContextEval`
+with a real embedder. Python 3.10 or newer (PydanticAI needs 3.11).
+
+## A minimal engine
+
+```python
+# needs: astromesh_rag, astromesh_okf
+import asyncio
+
+from astromesh_context import ContextEngine, HistorySource, ScoredKnapsack, StaticSource
+from astromesh_context.sources import OKFIndexSource, OKFSource, RAGSource
+
+# system_prompt: a str; pipeline: an astromesh-rag Pipeline; messages: the chat so far
+engine = ContextEngine(
+    sources=[
+        StaticSource(system_prompt, kind="instruction", pinned=True),
+        OKFIndexSource("./kb"),            # the bundle index, pinned in the stable prefix
+        OKFSource("./kb", limit=10),       # whole concepts, with trust and freshness
+        RAGSource(pipeline, k=20),         # chunks from an astromesh-rag pipeline
+        HistorySource(messages),           # the conversation, newest turn always kept
+    ],
+    policy=ScoredKnapsack(),
+    budget=8_000,
+)
+
+
+async def main():
+    window = await engine.build("Can I get a refund after 3 weeks on the Team plan?")
+    print(window.to_messages())            # OpenAI shape; style="anthropic" for Anthropic
+    print(window.trace.explain())          # what went in, what stayed out, and why
+
+
+asyncio.run(main())
+```
+
+Sources only propose candidates; none of them knows the budget. The policy fills it. To write
+your own source, policy, scorer or message adapter, see
+[docs/extending.md](https://github.com/monaccode/astromesh-context/blob/main/docs/extending.md)
+in the repository.
+
+## The same engine from YAML
+
+A source of type `rag` names an object you pass in, and a `history` source reads the messages
+you hand to `build(..., vars=...)`:
+
+```yaml
+# file: support.context.yaml
+apiVersion: astromesh/v1
+kind: ContextPolicy
+metadata:
+  name: support
+spec:
+  budget: 8000
+  policy: scored_knapsack
+  sources:
+    - { type: static, text: "You are the Nimbus support agent.", pinned: true }
+    - { type: okf_index, bundle: ./kb, pinned: true }
+    - { type: okf, bundle: ./kb, limit: 10, weight: 1.2 }
+    - { type: rag, pipeline: { object: support_rag }, k: 20, max_tokens: 3000 }
+    - { type: history, key: history, min_items: 2 }
+```
+
+```python
+# needs: astromesh_rag, astromesh_okf
+import asyncio
+
+from astromesh_context import load_engine
+
+engine = load_engine("support.context.yaml", objects={"support_rag": pipeline})
+window = asyncio.run(
+    engine.build("Can I get a refund after 3 weeks?", vars={"history": messages})
+)
+print(window.trace.explain())
+```
+
+An invalid spec, including two sources with the same name, raises `SpecError` at load, with the
+field path.
+
+## Reading the trace
+
+`window.trace.explain()` renders a table with one row for every candidate a source proposed,
+included or not. Each row carries the item id, its final score and its tokens, and for excluded
+items one reason from a closed list: `budget`, `source_cap`, `below_floor`, `deprecated`,
+`duplicate_of:…`, `share_exhausted` or `truncated`. Build-level events appear alongside:
+`source_error:<name>:<message>` when a source raised, timed out or returned a malformed item,
+and `scorer_fallback:<reason>` when `LLMScorer` failed and the calibrated scores were used.
+
+To look at one window without writing code:
+
+```bash
+astromesh-context explain --config support.context.yaml --query "..."
+```
+
+<Aside type="note">
+A build degrades instead of failing when one source breaks. It raises `BudgetExceededError` in
+two cases: the pinned items alone exceed the budget, or `Everything` without `truncate` does not
+fit. Nothing is trimmed silently.
+</Aside>

@@ -1,0 +1,82 @@
+---
+title: Policies
+description: ScoredKnapsack, FixedSlots and Everything, with their defaults, plus how scores are calibrated, deduplicated and ordered before and after a policy runs.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A policy decides how candidates fill the budget. The three built-in ones share one signature,
+so the [eval](/astromesh/context/eval/) compares them as equals, and you can write a fourth
+(see [docs/extending.md](https://github.com/monaccode/astromesh-context/blob/main/docs/extending.md)).
+A policy is a pure function: the same candidates always give the same window.
+
+| Policy | What it does | Use it for |
+|---|---|---|
+| `ScoredKnapsack` | One budget, calibrated scores, caps, minimums and floors per source; `beta` adds value-per-token weighting (default 0) | The default |
+| `FixedSlots` | A fixed share of the budget per source, filled in priority order | The baseline everyone runs today |
+| `Everything` | Every candidate, or a clear error if they do not fit (`truncate=True` fills by score instead) | The control: what "just stuff it all in" costs |
+
+```python
+from astromesh_context import Everything, FixedSlots, LLMScorer, ScoredKnapsack, openai_compatible
+
+knapsack = ScoredKnapsack(beta=0.0, min_score=0.1)
+slots = FixedSlots({"okf": 0.3, "rag": 0.5, "history": 0.2})
+control = Everything(truncate=True)
+
+# LLMScorer is a scoring step, not a policy: pass it as ContextEngine(..., scorer=scorer)
+complete = openai_compatible("https://api.example.com/v1", "api-key", "model-name")
+scorer = LLMScorer(complete, top_n=30, alpha=0.5, timeout=10.0)
+```
+
+`LLMScorer` works with any policy. It needs the `llm` extra and any OpenAI-compatible endpoint.
+Defaults: `ScoredKnapsack` uses `beta=0` and no score floor (`min_score=None`; the snippet sets
+0.1 as an example). `LLMScorer` rescores the top 30 candidates (`top_n=30`), blends at
+`alpha=0.5`, sends at most 800 characters per candidate and gives up after 10 seconds.
+
+## What happens before the policy
+
+1. **Calibrate.** A cosine of 0.82, a BM25 score of 14 and "the third most recent turn" are not
+   comparable. Within each source, each score becomes half its rank position and half its
+   min-max position (`0.5·rank + 0.5·minmax`; `rank`, `minmax` and `zscore` are the other modes),
+   then it is weighted by how much you
+   trust that source (`weight` in the source config). Signals adjust them where you can see it
+   in the trace: a stale concept scores lower (x0.7), a human-reviewed one higher (x1.1), a
+   deprecated one is left out.
+2. **Score with a model (optional).** `LLMScorer` rescores the top candidates in one batched
+   call and blends its score with the calibrated one. If it fails, times out or returns
+   something unparseable, the window is built on the calibrated scores and the trace records
+   `scorer_fallback:<reason>`.
+3. **Deduplicate.** Exact copies by hash, near-copies by containment of 5-word shingles: the
+   overlap divided by the size of the smaller text, at 0.8 or more. A retrieval chunk is
+   recognized as part of the concept it came from. The copy that stays inherits the dropped
+   one's signals, so a RAG chunk of a policy that OKF marks deprecated goes out with it.
+   Conversation history is never deduplicated.
+
+## How `ScoredKnapsack` fills the budget
+
+Pinned items (the system prompt, the OKF root index) go in first. Then a minimum per source
+(`min_items`; the last user turn, always), then the rest by score, respecting a cap per source
+(`max_tokens`) and a score floor (`min_score`). If the pinned items alone exceed the budget, the
+build fails with `BudgetExceededError` and the per-item token counts, rather than trimming them
+silently.
+
+`beta` weights the score by value per token. It defaults to 0 because on the published corpus it
+lost at tight budgets (recall 0.267 against 0.550 at 750 tokens); see
+[Eval](/astromesh/context/eval/).
+
+`FixedSlots` takes a share of the budget per source name and fills each in priority order. An
+item that does not fit in its source's share is excluded with `share_exhausted`.
+
+<Aside type="note" title="What the knapsack adds">
+On the published level-1 run, `ScoredKnapsack` ties `Everything` truncated on recall, precision
+and distractor rate, because both fill by score order. What the knapsack adds over truncation is
+caps, minimums and floors per source, not a better ranking.
+</Aside>
+
+## Order after the policy
+
+Stable items first in a fixed order, then session items, then volatile ones, with the strongest
+at the edges of their block, where models read best. History stays chronological and last.
+Each item declares its `stability` (`stable`, `session` or `volatile`); stable content goes
+first and is byte-identical across calls, so the prompt cache can reuse the longest possible
+prefix.

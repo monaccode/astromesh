@@ -148,6 +148,10 @@ export default defineConfig({
           label: 'Context',
           items: [
             { label: 'Introduction', slug: 'context/introduction' },
+            { label: 'Quickstart', slug: 'context/quickstart' },
+            { label: 'Policies', slug: 'context/policies' },
+            { label: 'Eval', slug: 'context/eval' },
+            { label: 'Integrations', slug: 'context/integrations' },
             { label: 'The map of context patterns', slug: 'context/patterns' },
           ],
         },
