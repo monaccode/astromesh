@@ -70,6 +70,23 @@ version marked.
 - **Revertir** republishes an old version's spec as a new current version. History is kept;
   nothing is deleted.
 
+### A2A
+
+**A2A** (Cortex 0.29.0+, Nexus 0.27.0+) shows what another agent sees when it calls this one
+over [A2A](/astromesh/nexus/a2a-server/): the Agent Card Nexus serves for it, fetched with your
+tenant credential.
+
+- **Published:** the card URL (with a copy button), the JSON-RPC endpoint, the live version
+  number, the description, the skills, and whether the card announces streaming and push.
+  An empty description gets a warning, because a calling agent has nothing to decide on.
+- **Not published:** the live version lacks `spec.a2a.publicar: true`. Add it in the
+  [A2A block](/astromesh/cortex/authoring/#a2a) or in YAML and save a new version.
+- **No A2A on this hub:** Nexus is older than 0.27 or the deployment has no
+  `NEXUS_PUBLIC_URL`. That is the operator's setting, not the agent's.
+
+The panel only reads the card; it never runs the agent. Calls from other agents are billed
+invocations and need the tenant's API key.
+
 ## Running agents
 
 The run panel lists the tenant's agents and preselects the one open in the editor. Write a
