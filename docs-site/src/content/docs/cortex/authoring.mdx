@@ -27,8 +27,8 @@ the YAML to the runtime, which has the final word.
 | Cursor in | Offered |
 |---|---|
 | An empty document | `agent-skeleton` (or the RAG or workflow skeleton, by file) |
-| `spec:` | `identity`, `model`, `knowledge`, `prompts`, `orchestration`, `output_schema`, `chain`, `tools`, `prefetch`, `glyph-program`, `memory`, `guardrails`, `permissions`. Sections already present are not offered again |
-| `tools:` | `tool-entry`, `tool-integration`, `tool-api`, `tool-mcp` |
+| `spec:` | `identity`, `model`, `knowledge`, `prompts`, `orchestration`, `output_schema`, `chain`, `tools`, `prefetch`, `glyph-program`, `memory`, `guardrails`, `permissions`, `skills`, `a2a`. Sections already present are not offered again. Every one validates against the schema |
+| `tools:` | `tool-entry`, `tool-integration`, `tool-api`, `tool-mcp`, `tool-a2a` |
 | `chain:` | `chain-link`, `chain-link-default` |
 | `guardrails:` | `guardrail-rule` |
 
@@ -49,10 +49,11 @@ block from the palette to add the section; select one and press `Delete` to remo
 | **Model** | The `default` role and any named roles (`planner`, `worker`, `reasoner`, `synthesizer`, `supervisor`, `stage:<name>`…). Each role has a strategy and a ranked list of candidates: `source` (`ollama`, `openai`, `openai_compat`, `azure_openai`, `litellm`) and model, or a `providerRef`, plus endpoint, API key variable and temperature |
 | **Prompts** | The system prompt |
 | **Orchestration** | Pattern (ReAct, Plan & Execute, Fan Out, Pipeline, Supervisor, Swarm, Glyph), iterations and timeout. Sub-agents for Fan Out and Pipeline. With Glyph, the [program](/astromesh/configuration/glyph/) |
-| **Tools** | The six tool types, below |
+| **Tools** | The seven tool types, below |
 | **Knowledge** | The RAG pipeline to query and `top_k` |
 | **Prefetch** | Lookups run before the model (see below) |
 | **Memory**, **Guardrails**, **Permissions** | Basic editors; see the caution below |
+| **A2A** | Publishing over A2A in Nexus (`spec.a2a.publicar`), the card's description (`spec.identity.description`) and `spec.skills`. Removing the block removes both sections. See [A2A](#a2a) |
 
 Save writes the whole agent back to the runtime. Sections and keys the builder does not edit
 (`identity`, `output_schema`, `chain`, `channels`, a candidate's `contract`…) are kept as they
@@ -62,8 +63,9 @@ The builder and the YAML editor are two views of the agent stored in the runtime
 live mirror. After saving in one, reopen the other to see the change.
 
 <Aside type="caution">
-The Permissions inspector and the prompt *templates* list are basic and can write shapes older
-than the current schema. Edit those sections in YAML, where the schema validates them. The
+The prompt *templates* list is basic and can write shapes older than the current schema; edit
+it in YAML, where the schema validates it. The Permissions inspector edits `allowed_actions` and
+`denied_actions`, the
 Guardrails inspector edits the rule list core enforces, and the Memory inspector edits
 `memory.conversational` (`backend: redis`, `connection.url`, `strategy`, `max_turns`, `ttl`).
 </Aside>
@@ -96,6 +98,7 @@ The YAML editor shows the agent exactly as stored and migrates nothing.
 | `integration` | Actions of a catalog integration through a tenant connection | Slug from the runtime's catalog, connection, actions (writes are marked) and which writes need confirmation |
 | `api` | A tenant's own HTTP API | Connection, auth (`header`, `bearer`, `basic`, `query`) and operations: name, description, `GET`/`POST`, path, and whether it writes |
 | `mcp` | Tools of a tenant's MCP server | Connection, path, auth (`bearer`, `header`) and a snapshot of its tools with their input schema |
+| `a2a` | A remote agent that speaks A2A 1.0, through its Agent Card (core 0.74.0+) | Card URL, credential by environment variable name (`api_key_env` or `bearer_env`), timeout, max bytes, accepted parts and the http opt-in for local development |
 
 For `api` and `mcp`, an operation or tool that writes is marked `writes: true` with
 `mode: propose`: the agent proposes the write and the run returns it as a proposal instead
@@ -109,6 +112,21 @@ reserved, and `input_schema` of type `object`.
 
 If the runtime's integration catalog is unavailable, the integration editor falls back to free
 text for slug, actions and connection.
+
+### A2A
+
+A `type: a2a` tool is checked like the core checks it when it loads the agent: an https card URL
+(http only with *Permitir http*), a host and no credentials in the URL, exactly one credential
+variable with a valid name, `timeout` above 0 and at most 600 s, `max_bytes` from 1 byte to
+16 MiB. Leave the description empty and the core builds it from the remote card. On the Nexus
+runtime pool only the environment variables the operator added exist, so a remote that needs a
+credential works from a standalone node. See [A2A tools](/astromesh/a2a/astromesh-tools/).
+
+The **A2A** block publishes the agent itself: with `publicar` on, Nexus 0.27+ serves its
+[Agent Card](/astromesh/nexus/a2a-server/) and JSON-RPC endpoint. The card's description and
+skills come from this block. The block flags a skill the runtime would skip (a blank `id`, `name`
+or `description`) and repeated ids. Callers need the tenant's API key, and an A2A turn never
+confirms a `confirm`-gated write.
 
 ## Prefetch
 
