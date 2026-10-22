@@ -276,6 +276,7 @@ export default defineConfig({
                 { label: 'WhatsApp', slug: 'herald/whatsapp' },
                 { label: 'Telegram', slug: 'herald/telegram' },
                 { label: 'Instagram', slug: 'herald/instagram' },
+                { label: 'Messenger', slug: 'herald/messenger' },
                 { label: 'Web Chat', slug: 'herald/webchat' },
               ],
             },

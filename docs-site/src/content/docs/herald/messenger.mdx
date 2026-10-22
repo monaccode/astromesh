@@ -1,0 +1,128 @@
+---
+title: Messenger
+description: Connect a Facebook Page's Messenger conversations to Herald — what Meta must approve first, setup, what arrives (including button postbacks), and the emulator for testing before approval.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Messenger (Herald 0.12.0+) carries the direct messages of a **Facebook Page**, in both
+directions. It is the fourth Meta-shaped channel and follows [Instagram](/astromesh/herald/instagram/):
+one Meta app per Herald deployment, a process-level app secret and verify token, and one
+channel account per Page with its own access token. What sets it apart:
+
+- **No templates.** Nothing can be sent outside Meta's 24-hour window: a cold contact is
+  impossible, not just harder. Every send goes out as `messaging_type: RESPONSE`.
+- **Button taps reach the agent.** A postback ("Get Started", a persistent-menu item) arrives
+  as text: the button's title.
+- **The Page's own messages are ignored.** Messenger echoes what the Page sends; treating an
+  echo as inbound would make the agent answer itself in a loop.
+
+## Before you start
+
+Three things outside Herald must be true before real traffic flows. None of them is Herald
+configuration:
+
+1. A Facebook **Page** and a **Page access token** for it.
+2. The `pages_messaging` permission **approved in Meta's App Review**, which can take weeks.
+3. The Meta app subscribed to the `page` webhook, pointing at Herald's `/webhooks/messenger`.
+
+Until App Review clears, the [emulator](#the-emulator) is the way to test the channel end to
+end.
+
+## Setup
+
+<Steps>
+
+1. **Configure the Meta app.** Add the Messenger product, note the **App secret** and invent
+   a **verify token**.
+
+2. **Start Herald with the channel on.**
+
+   ```sh
+   HERALD_MESSENGER_APP_SECRET="<app secret>" \
+   HERALD_MESSENGER_VERIFY_TOKEN="<your invented token>" \
+   ./bin/herald   # plus the required settings from the Quick Start
+   ```
+
+   Set both or neither; one without the other stops the boot. Without an app secret (and
+   without an emulated account) the channel is not registered and `/webhooks/messenger` is a
+   404.
+
+3. **Subscribe the webhook** in Meta's dashboard with the callback URL
+   `https://<your-herald-host>/webhooks/messenger` and the same verify token. Herald answers
+   the `hub.challenge` handshake and checks `X-Hub-Signature-256` on every delivery.
+
+4. **Register the Page** as a channel account:
+
+   ```sh
+   curl -X POST localhost:8081/admin/accounts \
+     -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" -H "Content-Type: application/json" \
+     -d '{"tenant_id":"tenant-1","channel":"messenger",
+          "external_id":"<Page id>",
+          "credentials":{"access_token":"<Page access token>"}}'
+   ```
+
+5. **Bind it to an entry agent**, the same way as [on WhatsApp](/astromesh/herald/whatsapp/#setup)
+   but with `"channel":"messenger"`.
+
+</Steps>
+
+## What arrives
+
+| Event | Reaches the agent as |
+|---|---|
+| A text message | The text |
+| Image, audio, video or file | A bracketed description, unless the message also has text |
+| A button tap (postback) | The button's title, as text |
+| Echoes of the Page's own messages, reads, deliveries | Ignored |
+
+`sender` is the person's Page-scoped id, and it is also the recipient for any reply.
+Messenger does not report a name or a phone in the webhook, so `contact_name` and
+`sender_phone` are empty, and `reply_to` is always `null`.
+
+Inbound media is an **expiring CDN URL**, not a media id. Herald downloads it (up to 8 MiB)
+only when a [forwarding binding](/astromesh/herald/forwarding/) needs the bytes. A webhook
+whose `object` is not `page` is rejected: it belongs to another Meta product on the wrong
+route.
+
+## Sending
+
+Text, and one attachment per message (`image`, `audio`, `video` or `file`, by public URL), go
+to `POST /<Page id>/messages` on the Graph API with the Page access token. Templates fail
+permanently.
+
+## The emulator
+
+`HERALD_MESSENGER_EMULATED_ACCOUNT` takes one Page id, or a comma-separated list, whose sends
+are recorded instead of reaching Meta; the first one listed is the default. The rules are the
+same as [WhatsApp's emulator](/astromesh/herald/whatsapp/#the-emulator), including the
+per-account `emulated` flag and the environment gate. Pass `"canal":"messenger"` to the
+emulator routes:
+
+```sh
+curl -X POST localhost:8081/admin/emulator/inbound \
+  -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"canal":"messenger","cuenta":"<emulated Page id>","desde":"<psid>","texto":"hola"}'
+
+curl "localhost:8081/admin/emulator/outbox?canal=messenger&cuenta=<emulated Page id>" \
+  -H "X-Admin-Token: $HERALD_ADMIN_TOKEN"
+```
+
+The recorded reply's `destino` is the sender's PSID.
+
+<Aside type="note">
+The Messenger adapter was built from Meta's documentation and exercised through the emulator,
+because `pages_messaging` is still in App Review. Some payload details (attachment types, the
+envelope) are marked in the code as still to be confirmed against a real delivery.
+</Aside>
+
+## Configuration
+
+| Flag | Environment | Default |
+|---|---|---|
+| `--messenger-app-secret` | `HERALD_MESSENGER_APP_SECRET` | empty |
+| `--messenger-verify-token` | `HERALD_MESSENGER_VERIFY_TOKEN` | empty |
+| `--messenger-graph-base-url` | `HERALD_MESSENGER_GRAPH_BASE_URL` | `https://graph.facebook.com/v21.0` |
+| `--messenger-emulated-account` | `HERALD_MESSENGER_EMULATED_ACCOUNT` | empty (emulator off) |
+
+The channel registers when the app secret **or** an emulated account is set.
