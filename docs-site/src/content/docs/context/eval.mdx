@@ -77,13 +77,15 @@ astromesh-context eval --level 1 --embedder st --out results/
 Level 2, answering and judging with an OpenAI-compatible chat model:
 
 ```bash
-CTX_EVAL_BASE_URL=... CTX_EVAL_API_KEY=... CTX_EVAL_MODEL=... \
+CTX_EVAL_BASE_URL=... CTX_EVAL_API_KEY=... CTX_EVAL_MODEL=... CTX_EVAL_JUDGE_MODEL=... \
   uv run --extra eval astromesh-context eval --level 2 --embedder st --out results/
 ```
 
 Both need the `eval` extra.
 
-<Aside type="caution" title="Level 2 results are not published yet">
-Answer-accuracy results will be added after the reference answers are reviewed. Until then the
-level-2 command runs, but there is no published table to compare against.
+<Aside type="caution" title="Level 2 has not been run yet">
+The reference answers are reviewed and signed (2026-10-20). The level-2 run is pending: it needs
+a chat model and a judge behind an OpenAI-compatible API (`CTX_EVAL_BASE_URL`, `CTX_EVAL_API_KEY`,
+`CTX_EVAL_MODEL`, and optionally `CTX_EVAL_JUDGE_MODEL`, which defaults to the model). Until its table is published, the level-1 results say
+the context that reaches the model is cleaner, not that the answers are better.
 </Aside>
