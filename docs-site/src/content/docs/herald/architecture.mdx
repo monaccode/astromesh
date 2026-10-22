@@ -33,7 +33,7 @@ internal/
   ports/               ChannelAdapter and its optional extensions, AgentClient, stores
   app/                 receive, send, dispatch, fragments
   adapters/
-    channel/           whatsapp, telegram, instagram, webchat, echo, emulador, smtp (unwired)
+    channel/           whatsapp, telegram, instagram, messenger, webchat, echo, emulador, smtp (unwired)
     agentclient/nexus/ the /run client
     webhookclient/     the signed forwarder
     store/postgres/    SQL, migrations, AES-GCM sealing of credentials
@@ -47,11 +47,11 @@ the core detects by type assertion:
 
 | Optional interface | Who implements it | What it adds |
 |---|---|---|
-| `ChallengeVerifier` | WhatsApp, Instagram | Meta's `hub.challenge` subscription handshake |
+| `ChallengeVerifier` | WhatsApp, Instagram, Messenger | Meta's `hub.challenge` subscription handshake |
 | `SignatureHeaderNamer` | Telegram | Which header carries the signature (Meta's is the default) |
 | `WebhookRegistrar` | Telegram | Tell the provider where to deliver, when an account is created |
 | `TemplateSender` | WhatsApp | Pre-approved templates for messages outside the 24-hour window |
-| `MediaDownloader` | WhatsApp, Telegram, Instagram | Fetch the bytes of an inbound attachment |
+| `MediaDownloader` | WhatsApp, Telegram, Instagram, Messenger | Fetch the bytes of an inbound attachment |
 
 Adding Instagram touched a new package, the channel constant, the wiring and the manifests.
 It did not touch the webhook handler, the dispatcher or the ports.

@@ -1,6 +1,6 @@
 ---
 title: Astromesh Herald
-description: The communications gateway — messages from WhatsApp, Telegram, Instagram and web chat reach an agent behind Nexus, and agents reach people back through one outbox.
+description: The communications gateway — messages from WhatsApp, Telegram, Instagram, Messenger and web chat reach an agent behind Nexus, and agents reach people back through one outbox.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -28,7 +28,7 @@ from `main` (the `mvp` tag) with an immutable `:X.Y.Z` image per version.
 
 | Area | What it gives you |
 |---|---|
-| **Four live channels** | WhatsApp (Meta Cloud API), Telegram (Bot API), Instagram (Messaging API) and web chat, plus an `echo` channel for development. |
+| **Five live channels** | WhatsApp (Meta Cloud API), Telegram (Bot API), Instagram (Messaging API), Messenger (Facebook Page DMs, Herald 0.12.0) and web chat, plus an `echo` channel for development. |
 | **Routing** | The first message of a conversation goes to the binding's **entry agent**, which can hand the conversation to another agent or decline to open one. Later messages go straight to the agent that owns the conversation. |
 | **One outbox** | Agent replies, proactive sends and webhook forwards are all rows in one Postgres table, retried with exponential backoff and claimed with `FOR UPDATE SKIP LOCKED`. |
 | **Answers in several messages** | An agent that writes `[[+]]` between parts gets each part delivered as its own message, with a pause between them. |
@@ -36,14 +36,14 @@ from `main` (the `mvp` tag) with an immutable `:X.Y.Z` image per version.
 | **Proactive sends** | Text, one media attachment by URL, or a WhatsApp template, queued per tenant or on behalf of any tenant. Agents use it through the `send_message` tool. |
 | **Channel identity** | On Telegram a person can share their own phone number with one tap; Herald stores it as a verified identity and passes it to the agent. |
 | **Webhook forwarding** | A binding can skip Nexus and POST every inbound message, media included, to an external HTTPS endpoint signed with HMAC-SHA256. |
-| **Emulators** | WhatsApp and Instagram lines can be emulated, so a whole product flow runs end to end without a Meta account. |
+| **Emulators** | WhatsApp, Instagram and Messenger lines can be emulated, so a whole product flow runs end to end without a Meta account. |
 | **Operator console** | A React console embedded in the binary: overview, conversations, outbox, routing rules and channel accounts. |
 
 ## The path a message takes
 
 ```mermaid
 flowchart LR
-    person["Person<br/>WhatsApp · Telegram<br/>Instagram · web chat"]
+    person["Person<br/>WhatsApp · Telegram<br/>Instagram · Messenger · web chat"]
     hook["Webhook<br/>signature verified<br/>200 at once"]
     queue["Inbound queue<br/>10 workers"]
     route["Account → tenant<br/>binding → agent"]
@@ -72,6 +72,7 @@ place to look when a message did not arrive.
 | [**WhatsApp**](/astromesh/herald/whatsapp/) | Live | `phone_number_id` in the payload | Templates for cold contacts, 24-hour window, emulator |
 | [**Telegram**](/astromesh/herald/telegram/) | Live | Bot id in the webhook URL | Herald registers the webhook itself; contact-sharing button; quoted replies reach the agent |
 | [**Instagram**](/astromesh/herald/instagram/) | Live; real traffic needs Meta App Review | Instagram account id in the payload | No templates, so no cold contacts; emulator |
+| [**Messenger**](/astromesh/herald/messenger/) | Live; real traffic needs Meta App Review (`pages_messaging`) | Page id in the payload | No templates, so no cold contacts; button postbacks arrive as text; emulator |
 | [**Web chat**](/astromesh/herald/webchat/) | Live, opt-in | Slug minted by CLARUS | CLARUS fronts the browser; Herald stores the thread |
 | **Echo** | Development | `account_id` in the payload | No authentication at all, so it only exists behind `--enable-echo` |
 | SMTP | Not registered | — | A package with the port's shape; it is not wired into the binary |
@@ -95,7 +96,7 @@ for it never reaches a provider.
 
 ```mermaid
 flowchart LR
-    channels["WhatsApp · Telegram<br/>Instagram · web chat"] <--> herald["Herald"]
+    channels["WhatsApp · Telegram<br/>Instagram · Messenger · web chat"] <--> herald["Herald"]
     clarus["CLARUS<br/>web chat · schedulers"] --> herald
     herald -- "run agent" --> nexus["Nexus"]
     nexus -- "send-on-behalf<br/>(send_message tool)" --> herald

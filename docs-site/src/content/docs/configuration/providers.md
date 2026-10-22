@@ -199,6 +199,24 @@ Astromesh handles this transparently:
 
 No configuration is required — this is automatic for any model that returns `reasoning_content`.
 
+### Muse Spark Open (via OpenRouter)
+
+Meta's **Muse Spark Open** is reached through OpenRouter with the same `openai_compat` provider.
+Declare the provider explicitly: the model id carries a `/`, so it cannot be inferred from the name.
+
+```yaml
+model:
+  primary:
+    provider: openai_compat
+    model: meta/muse-spark-open
+    endpoint: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+```
+
+Since astromesh **v0.72.0** the router prices it at 1.25 / 4.25 USD per 1M input / output tokens
+(cached input 0.15), read from openrouter.ai on 2026-10-19, and attributes it under the `meta`
+label. Before 0.72.0 its estimated cost was 0, so `cost_optimized` ranked it as free.
+
 ### vLLM
 
 vLLM is a high-throughput LLM serving engine with continuous batching. Best for production workloads that need to serve many concurrent requests.
