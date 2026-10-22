@@ -4,8 +4,8 @@ date: 2026-10-22
 platform: linkedin
 format: post + video   # cuerpo: versión con íconos y tono controversial (pedido 2026-10-22); la sobria queda al final
 product: astromesh-context
-status: draft        # draft | published
-url:                 # link al post al publicarlo
+status: published    # draft | published
+url: https://lnkd.in/p/d_yXCk4A
 images: []
 thumbnail: thumbnail.png   # frame 440 del video (T+00:14): las cuatro fuentes y la ventana llena
 video: true          # video.mp4 (50 s, 9:16), plantilla HUD (social/_video/src/hud.tsx), sin voz ni subtítulos, sin avatar
