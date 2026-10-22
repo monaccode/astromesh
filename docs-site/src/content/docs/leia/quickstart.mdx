@@ -54,8 +54,9 @@ channel, business name, description, and two or three questions specific to the 
 
 ## Get it onto Nexus
 
-Answering `yes` publishes the agent to your Nexus (0.26.x with Leia 0.8; 0.3.x clusters need Leia 0.7 or
-earlier) and confirms it registered. Then:
+Answering `yes` publishes the agent to your Nexus (0.26–0.28.x with Leia 0.10; 0.3.x clusters need Leia 0.7 or
+earlier) and confirms it registered. If the manifest publishes the agent over A2A, it also
+fetches its Agent Card and makes one smoke call. Then:
 
 ```
 /leia status

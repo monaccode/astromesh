@@ -10,23 +10,26 @@ agent you need, in English or Spanish, and Leia designs a complete `astromesh/v1
 a real system prompt, shows it to you, and can deploy it, test it and diagnose it on a
 [Nexus](/astromesh/nexus/introduction/) hub. It is named after a lemon beagle.
 
-<Aside type="note" title="v0.8.0 targets Nexus 0.26">
-Leia's operations (deploy, status, logs, test, bootstrap, doctor) authenticate against the
-managed Nexus (0.26.x) with `X-API-Key`. Until 0.7 they sent the key as `Authorization: Bearer`,
-which Nexus reads only as a JWT, so every call was refused with `401`. See
-[Compatibility](#compatibility).
+<Aside type="note" title="v0.10.0 knows A2A">
+Leia 0.10 is synced to core 0.74.1 and Nexus 0.28.2. It designs `type: a2a` tools (an agent that
+calls a remote A2A agent), publishes agents over A2A with `spec.a2a.publicar` and `spec.skills`,
+and checks the [Agent Card](/astromesh/nexus/a2a-server/) after a deploy. Operations authenticate
+with `X-API-Key` (since 0.8). See [Compatibility](#compatibility).
 </Aside>
 
 ## What Leia is
 
-- **Prompts, not a program.** Leia is ten slash commands, five subagents, six templates and four
+- **Prompts, not a program.** Leia is ten slash commands, five subagents, six templates and eight
   reference schemas, all Markdown and YAML. Claude Code runs them; the actual work happens
   through `curl`, `kubectl` and `ollama` on your machine.
 - **An agent designer.** Its architect subagent knows the agent schema up to astromesh core
-  0.68.0: per-role models, the real orchestration patterns, `spec.chain`,
-  `spec.output_schema`, every tool type that loads (including `integration`, `api` and `mcp`),
-  `prefetch`, `prompts.context`, OKF knowledge bundles, and the sections a runtime accepts but
-  ignores without saying so.
+  0.74.1: per-role models, the real orchestration patterns, `spec.chain`,
+  `spec.output_schema`, every tool type that loads (including `integration`, `api`, `mcp` and
+  `a2a`), `prefetch`, `prompts.context`, OKF knowledge bundles, guardrails, permissions,
+  `spec.skills` and A2A publishing, and the version each one needs.
+- **A guide to the ecosystem.** `schemas/ecosystem.md` lists the current version of every
+  component and when to point at each library: `astromesh-a2a` for agents in other frameworks,
+  `astromesh-okf` to check a bundle, `astromesh-rag` and `astromesh-context` for your own code.
 - **A deploy-and-test loop** for a Nexus hub: publish, poll, chat with the agent, run scored
   test scenarios, and walk a diagnostic checklist when something fails.
 
@@ -61,6 +64,8 @@ flowchart LR
 
 | Leia | Nexus | Astromesh core knowledge |
 |---|---|---|
+| 0.10.x | 0.26 – 0.28.x | 0.29 – 0.74.x |
+| 0.9.x | 0.26.x | 0.29 – 0.71.x |
 | 0.8.x | 0.26.x | 0.29 – 0.70.x |
 | 0.7.x | 0.3.x | 0.29 – 0.70.x |
 | 0.6.x | 0.3.x | 0.29 – 0.68.x |
@@ -74,6 +79,11 @@ invocations, usage, versions, subscriptions and the `/admin` plane. The tester r
 response (`blocked`/`guardrail`, `propuestas`, `usage.by_model`): an expected block passes, an
 unexpected one fails and names the rule. Nexus 0.26.11 does not forward `blocked`/`guardrail`
 (0.26.12 does), so against 0.26.11 the tester infers the block from the `answer`.
+
+Leia 0.10 adds the A2A server of Nexus 0.27–0.28.2 to `nexus-api.md`: card, `SendMessage`
+(blocking or `returnImmediately`), streaming, `GetTask`, `CancelTask`, `SubscribeToTask`,
+`ListTasks` and the run usage part. Publishing needs Nexus 0.27+, `spec.skills` core 0.73+ and
+`type: a2a` tools core 0.74+; the rest works against any 0.26.x.
 
 Leia 0.7.x and earlier target Nexus 0.3.x; against 0.26.x design with them and publish the YAML
 with [Cortex](/astromesh/cortex/nexus/) or the [Nexus API](/astromesh/nexus/api-reference/):
@@ -91,6 +101,7 @@ version.
 
 | Version | Synced to | Added |
 |---|---|---|
+| **0.10.0** | Nexus 0.28.2, core 0.74.1 | `type: a2a` tools (`card_url`, `auth` by env var name, `policy`) and the warning that the Nexus pool has no tenant env vars; `spec.skills`, `spec.a2a.publicar` and `origen` (an agent's turn never confirms a write); sub-agent usage counted in the parent's `cost_limit` and billed; the Nexus A2A server in `nexus-api.md`; an A2A check in the operator, doctor and tester; `schemas/ecosystem.md`. |
 | **0.9.0** | Nexus 0.26.13, core 0.71.0 | Schemas and the architect at core 0.71: `permissions` (fnmatch over registered tool names, denied wins), semantic/episodic memory scoped to the session, real `swarm` handoff with `max_handoffs`, enforced `timeout_seconds` (120 s recommended); `/leia logs` marks invocations blocked by a guardrail. |
 | **0.8.0** | Nexus 0.26.11, core 0.70.0 | Operations use `X-API-Key` (Bearer gave `401`); `nexus-api.md` rewritten for 0.26.11; the tester understands `blocked`/`guardrail`, `propuestas` and `by_model`; `kind: Eval`, OKF bundle and `RAGPipeline` schemas; `/leia deploy --node` for standalone nodes. |
 | 0.7.0 | core 0.70.0 | Guardrails are enforced in core 0.70, so the architect emits them again: the real rule types per side, `message`, and the cautions (no input PII redaction when tools need IDs or phones, `cost_limit` ≈ 4000 for the whole run, US-format PII patterns). Templates carry input `max_length` and `cost_limit`, and output PII redaction where it fits. |
@@ -102,7 +113,7 @@ version.
 | 0.2.0 | core 0.28.5, Nexus 0.3.0 | Fixed templates that the runtime silently ignored (flat `memory`, `limit` instead of `max_chars`) and invalid patterns; dual auth |
 
 <Aside type="note">
-The architect's knowledge stops at core 0.68.0. Fields added to the core after that are not in
+The architect's knowledge stops at core 0.74.1. Fields added to the core after that are not in
 its schemas; for those, author in [Cortex](/astromesh/cortex/authoring/).
 </Aside>
 

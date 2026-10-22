@@ -29,7 +29,7 @@ Nothing here ships on the same clock. Each package carries its own version and i
 | **Prisma** | Turns your agent into a cloud's own native agent, running on that cloud's base resources (GCP: ADK on Agent Engine) | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | v0.2.1 *(in development)* |
 | **Nexus** | Multi-tenant managed control plane — publishes, runs, meters and bills agents | `astromesh-nexus` | v0.28.2 |
 | **Herald** | Communications gateway — WhatsApp, Telegram, Instagram, Messenger and web chat messages reach agents, and agents reach people back through one outbox | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | v0.12.0 |
-| **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.9.0 |
+| **Leia** | Natural-language agent operations as a Claude Code plugin | `astromesh-leia` | v0.10.0 |
 | **SDD** | Spec-Driven Development skills for any coding agent — spec, plan, tasks, implementation and verification as files next to your code; a Claude Code plugin and open Agent Skills | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | v0.1.0 |
 | **Nebula** | Open-model foundry — trains, gates, and publishes the ecosystem's own models | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | v0.1.0 (preview) |
 

@@ -58,20 +58,23 @@ It will:
   `default`, and always with `api_key_env` on `litellm` candidates;
 - offer `spec.output_schema` when something downstream reads a value, and `spec.chain` when
   you describe what happens after the agent finishes. It states that both need core 0.38.1+
-  and whether it checked the runtime's version.
+  and whether it checked the runtime's version;
+- offer `spec.a2a.publicar` with `spec.skills` when other agents must call this one, and a
+  `type: a2a` tool when it must call a remote agent whose card URL you give it. It says when a
+  credential would not resolve on the Nexus pool.
 
 It won't:
 
 - emit `internal`, `webhook`, `rag` or `mcp_*` tool types, which the runtime drops with only a
   warning;
-- emit `spec.guardrails` or `orchestration.timeout_seconds` as if they did something: core 0.68
-  accepts both and applies neither;
-- invent a `spec.channels` block;
+- emit `orchestration.timeout_seconds` under 120 s, or a `cost_limit` that ignores what the
+  sub-agents spend (core 0.73 counts it);
+- invent a `spec.channels` block, an A2A card URL or a skill the agent cannot perform;
 - write a placeholder system prompt;
 - add a chain because it looks sophisticated.
 
 <Aside type="note">
-The architect's knowledge ends at core 0.68.0. Fields added to the core after that are not in
+The architect's knowledge ends at core 0.74.1. Fields added to the core after that are not in
 its schemas.
 </Aside>
 
@@ -84,4 +87,6 @@ The architect reads these before designing, and they are useful to read directly
 | `schemas/astromesh-v1-agent.md` | The agent manifest: identity, per-role models and which keys each source actually consumes, prompts, patterns, tools that load, memory, guardrails, `output_schema` with its supported and ignored keywords, `chain`, the streaming contract and `usage.by_model` |
 | `schemas/orchestration-patterns.md` | When to use each pattern, the roles each one asks for, and why a pattern is not a chain |
 | `schemas/whatsapp-config.md` | WhatsApp variables, the per-agent webhook path, `contact_name`, delivery receipts |
-| `schemas/nexus-api.md` | The Nexus 0.3 API: dual auth, users, tenants, keys, agents, and the runtime's RAG and workflow endpoints |
+| `schemas/nexus-api.md` | The Nexus 0.28.2 API: dual auth, tenants, keys, versioned agents, `/run` and `/run/stream`, invocations and usage, the `/admin` plane, the A2A server, the pool's environment, and the runtime's RAG and workflow endpoints |
+| `schemas/astromesh-v1-eval.md`, `astromesh-v1-rag.md`, `okf-bundle.md` | `kind: Eval`, `kind: RAGPipeline` and the OKF bundle format |
+| `schemas/ecosystem.md` | The current version of every component and when to point at each library (`astromesh-a2a`, `-okf`, `-rag`, `-context`), the ADK, Herald and Cortex |
