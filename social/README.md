@@ -38,3 +38,4 @@ social/
 | 2026-10-14 | [Dejá de picar tu conocimiento en pedacitos](2026/2026-10-14-deja-de-picar-tu-conocimiento/post.md) | LinkedIn | astromesh-okf | draft |
 | 2026-10-19 | [Mi RAG borraba lo que le enseñaba](2026/2026-10-19-mi-rag-borraba-lo-que-le-ensenaba/post.md) | LinkedIn | astromesh-rag | draft |
 | 2026-10-20 | [Otro agente no es tu usuario](2026/2026-10-20-otro-agente-no-es-tu-usuario/post.md) | LinkedIn | astromesh-a2a | draft |
+| 2026-10-22 | [¿Qué lee tu agente?](2026/2026-10-22-que-lee-tu-agente/post.md) | LinkedIn (video) | astromesh-context | draft |

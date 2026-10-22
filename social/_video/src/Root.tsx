@@ -4,6 +4,7 @@ import {NexusReel, NEXUS_FRAMES} from './NexusReel';
 import {CapasNarrado, CapasReel, CAPAS_FRAMES} from './CapasReel';
 import {cargarTimeline} from './voz';
 import {DeckReel, DECK_FRAMES} from './DeckReel';
+import {ContextReel, CONTEXT_FRAMES} from './ContextReel';
 
 export const Root: React.FC = () => (
   <>
@@ -31,5 +32,6 @@ export const Root: React.FC = () => (
     }}
   />
   <Composition id="DeckReel" component={DeckReel} durationInFrames={DECK_FRAMES} fps={30} width={1080} height={1920} defaultProps={{music: false}} />
+  <Composition id="ContextReel" component={ContextReel} durationInFrames={CONTEXT_FRAMES} fps={30} width={1080} height={1920} defaultProps={{music: false}} />
   </>
 );
