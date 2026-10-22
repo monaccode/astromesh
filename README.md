@@ -22,6 +22,7 @@
   <a href="https://monaccode.github.io/astromesh/"><b>Documentation</b></a> ·
   <a href="https://monaccode.github.io/astromesh/getting-started/quickstart/">Quick start</a> ·
   <a href="https://monaccode.github.io/astromesh/#ecosystem">Ecosystem map</a> ·
+  <a href="#how-it-compares">How it compares</a> ·
   <a href="https://github.com/monaccode/astromesh/releases">Releases</a>
 </p>
 
@@ -92,18 +93,61 @@ so this page never goes stale the day after a release.
 |---|---|---|
 | Run an agent defined in a YAML file | **Core runtime** | `uv sync && uv run uvicorn astromesh.api.main:app` |
 | Write agents in Python | **[ADK](astromesh-adk/)** | `pip install astromesh-adk` |
-| Build an agent without writing YAML | **[Forge](astromesh-forge/)** or **[Cortex](https://github.com/monaccode/astromesh-cortex)** | Open `http://localhost:8000/forge` |
+| Build an agent without writing YAML | **[Forge](astromesh-forge/)** or **[Cortex](https://monaccode.github.io/astromesh/cortex/introduction/)** | Open `http://localhost:8000/forge` |
 | Describe an agent in plain language | **[Leia](https://github.com/monaccode/astromesh-leia)** | `/leia I need a WhatsApp bot for my workshop` |
-| Answer customers on WhatsApp, Instagram or Messenger | **[Herald](https://github.com/monaccode/astromesh-herald)** + **[Nexus](https://github.com/monaccode/astromesh-nexus)** | Herald quick start |
+| Answer customers on WhatsApp, Instagram or Messenger | **[Herald](https://monaccode.github.io/astromesh/herald/introduction/)** + **[Nexus](https://monaccode.github.io/astromesh/nexus/introduction/)** | Herald quick start |
 | Let my agent call agents on other frameworks, safely | **[astromesh-a2a](https://github.com/monaccode/astromesh-a2a)** or a `type: a2a` tool | `pip install astromesh-a2a` |
 | Ground an agent in documents that go stale | **[OKF](https://github.com/monaccode/astromesh-okf)** · **[RAG](https://github.com/monaccode/astromesh-rag)** · **[Context](https://github.com/monaccode/astromesh-context)** | `pip install astromesh-context` |
-| Run many tenants' agents and bill them | **[Nexus](https://github.com/monaccode/astromesh-nexus)** | `kubectl apply -k deploy/overlays/mvp` |
+| Run many tenants' agents and bill them | **[Nexus](https://monaccode.github.io/astromesh/nexus/introduction/)** | `kubectl apply -k deploy/overlays/mvp` |
 | Install the runtime as a service | **[Node](astromesh-node/)** or **[OS](https://github.com/monaccode/astromesh-os)** | `sudo apt install ./astromesh-node_<version>_amd64.deb` |
 | Deploy the stack to the cloud | **[Orbit](astromesh-orbit/)** | `pip install "astromesh-orbit[gcp]"` |
 | Have a coding agent build software from a spec | **[SDD](https://github.com/monaccode/astromesh-sdd)** | `/plugin marketplace add monaccode/astromesh-sdd` |
 
 The open-source libraries (A2A, OKF, RAG, Context, SDD) do not need the runtime. They work from
 LangChain, LangGraph, CrewAI, PydanticAI, the OpenAI Agents SDK, Google ADK, LlamaIndex and MCP.
+
+---
+
+## How it compares
+
+Most agent frameworks are libraries for writing the agent's logic. Astromesh covers that and
+the operations around it. This table compares scope only: LangGraph, CrewAI and the vendor SDKs
+have much larger communities and integration catalogs, and that matters too.
+
+| | Astromesh | LangGraph | CrewAI | MS Agent Framework | OpenAI Agents SDK | Google ADK | PydanticAI |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Agent defined in a config file, no code | ✅ | 💲 | 🟡 | 🟡 | — | 🟡 | 🟡 |
+| Routing across providers by cost or latency, with fallback | ✅ | 🟡 | — | 🟡 | 🟡 | 🟡 | 🟡 |
+| Several multi-agent patterns built in | ✅ | 🟡 | ✅ | ✅ | 🟡 | ✅ | ✅ |
+| Input and output guardrails | ✅ | 🟡 | 🟡 | 🟡 | ✅ | 🟡 | ✅ |
+| Human approval before a write runs | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| MCP tools | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| A2A, as client and as server | ✅ | 💲 | ✅ | ✅ | — | 🟡 | 🟡 |
+| Semantic and episodic memory | ✅ | ✅ | ✅ | 🟡 | 🟡 | 🟡 | 🟡 |
+| RAG ingestion and retrieval pipeline | ✅ | 🟡 | ✅ | 🟡 | 🟡 | 💲 | 🟡 |
+| Evals | ✅ | 💲 | 🟡 | ✅ | 💲 | ✅ | ✅ |
+| Tracing and metrics | ✅ | 💲 | 🟡 | ✅ | ✅ | ✅ | ✅ |
+| Visual agent builder | ✅ | 💲 | 💲 | 💲 | 💲 | 🟡 | — |
+| Install as a service, appliance or cloud IaC | ✅ | 🟡 | 💲 | 💲 | — | 🟡 | — |
+| WhatsApp, Telegram, Instagram, Messenger to reach people | 🟡💲 | — | — | — | — | — | — |
+| Multi-tenant hosting with metering and billing | 💲 | ? | — | — | — | — | — |
+
+✅ in the open-source project · 🟡 partial or experimental · 💲 a separate product from the same
+vendor · — not included, you build or integrate it · ? not verified
+
+How to read the Astromesh column honestly: config-file agents, routing, patterns, guardrails,
+approvals, MCP, memory, RAG, evals and tracing are in this open-source runtime. A2A comes from
+the open-source [`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a) and the runtime's
+`type: a2a` tools. The visual builder is [Forge](astromesh-forge/); service, appliance and IaC are
+[Node](astromesh-node/), [OS](https://github.com/monaccode/astromesh-os) and [Orbit](astromesh-orbit/).
+WhatsApp is built into the runtime; the other channels come with
+[Herald](https://monaccode.github.io/astromesh/herald/introduction/), and multi-tenant hosting with [Nexus](https://monaccode.github.io/astromesh/nexus/introduction/),
+which are separate products whose source is not public.
+
+For the other frameworks, each cell comes from that project's official documentation, checked in
+October 2026. A "—" means the docs do not describe it, not that nobody has built it on top.
+Experimental features (config-file agents in MS Agent Framework and Google ADK, ADK's tool
+approval and A2A) are marked 🟡. Spotted something outdated? Open an issue.
 
 ---
 
@@ -273,7 +317,7 @@ vector stores, channels, MCP). The full reference is in
 |---|---|---|---|
 | **Author** | ADK | Agents as Python decorators, with hot reload and a project CLI | [`astromesh-adk/`](astromesh-adk/) |
 | | Forge | Visual agent builder, served by the node itself at `/forge` | [`astromesh-forge/`](astromesh-forge/) |
-| | Cortex | Desktop IDE that reaches every runtime you own: local, cloud or a Nexus hub | [repo](https://github.com/monaccode/astromesh-cortex) |
+| | Cortex | Desktop IDE that reaches every runtime you own: local, cloud or a Nexus hub | [docs](https://monaccode.github.io/astromesh/cortex/introduction/) |
 | | Leia | Agent design and operations in plain language, inside Claude Code | [repo](https://github.com/monaccode/astromesh-leia) |
 | | SDD | Spec-driven development for any coding agent: spec, plan, tasks, code, verification | [repo](https://github.com/monaccode/astromesh-sdd) |
 | **Execute** | Core runtime | The agent engine this repository is named after | [`astromesh/`](astromesh/) |
@@ -281,17 +325,18 @@ vector stores, channels, MCP). The full reference is in
 | | OKF | Agents navigate an Open Knowledge Format bundle, with trust and freshness signals | [repo](https://github.com/monaccode/astromesh-okf) |
 | | RAG | Retrieval from swappable parts: naive, hybrid, multi-query or HyDE, with a trace per query | [repo](https://github.com/monaccode/astromesh-rag) |
 | | Context | Decides what goes into the window within one token budget, and measures the choice | [repo](https://github.com/monaccode/astromesh-context) |
-| **Reach** | Herald | Messages from people reach an agent, and agents reach people back through one outbox | [repo](https://github.com/monaccode/astromesh-herald) |
+| **Reach** | Herald | Messages from people reach an agent, and agents reach people back through one outbox | [docs](https://monaccode.github.io/astromesh/herald/introduction/) |
 | | A2A | Call, and be called by, agents on any framework over A2A 1.0, without trusting them | [repo](https://github.com/monaccode/astromesh-a2a) |
 | **Ship** | Node | The runtime as a native service on Linux, macOS and Windows | [`astromesh-node/`](astromesh-node/) |
 | | OS | Immutable, API-only Linux appliance with A/B slots | [repo](https://github.com/monaccode/astromesh-os) |
 | | Orbit | One config file becomes a production GCP stack, and ejects to plain Terraform | [`astromesh-orbit/`](astromesh-orbit/) |
-| | Prisma | Turns an agent into a cloud's own native agent, and writes down what does not carry over | [repo](https://github.com/monaccode/astromesh-prisma) |
-| **Operate** | Nexus | Multi-tenant control plane: publishes agents, runs them on a shared pool, meters and bills them, serves them over A2A | [repo](https://github.com/monaccode/astromesh-nexus) |
+| | Prisma | Turns an agent into a cloud's own native agent, and writes down what does not carry over | [docs](https://monaccode.github.io/astromesh/prisma/introduction/) |
+| **Operate** | Nexus | Multi-tenant control plane: publishes agents, runs them on a shared pool, meters and bills them, serves them over A2A | [docs](https://monaccode.github.io/astromesh/nexus/introduction/) |
 | | CLI | `astromeshctl`, the terminal interface to a node | [`astromesh-cli/`](astromesh-cli/) |
 | **Models** | Nebula | The open-model foundry that trains, gates and publishes what the runtime routes to | [repo](https://github.com/monaccode/astromesh-nebula) |
 
-Directories link to this monorepo, where each package is released on its own tag. Glyph is
+Directories link to this monorepo, where each package is released on its own tag. Cortex, Herald,
+Prisma and Nexus link to their documentation: their source is not public. Glyph is
 tagged but not on PyPI yet; [`docs/DEBT.md`](docs/DEBT.md) says why.
 
 ---
