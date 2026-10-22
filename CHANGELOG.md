@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (Astromesh Forge)
 
-- Forge crea y edita tools `type: a2a`: el selector de tipo ofrece `a2a` a cualquier tool y el
+- Forge 0.29.0 crea y edita tools `type: a2a`: el selector de tipo ofrece `a2a` a cualquier tool y el
   panel muestra un formulario con `card_url` (requerido), `auth` (ninguna, o el NOMBRE de la
   variable de entorno de la API key o del bearer, nunca el secreto), `policy` opcional
   (`max_bytes`, `timeout`, `accept_parts`, `allow_insecure_http`) y `description` opcional (si
@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nombre de variable válido) y muestra los errores en el campo; un formulario inválido no se
   aplica. Un campo vacío no escribe su clave, y una tool a2a existente pasa por el formulario sin
   cambios. Cierra la deuda «Forge: crear herramientas a2a desde el selector».
+
+### Fixed (Astromesh Forge)
+
+- Forge 0.29.1: una `card_url` con un host entre corchetes que no es IPv6 (`https://[foo]/`,
+  `https://[127.0.0.1]/`) pasaba la validación, y el core la rechaza como `urlsplit` de Python 3.12
+  ("card_url no tiene host", el agente queda en draft). Ahora entre corchetes sólo vale IPv6, con
+  zona opcional, o IPvFuture.
 
 ## [0.74.1] - 2026-10-20
 
