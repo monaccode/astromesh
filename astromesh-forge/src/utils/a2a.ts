@@ -58,8 +58,24 @@ function hostOf(netloc: string): string {
   const hostport = netloc.slice(netloc.lastIndexOf("@") + 1);
   // Python's urlsplit raises on an unbalanced bracket; the runtime then sees no host.
   if (hostport.includes("[") !== hostport.includes("]")) return "";
-  if (hostport.startsWith("[")) return hostport.slice(1).split("]", 1)[0];
+  if (hostport.startsWith("[")) {
+    const inner = hostport.slice(1).split("]", 1)[0];
+    // Python 3.12 urlsplit: `[v…]` (IPvFuture) passes; anything else must be IPv6 (a zone id
+    // after `%` is allowed), so `[foo]` and `[127.0.0.1]` raise and the runtime sees no host.
+    if (/^v/i.test(inner)) return inner;
+    return isIPv6(inner.split("%", 1)[0]) ? inner : "";
+  }
   return hostport.split(":", 1)[0];
+}
+
+function isIPv6(addr: string): boolean {
+  if (!addr.includes(":")) return false;
+  try {
+    new URL(`http://[${addr}]/`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function validateA2A(name: string, f: A2AForm): A2AErrors {

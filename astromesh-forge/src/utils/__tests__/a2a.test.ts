@@ -151,6 +151,11 @@ describe("validateA2A edge cases the runtime rejects", () => {
     expect(err("https://host]/card")).toBeDefined();
     expect(err("https://[2001:db8::1]/card")).toBeUndefined();
   });
+  it("brackets hold only IPv6 (zone allowed), as Python 3.12 urlsplit", () => {
+    expect(err("https://[foo]/card")).toBeDefined();
+    expect(err("https://[127.0.0.1]/card")).toBeDefined();
+    expect(err("https://[fe80::1%25eth0]/card")).toBeUndefined();
+  });
   it("NEL (U+0085) counts as whitespace", () => {
     expect(err("https://x.example/c\u0085d")).toBeDefined();
   });
