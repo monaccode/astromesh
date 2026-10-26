@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="frame" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#f0f9ff"/><stop offset="0.45" stop-color="#7cc4fa"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="0.3" cy="0.2" r="0.9">
+      <stop offset="0" stop-color="#f0f9ff" stop-opacity="0.2"/><stop offset="1" stop-color="#1d4ed8" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="light" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0f9ff"/><stop offset="1" stop-color="#7cc4fa"/>
+    </linearGradient>
+    <linearGradient id="deep" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f6fe4"/><stop offset="1" stop-color="#172f7a"/>
+    </linearGradient>
+    <linearGradient id="orbitA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1e40af"/><stop offset="0.5" stop-color="#1fb4f2"/><stop offset="1" stop-color="#1e40af"/>
+    </linearGradient>
+    <linearGradient id="orbitB" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.34"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="200" cy="200" r="178" fill="url(#glow)"/>
+  <ellipse cx="200" cy="200" rx="184" ry="64" transform="rotate(30 200 200)" fill="none" stroke="url(#orbitB)" stroke-width="8"/>
+  <rect x="98" y="98" width="204" height="204" rx="30" fill="#0a1638"/>
+  <rect x="98" y="98" width="204" height="204" rx="30" fill="url(#glass)"/>
+  <rect x="98" y="98" width="204" height="40" rx="30" fill="#132a63"/>
+  <rect x="98" y="118" width="204" height="20" fill="#132a63"/>
+  <circle cx="128" cy="119" r="7" fill="#fb7185"/><circle cx="150" cy="119" r="7" fill="#fbbf24"/><circle cx="172" cy="119" r="7" fill="#34d399"/>
+  <path d="M164 176 l-34 32 l34 32" fill="none" stroke="url(#light)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M236 176 l34 32 l-34 32" fill="none" stroke="url(#light)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M214 166 l-28 86" stroke="#38bdf8" stroke-width="13" stroke-linecap="round"/>
+  <rect x="98" y="98" width="204" height="204" rx="30" fill="none" stroke="url(#frame)" stroke-width="16"/>
+
+  <ellipse cx="200" cy="200" rx="188" ry="70" transform="rotate(-22 200 200)" fill="none" stroke="url(#orbitA)" stroke-width="8"/>
+  <line x1="250" y1="160" x2="352" y2="94" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="250" cy="160" r="9" fill="#ffffff"/>
+  <circle cx="352" cy="94" r="16" fill="#38bdf8"/>
+  <circle cx="70" cy="86" r="13" fill="#ffffff"/>
+  <circle cx="36" cy="262" r="14" fill="#1fb4f2"/>
+  <circle cx="330" cy="330" r="13" fill="#ffffff"/>
+</svg>

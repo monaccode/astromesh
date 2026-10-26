@@ -3,6 +3,10 @@ title: CLI Commands
 description: Complete command reference for astromeshd and astromeshctl
 ---
 
+<p style="text-align:center; margin: 0.5rem 0 1.75rem;">
+  <img src="/astromesh/logos/cli.png" alt="astromeshctl" width="520" style="display:inline-block; max-width:100%; border-radius:14px;" />
+</p>
+
 Quick-reference for every command available in the Astromesh CLI tools.
 
 ## astromeshd

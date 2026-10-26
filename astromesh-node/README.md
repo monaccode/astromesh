@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Astromesh Node" width="640">
+</p>
+
 # Astromesh Node
 
 <p align="center">
