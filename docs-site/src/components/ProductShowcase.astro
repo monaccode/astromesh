@@ -32,6 +32,8 @@ interface Props {
   terminal: string[];
   ctaPrimary: Cta;
   ctaSecondary: Cta;
+  /** Optional product mark, e.g. /astromesh/logos/leia.svg */
+  logo?: string;
 }
 
 const {
@@ -48,6 +50,7 @@ const {
   terminal,
   ctaPrimary,
   ctaSecondary,
+  logo,
 } = Astro.props as Props;
 
 const slug = name.toLowerCase();
@@ -66,6 +69,7 @@ const slug = name.toLowerCase();
       <span class="ps-badge-ver">{slug}-v{version}</span>
     </div>
     <h2 class="ps-title">
+      {logo && <img class="ps-logo" src={logo} alt="" width="56" height="56" />}
       <span class="ps-title-thin">Astromesh</span>
       <span class="ps-title-bold">{name}</span>
     </h2>
@@ -198,6 +202,11 @@ const slug = name.toLowerCase();
     animation: ps-up 0.6s ease 0.2s forwards;
   }
   .ps-title-thin { font-weight: 300; color: var(--sl-color-gray-2); }
+  .ps-logo {
+    display: inline-block; width: 56px; height: 56px; margin: 0 0.6rem 0 0;
+    vertical-align: -0.35em;
+    filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 45%, transparent));
+  }
   .ps-title-bold {
     font-weight: 800;
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 55%, #00d4ff 100%);

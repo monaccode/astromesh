@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#f0f9ff"/><stop offset="0.45" stop-color="#7cc4fa"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="chunk" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f6fe4"/><stop offset="1" stop-color="#172f7a"/>
+    </linearGradient>
+    <linearGradient id="chunkLit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dbeafe"/><stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#f0f9ff" stop-opacity="0.22"/><stop offset="1" stop-color="#1d4ed8" stop-opacity="0.35"/>
+    </radialGradient>
+    <linearGradient id="handle" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#60a5fa"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="orbitA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1e40af"/><stop offset="0.5" stop-color="#1fb4f2"/><stop offset="1" stop-color="#1e40af"/>
+    </linearGradient>
+    <linearGradient id="orbitB" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.34"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="200" cy="200" r="178" fill="url(#glow)"/>
+  <!-- orbit behind -->
+  <ellipse cx="200" cy="200" rx="184" ry="64" transform="rotate(30 200 200)" fill="none" stroke="url(#orbitB)" stroke-width="8"/>
+  <!-- the corpus: a grid of chunks -->
+  <g>
+    <rect x="77.0" y="77.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="113.0" y="77.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="149.0" y="77.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="185.0" y="77.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="221.0" y="77.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="257.0" y="77.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="77.0" y="113.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="113.0" y="113.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="149.0" y="113.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="185.0" y="113.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="221.0" y="113.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="257.0" y="113.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="77.0" y="149.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="113.0" y="149.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="149.0" y="149.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="185.0" y="149.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="221.0" y="149.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="257.0" y="149.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="77.0" y="185.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="113.0" y="185.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="149.0" y="185.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="185.0" y="185.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="221.0" y="185.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="257.0" y="185.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="77.0" y="221.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="113.0" y="221.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="149.0" y="221.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="185.0" y="221.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="221.0" y="221.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="257.0" y="221.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="77.0" y="257.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="113.0" y="257.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="149.0" y="257.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="185.0" y="257.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="221.0" y="257.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+    <rect x="257.0" y="257.0" width="26" height="26" rx="6" fill="url(#chunk)" opacity="0.8"/>
+  </g>
+  <!-- the lens: what the search brought up, ranked -->
+  <line x1="244" y1="244" x2="306" y2="306" stroke="url(#handle)" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="172" cy="172" r="94" fill="#0a1638"/>
+  <circle cx="172" cy="172" r="94" fill="url(#glass)"/>
+  <rect x="112" y="126" width="120" height="24" rx="12" fill="#fbbf24"/>
+  <rect x="112" y="163" width="88" height="20" rx="10" fill="#fbbf24"/>
+  <rect x="112" y="198" width="58" height="18" rx="9" fill="#fbbf24"/>
+  <circle cx="172" cy="172" r="94" fill="none" stroke="url(#ring)" stroke-width="18"/>
+  <!-- orbit in front -->
+  <ellipse cx="200" cy="200" rx="188" ry="70" transform="rotate(-22 200 200)" fill="none" stroke="url(#orbitA)" stroke-width="8"/>
+  <!-- the thread: top-ranked chunk out to the answer -->
+  <line x1="232" y1="138" x2="350" y2="96" stroke="#fbbf24" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="232" cy="138" r="9" fill="#ffffff"/>
+  <circle cx="350" cy="96" r="16" fill="#fbbf24"/>
+  <!-- other nodes on the orbits -->
+  <circle cx="70" cy="86" r="13" fill="#ffffff"/>
+  <circle cx="36" cy="262" r="14" fill="#1fb4f2"/>
+  <circle cx="330" cy="330" r="13" fill="#ffffff"/>
+</svg>
