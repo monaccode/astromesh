@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="frame" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#f0f9ff"/><stop offset="0.45" stop-color="#7cc4fa"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="0.3" cy="0.2" r="0.9">
+      <stop offset="0" stop-color="#f0f9ff" stop-opacity="0.2"/><stop offset="1" stop-color="#1d4ed8" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f6fe4"/><stop offset="1" stop-color="#172f7a"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#f0f9ff"/><stop offset="0.5" stop-color="#93c5fd"/><stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="orbitA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1e40af"/><stop offset="0.5" stop-color="#1fb4f2"/><stop offset="1" stop-color="#1e40af"/>
+    </linearGradient>
+    <linearGradient id="orbitB" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.34"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="beamGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.55"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="200" cy="200" r="178" fill="url(#glow)"/>
+
+  <!-- orbit behind the agents -->
+  <ellipse cx="200" cy="200" rx="184" ry="64" transform="rotate(30 200 200)" fill="none" stroke="url(#orbitB)" stroke-width="8"/>
+
+  <!-- the channel: a task travels from agent A to agent B -->
+  <ellipse cx="200" cy="208" rx="100" ry="26" fill="url(#beamGlow)"/>
+  <line x1="132" y1="208" x2="268" y2="208" stroke="#a78bfa" stroke-width="7" stroke-linecap="round"/>
+  <path d="M144 199 l9 9 l-9 9 M248 199 l9 9 l-9 9" fill="none" stroke="#ede9fe" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- agent A (sends the task) -->
+  <g transform="rotate(-8 94 208)">
+    <rect x="50" y="152" width="88" height="112" rx="22" fill="#0a1638"/>
+    <rect x="50" y="152" width="88" height="112" rx="22" fill="url(#glass)"/>
+    <circle cx="94" cy="186" r="13" fill="#f0f9ff"/>
+    <rect x="70" y="210" width="48" height="11" rx="5.5" fill="#a78bfa"/>
+    <rect x="70" y="230" width="34" height="10" rx="5" fill="url(#bar)"/>
+    <rect x="50" y="152" width="88" height="112" rx="22" fill="none" stroke="url(#frame)" stroke-width="9"/>
+  </g>
+
+  <!-- agent B (receives it) -->
+  <g transform="rotate(8 306 208)">
+    <rect x="262" y="152" width="88" height="112" rx="22" fill="#0a1638"/>
+    <rect x="262" y="152" width="88" height="112" rx="22" fill="url(#glass)"/>
+    <circle cx="306" cy="186" r="13" fill="#f0f9ff"/>
+    <rect x="282" y="210" width="48" height="11" rx="5.5" fill="url(#bar)"/>
+    <rect x="282" y="230" width="34" height="10" rx="5" fill="url(#bar)"/>
+    <rect x="262" y="152" width="88" height="112" rx="22" fill="none" stroke="url(#frame)" stroke-width="9"/>
+  </g>
+
+  <!-- the guard on the channel: a shield with a keyhole -->
+  <path d="M200 160 L234 172 V204 C234 228 220 244 200 254 C180 244 166 228 166 204 V172 Z" fill="#0a1638" stroke="url(#shield)" stroke-width="9" stroke-linejoin="round"/>
+  <circle cx="200" cy="200" r="9" fill="#a78bfa"/>
+  <path d="M195.5 204 h9 l3 20 h-15 z" fill="#a78bfa"/>
+
+  <!-- orbit in front of the agents -->
+  <ellipse cx="200" cy="200" rx="188" ry="70" transform="rotate(-22 200 200)" fill="none" stroke="url(#orbitA)" stroke-width="8"/>
+
+  <!-- the trail from the guard to a node on the orbit -->
+  <line x1="200" y1="160" x2="352" y2="94" stroke="#a78bfa" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="352" cy="94" r="16" fill="#a78bfa"/>
+  <circle cx="200" cy="160" r="8" fill="#ffffff"/>
+
+  <!-- other nodes on the orbits -->
+  <circle cx="70" cy="86" r="13" fill="#ffffff"/>
+  <circle cx="36" cy="262" r="14" fill="#1fb4f2"/>
+  <circle cx="330" cy="330" r="13" fill="#ffffff"/>
+</svg>
