@@ -1,0 +1,111 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--a:#8b5cf6;--ad:#6d28d9;--cy:#c4b5fd;--sky:#00d4ff;--bg:#060d15;--bd:rgba(255,255,255,.08);--sf:rgba(255,255,255,.03);--g2:#cbd5e1;--g3:#94a3b8;--red:#f87171;--ok:#34d399;--amb:#fbbf24}
+*{box-sizing:border-box;margin:0}
+body{background:#000;font-family:'DM Sans',sans-serif;color:#e2e8f0}
+.s{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--bg);padding:90px 84px;display:flex;flex-direction:column;margin-bottom:20px}
+.s::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(139,92,246,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,.06) 1px,transparent 1px);background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 35%,#000 30%,transparent 100%)}
+.s::after{content:"";position:absolute;width:900px;height:900px;right:-300px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(109,40,217,.18),transparent 70%)}
+.s>*{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top img{height:170px;margin:-40px 0 -40px -50px;filter:drop-shadow(0 0 14px rgba(0,212,255,.3))}
+.badge{font:700 20px 'JetBrains Mono';letter-spacing:.12em;color:#1e1035;background:linear-gradient(135deg,var(--cy),var(--a));padding:8px 16px;border-radius:6px;box-shadow:0 0 24px rgba(139,92,246,.4)}
+.kick{font:500 24px 'JetBrains Mono';letter-spacing:.06em;color:var(--cy)}
+h1{font-size:100px;line-height:1.04;font-weight:300;color:var(--g2);letter-spacing:-.02em}
+h1 b,h2 b{font-weight:800;background:linear-gradient(135deg,var(--cy),var(--a) 50%,var(--ad));-webkit-background-clip:text;color:transparent}
+h2{font-size:66px;line-height:1.08;font-weight:300;color:var(--g2);letter-spacing:-.01em}
+p.lead{font-size:34px;line-height:1.5;color:var(--g3);font-weight:300}
+p.lead b{color:#f1f5f9;font-weight:700}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font:500 22px 'JetBrains Mono';color:var(--g3);opacity:.8}
+.chips{display:flex;gap:12px;flex-wrap:wrap}
+.chip{font:500 24px 'JetBrains Mono';padding:10px 16px;border-radius:8px;border:1px solid rgba(139,92,246,.45);color:#ede9fe;background:rgba(139,92,246,.1)}
+.ilus{font:500 18px 'JetBrains Mono';letter-spacing:.1em;color:var(--g3);opacity:.75}
+/* chat */
+.chat{margin-top:34px;display:flex;flex-direction:column;gap:18px}
+.msg{border-radius:16px;padding:22px 28px;font-size:30px;line-height:1.45;max-width:860px}
+.msg.u{align-self:flex-end;background:rgba(255,255,255,.06);border:1px solid var(--bd);color:#f1f5f9}
+.msg.l{align-self:flex-start;background:rgba(139,92,246,.09);border:1px solid rgba(139,92,246,.4);color:var(--g2)}
+.msg .who{font:700 18px 'JetBrains Mono';letter-spacing:.12em;margin-bottom:8px;color:var(--g3)}
+.msg.l .who{color:var(--cy)}
+.msg code{font:500 26px 'JetBrains Mono';color:#ede9fe}
+.msg b{color:#f1f5f9}
+/* tabla */
+.map{margin-top:36px;border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.map .r{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:center;padding:17px 26px;border-top:1px solid rgba(255,255,255,.06);font-size:27px;color:var(--g2)}
+.map .r:first-child{border-top:0;background:rgba(139,92,246,.1);font:700 19px 'JetBrains Mono';letter-spacing:.1em;color:var(--cy)}
+.map .r span:first-child{font-style:italic;color:#f1f5f9;font-weight:300}
+.map .r:first-child span:first-child{font-style:normal;color:var(--cy);font-weight:700}
+.map .r span:last-child{font:500 24px 'JetBrains Mono';color:#ede9fe}
+.no{margin-top:30px;display:flex;flex-direction:column;gap:14px}
+.n{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:center;border:1px solid var(--bd);background:var(--sf);border-radius:12px;padding:18px 24px}
+.n .t{font:700 22px 'JetBrains Mono';letter-spacing:.06em;color:var(--amb);text-align:center;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.07);border-radius:8px;padding:8px}
+.n .d{font-size:27px;color:var(--g2);line-height:1.35}
+.n .d b{color:#f1f5f9}
+.cta{display:flex;justify-content:space-between;align-items:center;border-radius:14px;padding:26px 30px;background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(109,40,217,.05));border:2px solid var(--a)}
+.cta span{font-size:30px;color:var(--g2)}
+.cta b{font:700 25px 'JetBrains Mono';color:var(--cy)}
+.dog{filter:drop-shadow(0 0 40px rgba(139,92,246,.45))}
+.big{font-size:150px;font-weight:800;line-height:1;background:linear-gradient(135deg,var(--cy),var(--a));-webkit-background-clip:text;color:transparent}
+</style></head><body>
+
+<!-- 1 portada -->
+<section class="s" id="s1">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">LEIA · v0.11.0</span></div>
+  <div style="margin-top:150px"><div class="kick">Una pregunta que no supe contestar rápido</div></div>
+  <h1 style="margin-top:28px">Si tu plataforma<br>necesita un experto,<br><b>no tenés una<br>plataforma.</b></h1>
+  <p class="lead" style="margin-top:40px;max-width:600px">Tenés un experto. Y los expertos <b>no escalan.</b></p>
+  <div class="chips" style="margin-top:40px;max-width:600px"><span class="chip">Claude Code</span><span class="chip">19 componentes</span><span class="chip">castellano + inglés</span><span class="chip">Apache-2.0</span></div>
+  <img class="dog" src="images/leia.svg" style="position:absolute;right:70px;bottom:110px;width:330px">
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>desliza →</span></div>
+</section>
+
+<!-- 2 la historia -->
+<section class="s" id="s2">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">La historia</span></div>
+  <h2 style="margin-top:40px">Escribí los dos.<br><b>Igual tuve que abrir dos repos.</b></h2>
+  <p class="lead" style="margin-top:26px;font-size:30px"><b>19 componentes</b> con versión propia, y el índice completo sólo en mi cabeza.</p>
+  <div style="display:flex;align-items:center;gap:34px;margin-top:34px">
+    <img class="dog" src="images/leia.svg" style="width:230px;flex:none">
+    <p class="lead" style="font-size:30px">Leia es mi <b>beagle lemon</b>. Los beagles son sabuesos: siguen un rastro <b>hasta encontrar lo que buscan.</b> Por eso el agente lleva su nombre.</p>
+  </div>
+  <div class="chat">
+    <div class="msg u"><div class="who">VOS</div>¿Para esto uso astromesh-rag o knowledge.pipeline?</div>
+    <div class="msg l"><div class="who">LEIA</div>En un node, <code>knowledge.pipeline</code>: es un campo del manifiesto. <b>astromesh-rag</b> es para tu propio código Python, sin el runtime.</div>
+  </div>
+  <div class="foot"><span class="ilus">DIÁLOGO ILUSTRATIVO</span><span>2/4</span></div>
+</section>
+
+<!-- 3 el mapa -->
+<section class="s" id="s3">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">El mapa entero</span></div>
+  <h2 style="margin-top:46px">Pedís como hablás.<br><b>Te dice qué lo resuelve.</b></h2>
+  <div class="map">
+    <div class="r"><span>VOS DECÍS</span><span>LEIA APUNTA A</span></div>
+    <div class="r"><span>"creá un agente de turnos"</span><span>manifiesto YAML</span></div>
+    <div class="r"><span>"que otro agente lo pueda llamar"</span><span>spec.a2a + skills</span></div>
+    <div class="r"><span>"mi agente de LangGraph tiene que hablar con este"</span><span>astromesh-a2a</span></div>
+    <div class="r"><span>"¿por qué no aparece la card?"</span><span>panel A2A · Cortex</span></div>
+    <div class="r"><span>"qué entra en la ventana"</span><span>astromesh-context</span></div>
+    <div class="r"><span>"que atienda por Messenger"</span><span>Herald + Nexus</span></div>
+    <div class="r"><span>"correlo en mi servidor"</span><span>Node · astromeshd</span></div>
+  </div>
+  <p class="lead" style="margin-top:28px;font-size:28px">"Creá", "desplegá", "probalo", "no anda": <b>entiende el verbo, no el idioma.</b></p>
+  <div class="foot"><span class="ilus">EJEMPLOS DE PEDIDOS</span><span>3/4</span></div>
+</section>
+
+<!-- 4 autoridad + cierre -->
+<section class="s" id="s4">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">APACHE-2.0</span></div>
+  <h2 style="margin-top:46px">La autoridad no es saber todo.<br><b>Es decir qué todavía no.</b></h2>
+  <div class="no">
+    <div class="n"><span class="t">EN DESARROLLO</span><div class="d"><b>Prisma</b>, el agente nativo de GCP: todavía no provisiona nada. No te lo ofrece como listo.</div></div>
+    <div class="n"><span class="t">PREVIEW</span><div class="d"><b>Centinela</b>, el modelo propio: te avisa antes de diseñar sobre él.</div></div>
+    <div class="n"><span class="t">SIN MEDIR</span><div class="d">Que el contexto <b>mejora las respuestas</b>: el nivel 2 del eval no se corrió. No lo afirma.</div></div>
+  </div>
+  <p class="lead" style="margin-top:30px;font-size:29px">Cada release de Leia es una sincronización con una versión concreta del core. <b>Si no está documentado, no lo promete.</b></p>
+  <div class="cta" style="margin-top:32px"><span>en Claude Code</span><b>monaccode/astromesh-leia</b></div>
+  <div style="display:flex;align-items:center;gap:26px;margin-top:40px"><img class="dog" src="images/leia.svg" style="width:150px"><p class="lead" style="font-size:28px">Leia sigue el rastro.<br><b>Vos decís qué necesitás.</b></p></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>4/4</span></div>
+</section>
+</body></html>
