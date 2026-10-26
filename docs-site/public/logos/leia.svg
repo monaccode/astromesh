@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="t">
+  <title id="t">Leia — lemon beagle astronaut</title>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="65%">
+      <stop offset="0" stop-color="#1a1035"/>
+      <stop offset=".7" stop-color="#0a1222"/>
+      <stop offset="1" stop-color="#060d15"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c4b5fd"/>
+      <stop offset=".5" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="collar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1f5f9"/>
+      <stop offset="1" stop-color="#94a3b8"/>
+    </linearGradient>
+    <radialGradient id="inside" cx="50%" cy="45%" r="60%">
+      <stop offset="0" stop-color="#2a1b52"/>
+      <stop offset="1" stop-color="#0d1630"/>
+    </radialGradient>
+    <radialGradient id="glass" cx="35%" cy="25%" r="80%">
+      <stop offset="0" stop-color="#c4b5fd" stop-opacity=".22"/>
+      <stop offset=".55" stop-color="#8b5cf6" stop-opacity=".03"/>
+      <stop offset="1" stop-color="#00d4ff" stop-opacity=".16"/>
+    </radialGradient>
+    <clipPath id="badge"><circle cx="256" cy="256" r="246"/></clipPath>
+    <clipPath id="helmet"><circle cx="256" cy="262" r="154"/></clipPath>
+  </defs>
+
+  <circle cx="256" cy="256" r="246" fill="url(#bg)"/>
+  <g clip-path="url(#badge)" fill="#e2e8f0">
+    <circle cx="70" cy="140" r="2.2"/><circle cx="110" cy="80" r="1.4"/><circle cx="420" cy="110" r="2"/>
+    <circle cx="455" cy="190" r="1.3"/><circle cx="60" cy="300" r="1.5"/><circle cx="445" cy="330" r="2.2"/>
+    <circle cx="390" cy="60" r="1.2"/><circle cx="150" cy="45" r="1.8"/><circle cx="95" cy="410" r="1.3"/>
+    <circle cx="420" cy="420" r="1.5"/><circle cx="350" cy="35" r="1.6"/>
+    <path d="M430 150 l4 10 l10 4 l-10 4 l-4 10 l-4 -10 l-10 -4 l10 -4z" fill="#c4b5fd"/>
+    <path d="M82 222 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3z" fill="#00d4ff"/>
+  </g>
+
+  <ellipse cx="256" cy="268" rx="232" ry="70" fill="none" stroke="url(#ring)" stroke-width="5" opacity=".45" transform="rotate(-18 256 268)"/>
+  <circle cx="474" cy="196" r="9" fill="#00d4ff"/>
+
+  <!-- inside the helmet: Leia, drawn from a photo -->
+  <circle cx="256" cy="262" r="154" fill="url(#inside)"/>
+  <g clip-path="url(#helmet)">
+    <circle cx="300" cy="170" r="1.6" fill="#e2e8f0"/><circle cx="180" cy="150" r="1.2" fill="#e2e8f0"/>
+    <g transform="translate(104.3 122.8) scale(0.74)">
+  <!-- Leia, vector, drawn over the photo in crop coordinates (390x460) -->
+  <g id="leia">
+    <!-- neck / chest -->
+    <path d="M140 296 C112 360 72 410 30 460 L332 460 C320 410 310 360 306 296 Z" fill="#f7f3ec"/>
+    <path d="M124 328 C152 344 172 380 170 420 C168 444 158 458 152 460 L30 460 C62 420 96 372 124 328 Z" fill="#d49a5c"/>
+    <path d="M150 312 C190 330 250 334 300 318 C300 330 290 340 270 344 C230 350 180 344 150 312 Z" fill="#e2d8ca"/>
+    <!-- ears (behind head) -->
+    <path d="M118 84 C78 98 48 150 42 210 C38 262 52 310 84 334 C104 348 128 342 140 326 C150 300 148 250 146 200 C144 150 140 110 118 84 Z" fill="#cf9455"/>
+    <path d="M300 72 C326 84 340 120 346 170 C352 220 350 262 338 292 C330 310 314 316 306 300 C298 270 300 220 298 170 C296 130 294 100 300 72 Z" fill="#c88a4c"/>
+    <path d="M120 96 C136 140 142 220 136 300 C130 320 118 334 104 338 C126 300 132 220 120 96 Z" fill="#b57a3e" opacity=".55"/>
+    <path d="M302 90 C312 140 314 230 306 296 C318 280 330 240 330 200 C330 150 318 112 302 90 Z" fill="#b57a3e" opacity=".5"/>
+    <!-- head -->
+    <path d="M200 38 C250 36 292 58 304 104 C314 140 316 180 318 214 C322 262 326 296 302 312 C276 330 240 334 206 330 C170 326 146 306 136 270 C126 230 124 180 130 136 C138 82 160 40 200 38 Z" fill="#f7f3ec"/>
+    <!-- lemon mask: left (dog's right) -->
+    <path d="M196 42 C164 46 136 68 128 110 C122 150 124 210 136 252 C148 236 160 222 178 216 C196 212 206 196 208 176 C210 150 208 120 206 96 C204 74 200 56 196 42 Z" fill="#d49a5c"/>
+    <!-- lemon mask: right -->
+    <path d="M226 44 C262 44 296 60 308 96 C316 120 318 150 316 178 C304 172 292 166 280 166 C262 168 248 160 242 144 C236 126 236 104 232 82 C230 66 228 54 226 44 Z" fill="#d49a5c"/>
+    <!-- freckles on the muzzle -->
+    <g fill="#e6c4a0" opacity=".8"><circle cx="208" cy="272" r="3"/><circle cx="196" cy="262" r="2.5"/><circle cx="218" cy="286" r="2.5"/><circle cx="300" cy="262" r="2.5"/></g>
+    <!-- eyes -->
+    <g>
+      <ellipse cx="162" cy="140" rx="17" ry="14" fill="#3a2215" transform="rotate(-8 162 140)"/>
+      <circle cx="157" cy="135" r="4.5" fill="#fff" opacity=".85"/>
+      <path d="M143 132 C152 122 172 122 181 134" fill="none" stroke="#8a5a34" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="279" cy="112" rx="15" ry="13" fill="#3a2215" transform="rotate(-12 279 112)"/>
+      <circle cx="274" cy="107" r="4" fill="#fff" opacity=".85"/>
+      <path d="M262 104 C270 95 288 95 295 106" fill="none" stroke="#8a5a34" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <!-- nose -->
+    <path d="M262 206 C290 206 306 220 304 240 C302 258 286 268 262 270 C238 268 222 258 220 240 C218 220 234 206 262 206 Z" fill="#9b5f55"/>
+    <ellipse cx="246" cy="246" rx="9" ry="6" fill="#4a241f" transform="rotate(20 246 246)"/>
+    <ellipse cx="280" cy="244" rx="9" ry="6" fill="#4a241f" transform="rotate(-20 280 244)"/>
+    <path d="M263 252 L262 270" stroke="#4a241f" stroke-width="3"/>
+    <ellipse cx="252" cy="218" rx="14" ry="5" fill="#fff" opacity=".35"/>
+    <!-- mouth -->
+    <path d="M262 270 C262 284 252 292 238 294 M262 270 C264 284 276 290 290 290" fill="none" stroke="#b8a596" stroke-width="3" stroke-linecap="round"/>
+  </g>
+    </g>
+  </g>
+
+  <!-- suit collar -->
+  <path d="M136 392 Q256 360 376 392 L384 444 Q256 470 128 444 Z" fill="url(#collar)"/>
+  <path d="M132 414 Q256 386 380 414 L382 426 Q256 398 130 426 Z" fill="#8b5cf6"/>
+  <circle cx="320" cy="438" r="11" fill="#00d4ff" stroke="#0a1222" stroke-width="3"/>
+
+  <!-- glass -->
+  <circle cx="256" cy="262" r="158" fill="url(#glass)" stroke="url(#ring)" stroke-width="8"/>
+  <path d="M150 190 A120 120 0 0 1 238 120" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".4"/>
+  <path d="M136 232 A124 124 0 0 1 142 210" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".3"/>
+
+  <circle cx="256" cy="256" r="246" fill="none" stroke="url(#ring)" stroke-width="6"/>
+</svg>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#f0f9ff"/>
+      <stop offset="0.4" stop-color="#7cc4fa"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="pageBack" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f6fe4"/>
+      <stop offset="1" stop-color="#172f7a"/>
+    </linearGradient>
+    <linearGradient id="orbitA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1e40af"/>
+      <stop offset="0.5" stop-color="#1fb4f2"/>
+      <stop offset="1" stop-color="#1e40af"/>
+    </linearGradient>
+    <linearGradient id="orbitB" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="200" cy="200" r="175" fill="url(#glow)"/>
+
+  <!-- orbit behind the bundle -->
+  <ellipse cx="200" cy="200" rx="182" ry="66" transform="rotate(32 200 200)" fill="none" stroke="url(#orbitB)" stroke-width="8"/>
+
+  <!-- the bundle: pages of markdown -->
+  <g transform="rotate(-9 200 200)">
+    <rect x="132" y="96" width="150" height="200" rx="16" fill="url(#pageBack)" opacity="0.55"/>
+    <rect x="120" y="108" width="150" height="200" rx="16" fill="url(#pageBack)" opacity="0.85"/>
+    <path d="M108 136 a16 16 0 0 1 16 -16 h88 l46 46 v138 a16 16 0 0 1 -16 16 h-118 a16 16 0 0 1 -16 -16 z" fill="url(#page)"/>
+    <path d="M212 120 v30 a16 16 0 0 0 16 16 h30 z" fill="#172f7a" opacity="0.6"/>
+    <g stroke="#0a2463" stroke-width="5" stroke-linecap="round"><line x1="138" y1="160" x2="134" y2="186"/><line x1="150" y1="160" x2="146" y2="186"/><line x1="130" y1="167" x2="154" y2="167"/><line x1="129" y1="179" x2="153" y2="179"/></g>
+    <rect x="160" y="164" width="58" height="12" rx="6" fill="#0a2463"/>
+    <rect x="130" y="206" width="104" height="10" rx="5" fill="#173b9b" opacity="0.7"/>
+    <rect x="130" y="228" width="86" height="10" rx="5" fill="#173b9b" opacity="0.7"/>
+    <rect x="130" y="250" width="96" height="10" rx="5" fill="#2dd4bf"/>
+    <rect x="130" y="272" width="68" height="10" rx="5" fill="#173b9b" opacity="0.7"/>
+  </g>
+
+  <!-- orbit in front of the bundle -->
+  <ellipse cx="200" cy="200" rx="184" ry="72" transform="rotate(-24 200 200)" fill="none" stroke="url(#orbitA)" stroke-width="8"/>
+
+  <!-- the navigation trail: index → concept → linked concept -->
+  <g stroke="#2dd4bf" stroke-width="5" stroke-linecap="round">
+    <line x1="44" y1="276" x2="96" y2="186"/>
+    <line x1="96" y1="186" x2="330" y2="78"/>
+  </g>
+  <circle cx="44" cy="276" r="15" fill="#2dd4bf"/>
+  <circle cx="96" cy="186" r="12" fill="#ffffff"/>
+  <circle cx="330" cy="78" r="16" fill="#2dd4bf"/>
+
+  <!-- other concepts on the orbits -->
+  <circle cx="368" cy="140" r="12" fill="#1fb4f2"/>
+  <circle cx="74" cy="70" r="13" fill="#ffffff"/>
+  <circle cx="330" cy="330" r="13" fill="#1fb4f2"/>
+  <circle cx="262" cy="282" r="11" fill="#ffffff"/>
+</svg>
