@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="topA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0f9ff"/><stop offset="1" stop-color="#7cc4fa"/>
+    </linearGradient>
+    <linearGradient id="topB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dbeafe"/><stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+    <linearGradient id="topC" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#bfdbfe"/><stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e3a8a"/><stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+    <linearGradient id="orbitA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1e40af"/><stop offset="0.5" stop-color="#1fb4f2"/><stop offset="1" stop-color="#1e40af"/>
+    </linearGradient>
+    <linearGradient id="orbitB" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.34"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="200" cy="200" r="178" fill="url(#glow)"/>
+  <!-- orbit behind the stack -->
+  <ellipse cx="200" cy="200" rx="184" ry="64" transform="rotate(28 200 200)" fill="none" stroke="url(#orbitB)" stroke-width="8"/>
+  <!-- the stack, built in order: spec (base), plan, tasks -->
+  <polygon points="64,204 200,272.0 200,306.0 64,238" fill="url(#left)"/>
+  <polygon points="200,272.0 336,204 336,238 200,306.0" fill="url(#right)"/>
+  <polygon points="200,136.0 336,204 200,272.0 64,204" fill="url(#topA)"/>
+  <polyline points="64,204 200,272.0 336,204" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round" opacity="0.85"/>
+  <polygon points="100,172 200,222.0 200,252.0 100,202" fill="url(#left)"/>
+  <polygon points="200,222.0 300,172 300,202 200,252.0" fill="url(#right)"/>
+  <polygon points="200,122.0 300,172 200,222.0 100,172" fill="url(#topB)"/>
+  <polyline points="100,172 200,222.0 300,172" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round" opacity="0.85"/>
+  <polygon points="134,144 200,177.0 200,205.0 134,172" fill="url(#left)"/>
+  <polygon points="200,177.0 266,144 266,172 200,205.0" fill="url(#right)"/>
+  <polygon points="200,111.0 266,144 200,177.0 134,144" fill="url(#topC)"/>
+  <polyline points="134,144 200,177.0 266,144" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linejoin="round" opacity="0.85"/>
+  <!-- verification: a check engraved on the top slab -->
+  <polyline points="177,142 194,152 226,131" fill="none" stroke="#0a2463" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- orbit in front of the stack -->
+  <ellipse cx="200" cy="200" rx="188" ry="70" transform="rotate(-20 200 200)" fill="none" stroke="url(#orbitA)" stroke-width="8"/>
+  <!-- traceability: one line through the corner of every step, REQ -> task -> evidence -->
+  <line x1="372" y1="232" x2="218" y2="98" stroke="#a78bfa" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="372" cy="232" r="13" fill="#a78bfa"/>
+  <circle cx="336" cy="204" r="7" fill="#ffffff"/>
+  <circle cx="300" cy="172" r="7" fill="#ffffff"/>
+  <circle cx="266" cy="144" r="7" fill="#ffffff"/>
+  <circle cx="218" cy="98" r="16" fill="#a78bfa"/>
+  <!-- other nodes on the orbits -->
+  <circle cx="58" cy="96" r="13" fill="#ffffff"/>
+  <circle cx="36" cy="262" r="14" fill="#1fb4f2"/>
+  <circle cx="318" cy="336" r="13" fill="#ffffff"/>
+</svg>
