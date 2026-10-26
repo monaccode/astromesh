@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="astromeshctl" width="640">
+</p>
+
 # astromeshctl
 
 <p align="center">

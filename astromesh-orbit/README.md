@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Astromesh Orbit" width="640">
+</p>
+
 # Astromesh Orbit
 
 <p align="center">

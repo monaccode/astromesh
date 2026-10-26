@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Astromesh Adk" width="640">
+</p>
+
 # Astromesh ADK
 
 <p align="center">

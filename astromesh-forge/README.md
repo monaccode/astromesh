@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Astromesh Forge" width="640">
+</p>
+
 # Astromesh Forge
 
 Visual agent builder for the Astromesh platform.

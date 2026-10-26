@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Astromesh Glyph" width="640">
+</p>
+
 # Glyph
 
 <p align="center">
