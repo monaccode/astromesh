@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `AgentRuntime.bootstrap()` carga `config/agents/*.agent.yaml` en orden alfabético. Antes seguía el
+  orden del sistema de archivos, así que el orden de `_agents` (y de `GET /v1/agents`) cambiaba
+  entre máquinas; en CI, un cambio del runner dejó primero a un agente con memoria Redis y cuatro
+  tests de Glyph que toman «el primer agente» fallaron sin que cambiara el código.
+
 ### Added (Astromesh Forge)
 
 - Forge 0.29.0 crea y edita tools `type: a2a`: el selector de tipo ofrece `a2a` a cualquier tool y el

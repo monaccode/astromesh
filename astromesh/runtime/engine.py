@@ -557,7 +557,9 @@ class AgentRuntime:
         agents_dir = self._config_dir / "agents"
         if not agents_dir.exists():
             return
-        configs = [yaml.safe_load(f.read_text()) for f in agents_dir.glob("*.agent.yaml")]
+        # Ordenado: glob() devuelve el orden del sistema de archivos, que cambia entre
+        # máquinas, y con él qué agente quedaba primero en _agents.
+        configs = [yaml.safe_load(f.read_text()) for f in sorted(agents_dir.glob("*.agent.yaml"))]
         self._detect_circular_refs(configs)
         for config in configs:
             name = config.get("metadata", {}).get("name", "<unknown>")
