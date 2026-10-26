@@ -39,3 +39,4 @@ social/
 | 2026-10-19 | [Mi RAG borraba lo que le enseñaba](2026/2026-10-19-mi-rag-borraba-lo-que-le-ensenaba/post.md) | LinkedIn | astromesh-rag | draft |
 | 2026-10-20 | [Otro agente no es tu usuario](2026/2026-10-20-otro-agente-no-es-tu-usuario/post.md) | LinkedIn | astromesh-a2a | draft |
 | 2026-10-22 | [¿Qué lee tu agente?](2026/2026-10-22-que-lee-tu-agente/post.md) | LinkedIn (video) | astromesh-context | [published](https://lnkd.in/p/d_yXCk4A) |
+| 2026-10-25 | [Si tu plataforma necesita un experto](2026/2026-10-25-tu-plataforma-necesita-un-experto/post.md) | LinkedIn | astromesh-leia | [published](https://lnkd.in/p/dZZXwuHq) |
