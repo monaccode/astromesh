@@ -1,0 +1,45 @@
+---
+import ProductShowcase from './ProductShowcase.astro';
+
+import { COMPONENTS } from '../data/ecosystem';
+const version = COMPONENTS.find((c) => c.id === 'context')!.version;
+
+// Real output of `astromesh-context explain` against tests/fixtures/policy.yaml in the
+// astromesh-context repo (the fixture counts tokens with the `chars` tokenizer).
+const lines = [
+  { t: 'astromesh-context explain --config policy.yaml \\', k: 'cmd' },
+  { t: '    --query "Can I get a refund after 3 weeks?"', k: 'cmd' },
+  { t: 'id                       final  tokens', k: 'comment' },
+  { t: 'static:5d57e41583af      1.000  24   in', k: 'str' },
+  { t: 'okf_index:/              1.000  18   in', k: 'str' },
+  { t: 'okf:policies/refunds     1.650  50   in', k: 'str' },
+  { t: 'okf:policies/refunds-v1  0.656  25   out  deprecated', k: 'key' },
+  { t: 'okf:policies/shipping    0.175  20   in', k: 'str' },
+];
+
+const features = [
+  { icon: `<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>`, label: 'One budget', desc: 'RAG, OKF, memory, history compete' },
+  { icon: `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: 'A trace per item', desc: 'in, or out with the reason' },
+  { icon: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 6.5h4M17.5 10v4"/>`, label: 'Cross-source dedupe', desc: 'Inherits OKF deprecation' },
+  { icon: `<path d="M4 6h16M4 12h10M4 18h6"/>`, label: 'Cache-friendly order', desc: 'Stable content first, byte for byte' },
+  { icon: `<path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/>`, label: '3 policies', desc: 'knapsack, fixed slots, everything' },
+  { icon: `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`, label: 'Published eval', desc: 'Level 1 run; level 2 pending' },
+];
+---
+
+<ProductShowcase
+  logo="/astromesh/logos/context-mark.svg"
+  name="Context"
+  version={version}
+  badge="LIBRARY"
+  tagline="What goes into the window, decided in one place"
+  description="Knowledge, memory and history fill one token budget, and every item comes back marked in or out with the reason. A concept OKF marks as deprecated stays out, and says why."
+  accent="#f472b6"
+  accentDeep="#db2777"
+  panelTitle="context · explain, test fixture"
+  lines={lines}
+  features={features}
+  terminal={['pip install astromesh-context']}
+  ctaPrimary={{ text: 'See the eval', href: '/astromesh/context/eval/' }}
+  ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/context/introduction/' }}
+/>
