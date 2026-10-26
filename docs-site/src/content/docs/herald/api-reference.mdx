@@ -39,6 +39,7 @@ bindings, accounts or conversation contents, which is why it is not the admin to
 | POST, GET | `/admin/bindings` | Admin | Admin token set |
 | PUT, DELETE | `/admin/bindings/:id` | Admin | Admin token set |
 | GET | `/admin/stats` | Admin | Admin token set |
+| GET | `/admin/stats/conversaciones` | Admin | Admin token set (0.13.0+) |
 | GET | `/admin/conversations` | Admin | Admin token set |
 | GET | `/admin/conversations/:id/messages` | Admin | Admin token set |
 | GET | `/admin/outbox` | Admin | Admin token set |
@@ -205,6 +206,7 @@ Listings take `limit` (default 50, maximum 200, larger values clamped) and `offs
 | Request | Returns |
 |---|---|
 | `GET /admin/stats?tenant=&days=` | `messages_per_day`, `messages_by_channel`, `active_conversations` (activity within the window), `outbox_by_status`. `days` defaults to 7, maximum 90 |
+| `GET /admin/stats/conversaciones?tenant=&desde=&hasta=&tz=` | Herald 0.13.0+. `{"filas": [{dia, hora, canal, nuevas}]}`: conversations **created** in the range, cut into local days and hours of `tz`. `desde` and `hasta` are `YYYY-MM-DD` local days, both inclusive. All four parameters are required; `tz` must be an IANA zone (`Local` and an empty value are a `400`). The range is capped at 62 days, and `hasta` before `desde` is a `400`. Zone data ships inside the binary, so this works on the alpine image |
 | `GET /admin/conversations?tenant=&channel=` | `{conversations, total, limit, offset}`, most recent activity first |
 | `GET /admin/conversations/:id/messages` | `{messages, limit, offset}`, oldest first |
 | `GET /admin/outbox?tenant=&status=&channel=` | `{entries, total, limit, offset}`, newest first |
