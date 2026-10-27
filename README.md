@@ -122,11 +122,11 @@ have much larger communities and integration catalogs, and that matters too.
 | Input and output guardrails | ✅ | ✅ | 🟡 | 🟡 | ✅ | 🟡 | ✅ |
 | Human approval before a write runs | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
 | MCP tools | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| A2A, as client and as server | ✅ | 💲 | ✅ | ✅ | — | 🟡 | 🟡 |
-| Semantic and episodic memory | ✅ | ✅ | ✅ | 🟡 | 🟡 | 🟡 | 🟡 |
+| A2A, as client and as server | ✅ | 💲 | ✅ | ✅ | — | 🟡 | — |
+| Semantic and episodic memory | ✅ | ✅ | ✅ | 🟡 | 🟡 | 💲 | 🟡 |
 | RAG ingestion and retrieval pipeline | ✅ | ✅ | ✅ | 🟡 | 💲 | 💲 | 🟡 |
 | Evals | ✅ | 💲 | 🟡 | ✅ | —¹ | ✅ | ✅ |
-| Tracing and metrics | ✅ | 💲 | 🟡 | ✅ | ✅ | ✅ | ✅ |
+| Tracing and metrics | ✅ | 💲 | 💲 | ✅ | ✅ | ✅ | ✅ |
 | Visual agent builder | ✅ | 💲 | 💲 | 💲 | —¹ | 🟡 | — |
 | Install as a service, appliance or cloud IaC | ✅ | 🟡 | 💲 | 💲 | — | 🟡 | — |
 | WhatsApp, Telegram, Instagram, Messenger to reach people | 🟡💲 | — | — | — | — | — | — |
@@ -154,7 +154,9 @@ For the other frameworks, each cell comes from that project's official documenta
 on 2026-10-26. The LangGraph column counts the open-source LangChain packages it is used with
 (guardrails middleware, loaders and retrievers). A "—" means the docs do not describe it, not that nobody has built it on top.
 Experimental features (config-file agents in MS Agent Framework and Google ADK, ADK's tool
-approval and A2A) are marked 🟡. Spotted something outdated? Open an issue.
+approval and A2A) are marked 🟡. PydanticAI's `to_a2a()` is deprecated and its docs point to a
+third-party server, so it counts as —; ADK's semantic memory and CrewAI's built-in tracing need
+the vendor's hosted service, so they count as 💲. Spotted something outdated? Open an issue.
 
 ---
 
