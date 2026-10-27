@@ -114,26 +114,32 @@ Most agent frameworks are libraries for writing the agent's logic. Astromesh cov
 the operations around it. This table compares scope only: LangGraph, CrewAI and the vendor SDKs
 have much larger communities and integration catalogs, and that matters too.
 
-| | Astromesh | LangGraph | CrewAI | MS Agent Framework | OpenAI Agents SDK | Google ADK | PydanticAI |
+| | Astromesh | LangGraph / LangChain | CrewAI | MS Agent Framework | OpenAI Agents SDK | Google ADK | PydanticAI |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Agent defined in a config file, no code | ✅ | 💲 | 🟡 | 🟡 | — | 🟡 | 🟡 |
-| Routing across providers by cost or latency, with fallback | ✅ | 🟡 | — | 🟡 | 🟡 | 🟡 | 🟡 |
-| Several multi-agent patterns built in | ✅ | 🟡 | ✅ | ✅ | 🟡 | ✅ | ✅ |
-| Input and output guardrails | ✅ | 🟡 | 🟡 | 🟡 | ✅ | 🟡 | ✅ |
+| Agent defined in a config file, no code | ✅ | 💲 | 🟡 | 🟡 | — | 🟡 | ✅ |
+| Routing across providers by cost or latency, with fallback | ✅ | 🟡 | — | 🟡 | — | 🟡 | 🟡 |
+| Several multi-agent patterns built in | ✅ | 🟡 | ✅ | ✅ | 🟡 | ✅ | 🟡 |
+| Input and output guardrails | ✅ | ✅ | 🟡 | 🟡 | ✅ | 🟡 | ✅ |
 | Human approval before a write runs | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
 | MCP tools | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | A2A, as client and as server | ✅ | 💲 | ✅ | ✅ | — | 🟡 | 🟡 |
 | Semantic and episodic memory | ✅ | ✅ | ✅ | 🟡 | 🟡 | 🟡 | 🟡 |
-| RAG ingestion and retrieval pipeline | ✅ | 🟡 | ✅ | 🟡 | 🟡 | 💲 | 🟡 |
-| Evals | ✅ | 💲 | 🟡 | ✅ | 💲 | ✅ | ✅ |
+| RAG ingestion and retrieval pipeline | ✅ | ✅ | ✅ | 🟡 | 💲 | 💲 | 🟡 |
+| Evals | ✅ | 💲 | 🟡 | ✅ | —¹ | ✅ | ✅ |
 | Tracing and metrics | ✅ | 💲 | 🟡 | ✅ | ✅ | ✅ | ✅ |
-| Visual agent builder | ✅ | 💲 | 💲 | 💲 | 💲 | 🟡 | — |
+| Visual agent builder | ✅ | 💲 | 💲 | 💲 | —¹ | 🟡 | — |
 | Install as a service, appliance or cloud IaC | ✅ | 🟡 | 💲 | 💲 | — | 🟡 | — |
 | WhatsApp, Telegram, Instagram, Messenger to reach people | 🟡💲 | — | — | — | — | — | — |
-| Multi-tenant hosting with metering and billing | 💲 | ? | — | — | — | — | — |
+| Multi-tenant hosting with metering and billing | 💲 | —² | — | — | — | — | — |
 
 ✅ in the open-source project · 🟡 partial or experimental · 💲 a separate product from the same
-vendor · — not included, you build or integrate it · ? not verified
+vendor · — not included, you build or integrate it
+
+¹ OpenAI deprecated its hosted Evals platform and Agent Builder on 2026-06-03; existing evals turn
+read-only on 2026-10-31 and both shut down on 2026-11-30
+([deprecations](https://developers.openai.com/api/docs/deprecations)).
+² LangSmith Deployment isolates users with custom auth, but its metering bills you, not your
+tenants.
 
 How to read the Astromesh column honestly: config-file agents, routing, patterns, guardrails,
 approvals, MCP, memory, RAG, evals and tracing are in this open-source runtime. A2A comes from
@@ -144,8 +150,9 @@ WhatsApp is built into the runtime; the other channels come with
 [Herald](https://monaccode.github.io/astromesh/herald/introduction/), and multi-tenant hosting with [Nexus](https://monaccode.github.io/astromesh/nexus/introduction/),
 which are separate products whose source is not public.
 
-For the other frameworks, each cell comes from that project's official documentation, checked in
-October 2026. A "—" means the docs do not describe it, not that nobody has built it on top.
+For the other frameworks, each cell comes from that project's official documentation, re-checked
+on 2026-10-26. The LangGraph column counts the open-source LangChain packages it is used with
+(guardrails middleware, loaders and retrievers). A "—" means the docs do not describe it, not that nobody has built it on top.
 Experimental features (config-file agents in MS Agent Framework and Google ADK, ADK's tool
 approval and A2A) are marked 🟡. Spotted something outdated? Open an issue.
 
