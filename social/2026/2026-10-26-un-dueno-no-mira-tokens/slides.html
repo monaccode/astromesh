@@ -1,0 +1,122 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--a:#34d399;--ad:#059669;--cy:#a7f3d0;--bg:#060d15;--bd:rgba(255,255,255,.08);--sf:rgba(255,255,255,.03);--g2:#cbd5e1;--g3:#94a3b8;--red:#f87171;--amb:#fbbf24}
+*{box-sizing:border-box;margin:0}
+body{background:#000;font-family:'DM Sans',sans-serif;color:#e2e8f0}
+.s{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--bg);padding:90px 84px;display:flex;flex-direction:column;margin-bottom:20px}
+.s::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(52,211,153,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(52,211,153,.05) 1px,transparent 1px);background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 35%,#000 30%,transparent 100%)}
+.s::after{content:"";position:absolute;width:900px;height:900px;right:-300px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(5,150,105,.15),transparent 70%)}
+.s>*{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top img{height:170px;margin:-40px 0 -40px -50px;filter:drop-shadow(0 0 14px rgba(0,212,255,.3))}
+.badge{font:700 20px 'JetBrains Mono';letter-spacing:.12em;color:#022c22;background:linear-gradient(135deg,var(--cy),var(--a));padding:8px 16px;border-radius:6px;box-shadow:0 0 24px rgba(52,211,153,.35)}
+.kick{font:500 24px 'JetBrains Mono';letter-spacing:.06em;color:var(--a)}
+h1{font-size:104px;line-height:1.03;font-weight:300;color:var(--g2);letter-spacing:-.02em}
+h1 b,h2 b{font-weight:800;background:linear-gradient(135deg,var(--cy),var(--a) 45%,var(--ad));-webkit-background-clip:text;color:transparent}
+h2{font-size:68px;line-height:1.08;font-weight:300;color:var(--g2);letter-spacing:-.01em}
+p.lead{font-size:34px;line-height:1.5;color:var(--g3);font-weight:300}
+p.lead b{color:#f1f5f9;font-weight:700}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font:500 22px 'JetBrains Mono';color:var(--g3);opacity:.8}
+.ilus{font:500 18px 'JetBrains Mono';letter-spacing:.1em;color:var(--g3);opacity:.75}
+.chips{display:flex;gap:12px;flex-wrap:wrap}
+.chip{font:500 24px 'JetBrains Mono';padding:10px 16px;border-radius:8px;border:1px solid rgba(52,211,153,.4);color:#d1fae5;background:rgba(52,211,153,.08)}
+.dog{filter:drop-shadow(0 0 40px rgba(52,211,153,.4))}
+.term{border:1px solid var(--bd);background:#0a1420;border-radius:14px;padding:22px 28px;font:500 25px/1.6 'JetBrains Mono';color:var(--g2)}
+.term .h{font:700 19px 'JetBrains Mono';letter-spacing:.1em;margin-bottom:6px;color:var(--a)}
+.term .c{color:var(--a);font-weight:700}.term .m{color:var(--g3)}.term .k{color:#d1fae5}
+.term div{white-space:pre}
+/* bars */
+.bars{margin-top:30px;border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:26px 30px}
+.bars .h{font:700 19px 'JetBrains Mono';letter-spacing:.1em;color:var(--g3);margin-bottom:18px;display:flex;justify-content:space-between}
+.chart{display:flex;align-items:flex-end;gap:10px;height:230px}
+.col{flex:1;display:flex;flex-direction:column-reverse;border-radius:6px 6px 0 0;overflow:hidden}
+.col i{display:block}
+.wa{background:var(--a)}.ig{background:#f472b6}.ms{background:#60a5fa}
+.hrs{display:flex;gap:10px;margin-top:10px;font:500 18px 'JetBrains Mono';color:var(--g3)}
+.hrs span{flex:1;text-align:center}
+.leg{display:flex;gap:26px;margin-top:16px;font:500 21px 'JetBrains Mono';color:var(--g2)}
+.leg b{display:inline-block;width:16px;height:16px;border-radius:4px;margin-right:8px;vertical-align:-1px}
+.night{background:rgba(251,191,36,.08);border-radius:8px}
+/* cards */
+.lec{margin-top:36px;display:flex;flex-direction:column;gap:16px}
+.l{display:grid;grid-template-columns:150px 1fr;gap:22px;align-items:center;border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:22px 28px}
+.l .t{font:700 22px 'JetBrains Mono';text-align:center;border-radius:8px;padding:10px 6px}
+.l .t.ok{color:var(--a);border:1px solid rgba(52,211,153,.45);background:rgba(52,211,153,.08)}
+.l .t.bad{color:var(--red);border:1px solid rgba(248,113,113,.45);background:rgba(248,113,113,.07)}
+.l .d{font-size:28px;color:var(--g2);line-height:1.4}
+.l .d b{color:#f1f5f9}
+.l code{font:500 24px 'JetBrains Mono';color:#d1fae5}
+.cta{display:flex;justify-content:space-between;align-items:center;border-radius:14px;padding:26px 30px;background:linear-gradient(135deg,rgba(52,211,153,.18),rgba(5,150,105,.05));border:2px solid var(--a)}
+.cta span{font-size:30px;color:var(--g2)}
+.cta b{font:700 25px 'JetBrains Mono';color:var(--cy)}
+</style></head><body>
+
+<!-- 1 portada -->
+<section class="s" id="s1">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">HERALD · v0.13.0</span></div>
+  <div style="margin-top:160px"><div class="kick">El dashboard del dueño</div></div>
+  <h1 style="margin-top:28px">Un dueño<br>no mira<br><b>tokens.</b></h1>
+  <p class="lead" style="margin-top:44px;max-width:640px">Mira cuánta gente le escribió, <b>por dónde y a qué hora.</b></p>
+  <div class="chips" style="margin-top:40px;max-width:620px"><span class="chip">WhatsApp</span><span class="chip">Instagram</span><span class="chip">Messenger</span><span class="chip">Telegram</span><span class="chip">web chat</span></div>
+  <img class="dog" src="images/herald.svg" style="position:absolute;right:60px;bottom:120px;width:330px">
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>desliza →</span></div>
+</section>
+
+<!-- 2 la pregunta -->
+<section class="s" id="s2">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Una pregunta bien hecha</span></div>
+  <h2 style="margin-top:44px">Conversaciones nuevas,<br><b>por día, hora y canal.</b></h2>
+  <div class="term" style="margin-top:34px">
+<div class="h">GET /admin/stats/conversaciones</div>
+<div><span class="m">?tenant=</span><span class="k">cafe</span><span class="m">&amp;desde=</span><span class="k">2026-10-01</span><span class="m">&amp;hasta=</span><span class="k">2026-10-25</span></div>
+<div><span class="m">&amp;tz=</span><span class="c">America/Argentina/Buenos_Aires</span></div>
+<div> </div>
+<div><span class="m">{"filas": [{</span><span class="k">"dia"</span><span class="m">: "2026-10-25", </span><span class="k">"hora"</span><span class="m">: 23,</span></div>
+<div><span class="m">            </span><span class="k">"canal"</span><span class="m">: "whatsapp", </span><span class="k">"nuevas"</span><span class="m">: 4}, …]}</span></div>
+  </div>
+  <div class="bars">
+    <div class="h"><span>UN DÍA, POR HORA LOCAL</span><span>fuera de horario →</span></div>
+    <div class="chart">
+      <div class="col" style="height:22%"><i class="wa" style="height:70%"></i><i class="ig" style="height:30%"></i></div>
+      <div class="col" style="height:48%"><i class="wa" style="height:60%"></i><i class="ig" style="height:25%"></i><i class="ms" style="height:15%"></i></div>
+      <div class="col" style="height:70%"><i class="wa" style="height:55%"></i><i class="ig" style="height:30%"></i><i class="ms" style="height:15%"></i></div>
+      <div class="col" style="height:56%"><i class="wa" style="height:65%"></i><i class="ig" style="height:20%"></i><i class="ms" style="height:15%"></i></div>
+      <div class="col" style="height:40%"><i class="wa" style="height:60%"></i><i class="ig" style="height:40%"></i></div>
+      <div class="col" style="height:62%"><i class="wa" style="height:50%"></i><i class="ig" style="height:35%"></i><i class="ms" style="height:15%"></i></div>
+      <div class="col night" style="height:88%"><i class="wa" style="height:60%"></i><i class="ig" style="height:30%"></i><i class="ms" style="height:10%"></i></div>
+      <div class="col night" style="height:52%"><i class="wa" style="height:75%"></i><i class="ig" style="height:25%"></i></div>
+    </div>
+    <div class="hrs"><span>9</span><span>11</span><span>13</span><span>15</span><span>17</span><span>19</span><span>21</span><span>23</span></div>
+    <div class="leg"><span><b class="wa"></b>WhatsApp</span><span><b class="ig"></b>Instagram</span><span><b class="ms"></b>Messenger</span></div>
+  </div>
+  <div class="foot"><span class="ilus">DATOS ILUSTRATIVOS</span><span>2/4</span></div>
+</section>
+
+<!-- 3 lo que hay detrás -->
+<section class="s" id="s3">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="kick">Lo que hay detrás</span></div>
+  <h2 style="margin-top:44px">La hora del negocio,<br><b>no la del servidor.</b></h2>
+  <div class="lec">
+    <div class="l"><span class="t ok">CUÁNDO</span><div class="d">Se cuenta <b>cuando la conversación empieza</b>. Una que dura tres días cuenta una vez, no tres.</div></div>
+    <div class="l"><span class="t ok">DÓNDE</span><div class="d">Días y horas <b>en la zona del tenant</b>. Las 23 h en Buenos Aires no caen a las 2 h del día siguiente.</div></div>
+    <div class="l"><span class="t ok">CUÁNTO</span><div class="d">Hasta <b>62 días</b> por consulta: alcanza para comparar dos meses sin barrer la base entera.</div></div>
+    <div class="l"><span class="t bad">CASI</span><div class="d">La imagen no traía zonas horarias: la ruta iba a rechazar <b>toda zona real con 400</b>. Lo vi antes del release y ahora viajan dentro del binario.</div></div>
+  </div>
+  <div class="foot"><span>Herald · gateway de canales</span><span>3/4</span></div>
+</section>
+
+<!-- 4 cierre -->
+<section class="s" id="s4">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="badge">HERALD</span></div>
+  <h2 style="margin-top:46px">Un agente que atiende bien<br>no alcanza.<br><b>El dueño tiene que verlo.</b></h2>
+  <div class="lec" style="margin-top:40px">
+    <div class="l"><span class="t ok">HERALD</span><div class="d">Devuelve <b>filas simples</b>: día, hora, canal, nuevas.</div></div>
+    <div class="l"><span class="t ok">DASHBOARD</span><div class="d">Calcula lo demás: el <b>canal más usado</b> y cuánto llega <b>fuera de horario</b>.</div></div>
+  </div>
+  <p class="lead" style="margin-top:34px;font-size:30px">Cada capa hace una cosa. <b>Así cada una se puede probar.</b></p>
+  <div class="cta" style="margin-top:36px"><span>docs</span><b>monaccode.github.io/astromesh/herald</b></div>
+  <div style="display:flex;align-items:center;gap:26px;margin-top:34px"><img class="dog" src="images/herald.svg" style="width:140px"><p class="lead" style="font-size:27px">Herald conecta los canales<br><b>con los agentes detrás de Nexus.</b></p></div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><span>4/4</span></div>
+</section>
+</body></html>
