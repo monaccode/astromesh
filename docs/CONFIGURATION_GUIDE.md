@@ -101,6 +101,8 @@ spec:
       model: "gpt-4o-mini"
       endpoint: "https://api.openai.com/v1"
       api_key_env: OPENAI_API_KEY  # Environment variable name (not the key itself)
+      # headers:                   # Optional: extra headers on every request (openai_compat)
+      #   X-Gateway-Key: "${GATEWAY_KEY}"   # ${VAR} is read from the environment
 
     routing:
       strategy: cost_optimized  # cost_optimized | latency_optimized | quality_first | round_robin | capability_match

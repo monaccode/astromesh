@@ -353,7 +353,9 @@ _SHORTHAND_KEYS = ("temperature", "max_tokens")
 _PARAMETER_KEYS = frozenset({"parameters", "timeout", *_SHORTHAND_KEYS})
 _CONSUMED_KEYS: dict[str, frozenset[str]] = {
     "ollama": _SELECTOR_KEYS | _PARAMETER_KEYS | {"endpoint"},
-    "openai_compat": _SELECTOR_KEYS | _PARAMETER_KEYS | {"endpoint", "api_key", "api_key_env"},
+    "openai_compat": _SELECTOR_KEYS
+    | _PARAMETER_KEYS
+    | {"endpoint", "api_key", "api_key_env", "headers"},
     "litellm": _SELECTOR_KEYS | _PARAMETER_KEYS | {"api_key", "api_key_env"},
     "centinela": _SELECTOR_KEYS
     | {
@@ -467,6 +469,7 @@ def build_candidate_provider(block: dict):
                 "model": model or "gpt-4o-mini",
                 "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
                 "api_key": block.get("api_key"),
+                "headers": block.get("headers"),
                 "parameters": _model_parameters(block),
                 "timeout": float(block.get("timeout", 120)),
             }

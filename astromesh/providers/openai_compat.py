@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from collections.abc import AsyncIterator
 from typing import Any
@@ -146,6 +147,50 @@ async def _fallar_si_es_error(resp: httpx.Response, model: str, base_url: str) -
     )
 
 
+_ENV_REF = re.compile(r"\$\{(\w+)\}")
+
+
+def _resolve_headers(raw: Any) -> dict[str, str]:
+    """Valida y expande los `headers` extra del provider (p. ej. la llave de un gateway).
+
+    Cada valor acepta `${VAR}`, con la misma sintaxis que `config/channels.yaml`.
+    `Authorization` no se puede sobrescribir: lo arma el provider con la API key,
+    y comparar sin distinguir mayúsculas evita que `authorization` lo pise.
+
+    Los VALORES son credenciales: ningún mensaje de error los incluye, sólo los
+    nombres de header y de variable.
+    """
+    if not raw:
+        return {}
+    if not isinstance(raw, dict):
+        raise ModelProviderError(
+            "'headers' in the provider config must be a mapping of header name to value.",
+            code="model_provider_invalid_headers",
+        )
+    resolved: dict[str, str] = {}
+    for name, value in raw.items():
+        if not isinstance(name, str) or not name.strip() or not isinstance(value, str):
+            raise ModelProviderError(
+                f"Invalid provider header {name!r}: names and values must be strings.",
+                code="model_provider_invalid_headers",
+            )
+        if name.strip().lower() == "authorization":
+            raise ModelProviderError(
+                "The 'Authorization' header cannot be set through 'headers'.",
+                hint="Use 'api_key' or 'api_key_env'; the provider builds Authorization itself.",
+                code="model_provider_invalid_headers",
+            )
+        expanded = _ENV_REF.sub(lambda m: os.environ.get(m.group(1), ""), value)
+        if not expanded:
+            raise ModelProviderError(
+                f"Provider header {name!r} resolved to an empty value.",
+                hint="Check that every ${VAR} it references is set in the environment.",
+                code="model_provider_invalid_headers",
+            )
+        resolved[name] = expanded
+    return resolved
+
+
 def _normalize_tool_calls(raw: list[dict] | None) -> list[dict]:
     """Normalize OpenAI nested tool-calls to astromesh's flat canonical shape.
 
@@ -189,6 +234,9 @@ class OpenAICompatProvider:
             api_key = os.environ.get(env_var, "")
         self.api_key: str = api_key
         self.api_key_env: str = env_var
+        # Extra headers sent on every request. Values may be credentials: they are
+        # kept private and never logged, traced or echoed in errors.
+        self._extra_headers: dict[str, str] = _resolve_headers(config.get("headers"))
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -205,7 +253,7 @@ class OpenAICompatProvider:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=self.timeout,
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers={**self._extra_headers, "Authorization": f"Bearer {self.api_key}"},
             )
         return self._client
 
