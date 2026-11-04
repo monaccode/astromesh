@@ -11,7 +11,8 @@ No agent runs. This is for a service that owns the conversation itself: a kiosk 
 scoring photos, a legacy bot, an integration that only needs the messages.
 
 A binding either runs an agent or forwards. It never does both, so a person is never
-answered twice.
+answered twice. A binding that runs an agent can still send a **copy of its attachments**
+elsewhere: see [Media alongside an agent](#media-alongside-an-agent).
 
 ## Configure a forwarding binding
 
@@ -89,6 +90,30 @@ provider's webhook:
 
 An unavailable attachment still appears in `media`, so you can tell "no photo was sent" from
 "a photo was sent and Herald could not fetch it".
+
+## Media alongside an agent
+
+Herald 0.14.0+. Some consumers only need the photos, while an agent keeps the conversation:
+an auditor that scores a kiosk's shelf picture, a service that archives receipts. A binding
+**without** `callback_url` can set a second destination for that:
+
+```sh
+curl -X PUT localhost:8081/admin/bindings/<binding id>   -H "X-Admin-Token: $HERALD_ADMIN_TOKEN" -H "Content-Type: application/json"   -d '{"config":{"media_callback_url":"https://consumer.example.com/herald/media",
+                 "media_callback_secret":"<random secret>"}}'
+```
+
+- Nexus still receives every message and the agent still answers. The binding does not
+  become a forwarding binding.
+- Only inbound messages **with attachments** (a Telegram photo, a WhatsApp image) are copied.
+  A text-only message goes to the agent alone.
+- The request is the one described above: same payload, signed with
+  `X-Herald-Signature-256` keyed by `media_callback_secret`, the same media handling and the
+  same delivery guarantees. It is queued with source `media_forward`.
+- `media_callback_url` is checked with the same rules as `callback_url`, and
+  `media_callback_secret` is masked in responses like the other secrets.
+- If the copy cannot be queued, Herald logs it and the message still goes to Nexus.
+- URL and secret are read from the binding when the row is dispatched. An empty
+  `media_callback_secret` at that point fails the row permanently.
 
 ## Delivery guarantees
 

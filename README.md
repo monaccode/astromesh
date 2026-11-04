@@ -334,7 +334,7 @@ vector stores, channels, MCP). The full reference is in
 | | OKF | Agents navigate an Open Knowledge Format bundle, with trust and freshness signals | [repo](https://github.com/monaccode/astromesh-okf) |
 | | RAG | Retrieval from swappable parts: naive, hybrid, multi-query or HyDE, with a trace per query | [repo](https://github.com/monaccode/astromesh-rag) |
 | | Context | Decides what goes into the window within one token budget, and measures the choice | [repo](https://github.com/monaccode/astromesh-context) |
-| **Reach** | Herald | Messages from people reach an agent, and agents reach people back through one outbox | [docs](https://monaccode.github.io/astromesh/herald/introduction/) |
+| **Reach** | Herald | Messages from people reach an agent, and agents reach people back through one outbox; photos can also go to a service of yours | [docs](https://monaccode.github.io/astromesh/herald/introduction/) |
 | | A2A | Call, and be called by, agents on any framework over A2A 1.0, without trusting them | [repo](https://github.com/monaccode/astromesh-a2a) |
 | **Ship** | Node | The runtime as a native service on Linux, macOS and Windows | [`astromesh-node/`](astromesh-node/) |
 | | OS | Immutable, API-only Linux appliance with A/B slots | [repo](https://github.com/monaccode/astromesh-os) |

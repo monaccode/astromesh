@@ -105,7 +105,9 @@ Step by step:
    ends the work with no error.
 6. **Find the binding.** A binding is the routing rule for one account. If its config has a
    `callback_url`, the message is queued for the external webhook and Nexus is never called
-   (see [Webhook Forwarding](/astromesh/herald/forwarding/)).
+   (see [Webhook Forwarding](/astromesh/herald/forwarding/)). Without it, a message with
+   attachments is also queued for `media_callback_url` when the binding has one (0.14.0+),
+   and then continues to Nexus.
 7. **Route.** If a conversation exists for `(tenant, channel, user)`, its agent and its
    `session_id` are used. Otherwise the binding's entry agent runs with
    `session_id = <channel>__<user>`.
