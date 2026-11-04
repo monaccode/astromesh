@@ -774,6 +774,11 @@
           "type": "string",
           "description": "Name of the environment variable holding the API key."
         },
+        "headers": {
+          "type": "object",
+          "description": "Extra HTTP headers sent on every request (openai_compat). Values accept ${VAR} from the environment. 'Authorization' cannot be set here.",
+          "additionalProperties": {"type": "string"}
+        },
         "contract": {
           "type": "object",
           "description": "Label contract for the 'centinela' source."
