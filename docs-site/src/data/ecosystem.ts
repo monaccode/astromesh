@@ -110,11 +110,11 @@ export const CORE: Component = {
   name: 'Core Runtime',
   short: 'Core',
   group: 'runtime',
-  version: '0.74.1',
-  released: '2026-10-20',
+  version: '0.75.0',
+  released: '2026-11-04',
   tagline:
     'Loads agents from YAML, routes each role to a model, runs the orchestration pattern, and keeps memory, tools and guardrails around it.',
-    latest: 'Tools `type: a2a` call a remote A2A agent through `astromesh-a2a` (extra `astromesh[a2a]`): only the `card_url` host is reachable, the remote’s output reaches the model wrapped as untrusted, an `input_required` stays pending per session, and the tool always runs as an agent turn. Since 0.73, `origen` (`humano`|`agente`) on run and WebSocket — an agent turn never confirms a `confirm`-gated tool — and `spec.skills` for Agent Cards. 0.74.1 uses the public helpers of `astromesh-a2a` 0.1.1, with no change in behaviour.',
+    latest: 'The OpenAI-compatible provider sends extra `headers` on every request (a gateway key, a tenant id), from `providers.yaml` or the agent’s `model` block; `${VAR}` values fail loudly when unset, `Authorization` and transport headers are reserved, and values never reach logs. Agents now load in alphabetical order on every machine. Since 0.74, tools `type: a2a` call a remote A2A agent through `astromesh-a2a` (extra `astromesh[a2a]`): only the `card_url` host is reachable, the remote’s output reaches the model wrapped as untrusted, an `input_required` stays pending per session, and the tool always runs as an agent turn. Since 0.73, `origen` (`humano`|`agente`) on run and WebSocket — an agent turn never confirms a `confirm`-gated tool — and `spec.skills` for Agent Cards. 0.74.1 uses the public helpers of `astromesh-a2a` 0.1.1, with no change in behaviour.',
   install: 'pip install astromesh',
   href: '/astromesh/getting-started/what-is-astromesh/',
 };

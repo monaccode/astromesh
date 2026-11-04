@@ -143,6 +143,28 @@ openai:
 
 The `api_key_env` field is the name of the environment variable — not the key itself. The runtime reads the key from `os.environ["OPENAI_API_KEY"]` at startup. For Azure OpenAI, point the endpoint to your Azure deployment URL.
 
+#### Extra headers
+
+Since 0.75.0. Some deployments want one more header on every request: a gateway key, a tenant
+id. Add `headers` to the entry, or to an agent's `model` block:
+
+```yaml
+openai:
+  type: openai_compat
+  endpoint: "https://gateway.example.com/v1"
+  api_key_env: OPENAI_API_KEY
+  headers:
+    X-Gateway-Key: "${GATEWAY_KEY}"
+```
+
+- Values accept `${VAR}` from the environment, more strictly than elsewhere in the config: an
+  unset variable, even inside `"Bearer ${TOKEN}"`, fails building the provider and the engine
+  skips that candidate instead of sending an empty header.
+- `Authorization`, `Content-Type`, `Content-Length` and `Host` are reserved, in any
+  capitalization. Two names that differ only in case are rejected.
+- An agent's `headers` **replaces** the entry's map. The two are not merged header by header.
+- Values are credentials: they never appear in logs, traces or error messages.
+
 ### Moonshot / Kimi
 
 Moonshot's Kimi models (`kimi-k2.6`, `kimi-k2.7-code`, `kimi-k2.7-code-highspeed`, `kimi-k3`) are served through the same `openai_compat` provider type — the Moonshot API implements the OpenAI chat-completions interface. No dedicated provider type is needed; you only change the endpoint, API key, and model names.
