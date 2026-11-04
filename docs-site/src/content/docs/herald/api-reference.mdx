@@ -186,6 +186,7 @@ A binding is the routing rule for one account. Each account has at most one.
 | `fallback_message` | Sent when a run fails. Empty sends nothing |
 | `config.nexus_api_key` | The tenant's Nexus key used for every run and for validation |
 | `config.callback_url`, `config.callback_secret` | Forward instead of running an agent. See [Webhook Forwarding](/astromesh/herald/forwarding/) |
+| `config.media_callback_url`, `config.media_callback_secret` | 0.14.0+. With an agent (no `callback_url`): also send messages with attachments to this URL, signed. See [Media alongside an agent](/astromesh/herald/forwarding/#media-alongside-an-agent) |
 | `config.pedir_contacto` | Telegram: offer the contact-sharing button. See [Telegram](/astromesh/herald/telegram/#identity) |
 
 | Request | Behaviour |

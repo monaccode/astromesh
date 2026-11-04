@@ -39,7 +39,7 @@ from `main` (the `mvp` tag) with an immutable `:X.Y.Z` image per version.
 | **Never silence** | A failed agent run sends the binding's fallback message. A photo, an audio or a shared contact without text still reaches the agent as a short description. |
 | **Proactive sends** | Text, one media attachment by URL, or a WhatsApp template, queued per tenant or on behalf of any tenant. Agents use it through the `send_message` tool. |
 | **Channel identity** | On Telegram a person can share their own phone number with one tap; Herald stores it as a verified identity and passes it to the agent. |
-| **Webhook forwarding** | A binding can skip Nexus and POST every inbound message, media included, to an external HTTPS endpoint signed with HMAC-SHA256. |
+| **Webhook forwarding** | A binding can skip Nexus and POST every inbound message, media included, to an external HTTPS endpoint signed with HMAC-SHA256. Since 0.14.0, a binding that runs an agent can also send a copy of every message with attachments to a second endpoint. |
 | **Emulators** | WhatsApp, Instagram and Messenger lines can be emulated, so a whole product flow runs end to end without a Meta account. |
 | **Operator console** | A React console embedded in the binary: overview, conversations, outbox, routing rules and channel accounts. |
 

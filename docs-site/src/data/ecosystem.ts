@@ -248,12 +248,12 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Herald',
     short: 'Herald',
     group: 'reach',
-    version: '0.13.0',
-    released: '2026-10-25',
+    version: '0.14.0',
+    released: '2026-11-03',
     tagline:
       'Communications gateway. WhatsApp, Telegram, Instagram, Messenger and web chat messages reach an agent behind Nexus; agents reach people back through one outbox.',
     latest:
-      'New conversations per day, hour and channel for an owner’s dashboard (`GET /admin/stats/conversaciones`, in the tenant’s time zone, up to 62 days), with zone data embedded in the binary. Since 0.12, Messenger is the fourth Meta channel.',
+      'A binding that runs an agent can also send every message with attachments to `media_callback_url`, signed with its own secret, through the same outbox: the agent keeps the conversation and another service gets the photos. Since 0.13, new conversations per day, hour and channel for an owner’s dashboard (`GET /admin/stats/conversaciones`).',
     install: 'docker compose -f deploy/docker-compose.yaml up',
     href: '/astromesh/herald/introduction/',
     repo: 'https://github.com/monaccode/astromesh-herald',
