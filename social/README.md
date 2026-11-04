@@ -41,3 +41,5 @@ social/
 | 2026-10-22 | [¿Qué lee tu agente?](2026/2026-10-22-que-lee-tu-agente/post.md) | LinkedIn (video) | astromesh-context | [published](https://lnkd.in/p/d_yXCk4A) |
 | 2026-10-25 | [Si tu plataforma necesita un experto](2026/2026-10-25-tu-plataforma-necesita-un-experto/post.md) | LinkedIn | astromesh-leia | [published](https://lnkd.in/p/dZZXwuHq) |
 | 2026-10-26 | [Un dueño no mira tokens](2026/2026-10-26-un-dueno-no-mira-tokens/post.md) | LinkedIn | Herald | draft |
+| 2026-11-04 | [No construí un agente](2026/2026-11-04-no-construi-un-agente/post.md) | LinkedIn (infografía) | Ecosistema | [published](https://lnkd.in/p/dngvWFdn) |
+| 2026-11-04 | [El viaje de un "hola"](2026/2026-11-04-el-viaje-de-un-hola/post.md) | LinkedIn (para 2026-11-05) | Herald + Nexus + Core | draft |

@@ -1,0 +1,129 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Plantilla INFOGRAFÍA (2026-11-04): una lámina densa, acento por grupo del ecosistema
+     (docs-site/src/data/ecosystem.ts GROUPS). Base para mapas, stacks y cifras. -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#060d15;--bd:rgba(255,255,255,.08);--sf:rgba(255,255,255,.03);--g1:#f1f5f9;--g2:#cbd5e1;--g3:#94a3b8;--cy:#00d4ff;
+--author:#8b5cf6;--runtime:#f472b6;--reach:#10b981;--ship:#fb923c;--operate:#f59e0b;--models:#e879f9}
+*{box-sizing:border-box;margin:0}
+body{background:#000;font-family:'DM Sans',sans-serif;color:#e2e8f0}
+.s{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--bg);padding:56px 60px 48px;display:flex;flex-direction:column;margin-bottom:20px}
+.s::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(0,212,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.045) 1px,transparent 1px);background-size:36px 36px;-webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 40%,#000 35%,transparent 100%)}
+.s::after{content:"";position:absolute;width:1000px;height:1000px;left:-420px;top:-480px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.13),transparent 70%)}
+.s>*{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top img{height:120px;margin:-32px 0 -32px -38px;filter:drop-shadow(0 0 14px rgba(0,212,255,.3))}
+.lbl{font:700 17px 'JetBrains Mono';letter-spacing:.16em;color:var(--g3)}
+.lbl i{font-style:normal;color:var(--cy)}
+.hero{display:grid;grid-template-columns:1fr 220px;gap:20px;align-items:center;margin-top:22px}
+h1{font-size:56px;line-height:1.04;font-weight:300;color:var(--g2);letter-spacing:-.02em}
+h1 b{font-weight:800;background:linear-gradient(120deg,var(--author),var(--runtime) 40%,var(--ship) 75%,var(--operate));-webkit-background-clip:text;color:transparent}
+.sub{font-size:25px;line-height:1.4;color:var(--g3);font-weight:300;margin-top:16px}
+.sub b{color:var(--g1);font-weight:700}
+/* grilla de capas */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:30px}
+.colg{display:flex;flex-direction:column;gap:16px}
+.card{border:1px solid var(--bd);background:var(--sf);border-radius:14px;padding:16px 20px 12px;border-top:3px solid var(--c)}
+.card .h{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+.card .n{font:800 15px 'JetBrains Mono';color:var(--c);letter-spacing:.06em}
+.card .t{font:700 19px 'JetBrains Mono';letter-spacing:.14em;color:var(--g1)}
+.card .w{margin-left:auto;font:500 15px 'JetBrains Mono';color:var(--g3)}
+.r{display:grid;grid-template-columns:80px 1fr 62px;gap:10px;align-items:baseline;padding:10px 0;border-top:1px dashed rgba(255,255,255,.07)}
+.r:first-of-type{border-top:0}
+.r .k{font:700 18px 'DM Sans';color:var(--g1)}
+.r .d{font-size:17px;color:var(--g2);line-height:1.3;white-space:nowrap}
+.r .v{font:500 15px 'JetBrains Mono';color:var(--c);text-align:right}
+.r .v.dev{color:var(--g3)}
+.r.core{background:linear-gradient(90deg,rgba(244,114,182,.13),transparent);border-radius:8px;padding:8px 10px;margin:2px -10px;border-top:0}
+/* cifras */
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin-top:auto;border:1px solid var(--bd);border-radius:14px;background:rgba(0,212,255,.035)}
+.st{padding:16px 10px 14px;text-align:center;border-left:1px solid var(--bd)}
+.st:first-child{border-left:0}
+.st b{display:block;font:800 40px 'DM Sans';color:var(--g1);letter-spacing:-.02em}
+.st span{font:500 14px 'JetBrains Mono';color:var(--g3);letter-spacing:.06em;line-height:1.3;display:block;margin-top:2px}
+.foot{display:flex;justify-content:space-between;font:500 18px 'JetBrains Mono';color:var(--g3);opacity:.85;margin-top:16px}
+.foot i{font-style:normal;opacity:.75;font-size:15px}
+</style></head><body>
+
+<section class="s" id="s1">
+  <div class="top"><img src="../../_shared/astromesh-logo.png"><span class="lbl">ECOSISTEMA <i>ASTROMESH</i> · NOV 2026</span></div>
+
+  <div class="hero">
+    <div>
+      <h1>No construí un agente.<br>Construí <b>todo<br>lo que lo rodea.</b></h1>
+      <p class="sub">Del YAML a la factura: <b>19 componentes en 6 capas</b>, cada uno con su propio release.</p>
+    </div>
+    <svg id="orb" viewBox="0 0 220 220" width="220" height="220"></svg>
+  </div>
+
+  <div class="grid">
+    <div class="colg">
+      <div class="card" style="--c:var(--author)">
+        <div class="h"><span class="n">01</span><span class="t">ESCRIBIR</span><span class="w">5 formas</span></div>
+        <div class="r"><span class="k">ADK</span><span class="d">Agentes como decoradores Python</span><span class="v">0.7.1</span></div>
+        <div class="r"><span class="k">Forge</span><span class="d">Builder visual, servido en /forge</span><span class="v">0.29.1</span></div>
+        <div class="r"><span class="k">Cortex</span><span class="d">IDE de escritorio y control plane</span><span class="v">0.29.0</span></div>
+        <div class="r"><span class="k">Leia</span><span class="d">Lenguaje natural desde Claude Code</span><span class="v">0.11.1</span></div>
+        <div class="r"><span class="k">SDD</span><span class="d">Specs para agentes de código</span><span class="v">0.1.0</span></div>
+      </div>
+      <div class="card" style="--c:var(--reach)">
+        <div class="h"><span class="n">03</span><span class="t">LLEGAR</span><span class="w">personas y agentes</span></div>
+        <div class="r"><span class="k">Herald</span><span class="d">WhatsApp · IG · Messenger · Telegram</span><span class="v">0.13.0</span></div>
+        <div class="r"><span class="k">A2A</span><span class="d">Otros frameworks, sin confiar</span><span class="v">0.1.1</span></div>
+      </div>
+      <div class="card" style="--c:var(--operate)">
+        <div class="h"><span class="n">05</span><span class="t">OPERAR</span><span class="w">el día dos</span></div>
+        <div class="r"><span class="k">Nexus</span><span class="d">Publica, ejecuta, mide, factura</span><span class="v">0.28.2</span></div>
+        <div class="r"><span class="k">ctl</span><span class="d">astromeshctl, terminal del nodo</span><span class="v">0.4.1</span></div>
+      </div>
+    </div>
+    <div class="colg">
+      <div class="card" style="--c:var(--runtime)">
+        <div class="h"><span class="n">02</span><span class="t">EJECUTAR</span><span class="w">runtime + contexto</span></div>
+        <div class="r core"><span class="k">Core</span><span class="d">7 patrones · 7 tipos de tool</span><span class="v">0.74.1</span></div>
+        <div class="r"><span class="k">Glyph</span><span class="d">Un programa por turno</span><span class="v">0.1.3</span></div>
+        <div class="r"><span class="k">OKF</span><span class="d">Conocimiento navegable</span><span class="v">0.1.0</span></div>
+        <div class="r"><span class="k">RAG</span><span class="d">Retrieval en piezas sueltas</span><span class="v">0.1.0</span></div>
+        <div class="r"><span class="k">Context</span><span class="d">Qué entra en la ventana</span><span class="v">0.1.0</span></div>
+      </div>
+      <div class="card" style="--c:var(--ship)">
+        <div class="h"><span class="n">04</span><span class="t">DESPLEGAR</span><span class="w">dónde corre</span></div>
+        <div class="r"><span class="k">Node</span><span class="d">Servicio nativo Linux/Mac/Win</span><span class="v">0.1.10</span></div>
+        <div class="r"><span class="k">OS</span><span class="d">Linux inmutable, rollback A/B</span><span class="v">0.13.8</span></div>
+        <div class="r"><span class="k">Orbit</span><span class="d">GCP en un comando</span><span class="v">0.4.4</span></div>
+        <div class="r"><span class="k">Prisma</span><span class="d">Agente nativo de cada nube</span><span class="v dev">en dev</span></div>
+      </div>
+      <div class="card" style="--c:var(--models)">
+        <div class="h"><span class="n">06</span><span class="t">MODELOS</span><span class="w">aguas arriba</span></div>
+        <div class="r"><span class="k">Nebula</span><span class="d">Fábrica de modelos abiertos</span><span class="v">0.1.0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="st"><b>19</b><span>componentes</span></div>
+    <div class="st"><b>13</b><span>repos<br>9 abiertos</span></div>
+    <div class="st"><b>2.665</b><span>commits</span></div>
+    <div class="st"><b>~4.900</b><span>tests</span></div>
+    <div class="st"><b>4</b><span>lenguajes<br>Py·Go·Rust·TS</span></div>
+    <div class="st"><b>6</b><span>capas</span></div>
+  </div>
+  <div class="foot"><span>Juan Carlos Romero Fulfaro</span><i>commits sin merges y funciones de test, al 2026-11-04</i></div>
+</section>
+
+<script>
+// Mini mapa orbital: el core al centro y cada componente como un punto del color de su capa.
+const G=[['author',5],['runtime',4],['reach',2],['ship',4],['operate',2],['models',1]];
+const css=getComputedStyle(document.documentElement), svg=document.getElementById('orb'), ns='http://www.w3.org/2000/svg';
+const el=(t,a)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);svg.appendChild(e);return e};
+el('circle',{cx:110,cy:110,r:92,fill:'none',stroke:'rgba(255,255,255,.09)','stroke-dasharray':'2 6'});
+el('circle',{cx:110,cy:110,r:58,fill:'none',stroke:'rgba(255,255,255,.07)'});
+const total=G.reduce((s,g)=>s+g[1],0); let i=0;
+for(const [g,n] of G){const c=css.getPropertyValue('--'+g).trim();
+  for(let j=0;j<n;j++,i++){const a=(i/total)*2*Math.PI-Math.PI/2, r=i%2?92:58, x=110+r*Math.cos(a), y=110+r*Math.sin(a);
+    el('line',{x1:110,y1:110,x2:x,y2:y,stroke:c,'stroke-opacity':.22});
+    el('circle',{cx:x,cy:y,r:7,fill:c,style:`filter:drop-shadow(0 0 6px ${c})`});}}
+el('circle',{cx:110,cy:110,r:26,fill:'#0a1420',stroke:css.getPropertyValue('--runtime').trim(),'stroke-width':2.5});
+const t=el('text',{x:110,y:116,'text-anchor':'middle',fill:'#f1f5f9','font-family':'JetBrains Mono','font-weight':700,'font-size':15});t.textContent='core';
+</script>
+</body></html>
