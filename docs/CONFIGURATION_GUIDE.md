@@ -103,6 +103,8 @@ spec:
       api_key_env: OPENAI_API_KEY  # Environment variable name (not the key itself)
       # headers:                   # Optional: extra headers on every request (openai_compat)
       #   X-Gateway-Key: "${GATEWAY_KEY}"   # ${VAR} is read from the environment
+      # An unset ${VAR} (even inside "Bearer ${TOKEN}") is an error and the engine skips the
+      # candidate; Authorization, Content-Type, Content-Length and Host are reserved.
 
     routing:
       strategy: cost_optimized  # cost_optimized | latency_optimized | quality_first | round_robin | capability_match
@@ -471,9 +473,17 @@ spec:
       type: openai_compat
       endpoint: "https://api.openai.com/v1"
       api_key_env: OPENAI_API_KEY     # Name of environment variable
+      headers:                        # Optional extra headers on every request (openai_compat)
+        X-Gateway-Key: "${GATEWAY_KEY}"
       models:
         - "gpt-4o"
         - "gpt-4o-mini"
+
+    # `headers` values accept ${VAR}. This is deliberately stricter than the lenient expansion
+    # elsewhere: an unset variable (even as part of a value, e.g. "Bearer ${TOKEN}") is a
+    # configuration error and the engine skips that candidate. `Authorization`, `Content-Type`,
+    # `Content-Length` and `Host` are reserved. An agent `model` block that uses `providerRef`
+    # and sets its own `headers` REPLACES the entry's map entirely (no per-header merge).
 
     # --- HuggingFace TGI ---
     hf_tgi:

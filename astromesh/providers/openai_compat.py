@@ -149,13 +149,24 @@ async def _fallar_si_es_error(resp: httpx.Response, model: str, base_url: str) -
 
 _ENV_REF = re.compile(r"\$\{(\w+)\}")
 
+# Headers the provider or the HTTP stack owns. `authorization` carries the API key;
+# the others would corrupt the request framing or routing.
+_RESERVED_HEADERS = frozenset({"authorization", "content-type", "content-length", "host"})
+
 
 def _resolve_headers(raw: Any) -> dict[str, str]:
     """Valida y expande los `headers` extra del provider (p. ej. la llave de un gateway).
 
     Cada valor acepta `${VAR}`, con la misma sintaxis que `config/channels.yaml`.
-    `Authorization` no se puede sobrescribir: lo arma el provider con la API key,
-    y comparar sin distinguir mayúsculas evita que `authorization` lo pise.
+    Deliberadamente MÁS ESTRICTO que esa expansión indulgente (variable sin definir
+    -> cadena vacía): acá una variable sin definir es un error de configuración, aun
+    si es sólo una parte del valor ("Bearer ${TOKEN}"), porque mandar un header de
+    credencial a medias sólo falla en el gateway con un 401 que no explica nada. El
+    engine captura el error y omite ese candidato.
+
+    `authorization`, `content-type`, `content-length` y `host` están reservados, y
+    dos nombres que sólo difieren en mayúsculas son duplicados; todo se compara sin
+    distinguir mayúsculas.
 
     Los VALORES son credenciales: ningún mensaje de error los incluye, sólo los
     nombres de header y de variable.
@@ -168,23 +179,52 @@ def _resolve_headers(raw: Any) -> dict[str, str]:
             code="model_provider_invalid_headers",
         )
     resolved: dict[str, str] = {}
+    seen: set[str] = set()
     for name, value in raw.items():
         if not isinstance(name, str) or not name.strip() or not isinstance(value, str):
             raise ModelProviderError(
                 f"Invalid provider header {name!r}: names and values must be strings.",
                 code="model_provider_invalid_headers",
             )
-        if name.strip().lower() == "authorization":
+        lowered = name.strip().lower()
+        if lowered == "authorization":
             raise ModelProviderError(
                 "The 'Authorization' header cannot be set through 'headers'.",
                 hint="Use 'api_key' or 'api_key_env'; the provider builds Authorization itself.",
                 code="model_provider_invalid_headers",
             )
-        expanded = _ENV_REF.sub(lambda m: os.environ.get(m.group(1), ""), value)
+        if lowered in _RESERVED_HEADERS:
+            raise ModelProviderError(
+                f"The {name!r} header cannot be set through 'headers'; the provider owns it.",
+                code="model_provider_invalid_headers",
+            )
+        if lowered in seen:
+            raise ModelProviderError(
+                f"Provider header {name!r} is declared twice (names differ only in case).",
+                code="model_provider_invalid_headers",
+            )
+        seen.add(lowered)
+
+        missing: list[str] = []
+
+        def _sub(m: re.Match[str], missing: list[str] = missing) -> str:
+            val = os.environ.get(m.group(1))
+            if not val:
+                missing.append(m.group(1))
+                return ""
+            return val
+
+        expanded = _ENV_REF.sub(_sub, value)
+        if missing:
+            raise ModelProviderError(
+                f"Provider header {name!r} references unset environment variable(s): "
+                f"{', '.join(dict.fromkeys(missing))}.",
+                hint="Set the variable(s) in the environment; the candidate is skipped until then.",
+                code="model_provider_invalid_headers",
+            )
         if not expanded:
             raise ModelProviderError(
-                f"Provider header {name!r} resolved to an empty value.",
-                hint="Check that every ${VAR} it references is set in the environment.",
+                f"Provider header {name!r} has an empty value.",
                 code="model_provider_invalid_headers",
             )
         resolved[name] = expanded

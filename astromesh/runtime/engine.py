@@ -467,7 +467,7 @@ def build_candidate_provider(block: dict):
             config={
                 "base_url": base,
                 "model": model or "gpt-4o-mini",
-                "api_key_env": block.get("api_key_env", "OPENAI_API_KEY"),
+                "api_key_env": block.get("api_key_env") or "OPENAI_API_KEY",
                 "api_key": block.get("api_key"),
                 "headers": block.get("headers"),
                 "parameters": _model_parameters(block),

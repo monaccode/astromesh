@@ -53,8 +53,43 @@ def test_authorization_override_rejected(name):
 def test_unset_variable_rejected_without_leaking(monkeypatch):
     monkeypatch.delenv("GATEWAY_KEY", raising=False)
     with pytest.raises(ModelProviderError) as exc:
-        OpenAICompatProvider(_config(headers={"X-Gateway-Key": "${GATEWAY_KEY}"}))
-    assert "X-Gateway-Key" in str(exc.value)
+        OpenAICompatProvider(
+            _config(headers={"X-Gateway-Key": "${GATEWAY_KEY}", "X-Tenant-Id": "tenant-value"})
+        )
+    text = f"{exc.value} {exc.value.hint}"
+    assert "GATEWAY_KEY" in text
+    assert "tenant-value" not in text
+
+
+def test_partially_unset_variable_rejected(monkeypatch):
+    monkeypatch.delenv("TOKEN", raising=False)
+    monkeypatch.setenv("PREFIX", "pre-secret")
+    with pytest.raises(ModelProviderError) as exc:
+        OpenAICompatProvider(_config(headers={"X-Gateway-Key": "Bearer ${TOKEN}"}))
+    assert "TOKEN" in str(exc.value)
+
+    with pytest.raises(ModelProviderError) as exc:
+        OpenAICompatProvider(_config(headers={"X-Gateway-Key": "${PREFIX}-${TOKEN}"}))
+    assert "TOKEN" in str(exc.value)
+    assert "pre-secret" not in f"{exc.value} {exc.value.hint}"
+
+
+def test_duplicate_names_differing_in_case_rejected():
+    with pytest.raises(ModelProviderError) as exc:
+        OpenAICompatProvider(_config(headers={"X-Tenant-Id": "one-v", "x-tenant-id": "two-v"}))
+    assert "one-v" not in str(exc.value)
+    assert "two-v" not in str(exc.value)
+
+
+@pytest.mark.parametrize("name", ["Content-Type", "content-length", "HOST"])
+def test_reserved_names_rejected(name):
+    with pytest.raises(ModelProviderError):
+        OpenAICompatProvider(_config(headers={name: "x"}))
+
+
+def test_repr_does_not_contain_header_values():
+    provider = OpenAICompatProvider(_config(headers={"X-Gateway-Key": "super-secret-value"}))
+    assert "super-secret-value" not in repr(provider)
 
 
 @respx.mock

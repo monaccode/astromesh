@@ -74,6 +74,9 @@ def resolve_block(block: dict, registry: dict) -> dict:
         "api_key": entry.get("api_key"),
         "api_key_env": entry.get("api_key_env"),
         "contract": entry.get("contract"),
+        # An agent block's own `headers` REPLACE the entry's wholesale (the overlay below
+        # is per top-level key); there is no per-header merge.
+        "headers": entry.get("headers"),
     }
     overlay = {k: v for k, v in block.items() if k != "providerRef" and v is not None}
     base.update(overlay)

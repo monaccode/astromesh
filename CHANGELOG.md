@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - El provider OpenAI-compatible acepta `headers` (mapa nombre → valor) en el bloque `model` de un
-  agente: se envían en cada request, para despliegues que exigen un header extra (llave de un
-  gateway, id de tenant). Los valores aceptan `${VAR}` del entorno; una variable sin definir falla
-  al construir el provider en vez de mandar el header vacío. `Authorization` no se puede
-  sobrescribir (con cualquier capitalización): es un error de configuración. Los valores son
+  agente y en las entradas de `providers.yaml` (un `headers` del agente reemplaza el de la entrada
+  completo, sin mezclar): se envían en cada request, para despliegues que exigen un header extra
+  (llave de un gateway, id de tenant). Los valores aceptan `${VAR}` del entorno, con una expansión
+  deliberadamente más estricta que la indulgente de otras secciones: una variable sin definir, aun
+  dentro de `"Bearer ${TOKEN}"`, falla al construir el provider y el engine omite ese candidato.
+  `Authorization`, `Content-Type`, `Content-Length` y `Host` están reservados (con cualquier
+  capitalización) y dos nombres que sólo difieren en mayúsculas se rechazan. Los valores son
   credenciales y nunca aparecen en logs, trazas ni mensajes de error.
 
 ### Fixed

@@ -103,3 +103,43 @@ def test_resolve_typeless_entry_is_skippable():
     # it resolves to the skip sentinel so build_candidate_provider returns None (warn + skip)
     assert out.get("source") not in ("centinela", "openai_compat", "openai", "ollama", "litellm")
     assert build_candidate_provider(out) is None
+
+
+def test_resolve_carries_headers_from_entry():
+    reg = {
+        "gw": {
+            "type": "openai_compat",
+            "endpoint": "https://gw/v1",
+            "models": ["m"],
+            "headers": {"X-Gateway-Key": "${GATEWAY_KEY}"},
+        }
+    }
+    out = resolve_block({"providerRef": "gw"}, reg)
+    assert out["headers"] == {"X-Gateway-Key": "${GATEWAY_KEY}"}
+
+
+def test_resolve_agent_headers_replace_entry_headers():
+    reg = {
+        "gw": {
+            "type": "openai_compat",
+            "models": ["m"],
+            "headers": {"X-Gateway-Key": "a", "X-Tenant-Id": "t"},
+        }
+    }
+    out = resolve_block({"providerRef": "gw", "headers": {"X-Tenant-Id": "other"}}, reg)
+    assert out["headers"] == {"X-Tenant-Id": "other"}
+
+
+def test_registry_headers_reach_the_provider():
+    from astromesh.runtime.engine import build_candidate_provider
+
+    reg = {
+        "gw": {
+            "type": "openai_compat",
+            "endpoint": "https://gw/v1",
+            "models": ["m"],
+            "headers": {"X-Tenant-Id": "acme"},
+        }
+    }
+    provider = build_candidate_provider(resolve_block({"providerRef": "gw"}, reg))
+    assert provider._extra_headers == {"X-Tenant-Id": "acme"}
