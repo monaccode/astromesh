@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.75.0] - 2026-11-04
+
 ### Added
 
 - El provider OpenAI-compatible acepta `headers` (mapa nombre → valor) en el bloque `model` de un
