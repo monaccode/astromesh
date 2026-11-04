@@ -17,13 +17,13 @@ These directories ship from this repository on their own tags and versions.
 
 | Component | Package | Directory | Version | Version source | Min Python / Runtime |
 |-----------|---------|-----------|---------|----------------|----------------------|
-| **Core Runtime** | `astromesh` | `astromesh/` | `0.74.1` | `astromesh/__init__.py` | Python 3.12 |
+| **Core Runtime** | `astromesh` | `astromesh/` | `0.75.0` | `astromesh/__init__.py` | Python 3.12 |
 | **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.3` | `astromesh_glyph/__init__.py` | Python 3.12 |
 | **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.7.1` | `astromesh_adk/__init__.py` | Python 3.12 |
 | **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.4.1` | `astromesh_cli/__init__.py` | Python 3.12 |
 | **Node** | `astromesh-node` | `astromesh-node/` | `0.1.10` | `src/astromesh_node/__init__.py` | Python 3.12 |
 | **Orbit** | `astromesh-orbit` | `astromesh-orbit/` | `0.4.4` | `astromesh_orbit/__init__.py` | Python 3.12 |
-| **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.29.0` | `package.json` | Node 22.12 |
+| **Forge** | `astromesh-forge` | `astromesh-forge/` | `0.29.1` | `package.json` | Node 22.12 |
 | **Docs site** | `docs-site` | `docs-site/` | `0.1.0` | `package.json` | Node (site build) |
 | **VS Code extension** | `vscode-extension` | `vscode-extension/` | `0.1.0` | `package.json` | Node (build) |
 | **Native extension** | `astromesh-native` | `native/` | `0.1.0` | `Cargo.toml` | Rust |
@@ -38,13 +38,13 @@ These components are part of the Astromesh ecosystem but live in their own repos
 
 | Component | Repository | Current version | Ecosystem group | Status |
 |-----------|------------|-----------------|-----------------|--------|
-| **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.27.0` | Author | Shipped |
-| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.9.0` | Author | Shipped |
+| **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.29.0` | Author | Shipped |
+| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.11.2` | Author | Shipped |
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
 | **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped ([PyPI](https://pypi.org/project/astromesh-rag/)) |
 | **Context** | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | `0.1.0` | Execute | Shipped ([PyPI](https://pypi.org/project/astromesh-context/)) |
 | **A2A** | [`astromesh-a2a`](https://github.com/monaccode/astromesh-a2a) | `0.1.1` | Reach | Shipped ([PyPI](https://pypi.org/project/astromesh-a2a/)) |
-| **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.12.0` | Reach | Shipped |
+| **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.14.0` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.13.8` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.2.1` | Ship | In development |
 | **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.28.2` | Operate | Shipped |
