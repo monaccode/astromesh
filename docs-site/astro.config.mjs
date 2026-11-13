@@ -28,6 +28,7 @@ export default defineConfig({
         ThemeSelect: './src/components/ThemeSelect.astro',
         ThemeProvider: './src/components/ThemeProvider.astro',
         SocialIcons: './src/components/SocialIcons.astro',
+        Footer: './src/components/Footer.astro',
         // Client-side Mermaid rendering with the Mission Control theme.
         Head: './src/components/Head.astro',
       },
