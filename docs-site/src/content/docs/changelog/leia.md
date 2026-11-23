@@ -1,6 +1,6 @@
 ---
 title: "Astromesh Leia changelog"
-description: "Every release of astromesh-leia. Latest: v0.12.1, 2026-11-23."
+description: "Every release of astromesh-leia. Latest: v0.12.2, 2026-11-23."
 editUrl: false
 sidebar:
   label: "Astromesh Leia"
@@ -16,6 +16,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.12.2] - 2026-11-23
+
+### Changed
+
+- **Glyph en la imagen**: core 0.75.1 publica `fulfarodev/astromesh` con `astromesh-glyph` y Nexus
+  0.31.3 corre ese pool, así que un agente `pattern: glyph` con `spec.program` carga en Docker y en
+  Nexus. Leia ya no lo limita a «un nodo con el extra»: sólo un nodo instalado con pip sigue sin él
+  (`astromesh-glyph` no está en PyPI). `orchestration-patterns.md`, `leia-architect`,
+  `ecosystem.md`, `nexus-api.md` y `leia-doctor`.
 
 ## [0.12.1] - 2026-11-23
 

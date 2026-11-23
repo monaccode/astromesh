@@ -8,10 +8,14 @@
       "repo": "https://github.com/monaccode/astromesh",
       "visibility": "public",
       "latest": {
-        "version": "0.75.0",
-        "date": "2026-11-04"
+        "version": "0.75.1",
+        "date": "2026-11-23"
       },
       "releases": [
+        {
+          "version": "0.75.1",
+          "date": "2026-11-23"
+        },
         {
           "version": "0.75.0",
           "date": "2026-11-04"
@@ -690,10 +694,14 @@
       "repo": "https://github.com/monaccode/astromesh-leia",
       "visibility": "public",
       "latest": {
-        "version": "0.12.1",
+        "version": "0.12.2",
         "date": "2026-11-23"
       },
       "releases": [
+        {
+          "version": "0.12.2",
+          "date": "2026-11-23"
+        },
         {
           "version": "0.12.1",
           "date": "2026-11-23"
@@ -873,10 +881,14 @@
       "repo": "https://github.com/monaccode/astromesh-nexus",
       "visibility": "private",
       "latest": {
-        "version": "0.31.2",
+        "version": "0.31.3",
         "date": "2026-11-23"
       },
       "releases": [
+        {
+          "version": "0.31.3",
+          "date": "2026-11-23"
+        },
         {
           "version": "0.31.2",
           "date": "2026-11-23"

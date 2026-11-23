@@ -24,7 +24,9 @@ Available since astromesh **v0.39.0**.
 :::caution[Not on PyPI yet]
 `astromesh-glyph` has not been published to PyPI yet, so `pip install
 'astromesh[glyph]'` will fail — pip ignores `[tool.uv.sources]`. Inside the
-monorepo it installs with `uv sync --extra glyph`. Tracked in
+monorepo it installs with `uv sync --extra glyph`. The official Docker image
+`fulfarodev/astromesh` ships it from **v0.75.1**, and so does the Nexus runtime pool from
+Nexus 0.31.3; earlier images left every `spec.program` agent out at boot. Tracked in
 [`docs/DEBT.md`](https://github.com/monaccode/astromesh/blob/develop/docs/DEBT.md).
 :::
 
