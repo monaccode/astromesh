@@ -1,0 +1,308 @@
+---
+/**
+ * The changelog hub: every package's releases on one shared time axis.
+ *
+ * Rows, not cards — the question a reader brings is "what moved, and when",
+ * and a row per package with its releases as ticks answers both at a glance:
+ * a dense row is a package in motion, a sparse one has settled. The window is
+ * the last twelve months; older releases are one click away on each page.
+ */
+import manifest from '../data/changelogs.json';
+import { ALL, GROUPS } from '../data/ecosystem';
+
+const DAY = 86_400_000;
+const end = new Date(`${manifest.synced}T00:00:00Z`).getTime() + DAY * 6;
+const start = end - DAY * 365;
+const pos = (iso: string) => ((new Date(`${iso}T00:00:00Z`).getTime() - start) / (end - start)) * 100;
+
+const accentOf = (id: string) => {
+  const c = ALL.find((x) => x.id === id);
+  if (!c || id === 'core') return 'var(--sl-color-accent)';
+  return GROUPS.find((g) => g.id === c.group)!.accent;
+};
+const groupOf = (id: string) => {
+  const c = ALL.find((x) => x.id === id);
+  return c && id !== 'core' ? GROUPS.find((g) => g.id === c.group)!.label : 'Core';
+};
+const docsOf = (id: string) => ALL.find((x) => x.id === id)?.href;
+
+const rows = manifest.packages
+  .map((p) => {
+    const inWindow = p.releases.filter((r) => r.date && pos(r.date) >= 0 && pos(r.date) <= 100);
+    return { ...p, inWindow, accent: accentOf(p.id), group: groupOf(p.id), docs: docsOf(p.id) };
+  })
+  .sort((a, b) => (b.latest?.date ?? '').localeCompare(a.latest?.date ?? ''));
+
+const total = rows.reduce((n, r) => n + r.inWindow.length, 0);
+const last30 = rows.reduce(
+  (n, r) => n + r.inWindow.filter((x) => pos(x.date!) >= pos(manifest.synced) - (30 / 365) * 100).length,
+  0,
+);
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const months: { label: string; at: number }[] = [];
+for (let d = new Date(start); d.getTime() <= end; d.setUTCMonth(d.getUTCMonth() + 1, 1)) {
+  const first = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  if (first < start) continue;
+  months.push({
+    label: d.getUTCMonth() === 0 ? `${MONTHS[0]} ${d.getUTCFullYear()}` : MONTHS[d.getUTCMonth()],
+    at: ((first - start) / (end - start)) * 100,
+  });
+}
+---
+
+<section class="cl" aria-labelledby="cl-pulse">
+  <div class="cl-figures">
+    <p><strong>{rows.length}</strong> packages, each on its own version and its own clock</p>
+    <p><strong>{total}</strong> releases in the last twelve months</p>
+    <p><strong>{last30}</strong> in the last thirty days</p>
+  </div>
+
+  <h2 id="cl-pulse">Release pulse</h2>
+  <p class="cl-lede">
+    One row per package, one tick per release, newest activity first. Pick a package to read every
+    change it shipped. Synced <time datetime={manifest.synced}>{manifest.synced}</time>.
+  </p>
+
+  <div class="cl-chart" role="list">
+    <div class="cl-axis" aria-hidden="true">
+      {months.map((m) => <span style={`left: ${m.at}%`}>{m.label}</span>)}
+    </div>
+    {
+      rows.map((r) => (
+        <div class="cl-row" role="listitem" style={`--a: ${r.accent}`}>
+          <a class="cl-name" href={`/astromesh/changelog/${r.id}/`}>
+            <span class="cl-dot" aria-hidden="true" />
+            {r.name}
+          </a>
+          <div class="cl-lane" aria-hidden="true">
+            {months.map((m) => <i class="cl-grid" style={`left: ${m.at}%`} />)}
+            {r.inWindow.map((x) => (
+              <b class="cl-tick" style={`left: ${pos(x.date!)}%`} title={`v${x.version} · ${x.date}`} />
+            ))}
+          </div>
+          <span class="cl-ver">
+            {r.latest ? `v${r.latest.version}` : '—'}
+            <small>{r.latest?.date ?? ''}</small>
+          </span>
+        </div>
+      ))
+    }
+  </div>
+
+  <h2 id="cl-packages">Every changelog</h2>
+  <table class="cl-table">
+    <thead>
+      <tr>
+        <th scope="col">Package</th>
+        <th scope="col" class="cl-wide">Part of the stack</th>
+        <th scope="col" class="num">Latest</th>
+        <th scope="col" class="num cl-wide">Releases</th>
+        <th scope="col">Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((r) => (
+          <tr style={`--a: ${r.accent}`}>
+            <td>
+              <a href={`/astromesh/changelog/${r.id}/`}>{r.name}</a>
+              <code>{r.package}</code>
+            </td>
+            <td class="cl-wide">{r.group}</td>
+            <td class="num">
+              {r.latest ? `v${r.latest.version}` : '—'}
+              <small>{r.latest?.date ?? ''}</small>
+            </td>
+            <td class="num cl-wide">{r.releases.length}</td>
+            <td>
+              {r.visibility === 'public' ? (
+                <a href={r.repo}>GitHub</a>
+              ) : (
+                <span class="cl-private">Private repo</span>
+              )}
+              {r.docs && (
+                <>
+                  {' · '}
+                  <a href={r.docs}>Docs</a>
+                </>
+              )}
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</section>
+
+<style>
+  .cl-figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2.5rem;
+    margin-block: 0 2.5rem;
+  }
+  .cl-figures p {
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.95rem;
+    max-width: 16rem;
+  }
+  .cl-figures strong {
+    display: block;
+    font-size: 2.25rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--sl-color-white);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+
+  .cl-lede {
+    color: var(--sl-color-gray-2);
+    max-width: 65ch;
+  }
+
+  .cl-chart {
+    --name: 11.5rem;
+    --ver: 6.5rem;
+    margin-block: 1.5rem 3.5rem;
+    border-top: 1px solid var(--am-border);
+  }
+  .cl-axis {
+    position: relative;
+    height: 1.75rem;
+    margin: 0 var(--ver) 0 var(--name) !important;
+  }
+  .cl-axis span {
+    position: absolute;
+    top: 0.5rem;
+    transform: translateX(-50%);
+    font-family: var(--sl-font-mono);
+    font-size: 0.68rem;
+    color: var(--sl-color-gray-3);
+    white-space: nowrap;
+  }
+
+  .cl-row {
+    display: grid;
+    grid-template-columns: var(--name) 1fr var(--ver);
+    align-items: center;
+    min-height: 2.25rem;
+    border-bottom: 1px solid var(--am-border);
+    margin: 0 !important;
+  }
+  /* Starlight spaces every sibling in prose; inside a chart row that only shifts the lane. */
+  .cl-row > * {
+    margin: 0 !important;
+  }
+  .cl-row:hover {
+    background: color-mix(in srgb, var(--a) 6%, transparent);
+  }
+  .cl-name {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--sl-color-white);
+    text-decoration: none;
+    padding-inline-end: 0.75rem;
+  }
+  .cl-name:hover {
+    color: var(--a);
+  }
+  .cl-name:focus-visible {
+    outline: 2px solid var(--a);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  .cl-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--a);
+    flex: none;
+  }
+  .cl-lane {
+    position: relative;
+    height: 2.25rem;
+  }
+  .cl-grid {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--am-border);
+  }
+  .cl-tick {
+    position: absolute;
+    top: 50%;
+    width: 3px;
+    height: 1.1rem;
+    margin-left: -1px;
+    border-radius: 2px;
+    background: var(--a);
+    opacity: 0.85;
+    transform: translateY(-50%);
+    transition: height 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .cl-row:hover .cl-tick {
+    height: 1.6rem;
+    opacity: 1;
+  }
+  .cl-ver,
+  .num {
+    font-family: var(--sl-font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8rem;
+    color: var(--sl-color-white);
+    text-align: right;
+  }
+  .cl-ver small,
+  .num small {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .cl-table {
+    width: 100%;
+    display: table;
+  }
+  .cl-table td:first-child a {
+    font-weight: 600;
+    color: var(--a);
+  }
+  .cl-table code {
+    display: block;
+    width: fit-content;
+    margin-top: 0.2rem;
+    font-size: 0.72rem;
+  }
+  .cl-private {
+    color: var(--sl-color-gray-3);
+  }
+
+  @media (max-width: 50rem) {
+    .cl-chart {
+      --name: 8.5rem;
+      --ver: 0rem;
+    }
+    .cl-ver {
+      display: none;
+    }
+    .cl-name {
+      font-size: 0.78rem;
+    }
+    .cl-axis span:nth-child(even) {
+      display: none;
+    }
+    .cl-wide {
+      display: none;
+    }
+    .cl-table {
+      font-size: 0.82rem;
+    }
+  }
+</style>

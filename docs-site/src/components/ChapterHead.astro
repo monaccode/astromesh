@@ -1,0 +1,128 @@
+---
+/**
+ * Opens one chapter of the homepage: a part of the stack, in the same words
+ * and colour as its sector on the star chart, with every member listed so the
+ * reader sees the whole chapter before scrolling through its showcases.
+ */
+import { COMPONENTS, GROUPS, type GroupId } from '../data/ecosystem';
+
+interface Props {
+  group: GroupId;
+  /** The chapter's heading. It opens with the group's verb (Author, Execute…), so the chart's label is in it. */
+  title: string;
+}
+
+const { group, title } = Astro.props;
+const g = GROUPS.find((x) => x.id === group)!;
+const members = COMPONENTS.filter((c) => c.group === group);
+---
+
+<header class="ch" id={`stack-${g.id}`} style={`--a: ${g.accent}`}>
+  <div class="ch-rule" aria-hidden="true"><span></span></div>
+  <h2 class="ch-title">{title}</h2>
+  <p class="ch-blurb">{g.blurb}</p>
+  <ul class="ch-members" aria-label={`${g.label}: components`}>
+    {
+      members.map((c) => (
+        <li>
+          <a href={c.href}>
+            {c.name.replace(/^Astromesh /, '')}
+            <span>{c.inDevelopment ? 'in development' : `v${c.version}`}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</header>
+
+<style>
+  .ch {
+    margin: 6rem 0 1rem;
+    scroll-margin-top: 5rem;
+  }
+
+  .ch-rule {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    color: var(--a);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .ch-rule::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--a) 60%, transparent), transparent);
+  }
+  .ch-rule span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .ch-rule span::before {
+    content: '';
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--a);
+    box-shadow: 0 1px 10px color-mix(in srgb, var(--a) 60%, transparent);
+  }
+
+  .ch-title {
+    margin: 1rem 0 0 !important;
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 1.04;
+    text-wrap: balance;
+    color: var(--sl-color-white);
+  }
+
+  .ch-blurb {
+    max-width: 62ch;
+    margin-top: 1rem !important;
+    font-size: 1.05rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  .ch-members {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0 0 !important;
+  }
+  .ch-members li {
+    margin: 0 !important;
+  }
+  .ch-members a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--a) 35%, transparent);
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+    text-decoration: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .ch-members a:hover {
+    border-color: var(--a);
+    background: color-mix(in srgb, var(--a) 10%, transparent);
+  }
+  .ch-members a:focus-visible {
+    outline: 2px solid var(--a);
+    outline-offset: 2px;
+  }
+  .ch-members span {
+    font-family: var(--sl-font-mono);
+    font-size: 0.72rem;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    color: var(--a);
+  }
+</style>

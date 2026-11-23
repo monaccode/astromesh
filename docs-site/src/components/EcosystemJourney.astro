@@ -1,0 +1,573 @@
+---
+/**
+ * One message, end to end.
+ *
+ * The star chart says what the pieces are; this says what they do together.
+ * A single WhatsApp message travels the real path — Herald, Nexus, the core
+ * runtime and its libraries, a model, and back — and each step lights the
+ * stations it touches. It steps on its own while it is on screen, and stops
+ * for good the moment the reader picks a step.
+ */
+const STATIONS = [
+  { id: 'person', name: 'A person', note: 'WhatsApp, Telegram, Instagram, Messenger, web chat', accent: '#e2e8f0' },
+  { id: 'herald', name: 'Herald', note: 'Gateway, both directions', accent: '#10b981', href: '/astromesh/herald/introduction/' },
+  { id: 'nexus', name: 'Nexus', note: 'Tenants, runs, credits', accent: '#f59e0b', href: '/astromesh/nexus/introduction/' },
+  { id: 'core', name: 'Core runtime', note: 'Loads the agent, runs the pattern', accent: '#00d4ff', href: '/astromesh/getting-started/what-is-astromesh/' },
+  { id: 'model', name: 'Models', note: 'Routed per role, with fallback', accent: '#e879f9', href: '/astromesh/configuration/providers/' },
+];
+
+const LIBS = [
+  { id: 'context', name: 'Context', href: '/astromesh/context/introduction/' },
+  { id: 'rag', name: 'RAG', href: '/astromesh/rag/introduction/' },
+  { id: 'okf', name: 'OKF', href: '/astromesh/okf/introduction/' },
+  { id: 'glyph', name: 'Glyph', href: '/astromesh/glyph/introduction/' },
+  { id: 'a2a', name: 'A2A', href: '/astromesh/a2a/introduction/' },
+];
+
+const AUTHORS = [
+  { name: 'ADK', href: '/astromesh/adk/introduction/' },
+  { name: 'Forge', href: '/astromesh/forge/introduction/' },
+  { name: 'Cortex', href: '/astromesh/cortex/introduction/' },
+  { name: 'Leia', href: '/astromesh/leia/introduction/' },
+];
+
+/** `at` is the station the message is at; `lit` is everything the step touches. */
+const STEPS = [
+  {
+    at: 'nexus',
+    lit: ['author', 'nexus'],
+    title: 'You write the agent once',
+    body: 'In Python with the ADK, on a canvas in Forge or Cortex, or in plain English with Leia. All four emit the same YAML, and Nexus publishes it as a versioned spec for a tenant.',
+  },
+  {
+    at: 'herald',
+    lit: ['person', 'herald'],
+    title: 'A person writes',
+    body: 'Herald takes the channel’s webhook, verifies its signature, and resolves the binding: which tenant, which agent. It can also forward the message, media included, to a service of your own.',
+  },
+  {
+    at: 'nexus',
+    lit: ['nexus'],
+    title: 'Nexus admits the run',
+    body: 'It checks the tenant’s plan and credit caps before anything is spent, mints a token for this one run, and dispatches it to the shared runtime pool. No tenant secret lives in the pool.',
+  },
+  {
+    at: 'core',
+    lit: ['core', 'context', 'rag', 'okf'],
+    title: 'The runtime builds the window',
+    body: 'Input guardrails first. Then Context fills one token budget from memory, history, RAG retrieval and OKF knowledge, and keeps a trace of why each item made it in.',
+  },
+  {
+    at: 'model',
+    lit: ['core', 'model', 'glyph', 'a2a'],
+    title: 'The model acts',
+    body: 'The router picks a provider for each role by cost, latency or quality, and falls back when one fails. The pattern runs: ReAct, a Glyph program, a team. Tools may be MCP servers, Python, or remote agents over A2A, whose answers come back marked untrusted.',
+  },
+  {
+    at: 'herald',
+    lit: ['core', 'nexus', 'herald', 'person'],
+    title: 'The answer goes back',
+    body: 'Output guardrails, memory persisted. The agent posts its reply with the run’s token; Nexus hands it to Herald’s outbox, which delivers it on the channel the person used.',
+  },
+  {
+    at: 'nexus',
+    lit: ['nexus'],
+    title: 'Every token is metered',
+    body: 'Nexus prices the run at the tariff in force when it started: credits charged to the customer, US$ cost to you, both on the live tape of the operator console.',
+  },
+];
+
+const stationIndex = Object.fromEntries(STATIONS.map((s, i) => [s.id, i]));
+---
+
+<section class="jr" data-journey aria-labelledby="jr-title">
+  <div class="jr-head">
+    <h2 id="jr-title">What happens when someone writes to your agent</h2>
+    <p>
+      Follow a single WhatsApp message through the ecosystem: in through the gateway, admitted and
+      billed by the control plane, answered by the runtime and the libraries around it.
+    </p>
+  </div>
+
+  <div class="jr-stage" style={`--at: ${stationIndex[STEPS[0].at]}`}>
+    <div class="jr-authors" data-lit-id="author">
+      <span class="jr-authors-label">Authored in</span>
+      {AUTHORS.map((a) => <a href={a.href}>{a.name}</a>)}
+      <svg class="jr-drop" viewBox="0 0 12 24" aria-hidden="true">
+        <path d="M6 0v20M1 15l5 6 5-6" fill="none" stroke="currentColor" stroke-width="1.5" />
+      </svg>
+    </div>
+
+    <ol class="jr-track" aria-label="Stations">
+      <span class="jr-rail" aria-hidden="true"></span>
+      <span class="jr-packet" aria-hidden="true"></span>
+      {
+        STATIONS.map((s) => (
+          <li class="jr-station" data-lit-id={s.id} style={`--a: ${s.accent}`}>
+            <span class="jr-node" aria-hidden="true" />
+            {s.href ? (
+              <a class="jr-name" href={s.href}>
+                {s.name}
+              </a>
+            ) : (
+              <span class="jr-name">{s.name}</span>
+            )}
+            <span class="jr-note">{s.note}</span>
+            {s.id === 'core' && (
+              <span class="jr-libs">
+                {LIBS.map((l) => (
+                  <a href={l.href} data-lit-id={l.id}>
+                    {l.name}
+                  </a>
+                ))}
+              </span>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+
+  <ol class="jr-steps">
+    {
+      STEPS.map((s, i) => (
+        <li>
+          <button
+            type="button"
+            class="jr-step"
+            data-step={i}
+            data-at={stationIndex[s.at]}
+            data-lit={s.lit.join(' ')}
+            aria-pressed={i === 0 ? 'true' : 'false'}
+          >
+            <span class="jr-step-n">{i + 1}</span>
+            <span class="jr-step-title">{s.title}</span>
+          </button>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="jr-caption" aria-live="polite">
+    {
+      STEPS.map((s, i) => (
+        <p data-caption={i} hidden={i !== 0}>
+          <strong>{s.title}.</strong> {s.body}
+        </p>
+      ))
+    }
+  </div>
+
+  <p class="jr-foot">
+    It runs wherever you put it: as a system service with
+    <a href="/astromesh/node/introduction/">Node</a>, on the
+    <a href="/astromesh/os/introduction/">OS</a> appliance, on GCP through
+    <a href="/astromesh/orbit/introduction/">Orbit</a>. The models it routes to can come from
+    <a href="/astromesh/nebula/introduction/">Nebula</a>, the ecosystem’s own foundry.
+  </p>
+</section>
+
+<script>
+  for (const root of document.querySelectorAll<HTMLElement>('[data-journey]')) {
+    const stage = root.querySelector<HTMLElement>('.jr-stage')!;
+    const steps = [...root.querySelectorAll<HTMLButtonElement>('.jr-step')];
+    const captions = [...root.querySelectorAll<HTMLElement>('[data-caption]')];
+    const litTargets = [...root.querySelectorAll<HTMLElement>('[data-lit-id]')];
+    const track = root.querySelector<HTMLElement>('.jr-track')!;
+    const nodes = [...root.querySelectorAll<HTMLElement>('.jr-node')];
+
+    // The packet goes to the real centre of the station's node, whatever the layout.
+    const place = () => {
+      const node = nodes[Number(steps[current].dataset.at)];
+      const t = track.getBoundingClientRect();
+      const n = node.getBoundingClientRect();
+      track.style.setProperty('--px', `${n.left + n.width / 2 - t.left}px`);
+      track.style.setProperty('--py', `${n.top + n.height / 2 - t.top}px`);
+    };
+    let current = 0;
+    let timer: number | undefined;
+
+    const show = (i: number) => {
+      current = i;
+      const step = steps[i];
+      const lit = new Set(step.dataset.lit!.split(' '));
+      stage.style.setProperty('--at', step.dataset.at!);
+      for (const s of steps) s.setAttribute('aria-pressed', String(s === step));
+      captions.forEach((c, j) => (c.hidden = j !== i));
+      for (const t of litTargets) t.toggleAttribute('data-lit', lit.has(t.dataset.litId!));
+      place();
+    };
+    new ResizeObserver(place).observe(track);
+
+    const stop = () => {
+      window.clearInterval(timer);
+      timer = undefined;
+    };
+
+    steps.forEach((s, i) =>
+      s.addEventListener('click', () => {
+        stop();
+        show(i);
+      }),
+    );
+
+    show(0);
+
+    // Step on its own only when it is on screen, and never for a reader who asked for less motion.
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      let touched = false;
+      for (const s of steps) s.addEventListener('click', () => (touched = true));
+      new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting && !touched && timer === undefined) {
+            timer = window.setInterval(() => show((current + 1) % steps.length), 5200);
+          } else if (!entry.isIntersecting) {
+            stop();
+          }
+        },
+        { threshold: 0.45 },
+      ).observe(root);
+    }
+  }
+</script>
+
+<style>
+  .jr {
+    --cols: 5;
+    margin-block: 4rem 3rem;
+  }
+
+  .jr-head h2 {
+    margin: 0;
+    font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+    font-weight: 300;
+    letter-spacing: -0.035em;
+    line-height: 1.1;
+    color: var(--sl-color-white);
+  }
+  .jr-head p {
+    max-width: 62ch;
+    text-wrap: pretty;
+    margin-top: 0.75rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  /* ── Stage ─────────────────────────────── */
+  .jr-stage {
+    position: relative;
+    margin-top: 2.25rem;
+    padding: 1.5rem 1rem 1.75rem;
+    border: 1px solid var(--am-border);
+    border-radius: var(--am-radius);
+    background:
+      radial-gradient(60% 90% at calc((var(--at) + 0.5) * 20%) 70%, rgba(0, 212, 255, 0.07), transparent 70%),
+      var(--am-surface);
+    transition: background-position 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .jr-authors {
+    /* Sits over Nexus, the station that publishes what it emits. */
+    width: fit-content;
+    margin: 0 0 0.25rem calc(2 * 20% + 10% - 0.5rem);
+    transform: translateX(-50%);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
+    color: #a78bfa;
+    opacity: 0.6;
+    transition: opacity 0.4s ease;
+  }
+  .jr-authors[data-lit] {
+    opacity: 1;
+  }
+  .jr-authors-label {
+    width: 100%;
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--sl-color-gray-3);
+  }
+  .jr-authors a,
+  .jr-libs a {
+    margin: 0 !important;
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    color: inherit;
+    text-decoration: none;
+  }
+  .jr-authors a:hover,
+  .jr-libs a:hover {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+  }
+  .jr-drop {
+    width: 100%;
+    height: 1.5rem;
+    margin: 0.15rem 0 0 !important;
+  }
+
+  .jr-track {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    list-style: none;
+    margin: 0 !important;
+    padding: 0;
+  }
+  .jr-track > * {
+    margin: 0 !important;
+  }
+
+  .jr-rail {
+    position: absolute;
+    top: 0.6rem;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: linear-gradient(90deg, #e2e8f0, #10b981, #f59e0b, #00d4ff, #e879f9);
+    opacity: 0.35;
+    border-radius: 2px;
+  }
+
+  .jr-packet {
+    position: absolute;
+    top: var(--py, 0.6rem);
+    left: var(--px, 10%);
+    width: 0.9rem;
+    height: 0.9rem;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow:
+      0 0 0 4px rgba(0, 212, 255, 0.25),
+      0 2px 14px rgba(0, 212, 255, 0.7);
+    transition:
+      left 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      top 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 2;
+  }
+
+  .jr-station {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-inline: 0.4rem;
+    opacity: 0.62;
+    transition: opacity 0.4s ease;
+  }
+  .jr-station[data-lit] {
+    opacity: 1;
+  }
+  .jr-node {
+    position: relative;
+    z-index: 1;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    border: 2px solid var(--a);
+    background: var(--sl-color-black);
+    transition: box-shadow 0.4s ease, background 0.4s ease;
+  }
+  .jr-station[data-lit] .jr-node {
+    background: color-mix(in srgb, var(--a) 35%, var(--sl-color-black));
+    box-shadow: 0 2px 16px color-mix(in srgb, var(--a) 55%, transparent);
+  }
+  .jr-name {
+    margin-top: 0.75rem !important;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--a);
+    text-decoration: none;
+  }
+  a.jr-name:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .jr-note {
+    margin-top: 0.2rem !important;
+    font-size: 0.74rem;
+    line-height: 1.4;
+    color: var(--sl-color-gray-3);
+  }
+
+  .jr-libs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3rem;
+    margin-top: 0.7rem !important;
+    color: #f472b6;
+  }
+  .jr-libs a {
+    opacity: 0.6;
+    transition: opacity 0.4s ease, background 0.2s ease;
+  }
+  .jr-libs a[data-lit] {
+    opacity: 1;
+  }
+  .jr-libs a[data-lit-id='a2a'] {
+    color: #10b981;
+  }
+  .jr-libs a[data-lit-id='glyph'] {
+    color: #f9a8d4;
+  }
+
+  /* ── Steps ─────────────────────────────── */
+  .jr-steps {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.4rem;
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 !important;
+  }
+  .jr-steps > li {
+    margin: 0 !important;
+  }
+  .jr-step {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    padding: 0.6rem 0.65rem;
+    text-align: left;
+    font: inherit;
+    color: var(--sl-color-gray-3);
+    background: transparent;
+    border: 1px solid var(--am-border);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  }
+  .jr-step:hover {
+    color: var(--sl-color-white);
+    border-color: var(--am-border-hover);
+  }
+  .jr-step:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+  .jr-step[aria-pressed='true'] {
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-accent);
+    background: rgba(0, 212, 255, 0.06);
+  }
+  .jr-step-n {
+    font-family: var(--sl-font-mono);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--sl-color-accent);
+  }
+  .jr-step-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .jr-caption {
+    min-height: 5.5rem;
+    margin-top: 1.25rem !important;
+  }
+  .jr-caption p {
+    max-width: 70ch;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--sl-color-gray-2);
+  }
+  .jr-caption strong {
+    color: var(--sl-color-white);
+  }
+
+  .jr-foot {
+    max-width: 70ch;
+    padding-top: 1rem;
+    border-top: 1px solid var(--am-border);
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .jr-packet,
+    .jr-station,
+    .jr-node {
+      transition: none;
+    }
+  }
+
+  /* ── Narrow: the track turns vertical ───── */
+  @media (max-width: 50rem) {
+    .jr-authors {
+      margin: 0 0 0.75rem;
+      transform: none;
+      justify-content: flex-start;
+    }
+    .jr-authors-label {
+      width: auto;
+      text-align: left;
+    }
+    .jr-drop {
+      display: none;
+    }
+    .jr-track {
+      grid-template-columns: 1fr;
+      row-gap: 1.1rem;
+      padding-left: 2.25rem;
+    }
+    .jr-rail {
+      top: 0.6rem;
+      bottom: 0.6rem;
+      left: 0.55rem;
+      right: auto;
+      width: 2px;
+      height: auto;
+      background: linear-gradient(180deg, #e2e8f0, #10b981, #f59e0b, #00d4ff, #e879f9);
+    }
+    .jr-station {
+      align-items: flex-start;
+      text-align: left;
+      position: relative;
+    }
+    .jr-node {
+      position: absolute;
+      left: -2.25rem;
+      top: 0;
+      margin: 0 !important;
+    }
+    .jr-name {
+      margin-top: -0.1rem !important;
+    }
+    .jr-libs {
+      justify-content: flex-start;
+    }
+    /* Numbers only: the caption below carries the title, and stays on screen. */
+    .jr-steps {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 0.3rem;
+    }
+    .jr-step {
+      align-items: center;
+      padding: 0.55rem 0;
+      min-height: 2.75rem;
+      justify-content: center;
+    }
+    .jr-step-n {
+      font-size: 0.85rem;
+    }
+    .jr-step-title {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+</style>
