@@ -35,13 +35,16 @@ Every flag of `nexus` has an environment-variable default.
 
 The binary embeds a web console, served at `/`. It answers three daily questions: *is anything broken?*, *who is spending?* and *are we making money?*
 
+Since 0.30.0 the console reads like a **till receipt**: Nexus is the register in the middle of every run. Two inks keep the two units apart — what the customer is charged in credits (`cr`) prints in black, what the run cost you in US$ prints in violet — and a run under a dollar shows its cost to four decimals instead of `US$ 0,00`. Its fonts are embedded in the binary, so the console makes no request to Google Fonts.
+
 | Screen | What it shows |
 |---|---|
+| **Live** (home, 0.30.0+) | The tape of runs, refreshed every 10 s (not real time). Each refresh with something new closes a perforated cut with its subtotal of runs, charge and cost. Rejected runs print in red and struck through, unpriced runs in amber, and the length of each row's mark is the run's real duration. Filter by customer, or pause. Period totals and top spenders on the right; models and images below. |
 | **Platform** | Totals, consumption by model, periods that should already be closed. |
 | **Customers** | Every tenant with its plan, caps, usage and margin. |
-| **Customer detail** | Plan and limit bars, subscriptions with their unit and credit counters, the statement with CSV download and "Marcar facturado". |
+| **Customer detail** | That customer's live tape on top (0.31.0+), period readings in the header, plan and limit bars, subscriptions with their unit and credit counters, the statement with CSV download and "Marcar facturado". |
 | **Agent health** | Per-agent volume and error rate. |
-| **Invocations** | An explorer with composable filters and a detail view: usage by model, cost and error. |
+| **Invocations** | The same tape as Live (0.31.0+), with the channel in the middle column and a cut per day with the subtotal of what is loaded; composable filters and «Cargar más». The detail reads as the run's ticket: customer and agent as the title, the status as a stamp, usage by model, cost and error. Names, not ids. |
 | **Plans & tariffs** | Create plans (with argo, units and features) and file tariffs, including the cached-input rate. |
 
 Sign in with a user that has the operator role.

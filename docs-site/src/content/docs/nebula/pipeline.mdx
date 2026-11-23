@@ -72,6 +72,23 @@ uv run python scripts/05_evaluate.py --base Qwen/Qwen3-4B --tuned export/merged 
 uv run python scripts/06_push_to_hub.py --size 4b --tag "$TAG" --gguf ...
 ```
 
+### Training on a local GPU
+
+<Aside type="note">
+Unreleased in `astromesh-nebula`: on `main`, not in a tag yet.
+</Aside>
+
+When HF Jobs is not available, `scripts/02_train_local.py` runs the same QLoRA fine-tune on a local
+NVIDIA GPU through WSL2, with plain transformers + PEFT + bitsandbytes + TRL (no Unsloth, whose
+2026.6 build patches TRL globally and breaks TRL 0.24). It runs in fp16 on Turing cards (no bf16)
+with `paged_adamw_8bit`, takes `--max-train-samples`, `--epochs` and `--max-steps`, checkpoints along
+the way and resumes with `--resume`. `scripts/wsl_train_*.sh` set up the environment, install the
+dependencies and run a smoke or a full training.
+
+`configs/train-4b.yaml` is sized for a 12 GB card (per-device batch 2 × gradient accumulation 8, so
+the effective batch stays at 16), and the eval loads the model in 4-bit NF4 + fp16 so the base and
+the tuned 4B both fit and match the shipped Q4 GGUF.
+
 ### Dry run
 
 A `STOP_BEFORE_PUBLISH=true` run executes every stage **including the gate** but stops before the
