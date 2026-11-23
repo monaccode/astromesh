@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.75.1] - 2026-11-23
+
+### Fixed
+
+- La imagen publicada (`fulfarodev/astromesh`, `Dockerfile` de la raíz) no traía `astromesh-glyph`:
+  el extra `glyph` no resuelve con pip porque el paquete no está en PyPI (`[tool.uv.sources]` sólo
+  aplica a `uv sync`). Todo agente con `spec.program` / `pattern: glyph` se descartaba al arrancar
+  con «No module named 'astromesh_glyph'», también en el pool de Nexus. Ahora la imagen lo instala
+  desde el monorepo, como `astromesh-node` y `astromesh-cli`; no tiene dependencias de runtime.
+
 ## [0.75.0] - 2026-11-04
 
 ### Added
