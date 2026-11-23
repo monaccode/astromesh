@@ -1,0 +1,18 @@
+---
+title: Changelogs
+description: Every release of every package in the Astromesh ecosystem, on one time axis, with the full changelog of each.
+template: splash
+editUrl: false
+sidebar:
+  label: All packages
+  order: 0
+---
+
+import ChangelogIndex from '../../../components/ChangelogIndex.astro';
+
+Astromesh is a monorepo plus a set of sibling repositories, and each package ships on its own
+cadence: a core release does not bump anything else, and a package that has not changed keeps its
+number. This page collects the changelog of every one of them. The pages are synced from each
+repository with `npm run sync:changelogs`, so what you read here is what the repository says.
+
+<ChangelogIndex />
