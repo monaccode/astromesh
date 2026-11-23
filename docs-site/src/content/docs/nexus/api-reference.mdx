@@ -158,6 +158,27 @@ Present only when Herald is configured.
 
 Body: `channel`, `recipient` (both required), `text`, `conversation_ref`. Returns `202` with `message_id` and `status`. The tenant always comes from the credential. The run token is how an agent's `send_message` tool posts back without the shared pool holding any tenant secret.
 
+## Images
+
+Nexus 0.29.0+. With the tenant's credential.
+
+| Method | Path | |
+|---|---|---|
+| `POST` | `/api/v1/images/generate` | Generate one image: a prompt, aspect `1:1` or `9:16`, up to 4 reference images, and an `event_id` that makes the request idempotent. |
+
+- The model is OpenAI `gpt-image-2.6-flare` at `medium` quality by default; operators change it with
+  `NEXUS_IMAGE_MODEL` and `NEXUS_IMAGE_QUALITY` in `nexus-config`. `1:1` renders at `1024x1024` and
+  `9:16` at `1152x2048`. Without references Nexus calls `/images/generations`; with them,
+  `/images/edits`.
+- The provider key is the runtime pool's (`astromesh-runtime-secrets` → `OPENAI_API_KEY`). With no
+  key the route answers `503`.
+- **Idempotent per `event_id`.** A retry returns the same image without charging again; two
+  concurrent requests with the same id get `409`. The bytes are kept for 7 days, then `410`.
+- **Metered like a run.** Cost comes from the provider's `usage` at the per-token tariff, adds to the
+  tenant's and the platform's usage, and shares the credit caps with runs: with no room left the
+  answer is `402` and the provider is never called. The image also records the unit `musa.imagen`
+  on the tenant's subscription.
+
 ## Subscriptions and usage events
 
 With the tenant's credential. Creating and changing subscriptions is operator-only (below).

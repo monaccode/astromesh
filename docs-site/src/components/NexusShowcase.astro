@@ -22,7 +22,7 @@ const features = [
   { icon: `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>`, label: 'Versioned Registry', desc: 'Specs in Postgres, author + checksum' },
   { icon: `<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>`, label: 'Metering & Billing', desc: 'Per run, per model, per tenant' },
   { icon: `<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/>`, label: 'Shared Runtime Pool', desc: 'Dispatch, not a node per tenant' },
-  { icon: `<path d="M4 17l6-6-6-6"/><line x1="12" y1="19" x2="20" y2="19"/>`, label: 'Streaming Runs', desc: 'WebSocket, cancellable mid-flight' },
+  { icon: `<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>`, label: 'Image Generation', desc: 'Idempotent, inside the same credit caps' },
   { icon: `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`, label: 'Per-Run Credentials', desc: 'One tenant, one capability, one run' },
 ];
 ---
@@ -33,7 +33,7 @@ const features = [
   version={nexus.version}
   badge="NEW"
   tagline="Managed Multi-Tenant Control Plane"
-  description="Publishes agents with versioning, dispatches runs to a shared runtime pool, and meters and bills what each one consumes. External clients call one REST API; Nexus resolves the tenant, applies its limits, and records the invocation."
+  description="Publishes agents with versioning, dispatches runs to a shared runtime pool, and meters and bills what each one consumes. External clients call one REST API; Nexus resolves the tenant, applies its limits, and records the invocation. Published agents are also served over A2A 1.0, images are generated and billed like runs, and the operator console shows every run on a live tape."
   accent="#fbbf24"
   accentDeep="#f59e0b"
   panelTitle="run an agent"
