@@ -39,7 +39,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | Component | Repository | Current version | Ecosystem group | Status |
 |-----------|------------|-----------------|-----------------|--------|
 | **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.29.0` | Author | Shipped |
-| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.11.2` | Author | Shipped |
+| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.12.0` | Author | Shipped |
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
 | **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped ([PyPI](https://pypi.org/project/astromesh-rag/)) |
 | **Context** | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | `0.1.0` | Execute | Shipped ([PyPI](https://pypi.org/project/astromesh-context/)) |

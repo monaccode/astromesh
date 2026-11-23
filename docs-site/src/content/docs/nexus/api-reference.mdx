@@ -164,7 +164,31 @@ Nexus 0.29.0+. With the tenant's credential.
 
 | Method | Path | |
 |---|---|---|
-| `POST` | `/api/v1/images/generate` | Generate one image: a prompt, aspect `1:1` or `9:16`, up to 4 reference images, and an `event_id` that makes the request idempotent. |
+| `POST` | `/api/v1/images/generate` | Generate one image. |
+
+```json
+{
+  "prompt": "A storefront at dusk, warm light",
+  "aspect_ratio": "1:1",
+  "references": [{ "mime": "image/png", "data": "<base64>" }],
+  "event_id": "post-123-v1",
+  "subscription_id": "<optional>",
+  "unidad": "<optional, needs subscription_id>"
+}
+```
+
+| Field | |
+|---|---|
+| `prompt` | Required, 1–8000 characters. |
+| `aspect_ratio` | Required: `1:1` or `9:16`. |
+| `references` | Optional, at most 4, 6 MB together. Each one needs `mime` and base64 `data`. |
+| `event_id` | Required. The idempotency key. |
+| `subscription_id` | Optional. Adds that subscription's credit cap to the tenant's. |
+| `unidad` | Optional, and only with `subscription_id`: the business unit to record on that subscription. |
+
+A `200` returns `image_id`, `mime`, base64 `data`, `credits_micros`, `unidad_registrada`, an
+optional `motivo` and `repetida` (`true` when the `event_id` had already produced this image). It
+never carries the provider cost.
 
 - The model is OpenAI `gpt-image-2.6-flare` at `medium` quality by default; operators change it with
   `NEXUS_IMAGE_MODEL` and `NEXUS_IMAGE_QUALITY` in `nexus-config`. `1:1` renders at `1024x1024` and
@@ -176,8 +200,12 @@ Nexus 0.29.0+. With the tenant's credential.
   concurrent requests with the same id get `409`. The bytes are kept for 7 days, then `410`.
 - **Metered like a run.** Cost comes from the provider's `usage` at the per-token tariff, adds to the
   tenant's and the platform's usage, and shares the credit caps with runs: with no room left the
-  answer is `402` and the provider is never called. The image also records the unit `musa.imagen`
-  on the tenant's subscription.
+  answer is `402` and the provider is never called.
+- **The unit is the caller's.** With `unidad` and `subscription_id`, Nexus records that unit on the
+  subscription (MUSA sends `musa.imagen`). When it cannot — the unit is not in the plan, or the
+  subscription is not the tenant's — the image is still returned, with `unidad_registrada: false`
+  and the reason in `motivo`. A billing problem never blocks the image.
+- Other answers: `400` naming the rule that failed, `502` when the provider fails.
 
 ## Subscriptions and usage events
 

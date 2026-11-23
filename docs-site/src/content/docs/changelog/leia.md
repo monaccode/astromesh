@@ -1,6 +1,6 @@
 ---
 title: "Astromesh Leia changelog"
-description: "Every release of astromesh-leia. Latest: v0.11.2, 2026-11-04."
+description: "Every release of astromesh-leia. Latest: v0.12.0, 2026-11-23."
 editUrl: false
 sidebar:
   label: "Astromesh Leia"
@@ -16,6 +16,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.12.0] - 2026-11-23
+
+Leia conoce lo publicado hasta el 23 de noviembre: core 0.75.0, Nexus 0.31.1 y Herald 0.15.1.
+
+### Added
+
+- `schemas/astromesh-v1-agent.md`: **core 0.75.0**. `headers` en un bloque `openai_compat` (`${VAR}`
+  estricto: una variable sin definir descarta al candidato; `Authorization`, `Content-Type`,
+  `Content-Length` y `Host` reservados; reemplaza el `headers` de `providers.yaml` sin mezclar;
+  nunca en logs), con un ejemplo de gateway y el aviso de que **en Nexus todavía no**: el pool corre
+  0.74.1. Orden alfabético de carga de agentes.
+- `schemas/nexus-api.md`: **Nexus 0.31.1**. `POST /api/v1/images/generate` (0.29): idempotente por
+  `event_id`, cuerpo y respuesta exactos, `402` dentro de los mismos techos de créditos, `409`, `410`
+  a los 7 días, `503` sin key (siempre `503` antes de 0.29.1), y la `unidad` que registra sólo si
+  el que llama la manda con `subscription_id` (MUSA manda `musa.imagen`). La consola de operador con la
+  cinta *En vivo* (0.30–0.31), para responder «¿cuánto gastó?».
+- `schemas/ecosystem.md`: **Herald 0.15.1** (`sender_phone` y `contact_shared` en el forward a
+  `callback_url`; Instagram emulado en mvp), cuatro filas nuevas en la tabla de pedidos (un bot
+  para varios locales, generar imágenes, ver el gasto en vivo, un header extra al modelo) y una
+  tabla «Since 2026-11-04» con cada gate.
+
+### Changed
+
+- Compatibilidad: Leia 0.12 con Nexus 0.26–0.31 y core 0.29–0.75. `leia-doctor` fecha el pool en
+  Nexus 0.31.1 (sigue en core 0.74.1).
 
 ## [0.11.2] - 2026-11-04
 
