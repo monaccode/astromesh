@@ -15,11 +15,11 @@ a real system prompt, shows it to you, and can deploy it, test it and diagnose i
 [Nexus](/astromesh/nexus/introduction/) hub. It is named after Leia, the author's lemon beagle: a scent hound, bred to follow a trail
 until it finds what it was sent for — which is the job here too.
 
-<Aside type="note" title="v0.12.1 knows what shipped up to 2026-11-23">
+<Aside type="note" title="v0.12.2 knows what shipped up to 2026-11-23">
 Leia knows every published component and understands requests in Spanish: ask "¿uso
 astromesh-rag o knowledge.pipeline?", "generá una imagen" or "mi gateway pide un header" and it
-points at the right one, with its status and its version gate. It is synced to core 0.75.0,
-Nexus 0.31.2 and Herald 0.15.1, and knows the Nexus pool now runs core 0.75.0. It designs `type: a2a` tools (an agent that
+points at the right one, with its status and its version gate. It is synced to core 0.75.1,
+Nexus 0.31.3 and Herald 0.15.1, and knows the Nexus pool now runs core 0.75.1, Glyph included. It designs `type: a2a` tools (an agent that
 calls a remote A2A agent), publishes agents over A2A with `spec.a2a.publicar` and `spec.skills`,
 and checks the [Agent Card](/astromesh/nexus/a2a-server/) after a deploy. Operations authenticate
 with `X-API-Key` (since 0.8). See [Compatibility](#compatibility).
@@ -111,6 +111,7 @@ version.
 
 | Version | Synced to | Added |
 |---|---|---|
+| **0.12.2** | Nexus 0.31.3, core 0.75.1 | The core image and the Nexus pool ship Glyph, so a `pattern: glyph` agent with `spec.program` loads in Docker and on Nexus; only a pip-installed node still lacks it. |
 | **0.12.1** | Nexus 0.31.2, core 0.75.0 | The Nexus pool runs core 0.75.0, so `headers` works on Nexus too; `${VAR}` there reaches only the pool's shared variables, so Leia proposes literal values and never leaves a header-dependent model as the only candidate. |
 | **0.12.0** | Nexus 0.31.1, core 0.75.0 | `headers` on an `openai_compat` model block, with the warning that only a node takes it (the Nexus pool runs core 0.74.1); alphabetical agent load order; `POST /api/v1/images/generate` with its exact body, errors and the caller's `unidad`; the operator console's live tape; Herald 0.15.1 (`sender_phone`, `contact_shared` in the forward); four new rows in the request table and a table of gates since 2026-11-04. |
 | **0.11.2** | Nexus 0.28.2, core 0.74.1 | Herald 0.14.0 in `schemas/ecosystem.md`: a binding with an agent can also send attachments to `media_callback_url`; a new row in the request table. |

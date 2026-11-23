@@ -129,7 +129,7 @@ library's redacted per-stage trace, first 50 entries).
   `deploy` that replaces the agent, or pausing or removing it, closes the old agent's clients after
   a grace period equal to its longest `policy.timeout`, so a call in flight can finish.
 - **Nexus.** Nexus' runtime pool runs core 0.74.1+ with the `a2a` extra since Nexus 0.28.1 (core
-  0.75.0 since 0.31.2), so a published agent can declare `type: a2a` tools.
+  0.75.1 since 0.31.3), so a published agent can declare `type: a2a` tools.
 
 ## ADK: `remote_a2a()`
 

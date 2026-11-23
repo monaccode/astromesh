@@ -1,6 +1,6 @@
 ---
 title: "Astromesh Nexus changelog"
-description: "Every release of astromesh-nexus. Latest: v0.31.2, 2026-11-23."
+description: "Every release of astromesh-nexus. Latest: v0.31.3, 2026-11-23."
 editUrl: false
 sidebar:
   label: "Astromesh Nexus"
@@ -16,6 +16,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.31.3] - 2026-11-23
+
+### Fixed
+
+- Runtime pool en astromesh core **0.75.1** (era 0.75.0): la imagen del core no traía
+  `astromesh-glyph`, así que un agente con `spec.program` / `pattern: glyph` se descartaba al
+  arrancar el pool con «No module named 'astromesh_glyph'» (`acuse-programa` en dev y mvp).
 
 ## [0.31.2] - 2026-11-23
 
