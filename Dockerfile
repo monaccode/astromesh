@@ -24,6 +24,13 @@ COPY config/ config/
 RUN uv pip install --system ".[${ASTROMESH_EXTRAS}]"
 RUN uv pip install --system ./astromesh-node ./astromesh-cli || true
 
+# Glyph (`pattern: glyph`). It is not on PyPI, so `.[glyph]` cannot resolve here
+# (`[tool.uv.sources]` only applies to uv sync): install it from the monorepo, like
+# node and cli. Without it every agent with `spec.program` was skipped at boot with
+# "No module named 'astromesh_glyph'" — on Nexus' pool too. No runtime dependencies.
+COPY astromesh-glyph/ astromesh-glyph/
+RUN uv pip install --system ./astromesh-glyph
+
 # Copy source after dependencies so code changes do not invalidate dependency layer.
 COPY astromesh/ astromesh/
 COPY astromesh-node/src/astromesh_node/ astromesh-node/src/astromesh_node/
