@@ -1,6 +1,6 @@
 ---
 title: "Astromesh Nexus changelog"
-description: "Every release of astromesh-nexus. Latest: v0.31.1, 2026-11-23."
+description: "Every release of astromesh-nexus. Latest: v0.31.2, 2026-11-23."
 editUrl: false
 sidebar:
   label: "Astromesh Nexus"
@@ -16,6 +16,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.31.2] - 2026-11-23
+
+### Changed
+
+- Runtime pool en astromesh core **0.75.0** (era 0.74.1): un agente publicado puede mandar
+  `headers` extra al modelo en un bloque `openai_compat` (la llave de un gateway, un id de
+  tenant). Los valores con `${VAR}` sólo resuelven contra el entorno del pool, que no tiene
+  variables de tenant: una variable que no está ahí descarta ese candidato. Aditivo: ningún
+  agente existente cambia de comportamiento.
 
 ## [0.31.1] - 2026-11-23
 
