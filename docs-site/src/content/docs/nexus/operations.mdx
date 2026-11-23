@@ -75,7 +75,7 @@ The `deploy/` tree in the Nexus repository is Kustomize:
 | `deploy/base` | The `nexus` Deployment, Service, Ingress and `nexus-config` ConfigMap. |
 | `deploy/components/postgres` | In-cluster PostgreSQL StatefulSet. |
 | `deploy/components/redis` | Redis for the runtime's conversational memory: no volume, no password, `allkeys-lru`. It holds only turns with a TTL and is reachable only inside the namespace. |
-| `deploy/components/runtime-pool` | The Astromesh runtime, pinned to one image version (`fulfarodev/astromesh:0.75.0` since Nexus 0.31.2), behind `astromesh-runtime:8000`. |
+| `deploy/components/runtime-pool` | The Astromesh runtime, pinned to one image version (`fulfarodev/astromesh:0.75.1` since Nexus 0.31.3), behind `astromesh-runtime:8000`. |
 | `deploy/overlays/{dev,mvp}` | One namespace and host per environment. |
 | `deploy/argocd` | One ArgoCD Application and one Image Updater config per environment. |
 

@@ -17,7 +17,7 @@ These directories ship from this repository on their own tags and versions.
 
 | Component | Package | Directory | Version | Version source | Min Python / Runtime |
 |-----------|---------|-----------|---------|----------------|----------------------|
-| **Core Runtime** | `astromesh` | `astromesh/` | `0.75.0` | `astromesh/__init__.py` | Python 3.12 |
+| **Core Runtime** | `astromesh` | `astromesh/` | `0.75.1` | `astromesh/__init__.py` | Python 3.12 |
 | **Glyph** | `astromesh-glyph` | `astromesh-glyph/` | `0.1.3` | `astromesh_glyph/__init__.py` | Python 3.12 |
 | **ADK** | `astromesh-adk` | `astromesh-adk/` | `0.7.1` | `astromesh_adk/__init__.py` | Python 3.12 |
 | **CLI** | `astromesh-cli` | `astromesh-cli/` | `0.4.1` | `astromesh_cli/__init__.py` | Python 3.12 |
@@ -39,7 +39,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | Component | Repository | Current version | Ecosystem group | Status |
 |-----------|------------|-----------------|-----------------|--------|
 | **Cortex** | [`astromesh-cortex`](https://github.com/monaccode/astromesh-cortex) | `0.29.0` | Author | Shipped |
-| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.12.1` | Author | Shipped |
+| **Leia** | [`astromesh-leia`](https://github.com/monaccode/astromesh-leia) | `0.12.2` | Author | Shipped |
 | **SDD** | [`astromesh-sdd`](https://github.com/monaccode/astromesh-sdd) | `0.1.0` | Author | Shipped |
 | **RAG** | [`astromesh-rag`](https://github.com/monaccode/astromesh-rag) | `0.1.0` | Execute | Shipped ([PyPI](https://pypi.org/project/astromesh-rag/)) |
 | **Context** | [`astromesh-context`](https://github.com/monaccode/astromesh-context) | `0.1.0` | Execute | Shipped ([PyPI](https://pypi.org/project/astromesh-context/)) |
@@ -47,7 +47,7 @@ These components are part of the Astromesh ecosystem but live in their own repos
 | **Herald** | [`astromesh-herald`](https://github.com/monaccode/astromesh-herald) | `0.15.1` | Reach | Shipped |
 | **OS** | [`astromesh-os`](https://github.com/monaccode/astromesh-os) | `0.13.8` | Ship | Shipped |
 | **Prisma** | [`astromesh-prisma`](https://github.com/monaccode/astromesh-prisma) | `0.2.1` | Ship | In development |
-| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.31.2` | Operate | Shipped |
+| **Nexus** | [`astromesh-nexus`](https://github.com/monaccode/astromesh-nexus) | `0.31.3` | Operate | Shipped |
 | **Nebula** | [`astromesh-nebula`](https://github.com/monaccode/astromesh-nebula) | `0.1.0` | Models | Preview |
 
 ## 2. Dependency graph (monorepo)
