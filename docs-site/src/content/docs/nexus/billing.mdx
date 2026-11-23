@@ -59,7 +59,7 @@ A tariff also records the **provider cost** and, for models served on your own i
 | A model with no tariff is **`unpriced`** and charges zero. | Nexus never invents a price. The console shows unpriced runs so you can file the missing tariff. |
 | No `credits_per_1k_cached_in` means no cache discount. | It overcharges rather than undercharges. |
 
-**Images are priced the same way** (Nexus 0.29.0+): [`POST /api/v1/images/generate`](/astromesh/nexus/api-reference/#images) takes its cost from the provider's token `usage` at the image model's tariff, counts against the same credit caps as runs (`402` before the provider is called when there is no room), and records `musa.imagen` on the subscription. Since 0.29.0 an unreadable subscription no longer skips its credit cap.
+**Images are priced the same way** (Nexus 0.29.0+): [`POST /api/v1/images/generate`](/astromesh/nexus/api-reference/#images) takes its cost from the provider's token `usage` at the image model's tariff, counts against the same credit caps as runs (`402` before the provider is called when there is no room), and records the business unit the caller names in `unidad` on its subscription — MUSA uses `musa.imagen`. Since 0.29.0 an unreadable subscription no longer skips its credit cap.
 
 Nexus seeds tariffs for the Moonshot Kimi models the platform runs, at the provider's published prices, so a credit equals the provider cost and the seed adds no margin. Add margin by filing a later row.
 
