@@ -1,6 +1,6 @@
 ---
 title: "Astromesh Leia changelog"
-description: "Every release of astromesh-leia. Latest: v0.12.0, 2026-11-23."
+description: "Every release of astromesh-leia. Latest: v0.12.1, 2026-11-23."
 editUrl: false
 sidebar:
   label: "Astromesh Leia"
@@ -16,6 +16,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.12.1] - 2026-11-23
+
+### Changed
+
+- **Nexus 0.31.2**: el pool corre core 0.75.0, así que `headers` en un bloque `openai_compat` ya
+  funciona en Nexus, no sólo en un nodo. Leia sabe el límite: ahí un `${VAR}` sólo llega a las
+  variables compartidas del pool, así que propone valores literales (un id de tenant) y nunca deja
+  como único candidato un modelo que dependa de un header con variable. `schemas/nexus-api.md`,
+  `schemas/astromesh-v1-agent.md`, `schemas/ecosystem.md`, `leia-doctor` y la nota de
+  compatibilidad.
 
 ## [0.12.0] - 2026-11-23
 

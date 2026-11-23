@@ -1,6 +1,6 @@
 ---
 title: "Astromesh Herald changelog"
-description: "Every release of astromesh-herald. Latest: v0.15.1, 2026-11-23."
+description: "Every release of astromesh-herald. Latest: v0.16.0, 2026-11-23."
 editUrl: false
 sidebar:
   label: "Astromesh Herald"
@@ -16,6 +16,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.16.0] - 2026-11-23
+
+### Added
+
+- **The emulated WhatsApp template records its name, language and params.**
+  `GET /admin/emulator/outbox` entries for a template send now carry
+  `contenido` as `[plantilla <name> (<lang>)] <p1> | <p2>` and a structured
+  `plantilla: {nombre, idioma, params}` field (omitted for non-template
+  sends). Before, only `[plantilla <name>]` was kept, so a proactive message
+  could not be read in full in emulated environments. Real sending is
+  untouched. The text form changed from `[plantilla <name>]` to include the
+  language.
 
 ## [0.15.1] - 2026-11-23
 
