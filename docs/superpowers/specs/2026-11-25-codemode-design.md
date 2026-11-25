@@ -52,7 +52,7 @@ streaming del resultado.
   `spec.program` fijo. La gramática explicada en el prompt fue parte del costo. Code Mode usa Python, que
   el modelo ya conoce, y apunta a catálogos grandes: no es el escenario que medimos, por eso el eval.
 - **Sandbox:** `pydantic-monty` 1.7.0 (MIT, Python ≥3.11): intérprete de un subconjunto de Python escrito
-  en Rust, en proceso, sin contenedor. Parsea, chequea tipos contra stubs, compila y ejecuta; cada vez que
+  en Rust, sin contenedor. *(Corrección al planificar: la 1.7 ejecuta el código en un pool de workers en subproceso — `AsyncMonty` — no dentro del proceso; aísla más, y el arranque del pool se paga una vez por `CodeMode`.)* Parsea, chequea tipos contra stubs, compila y ejecuta; cada vez que
   el código llama a una función externa vuelve a Python. El código sólo puede tocar las funciones que le
   pasamos: no hay `import os`, archivos ni red.
 - **Core hoy:** tipos de tool `builtin`, `agent`, `client`, `integration`, `api`, `mcp`, `a2a`
@@ -196,7 +196,7 @@ tools:
 |---|---|---|
 | Forma | Envoltorio de tools, dos tools (`search`, `run`) | Aditivo, opcional por grupo, mismo molde que Cloudflare/Anthropic; no toca el patrón |
 | Lenguaje | Python | El modelo ya lo conoce; un DSL propio fue parte del costo de Glyph |
-| Sandbox | Monty, en proceso | Sin contenedor ni latencia de arranque; el código sólo toca lo que le pasamos; MIT |
+| Sandbox | Monty (pool de workers en subproceso) | Sin contenedor; pool reutilizado entre `run`s; el código sólo toca lo que le pasamos; MIT |
 | Búsqueda | Léxica (BM25) | Sin dependencias ni embeddings; semántica queda para después si el eval la pide |
 | Escrituras | Fuera en v0.1; nunca en Astromesh | No abrir un camino para saltarse la compuerta |
 | Evidencia | Nivel 2 publicado antes de PyPI y antes del core (compuerta dura) | Lección de Glyph; Context salió con el nivel 2 pendiente y esta vez no |
