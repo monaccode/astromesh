@@ -172,6 +172,14 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Code Mode',
+          items: [
+            { label: 'Introduction', slug: 'codemode/introduction' },
+            { label: 'The astromesh-codemode library', slug: 'codemode/library' },
+            { label: 'Eval', slug: 'codemode/eval' },
+          ],
+        },
+        {
           label: 'SDD Skills',
           items: [
             { label: 'Introduction', slug: 'sdd/introduction' },

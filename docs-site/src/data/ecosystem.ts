@@ -244,6 +244,22 @@ export const COMPONENTS: Component[] = [
     repo: 'https://github.com/monaccode/astromesh-context',
   },
   {
+    id: 'codemode',
+    name: 'Astromesh Code Mode',
+    short: 'Code Mode',
+    group: 'runtime',
+    version: '0.1.0',
+    released: '2026-11-26',
+    tagline:
+      'Puts any set of tools behind two — search and run — so the model writes a short Python program in a sandbox and only the result comes back.',
+    latest:
+      'Public repository, CI green, not on PyPI yet: `CodeMode` over Python functions or MCP servers, typed stubs found with BM25, a Monty sandbox with per-run limits and a trace, adapters for eight frameworks, an MCP proxy server and eleven security traps all stopped. The level-1 cost table is published (Code Mode loses on output tokens everywhere and is even with a tiny catalog); 0.1.0 ships to PyPI when the level-2 table with real models is.',
+    install: 'pip install "astromesh-codemode @ git+https://github.com/monaccode/astromesh-codemode@main"',
+    href: '/astromesh/codemode/introduction/',
+    repo: 'https://github.com/monaccode/astromesh-codemode',
+    inDevelopment: true,
+  },
+  {
     id: 'herald',
     name: 'Astromesh Herald',
     short: 'Herald',

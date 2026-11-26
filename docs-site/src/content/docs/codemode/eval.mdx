@@ -1,0 +1,94 @@
+---
+title: Code Mode eval
+description: Two evals in CI — eleven security traps, all stopped with the default limits, and a cost eval of Code Mode against direct tool calling by catalog and data size. Level 1 is published; level 2, with real models, is pending.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Code Mode is sold on savings. Glyph taught us that "the model writes a program" can cost far more
+than ReAct, so this library does not claim a number it has not measured. Two evals live in the
+repository and run in CI.
+
+## Security: eleven traps
+
+```bash
+python -m astromesh_codemode.eval traps
+```
+
+Each trap is a hostile program sent to `run` with the default `Limits()`. "Stopped" is proven
+with evidence from the host, not by the program's own output.
+
+| Trap | What it tries |
+|---|---|
+| `os_import` | run a shell command or read a host secret through `os`/`subprocess` |
+| `file_read` | read a host file holding a random token, path given |
+| `network` | connect to a local TCP listener that counts connections |
+| `infinite_loop` | never return |
+| `memory_bomb` | allocate past the heap cap |
+| `deep_recursion` | blow the stack |
+| `unknown_tool` | call a function it was not given |
+| `bad_args` | call a tool with arguments its schema rejects |
+| `output_flood` | hand the model 100 MiB, printed or returned |
+| `call_budget` | exceed `max_calls` |
+| `excluded_write` | call a write tool that was not allowed |
+
+**Result: 11/11 stopped** with the defaults, on every CI run.
+
+## Cost: Code Mode against direct tool calling
+
+The scenario: find the top three customers by order total. *Direct* is ordinary tool calling —
+every tool's schema on every call, three calls (list orders, three parallel customer lookups,
+answer). *Code Mode* is three calls too (`search`, `run` with the program, answer), with the real
+outputs of `search` and `run`. Both strategies see the **same read-only tools**. Six scenarios
+cross the catalog size (8, 64, 512 tools) with the intermediate data (5 or 500 order rows).
+
+### Level 1 — scripted model, real token counts (published)
+
+```bash
+python -m astromesh_codemode.eval cost --level 1
+```
+
+The model is scripted: the eval counts the tokens each strategy puts into the context with
+`tiktoken` `o200k_base`. It runs in CI. Results of 2026-11-25:
+
+| Catalog | Rows | Direct context | Code Mode context | Ratio | Direct output | Code Mode output |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8 | 5 | 1,989 | 1,897 | 0.95 | 74 | 164 |
+| 8 | 500 | 20,799 | 1,897 | 0.09 | 74 | 164 |
+| 64 | 5 | 7,578 | 2,073 | 0.27 | 74 | 164 |
+| 64 | 500 | 26,388 | 2,073 | 0.08 | 74 | 164 |
+| 512 | 5 | 58,047 | 1,897 | 0.03 | 74 | 164 |
+| 512 | 500 | 76,857 | 1,897 | 0.02 | 74 | 164 |
+
+Ratio is Code Mode context ÷ direct context; below 1, Code Mode carries less.
+
+What the table says, and what it does not:
+
+- Code Mode **loses on output tokens in every scenario** (164 against 74): writing a program costs
+  more than writing a tool call.
+- With a small catalog and little data it is **roughly even** (0.95).
+- It wins when the catalog is large (schemas no longer ride along on every call) or the
+  intermediate data is large (the 500 rows stay inside the sandbox).
+- It is a scripted model. A real model may search more than once, write a broken program and
+  retry, or answer differently. That is what level 2 measures.
+
+### Level 2 — real models (pending)
+
+```bash
+python -m astromesh_codemode.eval cost --level 2 --models gpt-4o-mini,gpt-4o
+```
+
+The same scenarios with real models through `litellm`: a real agent loop per strategy, success
+checked against the exact top three, tokens from `usage`, cost from litellm's bundled price map
+(its version and the prices are recorded with the results), and latency. Rows where every attempt
+failed come out `not_runnable` instead of costing $0. It refuses to run without the provider's API
+key or a known price.
+
+<Aside type="caution" title="Pending">
+Level 2 has not been run yet. **0.1.0 will not be published to PyPI until its table is published
+here and in the repository's README.** That is the release gate.
+</Aside>
+
+The full method, its caveats and the raw results are in
+[`docs/eval.md`](https://github.com/monaccode/astromesh-codemode/blob/main/docs/eval.md) and
+[`results/`](https://github.com/monaccode/astromesh-codemode/tree/main/results).

@@ -4,7 +4,7 @@ description: "Every release of astromesh-okf. Latest: v0.1.0, 2026-10-12."
 editUrl: false
 sidebar:
   label: "Astromesh OKF"
-  order: 11
+  order: 12
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2

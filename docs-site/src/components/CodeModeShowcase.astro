@@ -1,0 +1,41 @@
+---
+import ProductShowcase from './ProductShowcase.astro';
+
+// Real output of the quickstart in /codemode/library/ (two from_function tools, 500 orders
+// in memory) against astromesh-codemode at develop, 2026-11-26: the program sorts the 500
+// rows inside the sandbox and only three customers reach the model.
+const lines = [
+  { t: '>>> await cm.search("orders customer")', k: 'cmd' },
+  { t: 'async def list_orders(limit: int | None = None) -> list[dict]:', k: 'str' },
+  { t: 'async def get_customer(customer_id: str) -> dict:', k: 'str' },
+  { t: '>>> await cm.run(program)   # 500 rows stay in the sandbox', k: 'cmd' },
+  { t: 'result: [{"id": "c4", ...}, {"id": "c0", ...}, {"id": "c3", ...}]', k: 'key' },
+  { t: '# level-1 eval: 512 tools × 500 rows → 0.02× the context', k: 'comment' },
+];
+
+const features = [
+  { icon: `<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>`, label: 'Two tools', desc: 'search stubs, run a program' },
+  { icon: `<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 9l3 3-3 3M13 15h3"/>`, label: 'Monty sandbox', desc: 'No os, files or network' },
+  { icon: `<path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6z"/>`, label: '11/11 traps', desc: 'Stopped with default limits' },
+  { icon: `<path d="M4 6h16M4 12h16M4 18h16"/>`, label: '8 frameworks', desc: 'LangChain to Agent Framework' },
+  { icon: `<circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M9 11l6-4M9 13l6 4"/>`, label: 'MCP proxy', desc: 'In front of any MCP server' },
+  { icon: `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`, label: 'Measured, not promised', desc: 'Level 1 published; level 2 pending' },
+];
+---
+
+<ProductShowcase
+  logo="/astromesh/logos/codemode-mark.svg"
+  name="Code Mode"
+  version="0.1.0-dev"
+  badge="IN DEVELOPMENT"
+  tagline="Two tools instead of the whole catalog"
+  description="The model searches typed Python stubs, writes a short program and runs it in a sandbox. Intermediate data stays there; only the answer comes back. It loses on output tokens, and the eval says so."
+  accent="#7cc4fa"
+  accentDeep="#1d4ed8"
+  panelTitle="codemode · quickstart, real output"
+  lines={lines}
+  features={features}
+  terminal={['pip install "astromesh-codemode @ git+https://github.com/monaccode/astromesh-codemode@main"']}
+  ctaPrimary={{ text: 'See the eval', href: '/astromesh/codemode/eval/' }}
+  ctaSecondary={{ text: 'Read the Docs', href: '/astromesh/codemode/introduction/' }}
+/>

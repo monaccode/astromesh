@@ -4,7 +4,7 @@ description: "Every release of astromesh-herald. Latest: v0.16.0, 2026-11-23."
 editUrl: false
 sidebar:
   label: "Astromesh Herald"
-  order: 15
+  order: 16
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2

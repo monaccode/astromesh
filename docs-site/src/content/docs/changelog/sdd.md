@@ -4,7 +4,7 @@ description: "Every release of astromesh-sdd. Latest: v0.1.0, 2026-10-13."
 editUrl: false
 sidebar:
   label: "Astromesh SDD"
-  order: 12
+  order: 13
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2

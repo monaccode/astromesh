@@ -37,6 +37,7 @@ const resources = [
       <span class="orbit-badge-ver">orbit-v{orbitVersion}</span>
     </div>
     <h2 class="orbit-title">
+      <img class="orbit-logo" src="/astromesh/logos/orbit-mark.svg" alt="" width="56" height="56" />
       <span class="orbit-title-thin">Astromesh</span>
       <span class="orbit-title-bold">Orbit</span>
     </h2>
@@ -220,6 +221,11 @@ const resources = [
     opacity: 0.7;
   }
 
+  .orbit-logo {
+    display: inline-block; width: 56px; height: 56px; margin: 0 0.6rem 0 0;
+    vertical-align: -0.35em;
+    filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.45));
+  }
   .orbit-title {
     font-size: 2.6rem;
     line-height: 1.1;
