@@ -53,7 +53,7 @@ const {
   logo,
 } = Astro.props as Props;
 
-const slug = name.toLowerCase();
+const slug = name.toLowerCase().replace(/\s+/g, '');
 ---
 
 <section class="ps-root" style={`--accent: ${accent}; --accent-deep: ${accentDeep};`} data-ps={slug}>

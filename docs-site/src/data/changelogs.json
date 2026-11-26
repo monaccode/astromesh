@@ -1,5 +1,5 @@
 {
-  "synced": "2026-11-23",
+  "synced": "2026-11-26",
   "packages": [
     {
       "id": "core",
@@ -788,6 +788,15 @@
           "date": "2026-10-19"
         }
       ]
+    },
+    {
+      "id": "codemode",
+      "name": "Astromesh Code Mode",
+      "package": "astromesh-codemode",
+      "repo": "https://github.com/monaccode/astromesh-codemode",
+      "visibility": "public",
+      "latest": null,
+      "releases": []
     },
     {
       "id": "rag",
