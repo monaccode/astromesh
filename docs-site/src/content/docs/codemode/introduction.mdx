@@ -1,0 +1,77 @@
+---
+title: Astromesh Code Mode
+description: Puts any set of tools behind two — search and run — so the model writes a short Python program against typed stubs and only the result comes back. With an eval that says where it wins and where it loses.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<p style="text-align:center; margin: 0.5rem 0 1.75rem;">
+  <img src="/astromesh/logos/codemode.png" alt="Astromesh Code Mode" width="520" style="display:inline-block; max-width:100%; border-radius:14px;" />
+</p>
+
+**astromesh-codemode** changes how tools are presented to a model. Instead of sending the schema
+of every tool on every call and running one tool call per turn, it hands the model **two** tools:
+
+- **`codemode_search(query, limit=8)`** returns typed Python stubs (`async def …`) of the tools
+  that match, found with BM25. The whole catalog never enters the context.
+- **`codemode_run(code)`** runs a short Python program the model writes against those stubs, in a
+  [Monty](https://github.com/pydantic/monty) sandbox. Every tool is an `async` function inside the
+  program; calling it runs the real tool on the host. Only what the program returns (and prints)
+  goes back to the model, with a size cap.
+
+So a model that needs the top three customers by spend calls `search("orders customers")`, then
+`run` a program that lists the orders, sums them in code and fetches three customers in parallel
+with `asyncio.gather`. The 500 orders never pass through the model.
+
+<Aside type="caution" title="Status: in development">
+The library is public at [github.com/monaccode/astromesh-codemode](https://github.com/monaccode/astromesh-codemode)
+(Apache-2.0, Python 3.11+) and its CI is green, but **0.1.0 is not on PyPI yet**. It ships when the
+level-2 cost eval — real models, real tokens — is published next to the level-1 table. Until then,
+install from the repository. The Astromesh core integration (`type: codemode`) comes after that
+release.
+</Aside>
+
+## Why now, and why not just MCP
+
+During 2026 Cloudflare, Anthropic, OpenCode, Goose, smolagents and Pydantic AI converged on this
+shape. MCP does not go away: it still provides connection, authorization and documentation for
+tools. What changes is how those tools reach the model. Code Mode sits **in front of** MCP servers
+(or plain Python functions), not instead of them.
+
+It is also not [Glyph](/astromesh/glyph/introduction/). Glyph is our own language for programs that
+are fixed in the agent spec and cost nothing per run; when a model wrote Glyph on every run, it cost
+more than ReAct. Code Mode uses Python, which models already write, and targets the case Glyph was
+never measured on: large catalogs and large intermediate data.
+
+## What it promises, and what it does not
+
+| Claim | How it is held to it |
+|---|---|
+| Fewer context tokens with large catalogs or large intermediate data | A **cost eval** in the repository. Level 1 (scripted model, real token counts) is published; level 2 (real models) is pending. No "saves X%" without that table — see [Eval](/astromesh/codemode/eval/). |
+| The model's code cannot touch the host | Monty has no `import os`, no files, no network; the program only sees the functions it is given. An **eleven-trap security eval** runs in CI and every trap is stopped with the default limits. |
+| Writes do not slip in | v0.1 is read-only: tools marked `writes=True` are invisible to `search` and absent from the sandbox unless you pass `allow_writes=True`. MCP tools count as writes unless they carry `readOnlyHint: true` or you list them. |
+| Bounded runs | `Limits`: 30 s of wall clock (tool time included), 64 MiB of sandbox memory, 50 tool calls and 16 KiB of output per run, by default. |
+| You can see what happened | A `Trace` per run (each call, its time, bytes and error type), and OpenTelemetry spans that leave argument values out unless you opt in. |
+
+Where it loses, measured at level 1: **output tokens, in every scenario** (the model writes a
+program instead of a tool call), and context with a tiny catalog and little data, where it is
+roughly even.
+
+## Where it fits
+
+- **Any framework.** Adapters for LangChain/LangGraph, PydanticAI, OpenAI Agents SDK, Google ADK,
+  CrewAI, LlamaIndex, smolagents and Microsoft Agent Framework turn a `CodeMode` into that
+  framework's two native tools. See [The library](/astromesh/codemode/library/).
+- **Any MCP client, no code.** `astromesh-codemode mcp --config upstream.yaml` is an MCP server that
+  sits in front of other MCP servers and offers them to Claude, Cursor or any client as
+  `search`/`run`.
+- **Astromesh, optionally — next.** The planned core integration groups an agent's tools behind
+  `type: codemode` (extra `astromesh[codemode]`) without changing the orchestration pattern and
+  without skipping permissions, confirmation gates, rate limits or traces. If the extra is missing
+  the agent stays in draft with the reason; it never falls back to plain tool calling silently.
+
+## Read next
+
+- [The library](/astromesh/codemode/library/) — install, quickstart, frameworks, MCP proxy, limits.
+- [Eval](/astromesh/codemode/eval/) — the security traps and the cost tables.
+- [Changelog](/astromesh/changelog/codemode/).

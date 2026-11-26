@@ -4,7 +4,7 @@ description: "Every release of astromesh-cortex. Latest: v0.29.0, 2026-10-22."
 editUrl: false
 sidebar:
   label: "Astromesh Cortex"
-  order: 16
+  order: 17
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2

@@ -1,46 +1,65 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
   <defs>
     <linearGradient id="frame" x1="0" y1="0" x2="0.9" y2="1">
-      <stop offset="0" stop-color="#f0f9ff"/><stop offset="0.45" stop-color="#7cc4fa"/><stop offset="1" stop-color="#1d4ed8"/>
+      <stop offset="0" stop-color="#f5f3ff"/><stop offset="0.45" stop-color="#a78bfa"/><stop offset="1" stop-color="#6d28d9"/>
     </linearGradient>
     <radialGradient id="glass" cx="0.3" cy="0.2" r="0.9">
-      <stop offset="0" stop-color="#f0f9ff" stop-opacity="0.2"/><stop offset="1" stop-color="#1d4ed8" stop-opacity="0.32"/>
+      <stop offset="0" stop-color="#f5f3ff" stop-opacity="0.18"/><stop offset="1" stop-color="#6d28d9" stop-opacity="0.34"/>
     </radialGradient>
-    <linearGradient id="light" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f0f9ff"/><stop offset="1" stop-color="#7cc4fa"/>
+    <linearGradient id="slabTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5f3ff"/><stop offset="1" stop-color="#c4b5fd"/>
     </linearGradient>
-    <linearGradient id="deep" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2f6fe4"/><stop offset="1" stop-color="#172f7a"/>
+    <linearGradient id="slab" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#3b1a8a"/>
     </linearGradient>
     <linearGradient id="orbitA" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#1e40af"/><stop offset="0.5" stop-color="#1fb4f2"/><stop offset="1" stop-color="#1e40af"/>
+      <stop offset="0" stop-color="#4c1d95"/><stop offset="0.5" stop-color="#22d3ee"/><stop offset="1" stop-color="#4c1d95"/>
     </linearGradient>
     <linearGradient id="orbitB" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1d4ed8"/>
+      <stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#4c1d95"/>
+    </linearGradient>
+    <linearGradient id="trail" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.45"/><stop offset="1" stop-color="#22d3ee"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#2563eb" stop-opacity="0.34"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+      <stop offset="0" stop-color="#7c3aed" stop-opacity="0.36"/><stop offset="1" stop-color="#7c3aed" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
   <circle cx="200" cy="200" r="178" fill="url(#glow)"/>
+
+  <!-- orbit behind the frame -->
   <ellipse cx="200" cy="200" rx="184" ry="64" transform="rotate(30 200 200)" fill="none" stroke="url(#orbitB)" stroke-width="8"/>
-  <rect x="98" y="98" width="204" height="204" rx="30" fill="#0a1638"/>
+
+  <rect x="98" y="98" width="204" height="204" rx="30" fill="#130a33"/>
   <rect x="98" y="98" width="204" height="204" rx="30" fill="url(#glass)"/>
-  <g transform="rotate(35 200 200)">
-    <path d="M200 112 C228 136 236 176 232 228 L168 228 C164 176 172 136 200 112 Z" fill="url(#light)"/>
-    <circle cx="200" cy="168" r="15" fill="#172f7a" stroke="#8b5cf6" stroke-width="5"/>
-    <path d="M168 200 L144 238 L170 232 Z M232 200 L256 238 L230 232 Z" fill="url(#deep)" stroke="url(#light)" stroke-width="3"/>
-    <path d="M180 232 C186 262 194 276 200 290 C206 276 214 262 220 232 Z" fill="#8b5cf6"/>
-    <path d="M191 232 C194 250 198 260 200 266 C202 260 206 250 209 232 Z" fill="#f5f3ff"/>
-  </g>
+
+  <!-- the stack Orbit provisions: three layers, runtime on top -->
+  <rect x="142" y="250" width="116" height="26" rx="8" fill="url(#slab)"/>
+  <rect x="142" y="216" width="116" height="26" rx="8" fill="url(#slab)"/>
+  <rect x="142" y="182" width="116" height="26" rx="8" fill="url(#slabTop)"/>
+  <circle cx="160" cy="195" r="5" fill="#6d28d9"/>
+  <circle cx="160" cy="229" r="5" fill="#22d3ee"/>
+  <circle cx="160" cy="263" r="5" fill="#c4b5fd"/>
+  <rect x="174" y="192" width="64" height="6" rx="3" fill="#6d28d9" opacity="0.55"/>
+  <rect x="174" y="226" width="50" height="6" rx="3" fill="#c4b5fd" opacity="0.6"/>
+  <rect x="174" y="260" width="56" height="6" rx="3" fill="#c4b5fd" opacity="0.6"/>
+
+  <!-- one command: the launch arc from the stack -->
+  <path d="M200 174 C 206 142, 230 124, 262 126" fill="none" stroke="url(#trail)" stroke-width="8" stroke-linecap="round" stroke-dasharray="2 12"/>
+
   <rect x="98" y="98" width="204" height="204" rx="30" fill="none" stroke="url(#frame)" stroke-width="16"/>
 
+  <!-- orbit in front of the frame -->
   <ellipse cx="200" cy="200" rx="188" ry="70" transform="rotate(-22 200 200)" fill="none" stroke="url(#orbitA)" stroke-width="8"/>
-  <line x1="236" y1="150" x2="352" y2="94" stroke="#8b5cf6" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="236" cy="150" r="9" fill="#ffffff"/>
-  <circle cx="352" cy="94" r="16" fill="#8b5cf6"/>
+
+  <!-- the arc continues past the frame and reaches orbit -->
+  <path d="M262 126 C 300 132, 330 112, 350 96" fill="none" stroke="#22d3ee" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="350" cy="96" r="17" fill="#22d3ee"/>
+  <circle cx="350" cy="96" r="7" fill="#f5f3ff"/>
+
+  <!-- other things in orbit -->
   <circle cx="70" cy="86" r="13" fill="#ffffff"/>
-  <circle cx="36" cy="262" r="14" fill="#1fb4f2"/>
+  <circle cx="36" cy="262" r="14" fill="#8b5cf6"/>
   <circle cx="330" cy="330" r="13" fill="#ffffff"/>
 </svg>

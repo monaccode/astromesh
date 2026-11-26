@@ -1,0 +1,151 @@
+---
+title: The astromesh-codemode library
+description: CodeMode wraps Python functions or MCP servers behind search and run, with adapters for eight frameworks, an MCP proxy server, per-run limits and a trace per run.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The library has no dependency on the Astromesh core. Its only required dependencies are
+`pydantic-monty` (the sandbox) and `jsonschema`; every framework, MCP and OpenTelemetry come in
+through extras. The repository's `docs/` folder carries the same guides in more detail.
+
+<Aside type="caution" title="Not on PyPI yet">
+Until 0.1.0 is published (it waits on the level-2 eval, see [Eval](/astromesh/codemode/eval/)),
+install from GitHub:
+
+```bash
+pip install "astromesh-codemode @ git+https://github.com/monaccode/astromesh-codemode@main"
+# with a framework or the MCP proxy:
+pip install "astromesh-codemode[langchain,mcp] @ git+https://github.com/monaccode/astromesh-codemode@main"
+```
+</Aside>
+
+## Quickstart with Python functions
+
+```python
+import asyncio
+from astromesh_codemode import CodeMode
+from astromesh_codemode.sources.functions import from_function
+
+def list_orders(limit: int = 100) -> list[dict]:
+    """List recent orders with customer_id and total."""
+    ...
+
+def get_customer(customer_id: str) -> dict:
+    """Fetch one customer by id."""
+    ...
+
+async def main():
+    async with CodeMode([from_function(list_orders), from_function(get_customer)]) as cm:
+        print(await cm.search("orders customer"))
+        print(await cm.run(
+            "import asyncio\n"
+            "orders = await list_orders(limit=500)\n"
+            "top = sorted(orders, key=lambda o: o['total'], reverse=True)[:3]\n"
+            "await asyncio.gather(*(get_customer(customer_id=o['customer_id']) for o in top))"
+        ))
+
+asyncio.run(main())
+```
+
+`from_function` builds the tool's JSON Schema from type hints and its description from the
+docstring; sync functions run in a thread. Pass `writes=True` for a tool that changes something.
+
+`cm.tool_definitions()` returns the two framework-neutral tools (`codemode_search`,
+`codemode_run`) with their descriptions and schemas; the adapters are built on it. Pass
+`name="crm"` to get `crm_search` / `crm_run` and keep two groups apart.
+
+## Frameworks
+
+Each adapter exposes `as_tools(cm)` and needs its extra:
+
+| Framework | Extra | Module |
+|---|---|---|
+| LangChain / LangGraph | `langchain` | `astromesh_codemode.adapters.langchain` |
+| PydanticAI | `pydantic-ai` | `astromesh_codemode.adapters.pydantic_ai` |
+| OpenAI Agents SDK | `openai-agents` | `astromesh_codemode.adapters.openai_agents` |
+| Google ADK | `adk` | `astromesh_codemode.adapters.adk` |
+| CrewAI | `crewai` | `astromesh_codemode.adapters.crewai` |
+| LlamaIndex | `llamaindex` | `astromesh_codemode.adapters.llamaindex` |
+| smolagents | `smolagents` | `astromesh_codemode.adapters.smolagents` |
+| Microsoft Agent Framework | `agent-framework` | `astromesh_codemode.adapters.agent_framework` |
+
+```python
+from astromesh_codemode.adapters.langchain import as_tools
+
+tools = as_tools(cm)  # [codemode_search, codemode_run] as LangChain tools
+```
+
+Frameworks that call tools synchronously go through a background event loop owned by the
+`CodeMode`. From sync code, close it with `close_sync(cm)` (from `astromesh_codemode.adapters`)
+instead of `await cm.aclose()`.
+
+## MCP servers as the source
+
+```python
+from astromesh_codemode.sources.mcp import from_mcp
+
+specs = await from_mcp(session, prefix="fs_", read_only={"read_file", "list_directory"})
+cm = CodeMode(specs)
+```
+
+An MCP tool is treated as a **write** — hidden unless `allow_writes=True` — unless its annotations
+say `readOnlyHint: true` or its (unprefixed) name is in `read_only`.
+
+## The MCP proxy server
+
+With the `mcp` extra, the library is also an MCP server that sits in front of other MCP servers:
+
+```yaml
+# upstream.yaml
+name: codemode            # tools become codemode_search / codemode_run
+limits:
+  timeout_s: 30
+  max_calls: 50
+upstreams:
+  - name: fs              # tools are exposed as fs_<tool>
+    command: npx          # stdio upstream (use `url:` for streamable HTTP)
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    read_only: [read_file, list_directory, search_files]
+```
+
+```bash
+astromesh-codemode mcp --config upstream.yaml
+```
+
+Register that command in Claude, Cursor or any MCP client and it sees two tools instead of the
+whole upstream catalog.
+
+## Limits
+
+```python
+from astromesh_codemode import Limits
+
+CodeMode(specs, limits=Limits(timeout_s=10, max_calls=20))
+```
+
+| Field | Default | What it bounds |
+|---|---|---|
+| `timeout_s` | `30` | Wall clock for the whole run, **time waiting on tools included** (Monty's own clock excludes host time, so the library adds a host-side bound). |
+| `max_memory` | 64 MiB | The sandbox heap. |
+| `max_calls` | `50` | Tool calls per run. |
+| `max_output_bytes` | `16384` | UTF-8 size of the text returned to the model; longer output is truncated with a notice. |
+
+A limit hit, a tool failure or a bug in the program comes back to the model as text
+(`<Type> (line N): message`), never as an exception out of `run`. Tool failures raise inside the
+program, so the model can catch them with `try/except`.
+
+## Traces
+
+`await cm.run_traced(code)` returns `(text, Trace)`: every call with its tool, time, output bytes
+and error type. `cm.run` stores the same thing in `cm.last_trace` — last writer wins, so use
+`run_traced` when runs are concurrent. `emit_otel(trace)` (extra `otel`) turns it into spans; tool
+arguments and raw handler errors stay out unless you pass `include_args=True`.
+
+## Lifecycle caveats
+
+- One Monty worker pool starts on the first `run` and is stopped by `aclose()` or `async with`.
+  Every run gets a fresh session: no variables carry over.
+- The pool belongs to the event loop it was created on. Do not reuse a `CodeMode` across separate
+  `asyncio.run` calls.
+- Do not close a `CodeMode` while runs are in flight.
