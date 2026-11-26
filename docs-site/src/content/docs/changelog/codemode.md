@@ -40,3 +40,35 @@ tableOfContents:
   `not_runnable`, no con costo 0; escribe `results/<fecha>-L2.{json,md}`. Se
   niega a correr (exit 2) sin la API key del proveedor o sin precio conocido. Tests con
   `litellm.acompletion` mockeado; la tabla real todavía no está.
+- README en inglés (`README.md`) y en español (`README.es.md`): qué es, instalación, inicio
+  rápido con funciones, ejemplo de 5 líneas con LangChain, tabla de frameworks, límites,
+  escrituras, trazas, ciclo de vida (`aclose()` / `close_sync(cm)`, pool atado a su event
+  loop, no cerrar con runs en curso, `last_trace` gana el último en terminar), seguridad
+  (trampas 11/11) y la tabla medida del nivel 1 (`results/2026-11-25-L1.md`, modelo
+  guionado, con sus pérdidas). El nivel 2 figura como pendiente: la 0.1.0 no se publica en
+  PyPI hasta que su tabla esté publicada.
+- Docs: `docs/frameworks.md` (los ocho adapters, sync y async, cómo cerrar),
+  `docs/sandbox.md` (qué ve un programa, qué vuelve al modelo, `Limits`, escrituras,
+  trazas, `emit_otel`), `docs/mcp-proxy.md` (`from_mcp`, regla de solo lectura, el proxy y
+  su YAML); `docs/eval.md` deja el resultado del nivel 2 como pendiente con el comando exacto.
+- Ejemplos: `examples/functions_quickstart.py` (sin red ni modelo; corre en el test y en el
+  smoke del release), `examples/langchain_crm.py` (loop de agente con `gpt-4o-mini`, necesita
+  `OPENAI_API_KEY`) y `examples/mcp_proxy.py` (levanta el proxy sobre
+  `examples/upstream.yaml` y lo usa como cliente MCP; necesita Node.js).
+- `tests/test_docs_examples.py`: corre los snippets Python de los README y los docs (un
+  bloque `# needs: <módulo>` se salta si falta el módulo; `# needs: network` solo se
+  compila), verifica que los dos README tengan los mismos snippets y la tabla medida del
+  nivel 1, compila los ejemplos y corre el quickstart.
+- `.github/workflows/release.yml`: release por tag `v*` con trusted publishing (entornos
+  `testpypi` y `pypi`), chequeo de que tag, `pyproject.toml` y `__version__` coincidan,
+  lint, tests, trampas, costo nivel 1, tests con todos los extras, smoke desde TestPyPI
+  (import, `examples/functions_quickstart.py` y trampas con el paquete publicado) y GitHub
+  Release con las notas del `CHANGELOG.md`. `.github/scripts/requires.py` lee las
+  dependencias de la metadata del wheel publicado.
+
+### Changed
+
+- CI corre también en push a `develop`, y el job `adapters` corre los snippets de los docs
+  que necesitan un framework.
+- El sdist incluye `docs/`, `examples/`, `results/` y el logo, para que
+  `tests/test_docs_examples.py` corra también desde el sdist.
