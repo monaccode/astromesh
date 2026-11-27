@@ -35,6 +35,7 @@ export const SOURCES = [
   { id: 'leia', name: 'Astromesh Leia', package: 'astromesh-leia', repo: 'astromesh-leia' },
   { id: 'a2a', name: 'Astromesh A2A', package: 'astromesh-a2a', repo: 'astromesh-a2a' },
   { id: 'codemode', name: 'Astromesh Code Mode', package: 'astromesh-codemode', repo: 'astromesh-codemode' },
+  { id: 'orrery', name: 'Astromesh Orrery', package: 'astromesh-orrery', repo: 'astromesh-orrery' },
   { id: 'rag', name: 'Astromesh RAG', package: 'astromesh-rag', repo: 'astromesh-rag' },
   { id: 'context', name: 'Astromesh Context', package: 'astromesh-context', repo: 'astromesh-context' },
   { id: 'okf', name: 'Astromesh OKF', package: 'astromesh-okf', repo: 'astromesh-okf' },

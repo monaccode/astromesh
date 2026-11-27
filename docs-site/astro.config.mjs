@@ -180,6 +180,12 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Orrery',
+          items: [
+            { label: 'Introduction', slug: 'orrery/introduction' },
+          ],
+        },
+        {
           label: 'SDD Skills',
           items: [
             { label: 'Introduction', slug: 'sdd/introduction' },

@@ -4,7 +4,7 @@ description: "Every release of astromesh-prisma. Latest: v0.2.1, 2026-09-29."
 editUrl: false
 sidebar:
   label: "Astromesh Prisma"
-  order: 18
+  order: 19
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2
