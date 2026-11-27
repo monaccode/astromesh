@@ -13,10 +13,11 @@ An orrery is the mechanical model of the solar system: many bodies moving at onc
 one center. **Astromesh Orrery** is a terminal multiplexer for coding agents, written in Rust,
 where that center is the Astromesh runtime.
 
-<Aside type="caution" title="Status: design">
-There is no code yet. The design is public at
-[github.com/monaccode/astromesh-orrery](https://github.com/monaccode/astromesh-orrery)
-(Apache-2.0). Nothing here is installable; this page describes what is being built.
+<Aside type="caution" title="Status: v0 (0.0.1)">
+v0, the multiplexer, is out: [github.com/monaccode/astromesh-orrery](https://github.com/monaccode/astromesh-orrery)
+(Apache-2.0). Build it from source with Rust 1.88+:
+`cargo install --git https://github.com/monaccode/astromesh-orrery --tag v0.0.1`. Astromesh agent
+panes and the supervisor (v1) are not built yet; the sections below describe the whole design.
 </Aside>
 
 ## Two kinds of panes
@@ -55,7 +56,7 @@ confirm its own request.
 
 | Phase | What ships |
 |---|---|
-| **v0: multiplexer** | PTY panes (claude, codex, shell), layout, sessions per project, "needs you" detection. Windows 11 first. |
+| **v0: multiplexer** | PTY panes (claude, codex, shell), layout, sessions per project, "needs you" detection. Windows 11, macOS and Linux. |
 | **v1: Astromesh inside** | astromeshd link, native agent panes, MCP workspace and pane tools, confirmation gate for MCP tools (a small core change), supervisor. |
 | **v2: headless** | `orrery run --headless` for CI and small pods, as a base for Agents as a Service. In pods only API keys or local models are used. |
 

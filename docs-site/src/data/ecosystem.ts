@@ -190,13 +190,13 @@ export const COMPONENTS: Component[] = [
     name: 'Astromesh Orrery',
     short: 'Orrery',
     group: 'author',
-    version: '0.0.0',
+    version: '0.0.1',
     released: '2026-11-27',
     tagline:
       'One console for every coding agent: Claude Code, Codex or a shell in real terminal panes, next to native Astromesh agents and a supervisor that splits the work between them.',
     latest:
-      'Design phase, no code yet: public repository with the design, a Rust multiplexer (v0), native Astromesh agent panes, MCP workspace tools and a supervisor (v1), and a headless mode for CI and small pods (v2).',
-    install: 'Not installable yet — see the design in github.com/monaccode/astromesh-orrery',
+      'v0, the multiplexer: claude, codex and shells in real terminal panes (ConPTY on Windows), tabs, a leader key, a status bar, per-project sessions and "needs you" detection. Accepted on Windows 11 with the real CLIs; built from source. Astromesh agent panes and the supervisor come in v1.',
+    install: 'cargo install --git https://github.com/monaccode/astromesh-orrery --tag v0.0.1',
     href: '/astromesh/orrery/introduction/',
     repo: 'https://github.com/monaccode/astromesh-orrery',
     inDevelopment: true,

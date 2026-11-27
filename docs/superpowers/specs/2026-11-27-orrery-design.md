@@ -1,6 +1,6 @@
 # Astromesh Orrery — Diseño
 
-**Fecha:** 2026-11-27 · **Estado:** borrador, pendiente de aprobación (Juan Carlos).
+**Fecha:** 2026-11-27 · **Estado:** aprobado (Juan Carlos, 2026-11-27).
 **Decidido por Juan Carlos:** modelo híbrido (paneles de CLIs oficiales + paneles de agentes Astromesh,
 con un supervisor Astromesh), consola, Rust, nombre **Astromesh Orrery** (binario `orrery`), "por donde
 irías tú" para el cómo.
@@ -35,7 +35,7 @@ a astromeshd o reescribir el loop de agentes en Rust, un marketplace de extensio
 
 ## 2. Restricciones
 
-- **Plataformas:** Windows 11 es la primera (ConPTY), Linux segunda (pods), macOS tercera.
+- **Plataformas:** Windows 11, macOS y Linux, las tres soportadas (Juan Carlos, 2026-11-27). Windows 11 (ConPTY) es la compuerta de aceptación; macOS y Linux compilan y pasan los tests en CI.
 - **Rust estable**, un binario. Interfaz con `ratatui` + `crossterm`; terminales con `portable-pty`
   (ConPTY en Windows) y `vt100`/`alacritty_terminal` para emular la pantalla del panel.
 - **El runtime es Python** (`astromeshd` / la API FastAPI del core). Orrery le habla por la API que ya
@@ -114,7 +114,7 @@ normales; sale con código ≠ 0 si el flujo falla y deja un log/trace por panel
 ## 5. Fases
 
 1. **v0 — multiplexor:** paneles PTY (claude, codex, shell), layout, tecla líder, sesiones por proyecto,
-   detección de "esperando". Funciona en Windows 11.
+   detección de "esperando". Funciona en Windows 11, macOS y Linux.
 2. **v1 — Astromesh adentro:** link con astromeshd (lo arranca si no corre), panel de agente nativo,
    servidor MCP de workspace + paneles, compuerta de confirmación, supervisor.
 3. **v2 — headless:** modo sin interfaz, imagen de contenedor, ejemplo de CI con GitHub Actions.

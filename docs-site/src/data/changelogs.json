@@ -804,8 +804,16 @@
       "package": "astromesh-orrery",
       "repo": "https://github.com/monaccode/astromesh-orrery",
       "visibility": "public",
-      "latest": null,
-      "releases": []
+      "latest": {
+        "version": "0.0.1",
+        "date": "2026-11-27"
+      },
+      "releases": [
+        {
+          "version": "0.0.1",
+          "date": "2026-11-27"
+        }
+      ]
     },
     {
       "id": "rag",
