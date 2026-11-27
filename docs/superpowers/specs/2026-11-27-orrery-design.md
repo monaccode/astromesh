@@ -1,6 +1,6 @@
 # Astromesh Orrery — Diseño
 
-**Fecha:** 2026-11-27 · **Estado:** borrador, pendiente de aprobación (Juan Carlos).
+**Fecha:** 2026-11-27 · **Estado:** aprobado (Juan Carlos, 2026-11-27).
 **Decidido por Juan Carlos:** modelo híbrido (paneles de CLIs oficiales + paneles de agentes Astromesh,
 con un supervisor Astromesh), consola, Rust, nombre **Astromesh Orrery** (binario `orrery`), "por donde
 irías tú" para el cómo.
