@@ -4,7 +4,7 @@ description: "Every release of astromesh-nexus. Latest: v0.31.3, 2026-11-23."
 editUrl: false
 sidebar:
   label: "Astromesh Nexus"
-  order: 15
+  order: 16
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2

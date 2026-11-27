@@ -1,5 +1,5 @@
 {
-  "synced": "2026-11-26",
+  "synced": "2026-11-27",
   "packages": [
     {
       "id": "core",
@@ -794,6 +794,15 @@
       "name": "Astromesh Code Mode",
       "package": "astromesh-codemode",
       "repo": "https://github.com/monaccode/astromesh-codemode",
+      "visibility": "public",
+      "latest": null,
+      "releases": []
+    },
+    {
+      "id": "orrery",
+      "name": "Astromesh Orrery",
+      "package": "astromesh-orrery",
+      "repo": "https://github.com/monaccode/astromesh-orrery",
       "visibility": "public",
       "latest": null,
       "releases": []

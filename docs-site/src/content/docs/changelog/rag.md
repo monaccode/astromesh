@@ -4,7 +4,7 @@ description: "Every release of astromesh-rag. Latest: v0.1.0, 2026-10-14."
 editUrl: false
 sidebar:
   label: "Astromesh RAG"
-  order: 10
+  order: 11
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2

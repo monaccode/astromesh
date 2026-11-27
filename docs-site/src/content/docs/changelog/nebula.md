@@ -4,7 +4,7 @@ description: "Every release of astromesh-nebula. Latest: v0.1.0, 2026-06-09."
 editUrl: false
 sidebar:
   label: "Astromesh Nebula"
-  order: 14
+  order: 15
 tableOfContents:
   minHeadingLevel: 2
   maxHeadingLevel: 2

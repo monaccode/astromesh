@@ -58,7 +58,7 @@ export const GROUPS: Group[] = [
   {
     id: 'author',
     label: 'Author',
-    blurb: 'Four ways to write an agent — Python, browser, desktop, or plain English — all emitting the same YAML, and a spec-first method for building software with coding agents.',
+    blurb: 'Four ways to write an agent — Python, browser, desktop, or plain English — all emitting the same YAML, a spec-first method for building software with coding agents, and a console to run them side by side.',
     accent: '#8b5cf6',
     start: 0,
     sweep: 103,
@@ -184,6 +184,22 @@ export const COMPONENTS: Component[] = [
     install: '/plugin marketplace add monaccode/astromesh-sdd',
     href: '/astromesh/sdd/introduction/',
     repo: 'https://github.com/monaccode/astromesh-sdd',
+  },
+  {
+    id: 'orrery',
+    name: 'Astromesh Orrery',
+    short: 'Orrery',
+    group: 'author',
+    version: '0.0.0',
+    released: '2026-11-27',
+    tagline:
+      'One console for every coding agent: Claude Code, Codex or a shell in real terminal panes, next to native Astromesh agents and a supervisor that splits the work between them.',
+    latest:
+      'Design phase, no code yet: public repository with the design, a Rust multiplexer (v0), native Astromesh agent panes, MCP workspace tools and a supervisor (v1), and a headless mode for CI and small pods (v2).',
+    install: 'Not installable yet — see the design in github.com/monaccode/astromesh-orrery',
+    href: '/astromesh/orrery/introduction/',
+    repo: 'https://github.com/monaccode/astromesh-orrery',
+    inDevelopment: true,
   },
 
   {
