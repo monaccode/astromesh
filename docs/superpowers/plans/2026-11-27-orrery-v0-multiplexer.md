@@ -24,8 +24,8 @@ touching the panes.
   Spanish like the rest of the ecosystem, each `feat`/`fix` adds its line to `CHANGELOG.md` `[Unreleased]`.
 - Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and
   `Claude-Session: https://claude.ai/code/session_0193HxycCSWnD33U48X8gr4n`.
-- **Windows 11 is the gate:** v0 is not done until Task 9's acceptance passes on Windows with
-  `claude` and `codex`. Linux must build and pass `cargo test`; macOS is not targeted.
+- **Platforms: Windows 11, macOS and Linux** (user, 2026-11-27). Windows 11 is the acceptance gate: v0 is not done until Task 9's acceptance passes on Windows with
+  `claude` and `codex`. macOS and Linux must build and pass `cargo test` in CI (matrix: windows, ubuntu, macos).
 - Orrery never reads, stores or forwards a CLI's credentials. A CLI pane is a PTY and nothing else.
 - Sessions live in `<project>/.orrery/session.toml`; "project" = the directory `orrery` was started in.
 - Session restore re-launches each pane's command in its cwd; it does not resurrect processes.
