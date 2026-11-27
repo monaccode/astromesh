@@ -1,0 +1,67 @@
+---
+title: Astromesh Orrery
+description: One console for every coding agent. Claude Code, Codex or a shell in real terminal panes, next to native Astromesh agents and a supervisor that splits the work between them. Written in Rust; design phase.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<p style="text-align:center; margin: 0.5rem 0 1.75rem;">
+  <img src="/astromesh/logos/orrery.png" alt="Astromesh Orrery" width="520" style="display:inline-block; max-width:100%; border-radius:14px;" />
+</p>
+
+An orrery is the mechanical model of the solar system: many bodies moving at once, all geared to
+one center. **Astromesh Orrery** is a terminal multiplexer for coding agents, written in Rust,
+where that center is the Astromesh runtime.
+
+<Aside type="caution" title="Status: design">
+There is no code yet. The design is public at
+[github.com/monaccode/astromesh-orrery](https://github.com/monaccode/astromesh-orrery)
+(Apache-2.0). Nothing here is installable; this page describes what is being built.
+</Aside>
+
+## Two kinds of panes
+
+- **CLI panes.** `claude`, `codex`, `pi`, a shell or any command, in a real terminal (ConPTY on
+  Windows). Each CLI signs in on its own, so it uses the subscription you already pay for. Orrery
+  reads the screen and types keys; it never touches the CLI's credentials.
+- **Astromesh panes.** A native agent, the same `astromesh/v1` YAML as any other, running in
+  `astromeshd`. Its models come from the core's providers: API keys for frontier models, or local
+  models.
+
+A **supervisor**, itself an Astromesh agent, opens panes, sends them work, reads what they print
+and waits for them. One task can be split as "Claude implements in a CLI pane, a native agent
+reviews the diff".
+
+## How it fits together
+
+```
+orrery (Rust)
+ ├─ TUI ............ ratatui: panes, tabs, leader key, status bar
+ ├─ PaneHost ....... one PTY per pane
+ ├─ Session ........ layout, commands and cwd per project (.orrery/)
+ ├─ MCP server ..... workspace tools + pane control, localhost-only, per-run token
+ └─ Runtime link ... starts or finds astromeshd, talks REST/WebSocket
+astromeshd (Python, the Astromesh core)
+ └─ agents ......... coder, supervisor, ... with Orrery's MCP tools
+```
+
+Orrery does not rewrite the agent loop: routing, memory, guardrails, traces and the confirmation
+gate stay in the core. Native agents reach the workspace (`read_file`, `edit_file`, `grep`,
+`run_command`) and the other panes (`read_pane`, `send_to_pane`, `wait_pane`) through Orrery's MCP
+server. Writes and input sent to another pane need a person's confirmation; an agent cannot
+confirm its own request.
+
+## Roadmap
+
+| Phase | What ships |
+|---|---|
+| **v0: multiplexer** | PTY panes (claude, codex, shell), layout, sessions per project, "needs you" detection. Windows 11 first. |
+| **v1: Astromesh inside** | astromeshd link, native agent panes, MCP workspace and pane tools, confirmation gate for MCP tools (a small core change), supervisor. |
+| **v2: headless** | `orrery run --headless` for CI and small pods, as a base for Agents as a Service. In pods only API keys or local models are used. |
+
+## What Orrery will not do
+
+- **Use a subscription token from its own code.** A Claude or ChatGPT subscription is only used by
+  running the official CLI. Native agents and pods use API keys or local models.
+- **Replace the core.** No second agent loop in Rust.
+- **Be an editor.** It sits next to yours.

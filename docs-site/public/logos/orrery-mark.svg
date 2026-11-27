@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f59e0b" stop-opacity="0.30"/><stop offset="1" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="sun" cx="0.38" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#fffbeb"/><stop offset="0.35" stop-color="#fcd34d"/><stop offset="1" stop-color="#d97706"/>
+    </radialGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="ringA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4c1d95"/><stop offset="0.5" stop-color="#22d3ee"/><stop offset="1" stop-color="#4c1d95"/>
+    </linearGradient>
+    <linearGradient id="ringB" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c3aed"/><stop offset="0.5" stop-color="#c4b5fd"/><stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="term" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e1b4b"/><stop offset="1" stop-color="#0b0820"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="200" cy="200" r="190" fill="url(#glow)"/>
+
+  <!-- stand: the column the whole mechanism turns on -->
+  <rect x="194" y="200" width="12" height="128" rx="5" fill="url(#brass)"/>
+  <ellipse cx="200" cy="338" rx="74" ry="16" fill="#2a1a05"/>
+  <ellipse cx="200" cy="332" rx="74" ry="16" fill="url(#brass)"/>
+  <ellipse cx="200" cy="330" rx="56" ry="9" fill="#78350f" opacity="0.55"/>
+
+  <!-- three orbits, seen at a tilt -->
+  <ellipse cx="200" cy="190" rx="168" ry="60" fill="none" stroke="url(#ringA)" stroke-width="7"/>
+  <ellipse cx="200" cy="190" rx="118" ry="42" fill="none" stroke="url(#ringB)" stroke-width="6"/>
+  <ellipse cx="200" cy="190" rx="72" ry="26" fill="none" stroke="#fcd34d" stroke-width="5" opacity="0.8"/>
+
+  <!-- brass arms: every agent is geared to the same center -->
+  <path d="M200 190 L 330 142" stroke="url(#brass)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M200 190 L 98 211" stroke="url(#brass)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M200 190 L 255 173" stroke="url(#brass)" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- the core: the Astromesh runtime -->
+  <circle cx="200" cy="190" r="34" fill="url(#sun)"/>
+  <circle cx="200" cy="190" r="34" fill="none" stroke="#fffbeb" stroke-opacity="0.5" stroke-width="2"/>
+
+  <!-- planets: the agents -->
+  <circle cx="255" cy="173" r="13" fill="#22d3ee"/>
+  <circle cx="255" cy="173" r="5" fill="#f5f3ff"/>
+  <circle cx="98" cy="211" r="18" fill="#8b5cf6"/>
+  <circle cx="92" cy="205" r="6" fill="#ddd6fe"/>
+
+  <!-- the outer planet is a terminal: the console you drive it from -->
+  <rect x="294" y="108" width="78" height="62" rx="12" fill="url(#term)" stroke="url(#brass)" stroke-width="5"/>
+  <path d="M310 128 L 324 139 L 310 150" fill="none" stroke="#22d3ee" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="331" y="145" width="26" height="6" rx="3" fill="#fcd34d"/>
+
+  <!-- distant bodies -->
+  <circle cx="64" cy="92" r="9" fill="#ffffff"/>
+  <circle cx="352" cy="282" r="10" fill="#ffffff"/>
+  <circle cx="40" cy="300" r="7" fill="#c4b5fd"/>
+</svg>
